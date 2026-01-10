@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Vital Screening | Hospital System</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background-color: #f9fafb;
+    }
+  </style>
+  <script src="config.js">
+  </script>
+</head>
+
+<body class="min-h-screen">
+
+<!-- ================= HEADER ================= -->
+<header class="bg-white border-b px-8 py-4">
+  <h1 class="text-xl font-semibold text-gray-800">
+    Vital Screening
+  </h1>
+  <p class="text-sm text-gray-500">
+    Clinical Data Collection
+  </p>
+</header>
+
+<!-- ================= MAIN ================= -->
+<main class="max-w-6xl mx-auto px-8 py-8 space-y-6">
+
+  <!-- ===== Patient Info Card ===== -->
+<section class="bg-white border rounded-xl p-6 shadow-sm">
+  <div class="flex flex-col gap-6">
+
+    <!-- ===== Top Row: Name & Demographics ===== -->
+    <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+
+      <!-- Left: Patient Name -->
+      <div class="max-w-full">
+        <h2
+          id="patient-name"
+          class="text-xl font-semibold text-gray-800 leading-snug break-words"
+        >
+          —
+        </h2>
+        <p
+          id="patient-meta"
+          class="text-sm text-gray-500 mt-1 whitespace-nowrap"
+        >
+          —
+        </p>
+      </div>
+
+      <!-- Right: Appointment Badge -->
+      <div
+        id="visit-type"
+        class="inline-flex items-center px-3 py-1 rounded-full
+               bg-blue-50 text-blue-700 text-sm font-medium
+               self-start sm:self-center whitespace-nowrap"
+      >
+        —
+      </div>
+    </div>
+
+    <!-- ===== Meta Grid ===== -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+
+      <div class="min-w-0">
+        <p class="text-gray-500">Patient ID</p>
+        <p
+          id="patient-id"
+          class="font-medium text-gray-800 truncate"
+          title=""
+        >
+          —
+        </p>
+      </div>
+
+      <div class="min-w-0">
+        <p class="text-gray-500">Date</p>
+        <p
+          id="visit-date"
+          class="font-medium text-gray-800 whitespace-nowrap"
+        >
+          —
+        </p>
+      </div>
+
+      <div class="min-w-0">
+        <p class="text-gray-500">Time</p>
+        <p
+          id="visit-time"
+          class="font-medium text-gray-800 whitespace-nowrap"
+        >
+          —
+        </p>
+      </div>
+
+      <div class="min-w-0">
+        <p class="text-gray-500">Chief Complaint</p>
+        <p
+          id="chief-complaint"
+          class="font-medium text-gray-800 truncate"
+          title=""
+        >
+          —
+        </p>
+      </div>
+
+    </div>
+
+  </div>
+</section>
+
+  <!-- ===== Info Bar ===== -->
+  <div class="p-4 rounded-lg bg-blue-50 border border-blue-100 text-blue-700 text-sm">
+    Please record patient vitals carefully before clinical evaluation.
+  </div>
+
+  <!-- ================= FORM ================= -->
+  <form id="vital-form" class="bg-white p-8 rounded-xl border shadow-sm">
+
+    <div id="vital-fields" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <!-- Dynamic fields injected here -->
+    </div>
+
+    <div class="flex justify-end gap-4 pt-8 mt-8 border-t">
+      <button type="reset"
+        class="px-6 py-2 rounded-lg border text-gray-600 hover:bg-gray-50">
+        Reset
+      </button>
+
+      <button type="submit"
+        class="px-8 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700">
+        Save Vitals
+      </button>
+    </div>
+
+  </form>
+
+</main>
+
+<!-- ================= SCRIPT ================= -->
+<script>
+/* ================= INIT ================= */
+let currentAppointmentId = null;
+const API_BASE = window.APP_CONFIG.API_BASE_URL;
+
+
+document.addEventListener("DOMContentLoaded", async () => {
+  const { doctorId, patientId } = getIdsFromURL();
+
+  if (!doctorId || !patientId) {
+    alert("doctor_id or patient_id missing in URL");
+    return;
+  }
+
+  await Promise.all([
+    loadPatientHeader(patientId, doctorId),
+    loadDoctorScreeningFields(doctorId)
+  ]);
+});
+
+/* ================= URL PARAMS ================= */
+
+function getIdsFromURL() {
+  const params = new URLSearchParams(window.location.search);
+  return {
+    doctorId: params.get("doctor_id"),
+    patientId: params.get("patient_id")
+  };
+}
+
+/* ================= PATIENT HEADER ================= */
+
+async function loadPatientHeader(patientId, doctorId) {
+  try {
+    const res = await fetch(
+      `${API_BASE}/hms/users/data/patient_basic_screening_details/${patientId}/${doctorId}`
+    );
+
+    if (!res.ok) throw new Error("Failed to fetch patient details");
+
+    const result = await res.json();
+    console.log("✅ Patient Header Data:", result);
+
+    const demo = result.data.demographics;
+    const appt = result.data.today_latest_appointment;
+    currentAppointmentId = appt?.appointment_id || null;
+
+
+    document.getElementById("patient-name").textContent = demo.name;
+    document.getElementById("patient-id").textContent = demo.patient_id;
+
+    document.getElementById("patient-meta").textContent =
+      `${calculateAge(demo.date_of_birth)} yrs • ${demo.gender}`;
+
+    document.getElementById("visit-type").textContent = appt.visit_type;
+    document.getElementById("visit-date").textContent = appt.date;
+    document.getElementById("visit-time").textContent = appt.scheduled_time;
+    document.getElementById("chief-complaint").textContent = appt.chief_complaint;
+
+
+  } catch (err) {
+    console.error("❌ Error loading patient header:", err);
+  }
+}
+
+/* ================= SCREENING CONFIG ================= */
+
+async function loadDoctorScreeningFields(doctorId) {
+  try {
+    const res = await fetch(
+      `${API_BASE}/hms/users/orchestration/doctor_screening_features/${doctorId}`
+    );
+
+    if (!res.ok) throw new Error("Failed to fetch screening config");
+
+    const data = await res.json();
+    console.log("✅ Screening Config:", data);
+
+    const screeningFeature = data.features?.find(
+      f => f.feature_id === "screening-section" && f.enabled
+    );
+
+    if (!screeningFeature?.screening_section?.fields) return;
+
+    renderVitalFields(screeningFeature.screening_section.fields);
+
+  } catch (err) {
+    console.error("❌ Error loading screening fields:", err);
+  }
+}
+
+/* ================= RENDER FIELDS ================= */
+
+function renderVitalFields(fields) {
+  const container = document.getElementById("vital-fields");
+  container.innerHTML = "";
+
+  fields.forEach(name => {
+    const id = normalizeFieldName(name);
+
+    container.insertAdjacentHTML("beforeend", `
+      <div class="flex flex-col">
+        <label class="text-sm font-medium text-gray-700 mb-1">${name}</label>
+        <input type="text" name="${id}"
+          placeholder="Enter ${name.toLowerCase()}"
+          class="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"/>
+      </div>
+    `);
+  });
+}
+
+/* ================= HELPERS ================= */
+
+function normalizeFieldName(name) {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+}
+
+function calculateAge(dob) {
+  const birth = new Date(dob);
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const m = today.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+  return age;
+}
+
+/* ================= SUBMIT ================= */
+
+document.getElementById("vital-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const doctorId = urlParams.get("doctor_id");
+  const patientId = urlParams.get("patient_id");
+
+  if (!doctorId || !patientId) {
+    alert("doctor_id or patient_id missing in URL");
+    return;
+  }
+
+  const formData = new FormData(e.target);
+  const entries = Object.fromEntries(formData.entries());
+
+  const timestamp = new Date().toISOString();
+
+ if (!currentAppointmentId) {
+  alert("Appointment ID not found");
+  return;
+}
+
+const payload = {
+  sys_user_id: patientId,
+  appointment_id: currentAppointmentId,
+  vitals: {
+    [timestamp]: {
+      doctor_id: doctorId,
+      appointment_id: currentAppointmentId,
+      ...entries
+    }
+  }
+};
+
+
+  console.log("📤 Sending Vital Payload:", payload);
+
+  try {
+    const response = await fetch(
+      `${API_BASE}/hms/users/data/save_patient_vitals`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || "Failed to save vitals");
+    }
+
+    const result = await response.json();
+    console.log("✅ Vitals Saved:", result);
+
+    alert("Vitals saved successfully");
+
+  } catch (error) {
+    console.error("❌ Error saving vitals:", error);
+    alert("Failed to save vitals. Please try again.");
+  }
+});
+</script>
+
+</body>
+</html>

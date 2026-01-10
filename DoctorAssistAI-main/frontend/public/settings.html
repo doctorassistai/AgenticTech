@@ -1,0 +1,2053 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Healthcare Workflow Engine</title>
+    <link rel="shortcut icon" href="../../../static/HMS_assets/images/logo.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Source+Serif+Pro:wght@400;600&display=swap" rel="stylesheet">
+    <script src="config.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            overflow: hidden;
+        }
+        .serif-title {
+            font-family: 'Source Serif Pro', serif;
+        }
+        .sidebar-transition {
+            transition: all 0.3s ease-in-out;
+        }
+        .rotate-90 {
+            transform: rotate(90deg);
+        }
+        .rotate-0 {
+            transform: rotate(0deg);
+        }
+        .node-active {
+            background-color: rgba(59, 130, 246, 0.05);
+        }
+        .config-card-enter {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .pulse-subtle {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
+        }
+        .scrollbar-thin {
+            scrollbar-width: thin;
+            scrollbar-color: #cbd5e1 #f1f5f9;
+        }
+        .scrollbar-thin::-webkit-scrollbar {
+            width: 6px;
+        }
+        .scrollbar-thin::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 3px;
+        }
+        .scrollbar-thin::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+    <!-- Fixed Top Navigation Bar -->
+    <nav class="fixed top-0 left-0 right-0 h-16 bg-white border-b border-gray-200 shadow-sm z-50 flex items-center justify-between px-4">
+        <!-- Left side: Hamburger menu and title -->
+        <div class="flex items-center space-x-4">
+            <button id="sidebar-toggle" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
+                <i class="fas fa-bars text-gray-700"></i>
+            </button>
+            
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 bg-gray-900 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-stream text-white"></i>
+                </div>
+                <h1 class="serif-title text-2xl font-semibold text-gray-900">Workflow Engine</h1>
+            </div>
+        </div>
+        
+        <!-- Right side: Active nodes badge -->
+        <div class="flex items-center">
+            <div id="active-badge" class="px-4 py-2 bg-blue-50 text-blue-700 rounded-full border border-blue-100 font-medium">
+                <span id="active-count">6</span> active
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Main Container -->
+    <div class="flex pt-16">
+        <!-- Left Sidebar -->
+        <aside id="sidebar" class="sidebar-transition h-[calc(100vh-64px)] bg-white border-r border-gray-200 overflow-y-auto scrollbar-thin w-80">
+            <div class="p-6">
+                <h2 class="text-lg font-semibold text-gray-800 mb-6">Node Categories</h2>
+                
+                <!-- Categories Container -->
+                <div id="categories-container" class="space-y-2">
+                    <!-- Category items will be populated here by JavaScript -->
+                </div>
+            </div>
+        </aside>
+        
+        <!-- Main Content Area -->
+        <main id="main-content" class="flex-1 h-[calc(100vh-64px)] overflow-y-auto scrollbar-thin p-8">
+            <!-- Empty State (shown by default) -->
+            <div id="empty-state" class="flex flex-col items-center justify-center h-full">
+                <div class="w-24 h-24 border-2 border-gray-300 rounded-2xl flex items-center justify-center mb-8">
+                    <i class="fas fa-sliders-h text-gray-400 text-4xl"></i>
+                </div>
+                <h2 class="serif-title text-3xl font-semibold text-gray-800 mb-4">Select a Node</h2>
+                <p class="text-gray-600 text-lg mb-8 max-w-md text-center">
+                    Enable and select a workflow node from the sidebar to configure its behavior and properties.
+                </p>
+                <div class="flex space-x-2 pulse-subtle">
+                    <div class="w-3 h-3 bg-blue-400 rounded-full"></div>
+                    <div class="w-3 h-3 bg-blue-400 rounded-full"></div>
+                    <div class="w-3 h-3 bg-blue-400 rounded-full"></div>
+                </div>
+            </div>
+            
+            <!-- Configuration Panel (hidden by default) -->
+            <div id="config-panel" class="hidden">
+                <!-- Content will be populated dynamically by JavaScript -->
+            </div>
+        </main>
+    </div>
+    
+    <!-- JavaScript -->
+    <script>
+        const API_BASE = window.APP_CONFIG.API_BASE_URL;
+
+        function showOutputCategoriesSection(apiResponse) {
+    const categories =
+    apiResponse?.feature_output_categories?.possible_output_categories || [];
+
+
+    
+    if (categories.length === 0) {
+        console.log("No output categories found in response");
+        return;
+    }
+    
+    // Find or create the output categories section
+    let section = document.getElementById("output-categories-section");
+    let container = document.getElementById("output-categories-container");
+    
+    // If section doesn't exist, create it
+    if (!section) {
+        // Create the section HTML
+        const form = document.querySelector('.px-8.py-8');
+        if (!form) return;
+        
+        // Insert before the action buttons
+        const actionButtons = form.querySelector('.flex.justify-end.space-x-4.pt-6.border-t');
+        if (actionButtons) {
+            const newSectionHTML = `
+                <div id="output-categories-section" class="mb-8">
+                    <label class="block text-sm font-medium text-gray-700 mb-3">
+                        Select Output Categories for Testing
+                    </label>
+                    <div id="output-categories-container" class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        <!-- Categories will be populated here -->
+                    </div>
+                    <p class="text-gray-500 text-sm mt-2">
+                        Select which outputs this feature is allowed to generate for this doctor.
+                    </p>
+                </div>
+            `;
+            
+            actionButtons.insertAdjacentHTML('beforebegin', newSectionHTML);
+            
+            // Update references
+            section = document.getElementById("output-categories-section");
+            container = document.getElementById("output-categories-container");
+        }
+    }
+    
+    if (!section || !container) return;
+    
+    // Clear existing content
+    container.innerHTML = '';
+    
+    // Populate with categories from API
+    categories.forEach(cat => {
+    const sectionId = cat.section_id;
+    const sectionName = cat.section_name;
+    const id = `output-${sectionId}`;
+
+    container.insertAdjacentHTML(
+        "beforeend",
+        `
+        <div class="flex items-center">
+            <input
+                type="checkbox"
+                id="${id}"
+                name="output_categories"
+                value="${sectionId}"
+                class="h-5 w-5 text-blue-600 rounded border-gray-300"
+            />
+            <label for="${id}" class="ml-3 text-gray-700">
+                ${sectionName}
+            </label>
+        </div>
+        `
+    );
+});
+
+
+    
+    // Show the section
+    section.classList.remove("hidden");
+    section.classList.add("animate-fadeIn");
+    
+    console.log(`Displayed ${categories.length} output categories`);
+}
+       async function getFeatureConfiguration(doctorId, featureId) {
+    try {
+        const res = await fetch(
+            `${API_BASE}/hms/users/orchestration/get-doctor-features/${doctorId}`
+        );
+
+        if (!res.ok) throw new Error("Failed to fetch feature configurations");
+        
+        const data = await res.json();
+        
+        // Skip screening-section from this endpoint - it uses different data
+        if (featureId === 'screening-section') {
+            console.log(`⚠️ Screening section uses different endpoint`);
+            return null;
+        }
+        
+        // Find the specific feature configuration
+        const featureConfig = data.features?.find(f => f.feature_id === featureId);
+        
+        if (featureConfig) {
+            console.log(`✅ Found config for ${featureId}:`, featureConfig);
+            return featureConfig;
+        }
+        
+        console.log(`⚠️ No config found for ${featureId}`);
+        return null;
+        
+    } catch (error) {
+        console.error("❌ Error fetching feature configuration:", error);
+        return null;
+    }
+}
+        // Application State
+        const state = {
+            sidebarOpen: true,
+            activeCategory: null,
+            configuredFeature: null,
+            activeFeatures: new Set([]),
+            featureTemplates: [],
+            doctorSpeciality: null,
+            categories: [
+                {
+                    id: 'screening-data',
+                    name: 'Screening Data Nodes',
+                    icon: 'fas fa-user-alt',
+                    enabledCount: 0,
+                    expanded: false,
+                    features: [
+                        { id: 'screening-section', name: 'Screening Data Form', icon: 'fas fa-id-card', configured: false, enabled: false }
+                    ]
+                },
+                {
+                    id: 'patient-data',
+                    name: 'Patient Data Nodes',
+                    icon: 'fas fa-user-injured',
+                    enabledCount: 0,
+                    expanded: false,
+                    features: [
+                        { id: 'patient-profile', name: 'Patient Profile Retriever', icon: 'fas fa-id-card', configured: false, enabled: false }
+                    ]
+                },
+                {
+                    id: 'clinical-decision',
+                    name: 'Clinical Decision Nodes',
+                    icon: 'fas fa-stethoscope',
+                    enabledCount: 0,
+                    expanded: false,
+                    features: [
+                        { id: 'treatment-planning-and-protocol', name: 'Treatment Planning and Protocol', icon: 'fas fa-exclamation-triangle', configured: false, enabled: false },
+                        { id: 'treatment-response-assessment', name: 'Treatment Response Assessment', icon: 'fas fa-exclamation-circle', configured: false, enabled: false },
+                        { id: 'comprehensive-tumor-profiling', name: 'Next Generation Sequencing & Molecular Analysis - Comprehensive Tumor Profiling', icon: 'fas fa-dna', configured: false, enabled: false },
+                        { id: 'targeted-gene-panel', name: 'Next Generation Sequencing & Molecular Analysis - Targeted Gene Panel', icon: 'fas fa-project-diagram', configured: false, enabled: false },
+                        { id: 'liquid-biopsy-analysis', name: 'Next Generation Sequencing & Molecular Analysis - Liquid Biopsy Analysis', icon: 'fas fa-tint', configured: false, enabled: false },
+                        { id: 'immunotherapy-biomarkers', name: 'Next Generation Sequencing & Molecular Analysis - Immunotherapy Biomarkers', icon: 'fas fa-shield-virus', configured: false, enabled: false },
+                        { id: 'hereditary-cancer-panel', name: 'Next Generation Sequencing & Molecular Analysis - Hereditary Cancer Panel', icon: 'fas fa-people-arrows', configured: false, enabled: false },
+                        { id: 'kdigo-care-compliance-checker', name: 'KDIGO Care Compliance Checker', icon: 'fas fa-clipboard-check', configured: false, enabled: false },
+                                                
+                    ]
+                },
+                {
+                    id: 'ai-intelligence',
+                    name: 'AI & Intelligence Nodes',
+                    icon: 'fas fa-brain',
+                    enabledCount: 0,
+                    expanded: false,
+                    features: [
+                        { id: 'decision-analytics', name: 'CDSS Engine', icon: 'fas fa-chart-line', configured: false, enabled: false },
+                        { id: 'pattern-detector', name: 'Pattern Detector', icon: 'fas fa-project-diagram', configured: false, enabled: false },
+                        { id: 'revascularization-strategy', name: 'Revascularization Strategy Prediction', icon: 'fas fa-heartbeat', configured: false, enabled: false},
+                        { id: 'corelation-analysis', name: 'Corelation Analysis', icon: 'fas fa-id-card', configured: false, enabled: false},
+                        { id: 'patient-data-summary', name: 'Patient Clinical Summary', icon: 'fas fa-file-lines', configured: false, enabled: false}                    ]
+                },
+                { 
+                    id: 'Clinical-Summary-Nodes',
+                    name: 'Clinical Summary Nodes',
+                    icon: 'fas fa-notes-medical',
+                    enabledCount: 0,
+                    expanded: false,
+                    features: [
+                        { id: 'Baseline-Diagnostics', name: 'Baseline Diagnostics', icon: 'fas fa-notes-medical', configured: false, enabled: false},
+                        { id: 'Histopathology-Incisional-Excisional-Biopsy', name: 'Histopathology - Incisional / Excisional Biopsy', icon: 'fas fa-notes-medical', configured: false, enabled: false},
+                        { id: 'Immunohistochemistry-IHC-Analysis', name: 'Immunohistochemistry (IHC) Analysis', icon: 'fas fa-notes-medical', configured: false, enabled: false},
+                        { id: 'Molecular-Diagnostics-Summary-Report', name: 'Molecular Diagnostics - Summary Report', icon: 'fas fa-notes-medical', configured: false, enabled: false},
+                        { id: 'Baseline-Radiology-RECIST-Evaluation', name: 'Baseline Radiology & RECIST Evaluation', icon: 'fas fa-notes-medical', configured: false, enabled: false},
+                        { id: 'Cytology-Biopsy', name: 'Cytology Biopsy', icon: 'fas fa-notes-medical', configured: false, enabled: false},
+                        { id: 'Response-Assessment-Follow-up', name: 'Response Assessment & Follow-up', icon: 'fas fa-notes-medical', configured: false, enabled: false},
+                        { id: 'Toxicity-Safety-Monitoring', name: 'Toxicity & Safety Monitoring', icon: 'fas fa-notes-medical', configured: false, enabled: false},
+                        { id: 'Molecular-Diagnostics-Targeted-Gene-Panels', name: 'Molecular Diagnostics- Targeted Gene Panels', icon: 'fas fa-notes-medical', configured: false, enabled: false}
+                    ]
+                },
+                {
+                    id: 'documentation',
+                    name: 'Documentation Nodes',
+                    icon: 'fas fa-file-medical',
+                    enabledCount: 0,
+                    expanded: false,
+                    features: [
+                        { id: 'documentation-treatment-plan', name: 'Treatment Plan Generator', icon: 'fas fa-clipboard-list', configured: false, enabled: false },
+                        { id: 'documentation-treatment-summary', name: 'Treatment Summary Generator', icon: 'fas fa-file-alt', configured: false, enabled: false },
+                        { id: 'documentation-medication-analysis', name: 'Medication Analysis', icon: 'fas fa-pills', configured: false, enabled: false },
+                        { id: 'documentation-investigation-notes', name: 'Investigation Orders Generator', icon: 'fas fa-microscope', configured: false, enabled: false },
+                        { id: 'documentation-clinical-notes', name: 'Clinical Notes Generator', icon: 'fas fa-stethoscope', configured: false, enabled: false }
+                    ]
+                }
+            ],
+            dataSources: {
+                selected: [],
+                all: ['Vitals', 'Lab Report', 'Radiology', 'Biopsy', 'Medications', 'Treatment Plan']
+            },
+            patientProfileFields: {
+                selected: [],
+                all: [
+                    { id: 'name', label: 'Patient Name' },
+                    { id: 'date_of_birth', label: 'Dob' },
+                    { id: 'phone_number', label: 'Phone Number' },
+                    { id: 'address', label: 'Address' },
+                    { id: 'gender', label: 'Gender' },
+                    { id: 'marital_status', label: 'Marital Status' },
+                    { id: 'hms_id', label: 'Medical Record Number' },
+                    { id: 'blood_group', label: 'Blood Group' }
+                ]
+            },
+            
+            labParameters: {
+                selected: [],
+                all: [
+                    'Hematology', 'Renal Function', 'Electrolytes', 'Liver Function', 
+                    'Diabetes Markers', 'Lipid Profile', 'Inflammatory Markers', 
+                    'Cardiac Markers', 'Thyroid Profile', 'Coagulation Tests', 
+                    'Infectious Markers', 'Urinalysis', 'Vitamin or Metabolic Markers'
+                ]
+            },
+            vitalsParameters: {
+                selected: [],
+                all: [
+                    'Basic Vitals', 'Anthropometrics', 'Respiratory Parameters', 
+                    'Neurological Scores', 'Cardiovascular Indicators', 
+                    'Intake and Output Metrics', 'Device-related Monitoring Fields'
+                ]
+            }
+        };
+
+        // DOM Elements
+        const sidebarToggle = document.getElementById('sidebar-toggle');
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('main-content');
+        const emptyState = document.getElementById('empty-state');
+        const configPanel = document.getElementById('config-panel');
+        const categoriesContainer = document.getElementById('categories-container');
+        const activeBadge = document.getElementById('active-badge');
+        const activeCount = document.getElementById('active-count');
+        // Feature visibility rules
+        const FEATURE_SPECIALITY_RULES = {
+            // 🔒 Cardiology-only features
+            "revascularization-strategy": ["cardiology"],
+
+                // Future examples
+            "comprehensive-tumor-profiling": ["oncology"],
+            "targeted-gene-panel": ["oncology"],
+            "liquid-biopsy-analysis": ["oncology"],
+            "immunotherapy-biomarkers": ["oncology"],
+            "hereditary-cancer-panel": ["oncology"],
+
+            "Baseline Diagnostics": ["oncology"],
+            "Histopathology - Incisional / Excisional Biopsy": ["oncology"],
+            "Immunohistochemistry (IHC) Analysis": ["oncology"],
+            "Molecular Diagnostics - Summary Report": ["oncology"],
+            "Baseline Radiology & RECIST Evaluation": ["oncology"],
+            "Cytology Biopsy":["oncology"],
+            "Response Assessment & Follow-up":["oncology"],
+            "Toxicity & Safety Monitoring":["oncology"],
+            "Molecular Diagnostics- Targeted Gene Panels":["oncology"],
+
+            "kdigo-care-compliance-checker": ["nephrology"],
+
+
+
+            // ✅ Common features → visible for ALL
+            "patient-profile": ["all"],
+            "screening-section": ["all"],
+            "pattern-detector": ["all"],
+            "decision-analytics": ["all"],
+            "documentation-treatment-plan": ["all"],
+            "documentation-treatment-summary": ["all"],
+            "documentation-medication-analysis": ["all"],
+            "documentation-investigation-notes": ["all"],
+            "documentation-clinical-notes": ["all"],
+            "patient-data-summary": ["all"],
+        };
+
+
+    async function fetchDoctorSpeciality(doctorId) {
+    try {
+        const res = await fetch(
+            `${API_BASE}/hms/users/doctors/get_doctor_speciality/${doctorId}`
+        );
+
+        if (!res.ok) throw new Error("Failed to fetch doctor speciality");
+
+        const data = await res.json();
+        return data.specialization?.toLowerCase() || null;
+
+    } catch (err) {
+        console.error("❌ Speciality fetch failed:", err);
+        return null;
+    }
+}
+
+    async function loadDoctorFeatures(doctorId) {
+    try {
+        const res = await fetch(
+            `${API_BASE}/hms/users/orchestration/doctor_screening_features/${doctorId}`
+        );
+
+        if (!res.ok) return [];
+
+        const data = await res.json();
+        return Array.isArray(data.features) ? data.features : [];
+
+    } catch (e) {
+        console.error("❌ Failed to load doctor features", e);
+        return [];
+    }
+}
+    // Initialize the UI
+// Update the init function
+// Update the init function to load patient profile data
+// async function init() {
+//     renderCategories();
+//     setupEventListeners();
+//     updateSidebar();
+
+//     const urlParams = new URLSearchParams(window.location.search);
+//     const doctorId = urlParams.get("doctor_id");
+//     if (!doctorId) return;
+
+//     // Load enabled features from the new endpoint
+//     const enabledFeatures = await loadEnabledFeatures(doctorId);
+    
+//     // Also load screening features (for backward compatibility)
+//     const savedFeatures = await loadDoctorFeatures(doctorId);
+    
+//     // Merge both responses to update UI state
+//     updateFeatureStates(enabledFeatures, savedFeatures);
+    
+//     updateActiveCount();
+//     renderCategories();
+// }
+
+
+async function init() {
+    renderCategories();
+    setupEventListeners();
+    updateSidebar();
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const doctorId = urlParams.get("doctor_id");
+    if (!doctorId) return;
+
+    // ✅ Fetch specialization FIRST
+    state.doctorSpeciality = await fetchDoctorSpeciality(doctorId);
+    console.log("Doctor speciality:", state.doctorSpeciality);
+
+    // Existing logic
+    const enabledFeatures = await loadEnabledFeatures(doctorId);
+    const savedFeatures = await loadDoctorFeatures(doctorId);
+    const patientProfileConfig = await loadPatientProfileConfig(doctorId);
+
+    updateFeatureStates(
+        enabledFeatures,
+        savedFeatures,
+        patientProfileConfig // ✅ THIS WAS MISSING
+    );
+
+    updateActiveCount();
+    renderCategories(); // re-render after speciality is known
+}
+
+
+
+
+// 2. Add new function to load enabled features
+async function loadEnabledFeatures(doctorId) {
+    try {
+        const res = await fetch(
+            `${API_BASE}/hms/users/orchestration/get-doctor-features/${doctorId}`
+        );
+
+        if (!res.ok) {
+            console.warn("Could not load doctor features");
+            return [];
+        }
+
+        const data = await res.json();
+
+        // ✅ IMPORTANT: only return features where enabled === true
+        return (data.features || []).filter(f => f.enabled === true);
+
+    } catch (e) {
+        console.error("❌ Failed to load features", e);
+        return [];
+    }
+}
+
+// Add function to load patient profile configuration
+async function loadPatientProfileConfig(doctorId) {
+    try {
+        const res = await fetch(
+            `${API_BASE}/hms/users/orchestration/doctor_patient_features/${doctorId}`
+        );
+
+        if (!res.ok) {
+            console.warn("Could not load patient profile configuration");
+            return [];
+        }
+
+        const data = await res.json();
+        console.log("Patient profile API response:", data);
+        
+        // Find the patient-profile feature
+        const patientProfile = data.features?.find(f => f.feature_id === 'patient-profile');
+        return patientProfile || null;
+
+    } catch (e) {
+        console.error("❌ Failed to load patient profile configuration", e);
+        return null;
+    }
+}
+// 3. Add function to update feature states based on enabled features
+// 3. Update function to handle patient profile configuration
+function updateFeatureStates(enabledFeatures = [], configuredFeatures = [], patientProfileConfig = null) {
+    // Reset all features first
+    state.categories.forEach(category => {
+        category.features.forEach(feature => {
+            feature.enabled = false;
+            feature.configured = false;
+            state.activeFeatures.delete(feature.id);
+        });
+        category.enabledCount = 0; // Reset count
+    });
+
+    // ✅ Process ALL enabled features (INCLUDING screening)
+state.categories.forEach(category => {
+    category.features.forEach(feature => {
+        const isEnabled = enabledFeatures.some(
+            ef => ef.feature_id === feature.id
+        );
+
+        feature.enabled = isEnabled;
+
+        if (isEnabled) {
+            state.activeFeatures.add(feature.id);
+        } else {
+            state.activeFeatures.delete(feature.id);
+        }
+    });
+});
+
+
+    // Process configured features (excluding screening since it has separate config)
+    configuredFeatures.forEach(configFeature => {
+        // ✅ Keep screening excluded from standard config processing
+        if (configFeature.feature_id === 'screening-section') return;
+        
+        state.categories.forEach(category => {
+            category.features.forEach(feature => {
+                if (feature.id === configFeature.feature_id && configFeature.configured === true) {
+                    feature.configured = true;
+                    
+                    // Update display name if different from default
+                    if (configFeature.feature_name && configFeature.feature_name !== feature.name) {
+                        feature.name = configFeature.feature_name;
+                    }
+                }
+            });
+        });
+    });
+
+    // ✅ Process patient profile configuration if available
+    if (patientProfileConfig) {
+        console.log("Processing patient profile config:", patientProfileConfig);
+        
+        state.categories.forEach(category => {
+            category.features.forEach(feature => {
+                if (feature.id === 'patient-profile') {
+                    // Set enabled and configured based on API response
+                    feature.enabled = patientProfileConfig.enabled || false;
+                    feature.configured = patientProfileConfig.configured || false;
+                    
+                    // Update display name
+                    if (patientProfileConfig.feature_name) {
+                        feature.name = patientProfileConfig.feature_name;
+                    }
+                    
+                    // Update active features set
+                    if (feature.enabled) {
+                        state.activeFeatures.add('patient-profile');
+                    } else {
+                        state.activeFeatures.delete('patient-profile');
+                    }
+                    
+                    // Update selected fields in state
+                    const selectedFields = patientProfileConfig.patient_profile?.fields || [];
+                    state.patientProfileFields.selected = selectedFields;
+                    
+                    console.log("Updated patient profile:", {
+                        enabled: feature.enabled,
+                        configured: feature.configured,
+                        selectedFields: selectedFields
+                    });
+                }
+            });
+        });
+    }
+
+    // ✅ Update enabled counts for ALL categories
+    state.categories.forEach(category => {
+        category.enabledCount = category.features.filter(f => f.enabled).length;
+    });
+}
+        // Set up event listeners
+        function setupEventListeners() {
+            sidebarToggle.addEventListener('click', toggleSidebar);
+            
+            // Close config when clicking outside (for demo purposes)
+            document.addEventListener('click', (e) => {
+                if (e.target.id === 'close-config' || e.target.closest('#close-config')) {
+                    closeConfig();
+                }
+            });
+        }
+
+        // Toggle sidebar visibility
+        function toggleSidebar() {
+            state.sidebarOpen = !state.sidebarOpen;
+            updateSidebar();
+        }
+
+        // Update sidebar UI
+        function updateSidebar() {
+            if (state.sidebarOpen) {
+                sidebar.classList.remove('w-0', 'invisible');
+                sidebar.classList.add('w-80');
+                mainContent.classList.remove('ml-0');
+                mainContent.classList.add('ml-0');
+            } else {
+                sidebar.classList.remove('w-80');
+                sidebar.classList.add('w-0', 'invisible');
+                mainContent.classList.remove('ml-0');
+                mainContent.classList.add('ml-0');
+            }
+        }
+
+        // Update active node count
+        function updateActiveCount() {
+            const count = state.activeFeatures.size;
+            activeCount.textContent = count;
+            
+            // Update badge color based on count
+            if (count === 0) {
+                activeBadge.className = 'px-4 py-2 bg-gray-100 text-gray-700 rounded-full border border-gray-200 font-medium';
+            } else if (count < 5) {
+                activeBadge.className = 'px-4 py-2 bg-blue-50 text-blue-700 rounded-full border border-blue-100 font-medium';
+            } else {
+                activeBadge.className = 'px-4 py-2 bg-green-50 text-green-700 rounded-full border border-green-100 font-medium';
+            }
+        }
+        function isFeatureAllowedForDoctor(featureId) {
+            const allowedSpecialities = FEATURE_SPECIALITY_RULES[featureId];
+
+            // ✅ If no rule → common feature
+            if (!allowedSpecialities) return true;
+
+            // ✅ Explicitly common
+            if (allowedSpecialities.includes("all")) return true;
+
+            // ❌ No speciality info yet → hide restricted features
+            if (!state.doctorSpeciality) return false;
+
+            // ✅ Match doctor speciality
+            return allowedSpecialities.includes(state.doctorSpeciality);
+        }
+
+        // Render all categories and features
+        function renderCategories() {
+            categoriesContainer.innerHTML = '';
+            
+            state.categories.forEach(category => {
+                const categoryElement = document.createElement('div');
+                categoryElement.className = 'rounded-lg border border-gray-200 overflow-hidden';
+                
+                // Category header
+                const header = document.createElement('div');
+                header.className = `p-4 flex items-center justify-between cursor-pointer hover:bg-gray-50 ${category.expanded ? 'bg-gray-50' : ''}`;
+                header.addEventListener('click', () => toggleCategory(category.id));
+                
+                header.innerHTML = `
+                    <div class="flex items-center space-x-3">
+                        <i class="fas fa-chevron-right text-gray-500 text-xs chevron ${category.expanded ? 'rotate-90' : ''}"></i>
+                        <i class="${category.icon} text-gray-700"></i>
+                        <span class="font-medium text-gray-800">${category.name}</span>
+                    </div>
+                    <div class="px-3 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
+                        ${category.enabledCount} enabled
+                    </div>
+                `;
+                
+                categoryElement.appendChild(header);
+                
+                // Features list (collapsible)
+                const featuresContainer = document.createElement('div');
+                featuresContainer.className = `border-t border-gray-100 ${category.expanded ? '' : 'hidden'}`;
+                
+                category.features
+                .filter(feature => isFeatureAllowedForDoctor(feature.id))
+                .forEach(feature => {
+
+                    const featureElement = document.createElement('div');
+                    featureElement.className = `p-4 flex items-center justify-between border-b border-gray-50 last:border-b-0 ${feature.enabled ? 'node-active' : ''} ${state.configuredFeature === feature.id ? 'bg-blue-50' : ''}`;
+                    
+                    featureElement.innerHTML = `
+                        <div class="flex items-center space-x-3">
+                            <i class="${feature.icon} text-gray-600"></i>
+                            <div>
+                                <div class="font-medium text-gray-800">${feature.name}</div>
+                                ${feature.configured ? '<div class="text-xs text-green-600 flex items-center"><i class="fas fa-check-circle mr-1"></i> Configured</div>' : ''}
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            ${feature.configured ? '<i class="fas fa-edit text-gray-400 cursor-pointer hover:text-blue-500"></i>' : ''}
+                            <div class="relative">
+                                <input type="checkbox" ${feature.enabled ? 'checked' : ''} class="sr-only feature-toggle" data-feature-id="${feature.id}" data-category-id="${category.id}">
+                                <div class="toggle-bg w-12 h-6 rounded-full ${feature.enabled ? 'bg-blue-500' : 'bg-gray-300'}"></div>
+                                <div class="toggle-circle absolute left-1 top-1 w-4 h-4 rounded-full bg-white transition-transform ${feature.enabled ? 'transform translate-x-6' : ''}"></div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Add event listeners to feature row
+                    const toggleCheckbox = featureElement.querySelector('.feature-toggle');
+                    const toggleBg = featureElement.querySelector('.toggle-bg');
+                    const toggleCircle = featureElement.querySelector('.toggle-circle');
+                    
+                    toggleCheckbox.addEventListener('change', () => toggleFeature(feature.id, category.id));
+                    
+                    // Also make the toggle area clickable
+                    toggleBg.addEventListener('click', () => {
+                        toggleCheckbox.checked = !toggleCheckbox.checked;
+                        toggleCheckbox.dispatchEvent(new Event('change'));
+                    });
+                    
+                    toggleCircle.addEventListener('click', () => {
+                        toggleCheckbox.checked = !toggleCheckbox.checked;
+                        toggleCheckbox.dispatchEvent(new Event('change'));
+                    });
+                    
+                    // If enabled, make the entire row clickable to configure
+                    if (feature.enabled) {
+                        featureElement.style.cursor = 'pointer';
+                        featureElement.addEventListener('click', (e) => {
+                            if (
+                                e.target.closest('input') ||
+                                e.target.closest('button') ||
+                                e.target.closest('.toggle-bg') ||
+                                e.target.closest('.toggle-circle')
+                            ) return;
+
+                            openConfig(feature.id, category.id);
+                        });
+                    }
+                    
+                    featuresContainer.appendChild(featureElement);
+                });
+                
+                categoryElement.appendChild(featuresContainer);
+                categoriesContainer.appendChild(categoryElement);
+            });
+        }
+
+        // Toggle category expansion
+        function toggleCategory(categoryId) {
+            const category = state.categories.find(c => c.id === categoryId);
+            if (category) {
+                category.expanded = !category.expanded;
+                renderCategories();
+            }
+        }
+
+        // Toggle feature on/off
+      function toggleFeature(featureId, categoryId) {
+    const category = state.categories.find(c => c.id === categoryId);
+    const feature = category.features.find(f => f.id === featureId);
+    if (!feature) return;
+
+    feature.enabled = !feature.enabled;
+
+    // ✅ PATIENT PROFILE → use patient collection
+    if (feature.id === "patient-profile") {
+        if (feature.enabled) {
+            persistPatientEnable(feature);
+            openConfig(featureId, categoryId);
+        } else {
+            persistPatientDisable(feature);
+        }
+    }
+    // ✅ ALL OTHER FEATURES → existing logic
+    else {
+        if (feature.enabled) {
+            persistEnable(feature, category);
+            openConfig(featureId, categoryId);
+        } else {
+            persistDisable(feature, category);
+        }
+    }
+
+    category.enabledCount = category.features.filter(f => f.enabled).length;
+    updateActiveCount();
+    renderCategories();
+}
+
+
+        // Open configuration panel for a feature
+        // Update the openConfig function
+async function openConfig(featureId, categoryId) {
+    const category = state.categories.find(c => c.id === categoryId);
+    const feature = category.features.find(f => f.id === featureId);
+    
+    if (!feature || !feature.enabled) return;
+    
+    // Set as configured feature
+    state.configuredFeature = featureId;
+    
+    // Hide empty state, show config panel
+    emptyState.classList.add('hidden');
+    configPanel.classList.remove('hidden');
+    configPanel.classList.add('config-card-enter');
+    
+    // Get doctor ID from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const doctorId = urlParams.get("doctor_id");
+    
+    let featureConfig = null;
+    
+    // Load configuration for specific feature types
+    if (doctorId) {
+        if (featureId === 'screening-section') {
+            // Screening uses different endpoint
+            featureConfig = await getSavedScreeningFeature(doctorId);
+        } else if (featureId === 'patient-profile') {
+            // Patient profile uses its own endpoint
+            featureConfig = await loadPatientProfileConfig(doctorId);
+        } else {
+            // Other features use general endpoint
+            featureConfig = await getFeatureConfiguration(doctorId, featureId);
+        }
+    }
+    
+    await renderConfigForm(feature, category, featureConfig);
+    
+    // Update UI to reflect this feature is being configured
+    renderCategories();
+}
+
+        // Close configuration panel
+        function closeConfig() {
+            state.configuredFeature = null;
+            emptyState.classList.remove('hidden');
+            configPanel.classList.add('hidden');
+            renderCategories();
+        }
+        async function getScreeningFields(doctorId) {
+            try {
+                const response = await fetch(
+                    `${API_BASE}/hms/users/orchestration/speciality-vital-selection`,
+                    {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ doctor_id: doctorId })
+                    }
+                );
+
+                if (!response.ok) throw new Error("Failed to fetch screening fields");
+
+                const result = await response.json();
+                console.log("data from vitals:",result)
+                return {
+                    important: result?.vital_selection?.important_vitals || [],
+                    optional: result?.vital_selection?.optional_vitals || []
+                };
+
+            } catch (error) {
+                console.error("❌ Error fetching screening fields:", error);
+                return { important: [], optional: [] };
+            }
+        }
+        async function fetchFeatureTemplates({ doctorId, category, feature }) {
+            try {
+                const payload = {
+                    doctor_id: doctorId,
+                    feature: feature
+                }
+                console.log("data to the templates:",payload)
+                const res = await fetch(
+                    `${API_BASE}/hms/users/orchestration/feature-analysis-templates`,
+                    {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(payload)
+                    }
+                );
+
+                if (!res.ok) throw new Error("Context fetch failed");
+
+                data = await res.json();
+                console.log("data from the templates:",data)
+
+                // return await res.json();
+                return data;
+
+            } catch (err) {
+                console.error("❌ Feature context fetch failed", err);
+                return null;
+            }
+        }
+
+        // Render configuration form based on feature
+        // Update renderConfigForm to accept configuration data
+async function renderConfigForm(feature, category, featureConfig = null) {
+    const urlParams = new URLSearchParams(window.location.search);
+    const doctorId = urlParams.get("doctor_id");
+
+    let formHTML = "";
+
+    if (feature.id === 'screening-section') {
+        // Screening uses its own logic (already implemented)
+        formHTML = renderScreeningFieldConfig(feature, category);
+    }
+    else if (feature.id === 'patient-profile') {
+        formHTML = renderPatientProfileForm(feature, category, featureConfig);
+    }
+    else {
+        // Fetch templates for non-screening features
+        const backendtemplates = await fetchFeatureTemplates({
+            doctorId,
+            feature,
+            category
+        });
+        
+        state.featureTemplates = backendtemplates?.analysis_templates?.templates || [];
+        
+        // Pass featureConfig to the form
+        formHTML = renderStandardForm(
+            feature,
+            category,
+            state.featureTemplates,
+            featureConfig
+        );
+    }
+
+    configPanel.innerHTML = formHTML;
+    setupConfigFormListeners(feature, category, featureConfig);
+    
+    // Only attach template handlers for non-screening features
+    if (feature.id !== 'screening-section') {
+        attachTemplateHandlers();
+    }
+}
+        function attachTemplateHandlers() {
+            document.querySelectorAll(".analysis-template-btn").forEach(btn => {
+                btn.addEventListener("click", () => {
+                    const templateName = btn.dataset.templateName;
+                    const prompt = decodeURIComponent(btn.dataset.templatePrompt);
+
+                    // ✅ Update heading
+                    const heading = document.getElementById("rules-heading");
+                    if (heading) {
+                        heading.textContent = `Rules for Analysis – ${templateName}`;
+                    }
+
+                    // ✅ Populate textarea
+                    const textarea = document.getElementById("rules-textarea");
+                    if (textarea) {
+                        textarea.value = prompt;
+                    }
+
+                    // ✅ Visual feedback
+                    document
+                        .querySelectorAll(".analysis-template-btn")
+                        .forEach(b => b.classList.remove("border-blue-500", "bg-blue-50"));
+
+                    btn.classList.add("border-blue-500", "bg-blue-50");
+                });
+            });
+        }
+
+        function populateImportantVitalsAsFields(vitals = []) {
+            const container = document.getElementById("screening-fields");
+            if (!container) return;
+
+            vitals.forEach(vital => {
+                const exists = Array.from(container.querySelectorAll("input"))
+                    .some(i => i.value.trim() === vital);
+
+                if (!exists) {
+                    container.insertAdjacentHTML(
+                        "beforeend",
+                        screeningFieldRow(vital)
+                    );
+                }
+            });
+        }
+
+        function renderOptionalVitalChips(vitals = []) {
+            const chipContainer = document.getElementById("optional-vital-chips");
+            if (!chipContainer) return;
+
+            chipContainer.innerHTML = "";
+
+            vitals.forEach(vital => {
+                chipContainer.insertAdjacentHTML(
+                    "beforeend",
+                    `
+                    <span
+                        class="px-3 py-1 bg-gray-100 rounded-full text-sm cursor-pointer hover:bg-blue-100"
+                        data-vital="${vital}"
+                    >
+                        + ${vital}
+                    </span>
+                    `
+                );
+            });
+
+            chipContainer.querySelectorAll("span").forEach(chip => {
+                chip.addEventListener("click", () => {
+                    addScreeningFieldFromChip(chip.dataset.vital);
+                });
+            });
+        }
+
+        function addScreeningFieldFromChip(value) {
+            const container = document.getElementById("screening-fields");
+
+            const exists = Array.from(container.querySelectorAll("input"))
+                .some(i => i.value.trim() === value);
+
+            if (exists) return;
+
+            container.insertAdjacentHTML(
+                "beforeend",
+                screeningFieldRow(value)
+            );
+        }
+
+        function renderScreeningFieldConfig(feature, category) {
+            return `
+                <div class="max-w-4xl mx-auto">
+                    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm">
+
+                        <!-- Header -->
+                        <div class="px-8 py-6 border-b flex justify-between items-center">
+                            <div>
+                                <h2 class="serif-title text-2xl font-semibold">
+                                    Screening Form Fields
+                                </h2>
+                                <p class="text-gray-600">
+                                    Define fields to be collected in the screening form
+                                </p>
+                            </div>
+                            <button id="close-config" class="w-10 h-10 rounded-full hover:bg-gray-100">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+
+                        <!-- Fields -->
+                        <div class="px-8 py-8">
+                            <div id="screening-fields" class="space-y-3">
+                            
+                                <!-- dynamic rows -->
+                            </div>
+                            <div id="optional-vital-chips" class="flex flex-wrap gap-2 mt-4"></div>
+
+                            <button id="add-screening-field"
+                                class="mt-4 px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200">
+                                <i class="fas fa-plus mr-2"></i>Add Field
+                            </button>
+                        </div>
+
+                        <!-- Footer -->
+                     <div class="px-8 py-6 border-t flex justify-end gap-4">
+                            <button id="cancel-config"
+                                class="px-6 py-3 border border-gray-300 rounded-xl">
+                                Cancel
+                            </button>
+                            <button id="save-config"
+                                class="px-6 py-3 bg-blue-600 text-white rounded-xl">
+                                Save Fields
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        function screeningFieldRow(value = "") {
+            return `
+                <div class="flex items-center gap-3">
+                    <input
+                        type="text"
+                        placeholder="Field name (e.g. Blood Pressure)"
+                        value="${value}"
+                        class="flex-1 px-4 py-2 border rounded-lg"
+                    />
+                    <button class="remove-field text-red-500">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            `;
+        }
+        function buildScreeningPayload(feature, category) {
+            const fields = Array.from(
+                document.querySelectorAll("#screening-fields input")
+            )
+            .map(i => i.value.trim())
+            .filter(Boolean);
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const doctorId = urlParams.get("doctor_id");
+
+            return {
+                doctor_id: doctorId,
+                feature_id: feature.id,
+                feature_name: feature.name,
+                category_id: category.id,
+                fields,
+                enabled: false,
+                configured: true,
+                timestamp: new Date().toISOString()
+            };
+        }
+
+        function buildFeatureConfigJSON(feature, category) {
+    // Trigger
+    const triggerMethod = document.getElementById("trigger-method")?.value || "page-reload";
+    const buttonLabel = document.getElementById("button-label")?.value || null;
+    
+    // Rules
+    const rules = document.getElementById("rules-textarea")?.value || "";
+    const displayMethod = document.getElementById("display-method")?.value || "table";
+    
+    // Data sources
+    const dataSources = [...state.dataSources.selected];
+    
+    // Lab parameters
+    const labParams = [];
+    document.querySelectorAll('#lab-report-section input[type="checkbox"]:checked')
+        .forEach(cb => labParams.push(cb.id.replace("lab-", "")));
+    
+    // Vitals parameters
+    const vitalsParams = [];
+    document.querySelectorAll('#vitals-section input[type="checkbox"]:checked')
+        .forEach(cb => vitalsParams.push(cb.id.replace("vital-", "")));
+    
+    // ✅ Get selected output categories from checkboxes
+    const selectedOutputCategories = [];
+    document.querySelectorAll('#output-categories-container input[type="checkbox"]:checked')
+        .forEach(cb => selectedOutputCategories.push(cb.value));
+
+    return {
+        feature_id: feature.id,
+        feature_name: feature.name,
+        category_id: category.id,
+        category_name: category.name,
+        enabled: feature.enabled,
+        configured: true,
+        trigger: {
+            type: triggerMethod,
+            button_label: triggerMethod === "button-click" ? buttonLabel : null
+        },
+        data_sources: dataSources,
+        lab_parameters: labParams,
+        display_method: displayMethod,
+        vitals_parameters: vitalsParams,
+        rules: rules,
+        selected_output_categories: selectedOutputCategories, // ✅ Include this
+        timestamp: new Date().toISOString()
+    };
+}
+
+        // Render patient profile specific form
+       // Render patient profile specific form with saved configuration
+function renderPatientProfileForm(feature, category, featureConfig = null) {
+    // Use saved fields from state or from featureConfig
+    const savedFields = featureConfig?.patient_profile?.fields || state.patientProfileFields.selected;
+    const displayMode = featureConfig?.patient_profile?.display_mode || 'detailed';
+    const displayName = featureConfig?.feature_name || feature.name;
+    
+    return `
+        <div class="max-w-4xl mx-auto">
+            <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                <!-- Header -->
+                <div class="px-8 py-6 border-b border-gray-100 flex items-center justify-between">
+                    <div class="flex items-center space-x-4">
+                        <div class="w-12 h-12 bg-gray-900 rounded-lg flex items-center justify-center">
+                            <i class="${feature.icon} text-white text-xl"></i>
+                        </div>
+                        <div>
+                            <h2 class="serif-title text-2xl font-semibold text-gray-900">${displayName}</h2>
+                            <p class="text-gray-600">${category.name}</p>
+                            ${featureConfig ? '<div class="text-sm text-green-600 mt-1"><i class="fas fa-check-circle mr-1"></i> Pre-configured data loaded</div>' : ''}
+                        </div>
+                    </div>
+                    <button id="close-config" class="w-10 h-10 rounded-full hover:bg-gray-100 flex items-center justify-center">
+                        <i class="fas fa-times text-gray-500"></i>
+                    </button>
+                </div>
+                
+                <!-- Form -->
+                <div class="px-8 py-8">
+                    <div class="mb-10">
+                        <label class="block text-sm font-medium text-gray-700 mb-4">Patient Fields to Include</label>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            ${state.patientProfileFields.all.map(field => {
+                                const isChecked = savedFields.includes(field.id);
+                                return `
+                                    <div class="flex items-center">
+                                        <input type="checkbox" id="${field.id}" ${isChecked ? 'checked' : ''} 
+                                            class="h-5 w-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500">
+                                        <label for="${field.id}" class="ml-3 text-gray-700">${field.label}</label>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-10">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Profile Display Mode</h3>
+                        <select id="display-mode" class="w-full md:w-96 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="profile" ${displayMode === "profile" ? "selected" : ""}>profile</option>
+                            <option value="detailed" ${displayMode === "detailed" ? "selected" : ""}>Detailed View</option>
+                            <option value="high-priority" ${displayMode === "high-priority" ? "selected" : ""}>High Priority Fields Only</option>
+                            <option value="low-priority" ${displayMode === "low-priority" ? "selected" : ""}>Low Priority Fields Only</option>
+                        </select>
+                        <p class="text-gray-500 text-sm mt-2">Choose how the patient profile will be displayed in the workflow</p>
+                    </div>
+                    
+                    <div class="flex justify-end space-x-4 pt-6 border-t border-gray-100">
+                        <button type="button" id="cancel-config" class="px-6 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 font-medium">
+                            Cancel
+                        </button>
+                        <button type="button" id="save-config" class="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-medium">
+                            Save Configuration
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+        // Render standard form for non-patient-profile features
+        // Update renderStandardForm to populate with saved data
+function renderStandardForm(feature, category, templates = [], featureConfig = null) {
+    const isCommunication = category.id === 'communication';
+    
+    // Use saved config if available, otherwise use defaults
+    const displayName = featureConfig?.feature_name || feature.name;
+    const triggerType = featureConfig?.trigger?.type || "page-reload";
+    const buttonLabel = featureConfig?.trigger?.button_label || "";
+    const rules = featureConfig?.rules || "";
+    const displayMethod = featureConfig?.display_method || "table";
+    const selectedOutputCats = featureConfig?.selected_output_categories || [];
+    
+    return `
+        <div class="max-w-4xl mx-auto">
+            <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                <!-- Header -->
+                <div class="px-8 py-6 border-b border-gray-100 flex items-center justify-between">
+                    <div class="flex items-center space-x-4">
+                        <div class="w-12 h-12 bg-gray-900 rounded-lg flex items-center justify-center">
+                            <i class="${feature.icon} text-white text-xl"></i>
+                        </div>
+                        <div>
+                            <h2 class="serif-title text-2xl font-semibold text-gray-900">${displayName}</h2>
+                            <p class="text-gray-600">${category.name}</p>
+                            ${featureConfig ? '<div class="text-sm text-green-600 mt-1"><i class="fas fa-check-circle mr-1"></i> Pre-configured data loaded</div>' : ''}
+                        </div>
+                    </div>
+                    <button id="close-config" class="w-10 h-10 rounded-full hover:bg-gray-100 flex items-center justify-center">
+                        <i class="fas fa-times text-gray-500"></i>
+                    </button>
+                </div>
+                
+                <!-- Form -->
+                <div class="px-8 py-8">
+                    <div class="mb-8">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Display Name</label>
+                        <input type="text" 
+                               id="display-name" 
+                               value="${displayName}" 
+                               class="w-full md:w-96 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    
+                    <div class="mb-8">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Trigger Method</label>
+                        <select id="trigger-method" class="w-full md:w-96 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="page-reload" ${triggerType === "page-reload" ? "selected" : ""}>On Page Reload</option>
+                            <option value="button-click" ${triggerType === "button-click" ? "selected" : ""}>By Button Click</option>
+                        </select>
+                    </div>
+                    
+                    <div id="button-label-container" class="mb-8 ${triggerType === "button-click" ? "" : "hidden"}">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Button Label</label>
+                        <input type="text" 
+                               id="button-label" 
+                               placeholder="e.g., Generate Report" 
+                               value="${buttonLabel || ''}"
+                               class="w-full md:w-96 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    
+                    <!-- Analysis Templates -->
+                    ${templates.length > 0 ? `
+                    <div class="mb-10">
+                        <label class="block text-sm font-medium text-gray-700 mb-3">
+                            Analysis Templates
+                        </label>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            ${templates.map(t => {
+                                const isSelected = t.analysis_prompt === rules;
+                                return `
+                                    <button type="button"
+                                        class="analysis-template-btn text-left p-4 border rounded-xl hover:border-blue-500 hover:bg-blue-50 transition ${isSelected ? 'border-blue-500 bg-blue-50' : ''}"
+                                        data-template-id="${t.template_id}"
+                                        data-template-name="${t.template_name}"
+                                        data-template-prompt="${encodeURIComponent(t.analysis_prompt)}">
+                                        <div class="font-semibold text-gray-800">
+                                            ${t.template_name}
+                                        </div>
+                                        <div class="text-sm text-gray-500 mt-1">
+                                            Click to apply this analysis template
+                                        </div>
+                                    </button>
+                                `;
+                            }).join("")}
+                        </div>
+                    </div>
+                    ` : ""}
+                    
+                    <!-- Rules for Analysis -->
+                    <div class="mb-8">
+                        <label id="rules-heading" class="block text-sm font-medium text-gray-700 mb-2">
+                            Rules for Analysis
+                        </label>
+                        <textarea id="rules-textarea" rows="6"
+                            class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="Select an analysis template or define custom logic...">${rules}</textarea>
+                        <p class="text-gray-500 text-sm mt-2">
+                            Rules will guide how the AI performs structured analysis.
+                        </p>
+                    </div>
+
+                    <!-- Display Method -->
+                    <div class="mb-8">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Display Method
+                        </label>
+                        <select id="display-method" class="w-full md:w-96 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="table" ${displayMethod === "table" ? "selected" : ""}>Table</option>
+                            <option value="text" ${displayMethod === "text" ? "selected" : ""}>Text</option>
+                            <option value="cards" ${displayMethod === "cards" ? "selected" : ""}>Cards</option>
+                            <option value="timeline" ${displayMethod === "timeline" ? "selected" : ""}>Timeline</option>
+                        </select>
+                        <p class="text-gray-500 text-sm mt-2">
+                            Choose how the generated output should be rendered in the UI.
+                        </p>
+                    </div>
+                    
+                    <!-- Output Categories (if available) -->
+                    ${selectedOutputCats.length > 0 ? `
+                    <div class="mb-8">
+                        <label class="block text-sm font-medium text-gray-700 mb-3">
+                            Selected Output Categories
+                        </label>
+                        <div class="flex flex-wrap gap-2">
+                            ${selectedOutputCats.map(cat => `
+                                <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                                    ${cat}
+                                </span>
+                            `).join('')}
+                        </div>
+                        <p class="text-gray-500 text-sm mt-2">
+                            These output categories are configured for this feature.
+                        </p>
+                    </div>
+                    ` : ''}
+                    
+                    <!-- Action Buttons -->
+                    <div class="flex justify-end space-x-4 pt-6 border-t border-gray-100">
+                        <button type="button" id="cancel-config" class="px-6 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 font-medium">
+                            Cancel
+                        </button>
+                        <button type="button" id="test-config" class="px-6 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 font-medium">
+                            Test Configuration
+                        </button>
+                        <button type="button" id="save-config" class="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-medium">
+                            Save Configuration
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+        // Set up event listeners for configuration form
+// Update setupConfigFormListeners to initialize trigger method
+function setupConfigFormListeners(feature, category, featureConfig = null) {
+    // Close button
+    const closeBtn = document.getElementById("close-config");
+    if (closeBtn) closeBtn.addEventListener("click", closeConfig);
+
+    // Cancel button
+    const cancelBtn = document.getElementById("cancel-config");
+    if (cancelBtn) cancelBtn.addEventListener("click", closeConfig);
+
+    // ✅ ADD SCREENING-SPECIFIC LOGIC HERE
+    if (feature.id === "screening-section") {
+        const urlParams = new URLSearchParams(window.location.search);
+        const doctorId = urlParams.get("doctor_id");
+
+        // Add field button
+        const addFieldBtn = document.getElementById("add-screening-field");
+        if (addFieldBtn) {
+            addFieldBtn.addEventListener("click", () => {
+                const container = document.getElementById("screening-fields");
+                if (container) {
+                    container.insertAdjacentHTML(
+                        "beforeend",
+                        screeningFieldRow()
+                    );
+                }
+            });
+        }
+
+        // Remove field button delegation
+        const fieldsContainer = document.getElementById("screening-fields");
+        if (fieldsContainer) {
+            fieldsContainer.addEventListener("click", (e) => {
+                if (e.target.closest(".remove-field")) {
+                    e.target.closest(".flex").remove();
+                }
+            });
+        }
+
+        // Save button (screening-specific)
+        const saveBtn = document.getElementById("save-config");
+        if (saveBtn) {
+            saveBtn.addEventListener("click", () => saveConfig(feature, category));
+        }
+
+        // Cancel button (screening-specific)
+        const cancelConfigBtn = document.getElementById("cancel-config");
+        if (cancelConfigBtn) {
+            cancelConfigBtn.addEventListener("click", closeConfig);
+        }
+
+        // ✅ Load screening data
+        (async () => {
+            // 1. Load saved fields
+            const savedFeature = await getSavedScreeningFeature(doctorId);
+            const savedFields = savedFeature?.screening_section?.fields || [];
+            
+            // 2. Get API vitals
+            const { important, optional } = await getScreeningFields(doctorId);
+            
+            // 3. Clear container
+            const container = document.getElementById("screening-fields");
+            if (container) container.innerHTML = '';
+            
+            // 4. Determine what to display
+            const fieldsToDisplay = savedFields.length > 0 ? savedFields : important;
+            
+            // 5. Populate fields
+            fieldsToDisplay.forEach(field => {
+                const fieldRow = `
+                    <div class="flex items-center gap-3">
+                        <input
+                            type="text"
+                            placeholder="Field name (e.g. Blood Pressure)"
+                            value="${field}"
+                            class="flex-1 px-4 py-2 border rounded-lg"
+                        />
+                        <button class="remove-field text-red-500">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                `;
+                container.insertAdjacentHTML('beforeend', fieldRow);
+            });
+            
+            // 6. Show optional vitals as chips
+            renderOptionalVitalChips(optional);
+        })();
+        
+        // Return early - don't execute other listeners for screening
+        return;
+    }
+    // ✅ END OF SCREENING-SPECIFIC LOGIC
+
+    // ✅ ADD PATIENT PROFILE-SPECIFIC LOGIC HERE
+    if (feature.id === "patient-profile") {
+        // Save button (patient-profile-specific)
+        const saveBtn = document.getElementById("save-config");
+        if (saveBtn) {
+            saveBtn.addEventListener("click", () => savePatientProfileConfig(feature, category));
+        }
+        
+        // Cancel button already handled above
+        return; // Return early for patient profile
+    }
+    // ✅ END OF PATIENT PROFILE-SPECIFIC LOGIC
+
+    // Initialize trigger method dropdown based on saved config
+    const triggerMethod = document.getElementById("trigger-method");
+    const buttonLabelContainer = document.getElementById("button-label-container");
+    
+    if (triggerMethod && buttonLabelContainer) {
+        // Set initial state based on saved config
+        if (featureConfig?.trigger?.type === "button-click") {
+            buttonLabelContainer.classList.remove("hidden");
+        }
+        
+        // Add change listener
+        triggerMethod.addEventListener("change", (e) => {
+            if (e.target.value === "button-click") {
+                buttonLabelContainer?.classList.remove("hidden");
+            } else {
+                buttonLabelContainer?.classList.add("hidden");
+            }
+        });
+    }
+    
+    // Test button
+    const testBtn = document.getElementById("test-config");
+    if (testBtn) {
+        testBtn.addEventListener("click", () => testConfig(feature, category));
+    }
+
+    // Save button (for standard features)
+    const saveBtn = document.getElementById("save-config");
+    if (saveBtn) {
+        saveBtn.addEventListener("click", () => saveConfig(feature, category));
+    }
+}
+
+// Add separate function for saving patient profile
+async function savePatientProfileConfig(feature, category) {
+    feature.configured = true;
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const doctorId = urlParams.get("doctor_id");
+
+    const payload = buildPatientProfilePayload(feature, category);
+    console.log("PATIENT PROFILE PAYLOAD:", payload);
+
+    try {
+        const response = await fetch(
+            `${API_BASE}/hms/users/orchestration/doctor_patient_profile_save`,
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(payload)
+            }
+        );
+
+        if (!response.ok) {
+            throw new Error("Failed to save patient profile configuration");
+        }
+
+        const result = await response.json();
+        console.log("Server response:", result);
+
+        // Update local state
+        state.categories.forEach(cat => {
+            cat.features.forEach(f => {
+                if (f.id === "patient-profile") {
+                    f.configured = true;
+                    
+                    f.name = feature.name; // Keep any updated name
+                    
+                }
+            });
+        });
+
+        // Update the category enabled count
+        category.enabledCount = category.features.filter(f => f.enabled).length;
+
+        closeConfig();
+        showSuccessToast(feature.name);
+        updateActiveCount();
+        renderCategories();
+
+    } catch (error) {
+        console.error(error);
+        alert("Error saving patient profile configuration");
+    }
+}
+
+// Toggle data source selection
+function toggleDataSource(source) {
+    const index = state.dataSources.selected.indexOf(source);
+    if (index > -1) {
+        state.dataSources.selected.splice(index, 1);
+    } else {
+        state.dataSources.selected.push(source);
+    }
+    
+    // Re-render the config form section to show/hide lab/vitals sections
+    if (state.configuredFeature) {
+        const category = state.categories.find(c => 
+            c.features.some(f => f.id === state.configuredFeature)
+        );
+        const feature = category.features.find(f => f.id === state.configuredFeature);
+        
+        if (feature && feature.id !== 'patient-profile') {
+            renderConfigForm(feature, category);
+        }
+    }
+}
+       function buildPatientProfilePayload(feature, category) {
+    // Get selected patient fields from checkboxes
+    const selectedFields = [];
+    document
+        .querySelectorAll('#config-panel input[type="checkbox"]:checked')
+        .forEach(cb => {
+            // Only include patient field checkboxes, not others
+            const field = state.patientProfileFields.all.find(f => f.id === cb.id);
+            if (field) {
+                selectedFields.push(cb.id);
+            }
+        });
+
+    // Get display mode
+    const displayMode = document.getElementById("display-mode")?.value || "detailed";
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const doctorId = urlParams.get("doctor_id");
+
+    return {
+        feature_id: feature.id,
+        feature_name: feature.name,
+        category_id: category.id,
+        doctor_id: doctorId,
+        enabled: true, // Always enabled when saving
+        configured: true,
+        patient_profile: {
+            fields: selectedFields,
+            display_mode: displayMode
+        },
+        timestamp: new Date().toISOString()
+    };
+}
+
+        // Save configuration
+        // async function saveConfig(feature, category) {
+        //     feature.configured = true;
+        //     const urlParams = new URLSearchParams(window.location.search);
+        //     const doctorId = urlParams.get("id");
+        //     const payload = buildFeatureConfigJSON(feature, category);
+        //     payload.doctor_id = doctorId;
+        //     console.log("CONFIG JSON:", payload); // for debugging
+
+        //     try {
+        //         const response = await fetch("/hms/users/vitals_new/doctor_feature_save", {
+        //             method: "POST",
+        //             headers: {
+        //                 "Content-Type": "application/json"
+        //             },
+        //             body: JSON.stringify(payload)
+        //         });
+
+        //         if (!response.ok) {
+        //             throw new Error("Failed to save configuration");
+        //         }
+
+        //         const result = await response.json();
+        //         console.log("Server response:", result);
+
+        //         closeConfig();
+        //         showSuccessToast(feature.name);
+        //         updateActiveCount();
+        //         renderCategories();
+
+        //     } catch (error) {
+        //         console.error(error);
+        //         alert("Error saving configuration");
+        //     }
+        // }
+
+
+        function getSelectedOutputCategories() {
+            return Array.from(
+                document.querySelectorAll(
+                    '#output-categories-container input[type="checkbox"]:checked'
+                )
+            ).map(cb => cb.value);
+        }
+
+async function getSavedScreeningFeature(doctorId) {
+    try {
+        const res = await fetch(
+            `${API_BASE}/hms/users/orchestration/doctor_screening_features/${doctorId}`
+        );
+
+        if (!res.ok) return null;
+
+        const data = await res.json();
+
+        return data.features?.find(
+            f =>
+                f.feature_id === "screening-section" &&
+                f.enabled === true &&
+                f.configured === true &&
+                Array.isArray(f.screening_section?.fields) &&
+                f.screening_section.fields.length > 0
+        ) || null;
+
+    } catch (e) {
+        console.error("❌ Failed to load saved screening feature", e);
+        return null;
+    }
+}
+
+
+        async function saveConfig(feature, category) {
+            feature.configured = true;
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const doctorId = urlParams.get("doctor_id");
+
+            let payload;
+            let endpoint;
+
+            // 🔀 Special handling for patient-profile
+            if (feature.id === "patient-profile") {
+                payload = buildPatientProfilePayload(feature, category);
+                payload.doctor_id = doctorId;
+                console.log("PATIENT PROFILE PAYLOAD:", payload); // for debugging
+                endpoint = `${API_BASE}/hms/users/orchestration/doctor_patient_profile_save`;
+            }
+            else if (feature.id === "screening-section") {
+                payload = buildScreeningPayload(feature, category);
+                endpoint = `${API_BASE}/hms/users/orchestration/doctor_screening_feature_save`;
+            }
+            // 🔀 All other features
+            else {
+                payload = buildFeatureConfigJSON(feature, category);
+                console.log("STANDARD FEATURE PAYLOAD:", payload); // for debugging
+                payload.doctor_id = doctorId;
+                payload.selected_output_categories = getSelectedOutputCategories();
+                endpoint = `${API_BASE}/hms/users/orchestration/doctor-feature-save`;
+            }
+
+            console.log("FINAL PAYLOAD:", payload);
+
+            try {
+                const response = await fetch(endpoint, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error("Failed to save configuration");
+                }
+
+                const result = await response.json();
+                console.log("Server response:", result);
+
+                // closeConfig();
+                showSuccessToast(feature.name);
+                updateActiveCount();
+                renderCategories();
+
+            } catch (error) {
+                console.error(error);
+                alert("Error saving configuration");
+            }
+        }
+
+
+        async function testConfig(feature, category) {
+    const urlParams = new URLSearchParams(window.location.search);
+    const doctorId = urlParams.get("doctor_id");
+
+    // Get current form values for testing
+    const payload = {
+        feature_id: feature.id,
+        feature_name: feature.name,
+        doctor_id: doctorId,
+        trigger: {
+            type: document.getElementById("trigger-method")?.value || "page-reload",
+            button_label: document.getElementById("button-label")?.value || null
+        },
+        rules: document.getElementById("rules-textarea")?.value || "",
+        display_method: document.getElementById("display-method")?.value || "table"
+    };
+
+    console.log("Test payload:", payload);
+
+    try {
+        const response = await fetch(
+            `${API_BASE}/hms/users/orchestration/feature-output-categories`,
+            {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            }
+        );
+
+        if (!response.ok) {
+            throw new Error("Failed to test configuration");
+        }
+
+        const result = await response.json();
+        console.log("Test response:", result);
+        
+        // Show output categories section
+        showOutputCategoriesSection(result);
+        
+        // Show success toast
+        showTestSuccessToast();
+
+    } catch (error) {
+        console.error("Test config error:", error);
+        alert("Test failed: " + error.message);
+    }
+}
+
+
+
+        function renderOutputCategories(apiResponse) {
+            const categories =
+                apiResponse?.feature_output_categories?.possible_output_categories || [];
+
+            const section = document.getElementById("output-categories-section");
+            const container = document.getElementById("output-categories-container");
+
+            if (!section || !container || categories.length === 0) return;
+
+            // Clear old data
+            container.innerHTML = "";
+
+            categories.forEach(category => {
+                const sectionName = category.section_name;
+                const sectionId = category.section_id;
+
+                const id = `output-${sectionId}`;
+
+                container.insertAdjacentHTML(
+                    "beforeend",
+                    `
+                    <div class="flex items-center">
+                        <input
+                            type="checkbox"
+                            id="${id}"
+                            name="output_categories"
+                            value="${sectionId}"
+                            class="h-5 w-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                        />
+                        <label for="${id}" class="ml-3 text-gray-700">
+                            ${sectionName}
+                        </label>
+                    </div>
+                    `
+                );
+            });
+
+
+            // Reveal section
+            section.classList.remove("hidden");
+        }
+
+        function showSuccessToast(featureName) {
+            const toast = document.createElement('div');
+            toast.className =
+                'fixed top-20 right-8 bg-green-50 text-green-800 px-6 py-4 rounded-xl border border-green-200 shadow-lg z-50';
+
+            toast.innerHTML = `
+                <div class="flex items-center space-x-3">
+                    <i class="fas fa-check-circle text-green-600"></i>
+                    <div>
+                        <div class="font-medium">${featureName} saved</div>
+                        <div class="text-sm">Configuration stored successfully</div>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        function showTestSuccessToast() {
+    const toast = document.createElement('div');
+    toast.className =
+        'fixed top-20 right-8 bg-blue-50 text-blue-800 px-6 py-4 rounded-xl border border-blue-200 shadow-lg z-50';
+
+    toast.innerHTML = `
+        <div class="flex items-center space-x-3">
+            <i class="fas fa-vial text-blue-600"></i>
+            <div>
+                <div class="font-medium">Test successful</div>
+                <div class="text-sm">Output categories generated</div>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
+
+
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+
+
+    <script>
+async function persistDisable(feature, category) {
+    const doctorId = new URLSearchParams(window.location.search).get("doctor_id");
+
+    await fetch(
+        `${API_BASE}/hms/users/orchestration/doctor-feature-disable`,
+        {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                doctor_id: doctorId,
+                feature_id: feature.id
+            })
+        }
+    );
+}
+async function persistEnable(feature, category) {
+    const doctorId = new URLSearchParams(window.location.search).get("doctor_id");
+
+    try {
+        await fetch(
+            `${API_BASE}/hms/users/orchestration/doctor-feature-enable`,
+            {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    doctor_id: doctorId,
+                    feature_id: feature.id
+                })
+            }
+        );
+    } catch (err) {
+        console.error("Enable failed", err);
+    }
+}
+
+    </script>
+
+
+
+<script>
+async function persistPatientEnable(feature) {
+    const doctorId = new URLSearchParams(window.location.search).get("doctor_id");
+
+    await fetch(
+        `${API_BASE}/hms/users/orchestration/doctor-patient-feature-toggle`,
+        {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                doctor_id: doctorId,
+                feature_id: feature.id,
+                enabled: true
+            })
+        }
+    );
+}
+
+async function persistPatientDisable(feature) {
+    const doctorId = new URLSearchParams(window.location.search).get("doctor_id");
+
+    await fetch(
+        `${API_BASE}/hms/users/orchestration/doctor-patient-feature-toggle`,
+        {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                doctor_id: doctorId,
+                feature_id: feature.id,
+                enabled: false
+            })
+        }
+    );
+}
+
+
+
+
+</script>
+
+
+
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015" integrity="sha512-ZpsOmlRQV6y907TI0dKBHq9Md29nnaEIPlkf84rnaERnq6zvWvPUqr2ft8M1aS28oN72PdrCzSjY4U6VaAw1EQ==" data-cf-beacon='{"version":"2024.11.0","token":"4f7cbf988ef745e18756816db140a30d","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body>
+</html>

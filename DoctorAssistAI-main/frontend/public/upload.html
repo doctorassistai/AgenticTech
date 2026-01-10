@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>DICOM Dashboard</title>
+<link rel="shortcut icon" href="../../../static/HMS_assets/images/logo.png">
+<!-- App favicon -->
+    <link rel="shortcut icon" href="../../../static/HMS_assets/images/logo.png">
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@10.9.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- App css -->
+    <link href="../../../static//HMS_assets/css/bootstrap.min.css" rel="stylesheet" type="text/css" />
+    <link href="../../../static//HMS_assets/css/icons.min.css" rel="stylesheet" type="text/css" />
+    <link href="../../../static//HMS_assets/css/app.min.css" rel="stylesheet" type="text/css" />
+
+
+    <script src="../../../static//HMS_assets/libs/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="../../../static//HMS_assets/libs/simplebar/simplebar.min.js"></script>
+    <script src="../../../static//HMS_assets/libs/feather-icons/feather.min.js"></script>
+    <script src="../../../static//HMS_assets/libs/apexcharts/apexcharts.min.js"></script>
+    <script src="../../../static//HMS_assets/js/pages/hospital-index.init.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  body {
+    font-family: 'Inter', sans-serif;
+    margin: 0;
+    background-color: #f4f7fb;
+    color: #333;
+  }
+
+  header {
+    background-color: #00509e;
+    color: white;
+    padding: 20px 40px;
+    font-size: 22px;
+    font-weight: 600;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  }
+
+  .dashboard {
+    display: flex;
+    flex-wrap: wrap;
+    max-width: 1300px;
+    margin: 30px auto;
+    gap: 30px;
+    padding: 0 20px;
+  }
+
+  .card {
+    background: white;
+    border-radius: 16px;
+    padding: 25px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+  }
+
+  .left-panel {
+    flex: 1 1 40%;
+    min-width: 350px;
+  }
+
+  .right-panel {
+    flex: 1 1 55%;
+    min-width: 450px;
+  }
+
+  h2 {
+    margin-top: 0;
+    color: #00509e;
+    border-bottom: 2px solid #e5e9f0;
+    padding-bottom: 10px;
+  }
+
+  .patient-info {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-bottom: 25px;
+    background: #ebf4ff;
+    padding: 15px 20px;
+    border-radius: 12px;
+  }
+
+  .patient-info div {
+    flex: 1 1 45%;
+    font-weight: 500;
+  }
+
+  label {
+    font-weight: 500;
+    margin-top: 10px;
+    display: block;
+  }
+
+  input[type="file"], select, button {
+    width: 100%;
+    padding: 10px;
+    margin-top: 6px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    font-size: 14px;
+  }
+
+  button {
+    background-color: #007bff;
+    color: white;
+    padding: 12px 25px;
+    margin-top: 15px;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+
+  button:hover {
+    background-color: #0056b3;
+  }
+
+  #status {
+    margin-top: 15px;
+    padding: 12px;
+    border-radius: 8px;
+    display: none;
+    font-weight: 500;
+    text-align: center;
+  }
+
+  #status.success {
+    background-color: #d4edda;
+    color: #155724;
+  }
+
+  #status.error {
+    background-color: #f8d7da;
+    color: #721c24;
+  }
+
+  .progress-container {
+    display: none;
+    margin-top: 15px;
+  }
+
+  .progress-bar {
+    height: 12px;
+    border-radius: 8px;
+    background-color: #dce7f9;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    width: 0%;
+    background-color: #007bff;
+    transition: width 0.3s;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+    font-size: 14px;
+  }
+
+  table th, table td {
+    padding: 12px 10px;
+    text-align: left;
+    border-bottom: 1px solid #e0e0e0;
+  }
+
+  table th {
+    background-color: #f2f6fc;
+    font-weight: 600;
+  }
+
+  table tr:hover {
+    background-color: #f9fbff;
+  }
+
+  #fileList {
+    margin-top: 15px;
+    max-height: 180px;
+    overflow-y: auto;
+    background: #f9f9f9;
+    border: 1px solid #ddd;
+    padding: 10px;
+    border-radius: 8px;
+    display: none;
+  }
+
+
+@media (max-width: 900px) {
+  .dashboard {
+    flex-direction: column;
+  }
+  .left-panel, .right-panel {
+    flex: 1 1 100%;
+    min-width: auto;
+  }
+}
+table th, table td {
+  white-space: nowrap; /* prevents wrapping by default */
+}
+
+@media (max-width: 768px) {
+  table th, table td {
+    white-space: normal; /* allow wrapping on smaller screens */
+    font-size: 13px;
+  }
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto; /* allows horizontal scroll on small screens */
+  -webkit-overflow-scrolling: touch; /* smooth scrolling on iOS */
+}
+
+
+</style>
+</head>
+<body>
+<div class="leftbar-tab-menu">
+        <div class="main-icon-menu">
+            <a href="index.html" class="logo logo-metrica d-block text-center">
+                <span>
+                    <img src="../../../static//HMS_assets/images/logo.png" alt="logo-small" class="logo-sm">
+                </span>
+            </a>
+
+            <div class="main-icon-menu-body">
+                <div class="position-relative h-100" data-simplebar style="overflow-x: hidden;">
+                    <ul class="nav nav-tabs" role="tablist" id="tab-menu">
+                        <li class="nav-item" data-bs-toggle="tooltip" data-bs-placement="right" title="OPD Patient Care"
+                            data-bs-trigger="hover">
+                            <a href="#MetricaDashboard" id="dashboard-tab" class="nav-link active" data-bs-toggle="tab"
+                                data-bs-target="#MetricaDashboard" onclick="toggleTabContent('MetricaDashboard')">
+                                <i class="ti ti-apps menu-icon"></i>
+                            </a>
+                        </li>
+                        <li class="nav-item" data-bs-toggle="tooltip" data-bs-placement="right" title="Preferences & Settings"
+                            data-bs-trigger="hover">
+                            <a href="#MetricaApps" id="apps-tab" class="nav-link" data-bs-toggle="tab"
+                                data-bs-target="#MetricaApps" onclick="toggleTabContent('MetricaApps')">
+                                <i class="ti ti-shield-lock menu-icon"></i>
+                            </a>
+                        </li>
+                        <!-- <li class="nav-item" data-bs-toggle="tooltip" data-bs-placement="right"
+                            title="Patient Registration" data-bs-trigger="hover">
+                            <a href="#MetricaPatients" id="patients-tab" class="nav-link" data-bs-toggle="tab"
+                                data-bs-target="#MetricaPatients" onclick="toggleTabContent('MetricaPatients')">
+                                <i class="ti ti-user-plus menu-icon"></i>
+                            </a>
+                        </li>
+                        <li class="nav-item" data-bs-toggle="tooltip" data-bs-placement="right"
+                            title="Preferences & Settings" data-bs-trigger="hover">
+                            <a href="#MetricaAuthentication" id="authentication-tab" class="nav-link"
+                                data-bs-toggle="tab" data-bs-target="#MetricaAuthentication"
+                                onclick="toggleTabContent('MetricaAuthentication')">
+                                <i class="ti ti-shield-lock menu-icon"></i>
+                            </a>
+                        </li>
+                        <li class="nav-item" data-bs-toggle="tooltip" data-bs-placement="right" title="Program"
+                            data-bs-trigger="hover">
+                            <a href="#Metricaprogram" id="program-tab" class="nav-link" data-bs-toggle="tab"
+                                data-bs-target="#Metricaprogram" onclick="toggleTabContent('Metricaprogram')">
+                                <i class="ti ti-shield-lock menu-icon"></i>
+                            </a>
+                        </li> -->
+                    </ul>
+                </div>
+            </div>
+
+            <div class="pro-metrica-end">
+                <a href="#" class="profile">
+                    <img src="../../../static//HMS_assets/images/users/user-4.jpg" alt="profile-user"
+                        class="rounded-circle thumb-sm">
+                </a>
+            </div>
+        </div>
+
+        <!-- Initially hide the entire menu -->
+        <div class="main-menu-inner" style="display: none;">
+            <div class="topbar-left">
+                <a href="index.html" class="logo">
+                    <span>
+                        <span
+                            style="font-size: 20px; font-weight: 70; letter-spacing: 0.75px; text-shadow: 0px 2px 4px rgba(0,0,0,0.1);">DoctorAssist
+                            AI</span>
+                    </span>
+                    <img src="../../../static//HMS_assets/images/logo.png" alt="logo-large" class="logo-lg logo-light">
+                </a>
+            </div>
+
+            <div class="menu-body navbar-vertical tab-content" data-simplebar>
+                <!-- Dashboard -->
+                <div id="MetricaDashboard" class="main-icon-menu-pane tab-pane active" role="tabpanel"
+                    aria-labelledby="dashboard-tab" style="display: none;">
+                    <div class="title-box">
+                        <h6 class="menu-title">Patient</h6>
+                    </div>
+                    <ul class="nav flex-column">
+                       <li class="nav-item">
+
+
+
+                                            <a href="/hms/users/doctors/Patient_Listing?id="
+                                                onclick="this.href += new URLSearchParams(window.location.search).get('id')"
+                                                class="nav-link ">Patient Listing</a>
+
+
+
+                                        </li>
+                        <li class="nav-item">
+  <a href="#" 
+     onclick="
+       const params = new URLSearchParams(window.location.search);
+       const id = params.get('id');
+       if (id) {
+         this.href = `/hms/users/patient/HMS_doctors_Patient_add?id=${id}&patient_id=123`;
+       } else {
+         alert('Missing required id parameter!');
+         return false;
+       }
+     "
+     class="nav-link">
+     Patient Registration
+  </a>
+</li>
+                    </ul>
+                </div>
+
+                <!-- Staff Management -->
+                <div id="MetricaApps" class="main-icon-menu-pane tab-pane" role="tabpanel" aria-labelledby="apps-tab"
+                    style="display: none;">
+                    <div class="title-box">
+                        <h6 class="menu-title">Preferences & Settings</h6>
+                    </div>
+                    <ul class="nav flex-column">
+                        <!-- <li class="nav-item">
+                            <a class="nav-link"
+                                href="/hms/users/doctors/HMS_doctors_add?id={{ request.query_params.get('id') }}">Add
+                                Doctors</a>
+                        </li>
+                        <li class="nav-item"> -->
+                                            <!-- <a href="analytics-customers.html" class="nav-link ">Add Doctors</a> -->
+<!-- 
+                                            <a href="/hms/users/patient/HMS_add_patient_excel?id={{ request.query_params.get('id') }}"
+                                                class="nav-link">Add Doctors Using Excel</a>
+                                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link"
+                                href="/hms/users/doctors/HMS_nurse_add?id={{ request.query_params.get('id') }}">Add
+                                Nurses</a>
+                        </li> -->
+
+                        <li class="nav-item">
+                            <a class="nav-link" href="/hms/users/login">Log out</a>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Patient Registration -->
+                <div id="MetricaPatients" class="main-icon-menu-pane tab-pane" role="tabpanel"
+                    aria-labelledby="patients-tab" style="display: none;">
+                    <div class="title-box">
+                        <h6 class="menu-title">Patient Registration</h6>
+                    </div>
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link"
+                                href="/hms/users/doctors/HMS_Inpatient_add?id={{ request.query_params.get('id') }}">Inpatient
+                                Register</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link"
+                                href="/hms/users/doctors/HMS_outpatient_add?id={{ request.query_params.get('id') }}">Outpatient
+                                Register</a>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Settings -->
+                <div id="MetricaAuthentication" class="main-icon-menu-pane tab-pane" role="tabpanel"
+                    aria-labelledby="authentication-tab" style="display: none;">
+                    <div class="title-box">
+                        <h6 class="menu-title">Settings</h6>
+                    </div>
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link"
+                                href="/hms/users/patient/HMS_endpoint_settings?id={{ request.query_params.get('id') }}">Endpoint
+                                Settings</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link"
+                                href="/hms/users/patient/HMS_api_settings?id={{ request.query_params.get('id') }}">Api-Bearer
+                                Settings</a>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Programs -->
+                <div id="Metricaprogram" class="main-icon-menu-pane tab-pane" role="tabpanel"
+                    aria-labelledby="program-tab" style="display: none;">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link"
+                                href="/hms/users/op_doctor/stewardship-reports?id={{ request.query_params.get('id') }}">Stewardship
+                                Program</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+<header style="padding-left: 90px; font-size: 24px; font-weight: 600">
+DICOM Upload Dashboard
+</header>
+
+<div class="dashboard">
+  <!-- Left Panel -->
+  <div class="left-panel card">
+    <h2>Upload DICOM Files</h2>
+
+    <div class="patient-info" id="patientInfo">
+      <div><strong>Name:</strong> <span id="p_name">Loading...</span></div>
+      <div><strong>Age:</strong> <span id="p_age">--</span></div>
+      <div><strong>Gender:</strong> <span id="p_gender">--</span></div>
+      <div><strong>Doctor:</strong> <span id="p_doctor">--</span></div>
+    </div>
+
+    <label>Select Document Type:</label>
+    <select id="document_type" required>
+      <option value="">-- Select Type --</option>
+      <option value="MRI">MRI</option>
+      <option value="CT">CT</option>
+      <option value="X-ray">X-ray</option>
+      <option value="PET scan">PET scan</option>
+      <option value="Echocardiogram">Echocardiogram</option>
+      <option value="Endoscopy report">Endoscopy report</option>
+      <option value="ecg">ECG</option>
+      <option value="pathology">Pathology</option>
+    </select>
+<label id="pathologyTypeLabel" style="display:none;">Select Pathology Type:</label>
+<select id="pathology_subtype" style="display:none;">
+    <option value="">-- Select Pathology Type --</option>
+    <option value="cyto">Cytopathology</option>
+    <option value="histo">Histopathology</option>
+    <option value="biopsy">Biopsy</option>
+</select>
+    <label>Choose Upload Mode:</label>
+    <select id="uploadMode">
+      <option value="file">📁 File Upload</option>
+      <option value="folder">📂 Folder Upload</option>
+    </select>
+
+    <div id="fileSelectorContainer">
+      <input type="file" id="fileInput" multiple accept=".dcm">
+    </div>
+
+    <div id="fileList"></div>
+
+    <button id="uploadBtn">Upload</button>
+
+    <div class="progress-container">
+      <div class="progress-bar"><div class="progress-fill"></div></div>
+    </div>
+
+    <div id="status"></div>
+  </div>
+
+  <!-- Right Panel -->
+  <div class="right-panel card">
+    <h2>Uploaded Studies</h2>
+  <div class="table-responsive">
+    <table id="studiesTable">
+      <thead>
+        <tr>
+          <th>Study UID</th>
+          <th>Uploaded File</th>
+          <th>Type</th>
+          <th>Date</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td colspan="4" style="text-align:center;">Loading studies...</td></tr>
+      </tbody>
+    </table>
+  </div>
+  </div>
+</div>
+
+<script>
+const status = document.getElementById("status");
+const uploadBtn = document.getElementById("uploadBtn");
+const studiesTableBody = document.querySelector("#studiesTable tbody");
+const fileSelectorContainer = document.getElementById("fileSelectorContainer");
+const uploadModeSelect = document.getElementById("uploadMode");
+const fileList = document.getElementById("fileList");
+const progressContainer = document.querySelector(".progress-container");
+const progressFill = document.querySelector(".progress-fill");
+
+// patient_id from URL
+const urlParams = new URLSearchParams(window.location.search);
+const patientId = urlParams.get("patient_id");
+
+const OHIF_VIEWER = "http://143.110.187.180:3000/viewer/";
+const DICOMWEB_URL = "http://143.110.187.180:8042/dicom-web";
+
+// 🧠 Dynamic upload mode switcher
+uploadModeSelect.addEventListener("change", () => {
+  const mode = uploadModeSelect.value;
+  if (mode === "file") {
+    fileSelectorContainer.innerHTML = `<input type="file" id="fileInput" multiple accept=".dcm">`;
+  } else {
+    fileSelectorContainer.innerHTML = `<input type="file" id="folderInput" webkitdirectory directory multiple>`;
+  }
+
+  // Reattach change listener for preview
+  const input = document.querySelector(mode === "file" ? "#fileInput" : "#folderInput");
+  if (input) {
+    input.addEventListener("change", () => showSelectedFiles(input.files));
+  }
+});
+// Fetch patient details
+async function fetchPatientDetails(id) {
+  try {
+    const res = await fetch(`https://demo.doctorassist.ai/hms/users/vitals_new/patient_full_summary?patient_id=${id}`);
+    const data = await res.json();
+    const patient = data.patient;
+    const demo = patient.demographics;
+    document.getElementById("p_name").textContent = `${demo.first_name} ${demo.last_name}`;
+    document.getElementById("p_age").textContent = demo.age || "--";
+    document.getElementById("p_gender").textContent = demo.gender || "--";
+    document.getElementById("p_doctor").textContent = patient.doctor_name || "--";
+  } catch {
+    document.getElementById("p_name").textContent = "Unknown";
+  }
+}
+
+// Fetch uploaded studies
+async function fetchStudies(id) {
+  try {
+    const res = await fetch(`/api/hms/dicom/patient-documents/?patient_id=${id}`);
+    const data = await res.json();
+    const documents = data.documents || {};
+    const rows = [];
+
+    for (const [docType, files] of Object.entries(documents)) {
+      for (const file of files) {
+        const date = new Date(file.uploaded_at).toLocaleString();
+        rows.push(`
+          <tr>
+            <td>${file.study_uid}</td>
+            <td>${file.filename}</td>
+            <td>${docType}</td>
+            <td>${date}</td>
+          </tr>
+        `);
+      }
+    }
+
+    studiesTableBody.innerHTML = rows.length
+      ? rows.join("")
+      : `<tr><td colspan="4" style="text-align:center;">No studies found</td></tr>`;
+  } catch (err) {
+    studiesTableBody.innerHTML = `<tr><td colspan="4" style="text-align:center;">Error loading studies</td></tr>`;
+  }
+}
+
+// File preview
+function showSelectedFiles(files) {
+  if (!files.length) {
+    fileList.style.display = "none";
+    return;
+  }
+  fileList.innerHTML = "<strong>Selected Files:</strong><br><ul>" + 
+    Array.from(files)
+      .map(f => `<li>${f.webkitRelativePath || f.name}</li>`)
+      .join("") + 
+    "</ul>";
+  fileList.style.display = "block";
+}
+const documentTypeSelect = document.getElementById("document_type");
+// Pathology subtype elements
+const pathologyTypeLabel = document.getElementById("pathologyTypeLabel");
+const pathologySubtype = document.getElementById("pathology_subtype");
+
+documentTypeSelect.addEventListener("change", () => {
+    const selected = documentTypeSelect.value.toLowerCase();
+
+    // ECG PDF mode
+    if (selected === "ecg") {
+        uploadModeSelect.value = "file";
+        uploadModeSelect.disabled = true;
+
+        fileSelectorContainer.innerHTML = `<input type="file" id="fileInput" multiple accept=".pdf">`;
+        fileList.style.display = "none";
+
+        const fileInput = document.getElementById("fileInput");
+        if (fileInput) fileInput.addEventListener("change", () => showSelectedFiles(fileInput.files));
+        return;
+    }
+ if (selected === "pathology") {
+        // Show subtype dropdown
+        pathologyTypeLabel.style.display = "block";
+        pathologySubtype.style.display = "block";
+
+        uploadModeSelect.value = "file";
+        uploadModeSelect.disabled = true;
+
+        // Accept WSI slides
+        fileSelectorContainer.innerHTML = `
+          <input type="file" id="fileInput" 
+                 multiple 
+                 accept=".svs,.tif,.tiff,.ndpi,.scn,.mrxs,.bif,.czi,.dcm,.vms,.vmu,.svslide,.png">
+        `;
+
+        fileList.style.display = "none";
+        const fileInput = document.getElementById("fileInput");
+        if (fileInput) fileInput.addEventListener("change", () => showSelectedFiles(fileInput.files));
+
+        return;
+}
+
+    // Echocardiogram = VIDEO/PDF mode
+    if (selected === "echocardiogram") {
+        uploadModeSelect.value = "file";
+        uploadModeSelect.disabled = true;
+
+        fileSelectorContainer.innerHTML = `<input type="file" id="fileInput" multiple accept=".mp4,.mov,.avi,.pdf">`;
+        fileList.style.display = "none";
+
+        const fileInput = document.getElementById("fileInput");
+        if (fileInput) fileInput.addEventListener("change", () => showSelectedFiles(fileInput.files));
+        return;
+    }
+
+    // Default: DICOM mode
+    uploadModeSelect.disabled = false;
+    uploadModeSelect.value = "file";
+    fileSelectorContainer.innerHTML = `<input type="file" id="fileInput" multiple accept=".dcm">`;
+
+    const fileInput = document.getElementById("fileInput");
+    if (fileInput) fileInput.addEventListener("change", () => showSelectedFiles(fileInput.files));
+});
+
+// Upload handler
+uploadBtn.addEventListener("click", async () => {
+  const mode = uploadModeSelect.value;
+  const fileInput = document.querySelector(mode === "file" ? "#fileInput" : "#folderInput");
+  const files = fileInput ? Array.from(fileInput.files) : [];
+  const documentType = document.getElementById("document_type").value;
+
+  if (!files.length) {
+    alert("Please select at least one DICOM file or folder.");
+    return;
+  }
+  if (!documentType) {
+    alert("Please select a document type.");
+    return;
+  }
+ if (documentType.toLowerCase() === "ecg") {
+      uploadECG(files);
+      return;
+  }
+   if (documentType.toLowerCase() === "pathology") {
+      uploadPathology(files);
+      return;
+  }
+  if (documentType.toLowerCase() === "echocardiogram") {
+    uploadEcho(files);
+    return;
+}
+  showSelectedFiles(files);
+
+  const formData = new FormData();
+  for (let f of files) {
+    if (f.name.toLowerCase().endsWith(".dcm")) formData.append("files", f);
+  }
+
+  if (!formData.has("files")) {
+    alert("No .dcm files found in the selection.");
+    return;
+  }
+
+  formData.append("patient_id", patientId);
+  formData.append("document_type", documentType);
+
+  status.style.display = "block";
+  status.className = "";
+  status.textContent = "Uploading...";
+  progressContainer.style.display = "block";
+  progressFill.style.width = "0%";
+
+  const xhr = new XMLHttpRequest();
+  xhr.open("POST", "api/hms/dicom/upload/", true);
+
+  xhr.upload.onprogress = function(e) {
+    if (e.lengthComputable) {
+      const percent = Math.round((e.loaded / e.total) * 100);
+      progressFill.style.width = percent + "%";
+    }
+  };
+
+  xhr.onload = function() {
+    if (xhr.status === 200) {
+      status.className = "success";
+      status.textContent = "Upload successful!";
+      fetchStudies(patientId);
+    } else {
+      status.className = "error";
+      status.textContent = "Upload failed: " + xhr.statusText;
+    }
+    progressContainer.style.display = "none";
+  };
+
+  xhr.onerror = function() {
+    status.className = "error";
+    status.textContent = "Upload failed: Network error.";
+    progressContainer.style.display = "none";
+  };
+
+  xhr.send(formData);
+});
+
+// Init
+if (patientId) {
+  fetchPatientDetails(patientId);
+  fetchStudies(patientId);
+}
+</script>
+
+<script>
+        // This will run when the page loads
+        document.addEventListener('DOMContentLoaded', function () {
+            // Ensure all tabs are inactive when the page first loads
+            const allTabLinks = document.querySelectorAll('.nav-link');
+            allTabLinks.forEach(link => {
+                link.classList.remove('active'); // Remove active class
+            });
+
+            const allTabs = document.querySelectorAll('.main-icon-menu-pane');
+            allTabs.forEach(tab => {
+                tab.style.display = 'none'; // Hide all tab content
+            });
+        });
+
+        function toggleTabContent(tabId) {
+            // Show the entire menu when any tab is clicked
+            const menu = document.querySelector('.main-menu-inner');
+            const tabMenu = document.querySelector('.leftbar-tab-menu');
+            menu.style.display = 'block'; // Ensure the menu is visible
+
+            // Hide all tabs content
+            const allTabs = document.querySelectorAll('.main-icon-menu-pane');
+            allTabs.forEach(tab => tab.style.display = 'none'); // Hide all tab content
+
+            // Remove 'active' class from all tab links
+            const allTabLinks = document.querySelectorAll('.nav-link');
+            allTabLinks.forEach(link => link.classList.remove('active')); // Remove active class from all tabs
+
+            // Show the clicked tab's content
+            const selectedTab = document.getElementById(tabId);
+            selectedTab.style.display = 'block';
+
+            // Add 'active' class to the clicked tab link
+            const activeLink = document.querySelector(`#${tabId}-tab`);
+            activeLink.classList.add('active');
+        }
+
+        // Close the menu if clicked outside of the menu and the tab
+        document.addEventListener('click', function (event) {
+            const menu = document.querySelector('.main-menu-inner');
+            const tabMenu = document.querySelector('.leftbar-tab-menu');
+
+            // If the click is outside the menu and the tab menu, hide the menu
+            if (!menu.contains(event.target) && !tabMenu.contains(event.target)) {
+                menu.style.display = 'none'; // Hide the menu
+
+                // Reset 'active' styles when the section is hidden
+                const allTabLinks = document.querySelectorAll('.nav-link');
+                allTabLinks.forEach(link => link.classList.remove('active')); // Remove 'active' class from all tabs
+
+                // Hide the tab content
+                const allTabs = document.querySelectorAll('.main-icon-menu-pane');
+                allTabs.forEach(tab => tab.style.display = 'none'); // Hide all tabs
+            }
+        });
+
+async function uploadPathology(files) {
+    const status = document.getElementById("status");
+    const progressFill = document.querySelector(".progress-fill");
+
+    const subtype = document.getElementById("pathology_subtype").value;
+
+    if (!subtype) {
+        alert("Please select pathology subtype.");
+        return;
+    }
+
+    if (!files.length) {
+        alert("Please select at least one pathology slide file.");
+        return;
+    }
+
+    const allowedExtensions = [
+        ".svs", ".tif", ".tiff", ".ndpi", ".scn",
+        ".mrxs", ".bif", ".czi", ".dcm", ".vms",
+        ".vmu", ".svslide", ".png"
+    ];
+
+    const invalid = files.find(
+        f => !allowedExtensions.some(ext => f.name.toLowerCase().endsWith(ext))
+    );
+    if (invalid) {
+        alert("❌ Invalid pathology file type: " + invalid.name);
+        return;
+    }
+
+    const file = files[0];  
+    const params = new URLSearchParams(window.location.search);
+    const doctorId = params.get("id") || "UNKNOWN_DOCTOR";
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("patient_id", patientId);
+    formData.append("doctor_id", doctorId);
+    formData.append("pathology_type", subtype);  // <★★ IMPORTANT
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "https://demo.doctorassist.ai/api/hms/dicom/upload-pathology", true);
+
+    status.style.display = "block";
+    status.textContent = "Uploading pathology slide...";
+    progressFill.style.width = "0%";
+
+    xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+            const percent = Math.round((e.loaded / e.total) * 100);
+            progressFill.style.width = percent + "%";
+        }
+    };
+
+    xhr.onload = () => {
+        if (xhr.status === 200) {
+            status.className = "success";
+            status.textContent = "✔ Pathology Uploaded Successfully!";
+            console.log(xhr.responseText);
+        } else {
+            status.className = "error";
+            status.textContent = "❌ Upload Failed!";
+        }
+    };
+
+    xhr.onerror = () => {
+        status.className = "error";
+        status.textContent = "❌ Network error during upload.";
+    };
+
+    xhr.send(formData);
+}
+
+
+    async function uploadECG(files) {
+    const status = document.getElementById("status");
+    const progressFill = document.querySelector(".progress-fill");
+
+    const file = files[0];
+    if (!file.name.toLowerCase().endsWith(".pdf")) {
+        alert("❌ ECG requires a PDF file.");
+        return;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const doctorId = params.get("id") || "UNKNOWN_DOCTOR";
+    
+    const formData = new FormData();
+    formData.append("pdf_file", file);
+    formData.append("patient_id", patientId);
+    formData.append("doctor_id", doctorId);
+    
+    formData.append("timestamp", new Date().toISOString());
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "https://demo.doctorassist.ai/api/hms/dicom/upload-ecg", true);
+
+    status.style.display = "block";
+    status.textContent = "Uploading ECG PDF...";
+
+    xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+            progressFill.style.width = Math.round((e.loaded / e.total) * 100) + "%";
+        }
+    };
+
+    xhr.onload = () => {
+        if (xhr.status === 200) {
+            status.textContent = "✔ ECG Uploaded Successfully!";
+            fetchStudies(patientId);
+        } else {
+            status.textContent = "❌ ECG Upload Failed!";
+        }
+    };
+
+    xhr.onerror = () => {
+        status.textContent = "❌ Network Error While Uploading ECG.";
+    };
+
+    xhr.send(formData);
+}
+async function uploadEcho(files) {
+    const status = document.getElementById("status");
+    const progressFill = document.querySelector(".progress-fill");
+
+    const allowedExtensions = [".mp4", ".mov", ".avi", ".pdf"];
+    const invalid = files.find(f => !allowedExtensions.some(ext => f.name.toLowerCase().endsWith(ext)));
+    if (invalid) {
+        alert("❌ Invalid file type: " + invalid.name);
+        return;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const doctorId = params.get("id") || "UNKNOWN_DOCTOR";
+    const documentType = "echo";
+
+    const formData = new FormData();
+    files.forEach(f => formData.append("files", f));  // <--- note 'files' plural
+    formData.append("patient_id", patientId);
+    formData.append("doctor_id", doctorId);
+    formData.append("doctype", documentType);
+    files.forEach(f => formData.append("timestamps", new Date().toISOString()));  // one timestamp per file
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "https://demo.doctorassist.ai/api/hms/dicom/upload-echo", true);
+
+    status.style.display = "block";
+    status.textContent = "Uploading Echocardiogram(s)...";
+    progressFill.style.width = "0%";
+
+    xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+            progressFill.style.width = Math.round((e.loaded / e.total) * 100) + "%";
+        }
+    };
+
+    xhr.onload = () => {
+        if (xhr.status === 200) {
+            status.textContent = "✔ Echocardiogram(s) Uploaded Successfully!";
+            fetchStudies(patientId);
+        } else {
+            status.textContent = "❌ Echocardiogram Upload Failed!";
+        }
+    };
+
+    xhr.onerror = () => {
+        status.textContent = "❌ Network Error While Uploading Echocardiogram.";
+    };
+
+    xhr.send(formData);
+}
+
+
+
+    </script>
+
+
+
+</body>
+</html>

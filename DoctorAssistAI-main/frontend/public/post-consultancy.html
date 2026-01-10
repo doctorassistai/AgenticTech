@@ -1,0 +1,1380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Post Consultation</title>
+<script src="config.js">
+</script>
+<style>
+:root{
+  --bg:#f3f4f6;
+  --sidebar:#1f2937;
+  --panel:#ffffff;
+  --border:#d1d5db;
+  --muted:#9ca3af;
+}
+*{box-sizing:border-box;font-family:Inter,Segoe UI,Arial}
+body{
+  margin:0;
+  background:var(--bg);
+  height:100vh;
+}
+.app{
+  display:flex;
+  min-height:100vh;
+}
+
+/* SIDEBAR */
+.sidebar{
+  width:300px;
+  background:var(--sidebar);
+  color:#fff;
+  padding:16px;
+  overflow:auto;
+  position:sticky;
+  top:0;
+  height:100vh;
+}
+.sidebar h2{margin:10px 0 20px;font-size:20px}
+.module{margin-bottom:12px}
+.module-title{
+  padding:10px 12px;
+  border-radius:8px;
+  cursor:pointer;
+  background:#111827;
+  font-weight:600;
+  display:flex;
+  align-items:center;
+  gap:10px
+}
+.module-title.active{background:#374151}
+.module-icon{width:22px;text-align:center}
+.submenu{margin-top:6px;padding-left:18px;display:none}
+.submenu.active{display:block}
+.submenu button{
+  width:100%;
+  background:none;
+  border:none;
+  color:#e5e7eb;
+  padding:6px 8px;
+  border-radius:6px;
+  text-align:left;
+  cursor:pointer;
+  font-size:13px;
+  display:flex;
+  gap:8px
+}
+.submenu button::before{content:"○";color:#9ca3af}
+.submenu button.active,
+.submenu button:hover{background:#1f2937}
+
+/* MAIN */
+.main{
+  flex:1;
+  padding:30px;
+  display:flex;
+  align-items:stretch;        /* ✅ FIX */
+  justify-content:center;
+  overflow-y:auto;
+}
+
+/* PANEL */
+.panel{
+  width:980px;
+  background:#fff;
+  border-radius:14px;
+  padding:24px;
+  box-shadow:0 20px 40px rgba(0,0,0,.12);
+  min-height:calc(100vh - 60px);  /* ✅ FIX */
+  display:flex;                  /* ✅ FIX */
+  flex-direction:column;         /* ✅ FIX */
+}
+
+/* HEADER */
+.header{display:flex;gap:12px;margin-bottom:22px}
+.icon{
+  width:42px;
+  height:42px;
+  background:#111827;
+  color:#fff;
+  border-radius:10px;
+  display:flex;
+  align-items:center;
+  justify-content:center
+}
+.sub{font-size:13px;color:var(--muted)}
+
+/* SECTIONS */
+.section{
+  background:#ffffff;
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:16px;
+  margin-bottom:20px;
+}
+.section h3{
+  margin:0 0 14px;
+  font-size:15px;
+}
+
+.row{display:flex;gap:16px;margin-bottom:16px}
+.col{flex:1}
+label{font-size:13px;font-weight:600}
+input,select,textarea{
+  width:100%;
+  padding:10px;
+  border-radius:8px;
+  border:1px solid var(--border);
+  margin-top:6px
+}
+textarea{min-height:80px}
+.actions{
+  display:flex;
+  justify-content:flex-end;
+  gap:12px;
+  margin-top:auto;   /* ✅ pushes buttons to bottom when content is short */
+}
+.btn{
+  padding:10px 18px;
+  border-radius:10px;
+  border:none;
+  cursor:pointer
+}
+.save{background:#1f2937;color:#fff}
+.cancel{background:#e5e7eb}
+.voice{cursor:pointer;margin-left:8px}
+
+
+.align-end{
+  align-items:flex-end;
+}
+
+.today-col{
+  flex:0.6;
+}
+
+.today-label{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-weight:600;
+  margin-top:10px;
+}
+
+.today-vertical{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  gap:6px;          /* tight vertical spacing */
+}
+
+.today-vertical input[type="checkbox"]{
+  width:auto;
+  margin-top:4px;
+}
+
+.rule-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:6px;
+}
+
+.record-btn{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:6px 14px;
+  font-size:13px;
+  border-radius:8px;
+  border:1px solid transparent;
+  cursor:pointer;
+  font-weight:600;
+  color:#ffffff;
+}
+
+/* Start (Green) */
+.record-btn.start{
+  background:#16a34a;
+}
+
+/* Stop (Red) */
+.record-btn.recording{
+  background:#dc2626;
+}
+
+
+.mic-icon{
+  width:16px;
+  height:16px;
+}
+
+.rule-actions{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+
+.clear-btn{
+  padding:6px 14px;
+  font-size:13px;
+  border-radius:8px;
+  border:1px solid var(--border);
+  background:#e5e7eb;
+  cursor:pointer;
+  font-weight:600;
+  color:#374151;
+}
+
+.clear-btn:hover{
+  background:#d1d5db;
+}
+
+.rule-picker{
+  list-style:none;
+  padding:0;
+  margin:0;
+  display:grid;
+  grid-template-columns:repeat(2, 1fr);
+  gap:8px;
+}
+
+.rule-item{
+  padding:10px 12px;
+  border:1px solid var(--border);
+  border-radius:8px;
+  cursor:pointer;
+  font-size:13px;
+  background:#f9fafb;
+  transition:all 0.2s ease;
+}
+
+.rule-item:hover{
+  background:#eef2ff;
+}
+
+.rule-item.selected{
+  background:#2563eb;
+  color:#ffffff;
+  border-color:#2563eb;
+}
+
+/* Submenu selected state */
+.submenu button{
+  position:relative;
+}
+
+/* Highlight */
+.submenu button.selected{
+  background:#2563eb;
+  color:#ffffff;
+}
+
+/* Tick icon */
+.submenu button.selected::before{
+  content:"✓";
+  color:#ffffff;
+  font-weight:700;
+}
+
+.feature-count{
+  margin-left:auto;
+  font-size:12px;
+  color:#9ca3af;
+}
+
+.form-row{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+
+.switch{
+  position:relative;
+  display:inline-block;
+  width:36px;
+  height:20px;
+}
+
+.switch.small{
+  width:30px;
+  height:16px;
+}
+
+.switch input{display:none}
+
+.slider{
+  position:absolute;
+  cursor:pointer;
+  inset:0;
+  background:#9ca3af;
+  border-radius:999px;
+  transition:.2s;
+}
+
+.slider:before{
+  content:"";
+  position:absolute;
+  height:14px;
+  width:14px;
+  left:3px;
+  bottom:3px;
+  background:white;
+  border-radius:50%;
+  transition:.2s;
+}
+
+.switch.small .slider:before{
+  width:12px;
+  height:12px;
+}
+
+input:checked + .slider{
+  background:#2563eb;
+}
+
+input:checked + .slider:before{
+  transform:translateX(16px);
+}
+
+</style>
+</head>
+
+<body>
+<div class="app">
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+    <h2>Post Consultation</h2>
+  <div id="sidebar"></div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="panel" id="panel">
+    <div class="header">
+      <div class="icon">🩺</div>
+      <div>
+        <h2>Select a Module</h2>
+        <div class="sub">Please choose a module to continue</div>
+      </div>
+    </div>
+    <p>Select a module and form from the left sidebar to configure clinical workflows.</p>
+  </div>
+</div>
+
+</div>
+<script>
+
+
+
+function toggleForm(featureId, formId, checkbox){
+  featureState[featureId] ??= { forms:{} };
+  featureState[featureId].forms[formId] = checkbox.checked;
+  updateFeatureCount(featureId);
+}
+
+
+function updateFeatureCount(featureId){
+  const count = Object.values(
+    featureState[featureId]?.forms || {}
+  ).filter(Boolean).length;
+
+  document.getElementById(`count-${featureId}`)
+    .innerText = `${count} enabled`;
+}
+</script>
+
+<script>
+const modules = [
+  ["Drug Interaction","💊"],
+  ["Investigation Orders","📝"],
+  ["Clinical Note","📋"],
+  ["coronary Angiogram Report","🫀"],
+  ["Echocardiogram Report","❤️"],
+  ["ECG Report","⚡"],
+  ["Clinical Summary Generation","🩺"],
+  ["Follow-Up Planning","📋"],
+  ["Care Gap & Alert Review","🚨"],
+  ["Patient Education & Discharge Instructions","📚"],
+
+  ["Final Diagnosis & CKD Staging","🩻"],
+  ["Disease Progression & Risk Alerts","⚠️"],
+
+  ["Post Chemotherapy Protocols & Monitoring","🧪"],
+  ["Radiation Therapy Follow-Up & Toxicity Monitoring","☢️"],
+  ["Rehabilitation & Physiotherapy Plans","🤸‍♂️"],
+  ["Medication Reconciliation & Adherence Monitoring","💊"],
+  ["Cytopathology Report","🔬"],
+  ["Histopathology Report","🧫"],
+  ["Imageology Report","🖼️"],
+  ["Nuclear Medicine Report","☢️"],
+  ["Genetic Testing Report","🧬"],
+  ["Teletherapy Report","📡"],
+  ["Immunotherapy Report","🧬"],
+  
+
+  ["Growth & Nutrition Advice for Pediatrics","🧸"],
+  ["Immunization Review & Planning","💉"],
+  ["Pediatric-Specific Post-Consultation Focus Areas","🧒"],
+  ["Weight-Based Medication Accuracy","⚖️"],
+  ["Developmental Milestone Tracking","🚼"],
+  ["Growth Monitoring & Interpretation","📏"],
+  ["Pediatric Dosage Calculations","🧪"],
+  ["Neonatal Care & Monitoring","👶"],
+  ["Adolescent Health & Counseling","🧑‍🎓"],
+  ["Symptom Resolution & Control Assessment","🩹"],
+  
+  ["Medication Adherence & Optimization","💊"],
+  ["Objective Lung Function Review","🌬️"],
+  ["Trigger & Risk Factor Management","⚠️"],
+  ["Infection Prevention & Vaccination Review","💉"],
+  ["Pulmonary Rehabilitation & Lifestyle Advice","🚶‍♂️"],
+  ["Asthma Action Plan Review & Update","🌟"],
+  ["Smoking Cessation Support & Resources","🚭"],
+
+  ["Diagnosis Confirmation & Problem List Update","✅"],
+  ["Medication & Hormonal Therapy Planning","💊"],
+  ["Menstrual & Reproductive Counseling","🩺"],
+  ["Procedure / Surgery Planning (If Indicated)","🩺"],
+  ["Sexual Health & Hygiene Advice","🩺"],
+  ["Lifestyle & Preventive Health Advice","🏃‍♀️"],
+  
+  // ["Treatment Response","💊"],
+  // ["Treatment Planning & Protocol","📋"],
+  // ["Documentation","📝"]
+];
+
+const sidebar=document.getElementById("sidebar");
+modules.forEach(m=>{
+  const featureId = m[0].replace(/\s+/g,"_");
+
+  sidebar.innerHTML+=`
+  <div class="module" data-feature="${featureId}">
+
+    <div class="module-title" onclick="toggleFeatureOpen('${featureId}')">
+
+      <span class="module-icon">${m[1]}</span>
+      ${m[0]}
+
+      <span class="feature-count" id="count-${featureId}">0 enabled</span>
+
+      
+    </div>
+
+    <div class="submenu" id="submenu-${featureId}">
+      ${["Patient Abstract","Correlation Analysis","Missed / Care Gap","Alerts"]
+        .map(f=>{
+          const formId = f.replace(/\s+|\/+/g,"_");
+          return `
+          <div class="form-row">
+           <button type="button">
+  ${f}
+</button>
+
+          
+
+            <label class="switch small">
+              <input
+  type="checkbox"
+  onchange="
+    toggleForm('${featureId}','${formId}', this);
+    handleFormEnable(
+      this,
+      '${m[0]}',
+      '${m[1]}',
+      '${f}',
+      this.closest('.form-row').querySelector('button')
+    );
+  "
+>
+
+              <span class="slider"></span>
+            </label>
+          </div>`;
+        }).join("")}
+    </div>
+  </div>`;
+});
+
+
+
+
+function loadForm(module,icon,form){
+
+    // ✅ ADD THESE TWO LINES
+  currentFeature = module;
+  currentForm = form;
+
+    // ✅ RESET FORM-SPECIFIC STATE
+  selectedRules = [];
+
+  const rulesArea = document.getElementById("rulesArea");
+  if (rulesArea) rulesArea.value = "";
+
+  document.getElementById("panel").innerHTML=`
+  <div class="header">
+    <div class="icon">${icon}</div>
+    <div>
+      <h2>${module}</h2>
+      <div class="sub">${form}</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>Basic Configuration</h3>
+    <label>Display Name</label>
+    <input value="${form} - ${module}"/>
+
+    <h4>Rule Field Picker</h4>
+<ul class="rule-picker" id="rulePicker">
+  <!-- dynamically populated -->
+</ul>
+
+
+  </div>
+
+  <div class="section">
+    <h3>Advanced Settings</h3>
+
+    <div class="row">
+      <div class="col">
+        <label>Trigger Method</label>
+        <select>
+          <option>By Button Click</option>
+          <option>On Page Reload</option>
+        </select>
+      </div>
+      
+    </div>
+
+    <div class="row align-end">
+
+      <!-- Output Display -->
+      <div class="col">
+        <label>Output Display</label>
+        <select id="outputDisplay">
+          <option>Detailed</option>
+          <option>Summary</option>
+          <option>Problem Oriented</option>
+        </select>
+      </div>
+
+      <!-- From Date -->
+      <div class="col">
+        <label>From</label>
+        <input type="date" id="fromDate" onchange="handleDateChange()">
+      </div>
+
+      <!-- To Date -->
+      <div class="col">
+        <label>To</label>
+        <input type="date" id="toDate" onchange="handleDateChange()">
+      </div>
+
+      <!-- Today -->
+      <div class="col today-col today-vertical">
+        <label>Today</label>
+        <input
+          type="checkbox"
+          id="todayCheck"
+          onchange="handleTodayToggle()"
+        >
+      </div>
+    </div>
+
+
+    <div class="rule-header">
+      <label>Rule</label>
+
+      <div class="rule-actions">
+        <button
+          class="record-btn start"
+          id="recordBtn"
+          onclick="toggleRecording()"
+        >
+          Start Recording <span class="mic-icon">🎙️</span>
+        </button>
+
+        <button
+          class="clear-btn"
+          onclick="clearRuleText()"
+          title="Clear rule text"
+        >
+          Clear
+        </button>
+      </div>
+    </div>
+
+
+    <ul class="rule-picker" id="rulePicker"></ul>
+    <textarea id="rulesArea"></textarea>
+  </div>
+
+
+
+    <h4>Actions</h4>
+    <div class="row">
+      <div class="col">
+        <label>Mode</label>
+        <select id="actionMode">
+          <option>Notify</option>
+          <option>Popup</option>
+          <option>Message</option>
+          <option>Alert</option>
+        </select>
+      </div>
+      <div class="col">
+        <label>Through</label>
+        <select id="actionThrough">
+          <option>WhatsApp</option>
+          <option>SMS</option>
+          <option>Email</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn cancel" onclick="resetPanel()">Cancel</button>
+      <button
+        class="btn save"
+        id="saveConfigBtn"
+        onclick="saveConfiguration()"
+        >
+        Save Configuration
+     </button>
+
+    </div>
+  </div>
+  `;
+}
+
+function startVoice(){
+  const r=new(window.SpeechRecognition||webkitSpeechRecognition)();
+  r.onresult=e=>{
+    const t=document.getElementById("rulesArea");
+    t.value+=(t.value?", ":"")+e.results[0][0].transcript;
+  };
+  r.start();
+}
+
+function resetPanel(){
+  location.reload();
+}
+</script>
+
+<script>
+function handleTodayToggle(){
+  const today = document.getElementById("todayCheck");
+  const from = document.getElementById("fromDate");
+  const to = document.getElementById("toDate");
+
+  if(today.checked){
+    from.value = "";
+    to.value = "";
+    from.disabled = true;
+    to.disabled = true;
+  }else{
+    from.disabled = false;
+    to.disabled = false;
+  }
+}
+
+function handleDateChange(){
+  const today = document.getElementById("todayCheck");
+  const from = document.getElementById("fromDate");
+  const to = document.getElementById("toDate");
+
+  if(from.value || to.value){
+    today.checked = false;
+    today.disabled = true;
+  }else{
+    today.disabled = false;
+  }
+}
+</script>
+
+
+<script>
+let recognition;
+let isRecording = false;
+
+function toggleRecording(){
+  const btn = document.getElementById("recordBtn");
+  const textarea = document.getElementById("rulesArea");
+
+  if(!recognition){
+    recognition = new (window.SpeechRecognition || webkitSpeechRecognition)();
+    recognition.continuous = true;
+    recognition.interimResults = false;
+
+    recognition.onresult = (e) => {
+      const text = e.results[e.results.length - 1][0].transcript;
+      if(textarea.value){
+        textarea.value += ", " + text;
+      }else{
+        textarea.value = text;
+      }
+
+    };
+
+    recognition.onend = () => {
+      if(isRecording){
+        recognition.start(); // auto-restart if still recording
+      }
+    };
+  }
+
+  if(!isRecording){
+    recognition.start();
+    isRecording = true;
+    btn.innerHTML = `Stop Recording <span class="mic-icon">🎙️</span>`;
+    btn.classList.remove("start");
+    btn.classList.add("recording");
+
+  }else{
+    recognition.stop();
+    isRecording = false;
+    btn.innerHTML = `Start Recording <span class="mic-icon">🎙️</span>`;
+    btn.classList.remove("recording");
+    btn.classList.add("start");
+  }
+}
+</script>
+
+<script>
+function clearRuleText(){
+  const textarea = document.getElementById("rulesArea");
+  textarea.value = "";
+  selectedRules = [];
+
+  document
+    .querySelectorAll(".rule-item.selected")
+    .forEach(el => el.classList.remove("selected"));
+}
+</script>
+
+<script>
+let doctor_id = null;
+let doctor_name = "";
+let doctor_speciality = "";
+let consultationPhase = "POST_CONSULTATION";
+let currentFeature = "";
+let currentForm = "";
+let selectedRules = [];
+const featureState = {};
+const API_BASE = window.APP_CONFIG.API_BASE_URL;
+</script>
+
+<script>
+// let selectedRules = [];
+
+function toggleRuleSelection(el){
+  const ruleText = el.dataset.rule;
+
+  if(el.classList.contains("selected")){
+    el.classList.remove("selected");
+    selectedRules = selectedRules.filter(r => r !== ruleText);
+  }else{
+    el.classList.add("selected");
+    selectedRules.push(ruleText);
+  }
+
+  updateRuleTextarea();
+}
+
+function updateRuleTextarea(){
+  const textarea = document.getElementById("rulesArea");
+  textarea.value = selectedRules.join(", ");
+}
+</script>
+
+<script>
+function selectSubmenu(btn){
+  // remove selection from all submenu buttons
+  document
+    .querySelectorAll(".submenu button.selected")
+    .forEach(b => b.classList.remove("selected"));
+
+  // mark current as selected
+  btn.classList.add("selected");
+}
+</script>
+
+
+
+
+<script>
+/* =========================
+   GLOBAL STATE
+========================= */
+// let doctor_id = null;
+// let doctor_name = "";
+// let doctor_speciality = "";
+// let currentFeature = "";
+// let currentForm = "";
+// let consultationPhase = "PRE_CONSULTATION";
+// let selectedRules = [];
+
+/* =========================
+   GET DOCTOR ID ON LOAD
+========================= */
+document.addEventListener("DOMContentLoaded", () => {
+  const url = new URL(window.location.href);
+  doctor_id = url.searchParams.get("doctor_id");
+
+  if(!doctor_id){
+    console.warn("Doctor ID not found in URL");
+  }
+  fetchDoctorDetails();
+});
+
+function fetchDoctorDetails() {
+  fetch(`${API_BASE}/hms/users/speciality/users/patient/get_doctor_details`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ doctor_id })
+  })
+  .then(res => {
+    if (!res.ok) throw new Error("Failed to fetch doctor details");
+    return res.json();
+  })
+  .then(data => {
+    doctor_name = data.doctor_name || "";
+    doctor_speciality = data.doctor_speciality || "";
+    console.log("Doctor loaded:", doctor_name, doctor_speciality);
+  })
+  .catch(err => console.error("Doctor details error:", err));
+}
+
+
+/* =========================
+   SAVE CONFIGURATION
+========================= */
+function saveConfiguration(){
+
+  const featureSummary = buildEnabledFeaturePayload();
+  if(!doctor_id){
+    alert("Doctor ID missing in URL");
+    return;
+  }
+
+function generateFeatureId(featureName){
+  return "FEAT_" + featureName
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_|_$/g, "");
+}
+
+function generateFormId(formName){
+  return "FORM_" + formName
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_|_$/g, "");
+}
+
+
+// const rules = selectedRules.map(ruleText => {
+//   const match = ruleText.match(/rule\s(\d+)/i);
+//   if (!match) return null;
+
+//   const ruleNo = Number(match[1]);
+
+//   return {
+//     ruleId: `R${ruleNo}`,
+//     ruleName: `Rule ${ruleNo}`,
+//     ruleDetails: ruleText
+//   };
+// }).filter(Boolean);
+
+
+
+  const payload = {
+    doctor_id: doctor_id,
+    doctor_name: doctor_name,
+    doctor_speciality: doctor_speciality,
+    consultation_phase: consultationPhase,
+    enabled_feature_count: featureSummary.enabled_feature_count,
+    enabled_form_count: featureSummary.enabled_form_count,
+    enabled_features: featureSummary.enabled_features,
+    feature_id: generateFeatureId(currentFeature),
+    feature_name: currentFeature,
+    form_id: generateFormId(currentForm),
+    form_name: currentForm,
+
+    rules_selected: selectedRules,
+
+    trigger_method:
+      document.querySelector("select")?.value || "",
+
+    button_label:
+      document.querySelector("input[placeholder='Enter button text']")?.value || "",
+
+    output_format:
+      document.getElementById("outputDisplay")?.value || "",
+
+    date_filter: {
+      from: document.getElementById("fromDate")?.value || null,
+      to: document.getElementById("toDate")?.value || null,
+      today: document.getElementById("todayCheck")?.checked || false
+    },
+
+    rule_text:
+      document.getElementById("rulesArea")?.value || "",
+
+    action_mode:
+        document.getElementById("actionMode")?.value || "",
+
+    through:
+        document.getElementById("actionThrough")?.value || ""
+
+  };
+
+  console.log("Saving configuration payload:", payload);
+
+    fetch(`${API_BASE}/hms/users/speciality/post-save-clinical-configuration`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  })
+  .then(res => {
+    if(!res.ok) throw new Error("Failed to save configuration");
+    return res.json();
+  })
+  .then(data => {
+    alert("Configuration saved successfully");
+    console.log("Backend response:", data);
+  })
+  .catch(err => {
+    console.error(err);
+    alert("Error saving configuration");
+  });
+}
+
+/* =========================
+   RULE SELECTION HANDLING
+========================= */
+function toggleRuleSelection(el) {
+  const ruleObj = {
+    ruleId: el.dataset.ruleId,
+    ruleName: el.dataset.ruleName,
+    ruleDetails: el.dataset.ruleText
+  };
+
+  if (el.classList.contains("selected")) {
+    el.classList.remove("selected");
+    selectedRules = selectedRules.filter(
+      r => r.ruleId !== ruleObj.ruleId
+    );
+  } else {
+    el.classList.add("selected");
+    selectedRules.push(ruleObj);
+  }
+
+  updateRuleTextarea();
+}
+
+
+function updateRuleTextarea() {
+  const textarea = document.getElementById("rulesArea");
+  textarea.value = selectedRules
+    .map(r => r.ruleDetails)
+    .join(", ");
+}
+
+</script>
+
+
+<script>
+/* =========================
+   GLOBAL STATE
+========================= */
+// let doctor_id = null;
+// let doctor_name = "";
+// let doctor_speciality = "";
+// let consultationPhase = "PRE_CONSULTATION";
+// let selectedRules = [];
+
+/* =========================
+   INIT – GET DOCTOR ID + DETAILS
+========================= */
+document.addEventListener("DOMContentLoaded", async () => {
+  const url = new URL(window.location.href);
+  doctor_id = url.searchParams.get("doctor_id");
+
+  if (!doctor_id) {
+    console.warn("Doctor ID missing in URL");
+    return;
+  }
+
+  await fetchDoctorDetails();
+  await restoreSidebarState();   // 🔥 ADD THIS
+});
+
+/* =========================
+   FETCH DOCTOR DETAILS
+========================= */
+function fetchDoctorDetails() {
+  fetch(`${API_BASE}/hms/users/speciality/users/patient/get_doctor_details`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ doctor_id })
+  })
+  .then(res => {
+    if (!res.ok) throw new Error("Failed to fetch doctor details");
+    return res.json();
+  })
+  .then(data => {
+    doctor_name = data.doctor_name || "";
+    doctor_speciality = data.doctor_speciality || "";
+    console.log("Doctor loaded:", doctor_name, doctor_speciality);
+  })
+  .catch(err => console.error("Doctor details error:", err));
+}
+
+
+/* =========================
+   LOAD RULE SUGGESTIONS
+========================= */
+async function loadRuleSuggestions(featureName, formName) {
+
+  if (!doctor_id || !doctor_speciality) {
+    console.warn("Doctor data not ready");
+    return;
+  }
+
+  const payload = {
+    doctor_id: doctor_id,
+    doctor_speciality: doctor_speciality,
+    consultation_phase: consultationPhase,
+    feature_name: featureName,
+    form_name: formName
+  };
+
+  console.log("Fetching rule suggestions with payload:", payload);
+
+  try {
+    const res = await fetch(
+      `${API_BASE}/hms/users/speciality/get-post-rule-suggestions`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      }
+    );
+
+    if (!res.ok) throw new Error("Rule suggestion fetch failed");
+
+    const data = await res.json();
+    populateRulePicker(data.rules || []);
+
+  } catch (err) {
+    console.error("Rule suggestion error:", err);
+  }
+}
+
+/* =========================
+   POPULATE RULE PICKER
+========================= */
+function populateRulePicker(rules) {
+  const picker = document.getElementById("rulePicker");
+  picker.innerHTML = "";
+  selectedRules = [];
+
+  rules.forEach((rule, index) => {
+    const li = document.createElement("li");
+    li.className = "rule-item";
+
+    // 🔥 Store full rule metadata
+    li.dataset.ruleId = `R${index + 1}`;
+    li.dataset.ruleName = `Rule ${index + 1}`;
+    li.dataset.ruleText = rule.rule_text;
+
+    li.innerText = rule.rule_text;
+    li.onclick = () => toggleRuleSelection(li);
+
+    picker.appendChild(li);
+  });
+}
+
+
+/* =========================
+   RULE SELECTION HANDLER
+========================= */
+function toggleRuleSelection(el) {
+  const ruleObj = {
+    ruleId: el.dataset.ruleId,
+    ruleName: el.dataset.ruleName,
+    ruleDetails: el.dataset.ruleText
+  };
+
+  if (el.classList.contains("selected")) {
+    el.classList.remove("selected");
+    selectedRules = selectedRules.filter(
+      r => r.ruleId !== ruleObj.ruleId
+    );
+  } else {
+    el.classList.add("selected");
+    selectedRules.push(ruleObj);
+  }
+
+  updateRuleTextarea();
+}
+
+
+/* =========================
+   UPDATE RULE TEXTAREA
+========================= */
+function updateRuleTextarea() {
+  const textarea = document.getElementById("rulesArea");
+  textarea.value = selectedRules
+    .map(r => r.ruleDetails)
+    .join(", ");
+}
+
+
+/* =========================
+   SUBMENU SELECTION (HOOK)
+========================= */
+function handleSubmenuClick(btn, featureName, formName) {
+  selectSubmenu(btn);                 // existing UI logic
+  loadForm(featureName, "", formName); // existing form loader
+  loadRuleSuggestions(featureName, formName);
+}
+</script>
+
+
+
+
+
+<script>
+/* =========================
+   GLOBAL HELPERS
+========================= */
+
+let doctorReady = false;
+
+function generateFeatureId(featureName){
+  return "FEAT_" + featureName
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_|_$/g, "");
+}
+
+function generateFormId(formName){
+  return "FORM_" + formName
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_|_$/g, "");
+}
+function buildEnabledFeaturePayload() {
+  const enabledFeatures = [];
+  let totalFormCount = 0;
+
+  for (const featureId in featureState) {
+    const featureObj = featureState[featureId];
+    if (!featureObj.enabled) continue;
+
+    const enabledForms = [];
+
+    for (const formId in featureObj.forms) {
+      if (featureObj.forms[formId]) {
+        totalFormCount++;
+        enabledForms.push({
+          form_id: generateFormId(formId.replace(/_/g, " ")),
+          form_name: formId.replace(/_/g, " ")
+        });
+      }
+    }
+
+    enabledFeatures.push({
+      feature_id: generateFeatureId(featureId.replace(/_/g, " ")),
+      feature_name: featureId.replace(/_/g, " "),
+      enabled_form_count: enabledForms.length,
+      enabled_forms: enabledForms
+    });
+  }
+
+  return {
+    enabled_feature_count: enabledFeatures.length,
+    enabled_form_count: totalFormCount,
+    enabled_features: enabledFeatures
+  };
+}
+
+</script>
+<script>
+function fetchDoctorDetails() {
+  fetch(`${API_BASE}/hms/users/speciality/users/patient/get_doctor_details`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ doctor_id })
+  })
+  .then(res => res.json())
+  .then(data => {
+    doctor_name = data.doctor_name || "";
+    doctor_speciality = data.doctor_speciality || "";
+    doctorReady = true;
+    console.log("✅ Doctor loaded:", doctor_name);
+  })
+  .catch(err => console.error("❌ Doctor fetch error:", err));
+}
+</script>
+<script>
+function safeRestore(featureName, formName) {
+  const wait = setInterval(() => {
+    if (doctorReady && doctor_id) {
+      clearInterval(wait);
+      restoreSavedConfiguration(featureName, formName);
+      
+    }
+  }, 100);
+}
+</script>
+<script>
+async function restoreSavedConfiguration(featureName, formName) {
+  console.log("🔄 Restoring config", featureName, formName);
+
+  const feature_id = generateFeatureId(featureName);
+  const form_id = generateFormId(formName);
+
+  try {
+    const res = await fetch(
+     `${API_BASE}/hms/users/speciality/post-get-clinical-configuration` +
+      `?doctor_id=${doctor_id}` +
+      `&consultation_phase=${consultationPhase}` +
+      `&feature_id=${feature_id}` +
+      `&form_id=${form_id}`
+    );
+
+    console.log("📡 Fetch status:", res.status);
+
+    if (!res.ok) return;
+
+    const json = await res.json();
+    console.log("📦 Saved config:", json);
+
+    if (!json.data || json.data.length === 0) return;
+
+    const c = json.data[0];
+
+    /* ===== APPLY VALUES ===== */
+
+    document.querySelector("select").value = c.trigger_method || "";
+    document.getElementById("outputDisplay").value = c.output_format || "";
+    document.getElementById("rulesArea").value = c.rule_text || "";
+    document.getElementById("actionMode").value = c.action_mode || "";
+    document.getElementById("actionThrough").value = c.through || "";
+
+    if (c.date_filter) {
+      document.getElementById("fromDate").value = c.date_filter.from || "";
+      document.getElementById("toDate").value = c.date_filter.to || "";
+      document.getElementById("todayCheck").checked = c.date_filter.today || false;
+    }
+
+    /* ===== RULE HIGHLIGHT ===== */
+    selectedRules = c.rules_selected || [];
+
+   
+
+  } catch (e) {
+    console.error("❌ Restore failed:", e);
+  }
+}
+</script>
+
+<script>
+function handleFormEnable(checkbox, moduleName, icon, formName, buttonEl) {
+  if (checkbox.checked) {
+    // highlight selected form name
+    selectSubmenu(buttonEl);
+
+    // load everything ONLY on enable
+    loadForm(moduleName, icon, formName);
+    loadRuleSuggestions(moduleName, formName);
+    safeRestore(moduleName, formName);
+  } else {
+    // optional: clear panel when disabled
+    document.getElementById("panel").innerHTML = `
+      <div class="header">
+        <div class="icon">🩺</div>
+        <div>
+          <h2>Select a Module</h2>
+          <div class="sub">Enable a form to configure</div>
+        </div>
+      </div>
+    `;
+  }
+}
+</script>
+
+
+
+
+<script>
+async function restoreSidebarState() {
+  try {
+    const res = await fetch(
+      `${API_BASE}/hms/users/speciality/post-get-clinical-configuration` +
+      `?doctor_id=${doctor_id}&consultation_phase=${consultationPhase}`
+    );
+
+    const json = await res.json();
+    if (!json.data || json.data.length === 0) return;
+
+    Object.keys(featureState).forEach(k => delete featureState[k]);
+
+    json.data.forEach(cfg => {
+      const featureKey = cfg.feature_name.replace(/\s+/g, "_");
+      const formKey = cfg.form_name.replace(/\s+|\/+/g, "_");
+
+      featureState[featureKey] ??= { forms: {} };
+      featureState[featureKey].forms[formKey] = true;
+    });
+
+    Object.keys(featureState).forEach(featureId => {
+      const count = Object.values(featureState[featureId].forms).filter(Boolean).length;
+
+      // ✅ show count
+      document.getElementById(`count-${featureId}`).innerText =
+        `${count} enabled`;
+
+      // ✅ restore checked forms ONLY (do NOT open submenu)
+      const submenu = document.getElementById(`submenu-${featureId}`);
+
+      submenu.querySelectorAll(".form-row").forEach(row => {
+        const label = row.querySelector("button").innerText.trim();
+        const formKey = label.replace(/\s+|\/+/g, "_");
+
+        if (featureState[featureId].forms[formKey]) {
+          row.querySelector("input[type=checkbox]").checked = true;
+        }
+      });
+    });
+
+  } catch (err) {
+    console.error("❌ Failed to restore sidebar:", err);
+  }
+}
+
+</script>
+
+
+
+
+<script>
+function toggleFeatureOpen(featureId) {
+  const submenu = document.getElementById(`submenu-${featureId}`);
+  submenu.classList.toggle("active");
+}
+</script>
+
+</body>
+</html>

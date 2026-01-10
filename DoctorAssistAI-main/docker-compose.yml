@@ -1,0 +1,178 @@
+# version: "3.9"
+
+# services:
+#   frontend:
+#     build:
+#       context: ./frontend
+#       dockerfile: Dockerfile
+#     container_name: frontend
+#     ports:
+#       - "5173:5173"
+#     env_file:
+#       - .env
+#     volumes:
+#       - ./frontend:/app      # ← ADD THIS
+#     command: npm run dev -- --host
+
+#   gateway:
+#     build:
+#       context: .
+#       dockerfile: ./gateway/Dockerfile
+#     container_name: gateway
+#     ports:
+#       - "8040:8000"
+#     env_file:
+#       - .env
+
+#   rabbitmq:
+#     image: rabbitmq:3-management
+#     container_name: rabbitmq
+#     ports:
+#       - "5672:5672"
+#       - "15672:15672"
+#     environment:
+#       RABBITMQ_DEFAULT_USER: admin
+#       RABBITMQ_DEFAULT_PASS: admin
+#     volumes:
+#       - rabbitmq_data:/var/lib/rabbitmq
+
+#   audit-service:
+#     build: ./audit-service
+#     env_file: .env
+#     depends_on:
+#       - rabbitmq
+
+# volumes:
+#   rabbitmq_data:
+
+  
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    ports:
+      - "5173:5173"
+    env_file:
+      - .env
+    volumes:
+      - ./frontend:/app
+    command: npm run dev -- --host
+
+  gateway:
+    build:
+      context: .
+      dockerfile: ./gateway/Dockerfile
+    container_name: gateway
+    ports:
+      - "8040:8000"
+    env_file:
+      - .env
+    depends_on:
+      - rabbitmq
+
+  orchestration:
+    build:
+      context: .
+      dockerfile: ./orchestration/Dockerfile
+    container_name: orchestration
+    env_file:
+      - .env
+    depends_on:
+      - rabbitmq
+
+  users:
+    build:
+      context: .
+      dockerfile: ./users/Dockerfile
+    container_name: users
+    env_file:
+      - .env
+    depends_on:
+      - rabbitmq
+    volumes:
+      - ./users/patient_data/uploads:/app/uploads
+
+  speciality:
+    build:
+      context: .
+      dockerfile: ./speciality/Dockerfile
+    container_name: speciality
+    env_file:
+      - .env
+    depends_on:
+      - rabbitmq
+
+  audit-service:
+    build:
+      context: .
+      dockerfile: ./audit-service/Dockerfile
+    container_name: audit-service
+    env_file:
+      - .env
+    depends_on:
+      - rabbitmq
+
+  ai_service:
+    build:
+      context: .
+      dockerfile: ./ai_service/Dockerfile
+    container_name: ai_service
+    env_file:
+      - .env
+    depends_on:
+      - rabbitmq
+
+  workflow_engine:
+    build:
+      context: .
+      dockerfile: ./workflow_engine/Dockerfile
+    container_name: workflow_engine
+    env_file:
+      - .env
+    depends_on:
+      - rabbitmq
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+
+  redis:
+    image: redis:7
+    container_name: redis
+    command: >
+      redis-server
+      --maxmemory 128mb
+      --maxmemory-policy allkeys-lru
+      --save ""
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  log-streamer:
+    build:
+      context: ./log-streamer
+      dockerfile: Dockerfile
+    container_name: log-streamer
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    env_file:
+      - .env
+    ports:
+      - "9001:9001"
+
+
+
+volumes:
+  rabbitmq_data:
+  redis_data:

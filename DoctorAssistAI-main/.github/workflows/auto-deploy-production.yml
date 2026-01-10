@@ -1,0 +1,128 @@
+name: Auto Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy-to-production:
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # 🔍 Detect which service changed
+      - name: Detect changed service
+        id: detect
+        run: |
+          CHANGED=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }})
+
+          if echo "$CHANGED" | grep -q "^frontend/"; then
+            echo "service=frontend" >> $GITHUB_OUTPUT
+          elif echo "$CHANGED" | grep -q "^gateway/"; then
+            echo "service=gateway" >> $GITHUB_OUTPUT
+          elif echo "$CHANGED" | grep -q "^users/"; then
+            echo "service=users" >> $GITHUB_OUTPUT
+          elif echo "$CHANGED" | grep -q "^orchestration/"; then
+            echo "service=orchestration" >> $GITHUB_OUTPUT
+          elif echo "$CHANGED" | grep -q "^speciality/"; then
+            echo "service=speciality" >> $GITHUB_OUTPUT
+          elif echo "$CHANGED" | grep -q "^audit-service/"; then
+            echo "service=audit-service" >> $GITHUB_OUTPUT
+          elif echo "$CHANGED" | grep -q "^ai_service/"; then
+            echo "service=ai_service" >> $GITHUB_OUTPUT
+          else
+            echo "service=none" >> $GITHUB_OUTPUT
+          fi
+
+      # 🚀 Deploy ONLY the changed service
+      - name: Deploy to Production Server
+        if: steps.detect.outputs.service != 'none'
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.PROD_SERVER_HOST }}
+          username: ${{ secrets.PROD_SERVER_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          port: 22
+          command_timeout: 30m
+          script: |
+            set -e
+
+            echo "🚀 Deploying service: ${{ steps.detect.outputs.service }}"
+            echo "📅 Time: $(date)"
+
+            PROJECT_DIR="/root/Project/DoctorAssistAi"
+
+            if [ ! -d "$PROJECT_DIR" ]; then
+              mkdir -p /root/Project
+              cd /root/Project
+              git clone https://github.com/DoctorAssist-AI/DoctorAssistAI.git DoctorAssistAi
+            fi
+
+            cd $PROJECT_DIR
+
+            # 📦 Backup
+            BACKUP_DIR="/root/backups/doctorassist_$(date +%Y%m%d_%H%M%S)"
+            mkdir -p $BACKUP_DIR
+            cp -r $PROJECT_DIR $BACKUP_DIR/
+
+            # 🔄 Pull latest code
+            git fetch origin main
+            git reset --hard origin/main
+            git pull origin main
+
+            echo "🏗️ Rebuilding ONLY service: ${{ steps.detect.outputs.service }}"
+            docker-compose up -d --build ${{ steps.detect.outputs.service }}
+
+            echo "⏳ Waiting for service to start..."
+            sleep 10
+
+            # 🏥 Health check (gateway example)
+            if curl -f http://localhost:8040/health 2>/dev/null || curl -f http://localhost:8040 2>/dev/null; then
+              echo "✅ Health check passed"
+            else
+              echo "❌ Health check failed"
+              exit 1
+            fi
+
+            echo "📊 Service status:"
+            docker-compose ps ${{ steps.detect.outputs.service }}
+
+            echo "📋 Recent logs:"
+            docker-compose logs --tail=30 ${{ steps.detect.outputs.service }}
+
+            # 🧹 Cleanup old backups (keep last 5)
+            cd /root/backups
+            ls -t | tail -n +6 | xargs -r rm -rf
+
+            echo "✅ Deployment completed successfully"
+
+      - name: No Service Changes
+        if: steps.detect.outputs.service == 'none'
+        run: |
+          echo "ℹ️ No service-level changes detected. Skipping deployment."
+
+      # 🔄 Rollback (single service)
+      - name: Rollback on Failure
+        if: failure()
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.PROD_SERVER_HOST }}
+          username: ${{ secrets.PROD_SERVER_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          script: |
+            echo "❌ Deployment failed. Rolling back..."
+
+            LATEST_BACKUP=$(ls -t /root/backups | head -1)
+
+            if [ -n "$LATEST_BACKUP" ]; then
+              cd /root/backups/$LATEST_BACKUP/DoctorAssistAi
+              docker-compose up -d ${{ steps.detect.outputs.service }}
+              echo "✅ Rollback completed"
+            else
+              echo "⚠️ No backup found"
+            fi

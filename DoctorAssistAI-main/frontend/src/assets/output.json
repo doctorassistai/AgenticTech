@@ -1,0 +1,22 @@
+{
+  "node_id": "patient_profile",
+  "components": [
+    {
+      "component_type": "ProfileHeader",
+      "data": {
+        "critical_patterns": [
+          "BP 121/80 mmHg – elevated systolic pressure",
+          "Pulse rate 98 bpm – elevated heart rate"
+        ],
+        "risk_assessment": [
+          "High BMI 30.9 kg/m²",
+          "Low platelet count 135 x10^9/L"
+        ],
+        "immediate_actions": [
+          "Order ECG",
+          "Monitor vitals closely"
+        ]
+      }
+    }
+  ]
+}
