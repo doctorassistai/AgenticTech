@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DoctorAssist Widgets Demo</title>
+</head>
+<body>
+  <div id="patient-widget"></div>
+  <div id="transcription-widget"></div>
+  <div id="diagnosis-widget"></div>
+  <div id="treatmentplan-widget"></div>
+  <div id="combined-documentation-widget"></div>
+  <div id="report-upload-widget"></div>
+ 
+
+  <script>
+    window.process = { env: {} };
+    window.PATIENT_WIDGET_API = "https://doctorassist.ai/api/";
+    window.DOCTOR_ASSIST_DATA = {
+      transcript: "", diagnosis: "", treatment_plan: "",
+      document_treatment_plan: "", medications: [],
+      investigations: [], clinical_notes: "", onboarding_summary: ""
+    };
+  </script>
+
+  <script src="https://doctorassist.ai/widgets/patient-widget.js?v=1"></script>
+  <script src="https://doctorassist.ai/widgets/transcription-widget.js?v=1"></script>
+  <script src="https://doctorassist.ai/widgets/diagnosis-widget.js?v=1"></script>
+  <script src="https://doctorassist.ai/widgets/treatmentplan-widget.js?v=1"></script>
+  <script src="https://doctorassist.ai/widgets/combined-documentation-widget.js?v=1"></script>
+  <script src="https://doctorassist.ai/widgets/report-upload-widget.js?v=1"></script>
+  
+
+  <script>
+    window.addEventListener("load", async function () {
+      const endpoint = "https://doctorassist.ai/api/hms/integration/system/validate-widget-session";
+      const bearerToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJJTlQtZmQ5NmNiOGEtMDYyOC00Yjk5LWE2NTEtMzg3YTVkYmMzZjM4Iiwicm9sZSI6ImludGVncmF0b3IiLCJzY29wZXMiOltdLCJleHAiOjE3ODA2NzgyMzh9.dspuv1cZa4rZAVQvjHkj_fqhAnhL1N99fqcuGzVl07s";
+      const payload = {
+        hospital_id: "xDDt2uQrmi",
+        doctor_id: "DOC_9998881010",
+        patient_id: "HMS-PAT-@2292925"
+      };
+
+      async function validateSession() {
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${bearerToken}` },
+          body: JSON.stringify(payload)
+        });
+        if (!response.ok) throw new Error(`Validation failed: ${response.status}`);
+        return await response.json();
+      }
+
+      try { const d = await validateSession(); window.PatientWidget?.init({ containerId: "patient-widget", patientId: d.patient.patient_sys_user_id, doctorId: d.doctor.doctor_sys_user_id }); } catch(e) {}
+      try { const d = await validateSession(); window.TranscriptionWidget?.init({ containerId: "transcription-widget", doctorId: d.doctor.doctor_sys_user_id, patientId: d.patient.patient_sys_user_id }); } catch(e) {}
+      try { const d = await validateSession(); window.DiagnosisWidget?.init({ containerId: "diagnosis-widget", doctorId: d.doctor.doctor_sys_user_id, patientId: d.patient.patient_sys_user_id }); } catch(e) {}
+      try { const d = await validateSession(); window.TreatmentPlanWidget?.init({ containerId: "treatmentplan-widget", doctorId: d.doctor.doctor_sys_user_id, patientId: d.patient.patient_sys_user_id }); } catch(e) {}
+      try { const d = await validateSession(); window.CombinedDocumentationWidget?.init({ containerId: "combined-documentation-widget", doctorId: d.doctor.doctor_sys_user_id, patientId: d.patient.patient_sys_user_id }); } catch(e) {}
+      try { const d = await validateSession(); window.ReportUploadWidget?.init({ containerId: "report-upload-widget", doctorId: d.doctor.doctor_sys_user_id, patientId: d.patient.patient_sys_user_id, appointmentId: d.appointment?.appointment_id }); } catch(e) {}
+      });
+  </script>
+</body>
+</html>

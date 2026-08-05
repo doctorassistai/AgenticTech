@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Spot Investigation Report</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 14mm 14mm 20mm 14mm;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: Arial, sans-serif;
+      font-size: 10px;
+      color: #000;
+      background: #fff;
+    }
+
+    .page {
+      width: 182mm;
+      margin: 0 auto;
+      background: #fff;
+    }
+
+    /* ── FIXED PAGE FOOTER (repeats every page) ─────────────── */
+    .page-footer {
+      position: fixed;
+      bottom: 0;
+      left: 14mm;
+      right: 14mm;
+      background: #fff;
+      padding-top: 3px;
+      font-size: 8.5px;
+      text-align: center;
+      color: #000;
+      line-height: 1.5;
+      border-top: 1px solid #000;
+    }
+
+    /* ── HEADER ─────────────────────────────────────────────── */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .header-logo {
+      height: 44px;
+      object-fit: contain;
+    }
+
+    .header-address {
+      font-size: 8.5px;
+      text-align: right;
+      line-height: 1.5;
+    }
+
+    /* ── SECTION TITLE (green bg like PDF) ──────────────────── */
+    .section-title {
+      background-color: #c6efce;
+      font-size: 10.5px;
+      font-weight: bold;
+      text-align: center;
+      padding: 4px 6px;
+      border: 1px solid #aaa;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      margin-top: 8px;
+      margin-bottom: 0;
+    }
+
+    /* ── ALL TABLES ─────────────────────────────────────────── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+    }
+
+    td {
+      border: 1px solid #aaa;
+      padding: 3px 6px;
+      vertical-align: top;
+      font-size: 10px;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      min-height: 16px;
+    }
+
+    .lbl {
+      width: 40%;
+      font-weight: bold;
+      background: #fff;
+    }
+
+    .val {
+      width: 60%;
+      background: #fff;
+    }
+
+    /* ── FREE-TEXT AREA (large open box) ────────────────────── */
+    .free-area {
+      border: 1px solid #aaa;
+      border-top: none;
+      min-height: 120px;
+      padding: 6px 8px;
+      font-size: 10px;
+      line-height: 1.75;
+    }
+
+    .free-area-sm {
+      border: 1px solid #aaa;
+      border-top: none;
+      min-height: 50px;
+      padding: 6px 8px;
+      font-size: 10px;
+      line-height: 1.75;
+    }
+
+    /* ── INLINE VALUE IN TABLE (grey pre-filled) ─────────────── */
+    .prefill {
+      font-style: italic;
+      color: #333;
+    }
+
+    /* ── CONCLUSION ─────────────────────────────────────────── */
+    .conclusion-wrapper {
+      font-family: Arial, sans-serif;
+      font-size: 10px;
+      color: #000;
+      padding: 6px 8px;
+      line-height: 1.75;
+      border: 1px solid #aaa;
+      border-top: none;
+      min-height: 50px;
+    }
+
+    .conclusion-wrapper img {
+      max-width: 160mm;
+      height: auto;
+      display: block;
+      margin: 4px 0;
+    }
+
+    /* ── STAMP / SIGNATURE ──────────────────────────────────── */
+    .stamp-section {
+      margin-top: 20px;
+      padding-top: 6px;
+    }
+
+    .stamp-label {
+      font-size: 10px;
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+
+    .sig-stamp {
+      width: 80px;
+      height: 68px;
+      object-fit: contain;
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .auth-label {
+      font-size: 10px;
+      font-weight: bold;
+    }
+
+    @media print {
+      body  { margin: 0; background: #fff; }
+      .page { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!-- FIXED FOOTER — repeats on every page                       -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<div class="page-footer">
+  Optimus Medical Services Pvt Limited &nbsp;|&nbsp;
+  CC NO: 63/2931, 3rd Floor Chaithanya Building, S.A Road, Kadavanthra, Kochi-682016
+</div>
+
+<div class="page">
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- HEADER                                                  -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="header">
+    {% if header_image %}
+      <img src="{{ header_image }}" class="header-logo" alt="Optimus" />
+    {% endif %}
+    <div class="header-address">
+      Optimus Medical Services Pvt Limited<br/>
+      CC NO: 63/2931, 3rd Floor Chaithanya Building<br/>
+      S.A Road, Kadavanthra, Kochi-682016
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- SECTION 1 — CLAIM DETAILS                               -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="section-title">Claim Details</div>
+  <table>
+    <tr>
+      <td class="lbl">Claim ID</td>
+      <td class="val">{{ case.caseId or case.claimId or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Company Name</td>
+      <td class="val">{{ case.insurer or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Insured Name / Age / Gender</td>
+      <td class="val">
+        {{ case.claimantName or facts.patient_name or '' }}
+        {% if facts.patient_age_gender %} &nbsp;/&nbsp; {{ facts.patient_age_gender }}{% endif %}
+      </td>
+    </tr>
+    <tr>
+      <td class="lbl">Type of Claim</td>
+      <td class="val">
+        <span class="prefill">{{ case.claimMode | upper if case.claimMode else 'CASHLESS' }}</span>
+      </td>
+    </tr>
+    <tr>
+      <td class="lbl">Insured Address with Contact Number</td>
+      <td class="val">
+        {{ facts.accident_place or '' }}
+        {% if facts.data_collected_from_phone or case.claimantMobile %}
+          <br/>{{ facts.data_collected_from_phone or case.claimantMobile }}
+        {% endif %}
+      </td>
+    </tr>
+    <tr>
+      <td class="lbl">Hospital Name &amp; Address</td>
+      <td class="val">
+        {{ facts.hospital_name or hospital.name or '' }}
+        {% if facts.hospital_address or hospital.address %}
+          <br/>{{ facts.hospital_address or hospital.address }}
+        {% endif %}
+      </td>
+    </tr>
+    <tr>
+      <td class="lbl">DOA with Time</td>
+      <td class="val">
+        {{ facts.admission_date or hospital.admissionDate or '' }}
+        {% if facts.admission_time %} &nbsp;{{ facts.admission_time }}{% endif %}
+      </td>
+    </tr>
+    <tr>
+      <td class="lbl">DOD with Time</td>
+      <td class="val">
+        {{ facts.discharge_date or hospital.dischargeDate or '' }}
+        {% if facts.discharge_time %} &nbsp;{{ facts.discharge_time }}{% endif %}
+      </td>
+    </tr>
+    <tr>
+      <td class="lbl">Diagnosis</td>
+      <td class="val">
+        {{ facts.final_diagnosis or facts.provisional_diagnosis or facts.chief_complaints or '' }}
+      </td>
+    </tr>
+    <tr>
+      <td class="lbl">Allocation Date</td>
+      <td class="val">{{ case.allocationDate or case.dateOfIncident or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Reporting Date</td>
+      <td class="val">{{ case.reportingDate or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Treatment Type</td>
+      <td class="val">
+        <span class="prefill">{{ facts.treatment_type or 'Surgical/Conservative' }}</span>
+      </td>
+    </tr>
+    <tr>
+      <td class="lbl">Policy Number</td>
+      <td class="val">{{ case.policyNumber or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Policy Inception Date</td>
+      <td class="val">{{ case.policyInceptionDate or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Trigger</td>
+      <td class="val">
+        {% set triggers = case.claimTriggers or [] %}
+        {% for t in triggers %}
+          {{ t | replace('_', ' ') | title }}{% if not loop.last %}, {% endif %}
+        {% endfor %}
+      </td>
+    </tr>
+  </table>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- SECTION 2 — HOSPITAL VISIT                              -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="section-title" style="margin-top:10px;">Hospital Visit</div>
+
+  <!-- Large free-text area for hospital visit narrative -->
+  <div class="free-area">
+    {{ facts.field_officer_hospital_opinion or '' }}
+    {% if facts.hospital_registration_number %}
+      <br/>Reg No: {{ facts.hospital_registration_number }}
+      {% if facts.hospital_registration_validity %} (Valid till: {{ facts.hospital_registration_validity }}){% endif %}
+    {% endif %}
+    {% if facts.hospital_bed_strength %}<br/>Beds: {{ facts.hospital_bed_strength }}{% endif %}
+    {% if facts.ip_register_collected %}<br/>IP Register collected: {{ facts.ip_register_collected }}{% endif %}
+    {% if facts.inhouse_lab_present %}<br/>In-house lab: {{ facts.inhouse_lab_present }}{% endif %}
+  </div>
+
+  <table>
+    <tr>
+      <td class="lbl">Hospital Criteria Fulfilled / Not</td>
+      <td class="val">{{ facts.hospital_criteria_fulfilled or 'YES' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Reg Certificate / NABH Certificate</td>
+      <td class="val">{{ facts.nabh_certificate or 'NA' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">IP Register</td>
+      <td class="val">{{ facts.ip_register_collected or 'NO' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Hospital Cooperation</td>
+      <td class="val">{{ facts.hospital_cooperation or 'YES' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Final Bill</td>
+      <td class="val">{{ billing.totalBillAmount or facts.final_bill or 'NA' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Tariff</td>
+      <td class="val">{{ facts.tariff or 'NA' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">
+        Treating Doctor<br/>
+        <span style="font-weight:normal; font-size:9px;">(Name, Reg Number, Permanent or Visiting, TDC Status)</span>
+      </td>
+      <td class="val">
+        {{ facts.treating_doctor or hospital.doctorName or '' }}
+        {% if facts.doctor_qualification %} &nbsp;({{ facts.doctor_qualification }}){% endif %}
+        {% if facts.doctor_reg_number %}<br/>Reg: {{ facts.doctor_reg_number }}{% endif %}
+        {% if facts.doctor_type %}<br/>{{ facts.doctor_type }}{% endif %}
+      </td>
+    </tr>
+    <tr>
+      <td class="lbl">
+        Pathologist<br/>
+        <span style="font-weight:normal; font-size:9px;">(Name, Reg Number, Permanent or Visiting)</span>
+      </td>
+      <td class="val">{{ facts.pathologist_name or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Radiology Details</td>
+      <td class="val">{{ facts.radiology_details or 'NO' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Pharmacy Details</td>
+      <td class="val">{{ facts.pharmacy_details or 'NO' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Market Feedback</td>
+      <td class="val">{{ facts.market_feedback or 'NA' }}</td>
+    </tr>
+  </table>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- SECTION 3 — MEMBER FINDINGS                             -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="section-title" style="margin-top:10px;">Member Findings</div>
+
+  <!-- Free-text member feedback area -->
+  <div class="free-area">
+    {{ facts.field_officer_member_opinion or '' }}
+    {% if facts.physical_visit_confirmed %}<br/>Physical visit confirmed: {{ facts.physical_visit_confirmed }}{% endif %}
+    {% if facts.chief_complaints %}<br/>Complaints: {{ facts.chief_complaints }}{% endif %}
+    {% if facts.past_history %}<br/>Past history: {{ facts.past_history }}{% endif %}
+  </div>
+
+  <table>
+    <tr>
+      <td class="lbl">Final Bill Amount<br/><span style="font-weight:normal; font-size:9px;">(Mode of Payment and Proof)</span></td>
+      <td class="val">{{ billing.totalBillAmount or facts.final_bill_amount or 'NA' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Vicinity Check Done or Not</td>
+      <td class="val">{{ facts.vicinity_check or 'NA' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">If RTA Case — FIR / MLC / Spot Details</td>
+      <td class="val">
+        {% if facts.mlc_registered %}
+          MLC: {{ facts.mlc_registered }}
+          {% if facts.mlc_number %} No: {{ facts.mlc_number }}{% endif %}
+          {% if facts.accident_narration %}<br/>{{ facts.accident_narration }}{% endif %}
+        {% else %}
+          {{ 'NA' }}
+        {% endif %}
+      </td>
+    </tr>
+    <tr>
+      <td class="lbl">Personal Habits<br/><span style="font-weight:normal; font-size:9px;">(Alcohol, Smoking, Tobacco)</span></td>
+      <td class="val">{{ facts.personal_habits or facts.alcohol_consumption or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Birth Summary if Children &lt;10 Years</td>
+      <td class="val">{{ facts.birth_summary or 'NA' }}</td>
+    </tr>
+  </table>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- SECTION 4 — PAST RECORDS                                -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="section-title" style="margin-top:10px;">Past Records</div>
+  <div class="free-area">
+    {{ facts.past_history or facts.past_records or '' }}
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- SECTION 5 — INVESTIGATION FINDINGS                      -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="section-title" style="margin-top:10px;">Investigation Findings</div>
+  <div class="free-area">
+    {{ facts.discrepancies_verbatim or facts.contradictions_found or '' }}
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- CONCLUSION / TRIGGER REPLY                              -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="section-title" style="margin-top:10px;">Conclusion / Trigger Reply</div>
+  <div class="conclusion-wrapper">
+    {% if conclusion_html %}
+      {{ conclusion_html | safe }}
+    {% elif facts.final_verdict_verbatim %}
+      {{ facts.final_verdict_verbatim }}
+    {% elif case.description %}
+      {{ case.description }}
+    {% else %}
+      &nbsp;
+    {% endif %}
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- RECOMMENDATION                                          -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="section-title" style="margin-top:10px;">Recommendation</div>
+  <div class="free-area-sm">
+    {{ facts.recommendation or '' }}
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- AGENCY DETAILS                                          -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <table style="margin-top:10px;">
+    <tr>
+      <td class="lbl">Name of the Agency</td>
+      <td class="val" style="font-weight:bold;">OPTIMUS MEDICAL SERVICES PVT LIMITED</td>
+    </tr>
+    <tr>
+      <td class="lbl">FO Name</td>
+      <td class="val">{{ facts.field_officer_name or medical_staff.fieldOfficer or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">QC Done By</td>
+      <td class="val">{{ facts.qc_done_by or medical_staff.qcOfficer or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Report Prepared By</td>
+      <td class="val">{{ facts.report_prepared_by or medical_staff.reportPreparedBy or 'DR ANJANA R MOHAN' }}</td>
+    </tr>
+  </table>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- STAMP / AUTHORISED SIGNATORY                            -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="stamp-section">
+    <div class="stamp-label">For Optimus Medical Services Pvt Ltd</div>
+    {% if show_stamp and stamp_image %}
+      <img src="{{ stamp_image }}" class="sig-stamp" alt="Stamp" />
+    {% endif %}
+    <div class="auth-label">Authorised Signatory</div>
+  </div>
+
+</div>
+</body>
+</html>

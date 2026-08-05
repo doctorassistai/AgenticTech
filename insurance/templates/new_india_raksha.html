@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Raksha Health Insurance TPA Pvt Ltd - New India Assurance Investigation Report</title>
+  <style>
+    @page { size: A4; margin: 12mm 12mm; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; font-size: 10px; color: #000; background: #fff; }
+    .page { width: 186mm; margin: 0 auto; background: #fff; }
+
+    /* ── HEADER ─────────────────────────────────────────────── */
+    .header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 10px;
+      gap: 14px;
+    }
+    .header-logo {
+      width: 90px;
+      height: 80px;
+      object-fit: contain;
+      flex-shrink: 0;
+    }
+    .header-title {
+      flex: 1;
+      text-align: center;
+    }
+    .header-title-main {
+      font-size: 13px;
+      font-weight: bold;
+      text-decoration: underline;
+      text-transform: uppercase;
+      line-height: 1.7;
+    }
+
+    /* ── TABLES ──────────────────────────────────────────────── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+    }
+    td {
+      border: 1px solid #000;
+      padding: 3px 5px;
+      vertical-align: top;
+      font-size: 10px;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+    }
+
+    /* Grey section header */
+    .sec-hdr td {
+      background-color: #c0c0c0;
+      font-weight: bold;
+      font-size: 10px;
+      padding: 4px 5px;
+      border: 1px solid #000;
+    }
+
+    /* column widths */
+    .lbl { width: 38%; }
+    .val { width: 62%; }
+
+    /* Brief of case 5-col */
+    .bc-label    { width: 28%; }
+    .bc-insured  { width: 14%; }
+    .bc-invest   { width: 22%; }
+    .bc-verified { width: 18%; }
+    .bc-comments { width: 18%; }
+
+    /* ── Signature ───────────────────────────────────────────── */
+    .sig-table td {
+      border: 1px solid #000;
+      padding: 5px 7px;
+      font-size: 10px;
+      vertical-align: middle;
+    }
+    .sig-stamp {
+      width: 90px;
+      height: 75px;
+      object-fit: contain;
+    }
+
+    /* ── Documents list ──────────────────────────────────────── */
+    .docs-list {
+      border: 1px solid #000;
+      border-top: none;
+      padding: 5px 8px 6px 20px;
+      font-size: 10px;
+      line-height: 1.9;
+    }
+
+    /* ── Conclusion / Opinion ────────────────────────────────── */
+    .conclusion-wrapper { font-family: Arial, sans-serif; font-size: 10px; color: #000; padding: 0; }
+    .trigger-section { margin-bottom: 0; page-break-inside: avoid; border-bottom: 1.5px solid #2c4a8c; }
+    .trigger-section:last-child { border-bottom: none; }
+    .trigger-body { padding: 8px 10px; }
+    .section-header { background: #e8eef8; border-left: 3px solid #2c4a8c; padding: 5px 8px; font-weight: bold; font-size: 10px; color: #2c4a8c; margin: 8px 0 4px 0; }
+    .body-para { margin: 3px 0 5px 0; line-height: 1.6; text-align: justify; font-size: 10px; }
+    .disc-item { padding: 4px 8px; margin: 3px 0; border-radius: 3px; page-break-inside: avoid; border-left: 3px solid #888; }
+    .disc-tag { font-weight: bold; font-size: 8px; text-transform: uppercase; display: inline-block; margin-right: 6px; }
+    .disc-content { font-size: 10px; line-height: 1.5; color: #222; display: inline; }
+    .recommendation-block { background: #e85d24; border-radius: 3px; padding: 7px 10px; margin-top: 8px; page-break-inside: avoid; }
+    .rec-label { color: #fff; font-weight: bold; font-size: 10px; margin-bottom: 3px; }
+    .rec-body  { color: #fff; font-size: 10px; line-height: 1.5; }
+    .no-disc   { color: #777; font-style: italic; font-size: 10px; margin: 3px 0; }
+    .no-conclusion { color: #777; font-style: italic; font-size: 10px; padding: 6px; }
+
+    @media print { body { margin: 0; background: #fff; } .page { width: 100%; } }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ═══════════════════════════════════════ -->
+  <!-- HEADER                                  -->
+  <!-- ═══════════════════════════════════════ -->
+  <div class="header">
+    <img src="{{ header_image }}" class="header-logo" alt="Raksha Logo">
+    <div class="header-title">
+      <div class="header-title-main">
+        Raksha Health Insurance TPA Pvt Ltd.<br>
+        INVESTIGATION REPORT<br>
+        (NEW INDIA ASSURANCE LTD)
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <!-- POLICY DETAILS + BRIEF OF CASE          -->
+  <!-- ═══════════════════════════════════════ -->
+  {% set bv = case.get('briefVerification',  {}) or {} %}
+  {% set bc = case.get('briefComments',      {}) or {} %}
+  {% set bi = case.get('briefInsured',       {}) or {} %}
+  {% set bn = case.get('briefInvestigation', {}) or {} %}
+
+  <table>
+    <tr class="sec-hdr"><td colspan="5">Policy Details</td></tr>
+
+    <!-- Brief of case header row -->
+    <tr>
+      <td class="bc-label" style="font-weight:bold;">Brief of the case</td>
+      <td class="bc-insured" style="font-weight:bold;">As per insured</td>
+      <td class="bc-invest" style="font-weight:bold;">As per investigation</td>
+      <td class="bc-verified" style="font-weight:bold;">Verified or Not</td>
+      <td class="bc-comments" style="font-weight:bold;">If NO, comments</td>
+    </tr>
+
+    <!-- Brief rows -->
+    <tr>
+      <td class="bc-label">Name of the Insured patient</td>
+      <td class="bc-insured">{{ bi.get('patientName', case.claimantName or '') }}</td>
+      <td class="bc-invest">{{ case.claimantName or '' }}</td>
+      <td class="bc-verified">{{ bv.get('patientName','') }}</td>
+      <td class="bc-comments">{{ bc.get('patientName','') }}</td>
+    </tr>
+    <tr>
+      <td class="bc-label">Date of Birth/Age</td>
+      <td class="bc-insured">{{ bi.get('dob', '') }}</td>
+      <td class="bc-invest">{{ case.claimantAge or '' }}</td>
+      <td class="bc-verified">{{ bv.get('dob','') }}</td>
+      <td class="bc-comments">{{ bc.get('dob','') }}</td>
+    </tr>
+    <tr>
+      <td class="bc-label">Age proof</td>
+      <td class="bc-insured">{{ bi.get('ageProof', case.claimantAge or '') }}{% if bi.get('sex') or case.claimantGender %}, {{ bi.get('sex', case.claimantGender or '') }}{% endif %}</td>
+      <td class="bc-invest">{{ bn.get('ageProof','') }}</td>
+      <td class="bc-verified">{{ bv.get('ageProof','') }}</td>
+      <td class="bc-comments">{{ bc.get('ageProof','') }}</td>
+    </tr>
+    <tr>
+      <td class="bc-label">Occupation</td>
+      <td class="bc-insured">{{ bi.get('occupation','') }}</td>
+      <td class="bc-invest">{{ bn.get('occupation','') }}</td>
+      <td class="bc-verified">{{ bv.get('occupation','') }}</td>
+      <td class="bc-comments">{{ bc.get('occupation','') }}</td>
+    </tr>
+
+    <!-- Policy fields — span all 5 cols using lbl+val pattern inside merged cells -->
+    <tr>
+      <td class="bc-label">Policy No</td>
+      <td colspan="4">{{ case.policyNumber or '' }}</td>
+    </tr>
+    <tr>
+      <td class="bc-label">CCN/PA</td>
+      <td colspan="4">{{ case.insurerRef or case.caseId or '' }}</td>
+    </tr>
+    <tr>
+      <td class="bc-label">Policy holder Name and Relation</td>
+      <td colspan="4">
+        {{ (case.get('policyDetails') or {}).get('policyHolderName') or case.claimantName or '' }}
+        {% if (case.get('policyDetails') or {}).get('policyHolderRelation') %} / {{ case.policyDetails.policyHolderRelation }}{% endif %}
+      </td>
+    </tr>
+    <tr>
+      <td class="bc-label">Policy Type</td>
+      <td colspan="4">{{ case.policyType or '' }}</td>
+    </tr>
+  </table>
+
+  <!-- ═══════════════════════════════════════ -->
+  <!-- CLAIM DETAILS                           -->
+  <!-- ═══════════════════════════════════════ -->
+  <table>
+    <tr class="sec-hdr"><td colspan="2">Claim details</td></tr>
+    <tr>
+      <td class="lbl">Date and Time of Admission</td>
+      <td class="val">{{ hospital.admissionDate or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Date and Time of Discharge</td>
+      <td class="val">{{ hospital.dischargeDate or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">ICU Admission Details</td>
+      <td class="val">{{ (case.get('cashlessDetails') or {}).get('icuDetails') or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Cashless/Non-cashless</td>
+      <td class="val">{{ case.claimMode or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Pre-Auth Details (Amount, Estimates, Medical History etc)</td>
+      <td class="val">
+        {% set cd = case.get('cashlessDetails') or {} %}
+        {{ cd.get('preAuthDetails') or case.claimedAmount or '' }}
+        {% if cd.get('estimatedCost') and not cd.get('preAuthDetails') %}{{ cd.estimatedCost }}{% endif %}
+      </td>
+    </tr>
+    <tr>
+      <td class="lbl">Diagnosis</td>
+      <td class="val">{{ critical.diagnosis or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Treatment</td>
+      <td class="val">{{ critical.get('treatment','') if critical.get else '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Hospital Name and Address</td>
+      <td class="val">{{ hospital.name or '' }}{% if hospital.address %}, {{ hospital.address }}{% endif %}{% if hospital.city %}, {{ hospital.city }}{% endif %}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Registration and Other details (Attach hospital information sheet and related documents)</td>
+      <td class="val">{{ hospital.get('registrationNumber','') if hospital.get else '' }}</td>
+    </tr>
+  </table>
+
+  <!-- ═══════════════════════════════════════ -->
+  <!-- AILMENT DETAILS                         -->
+  <!-- ═══════════════════════════════════════ -->
+  <table>
+    <tr class="sec-hdr"><td colspan="2">Ailment details</td></tr>
+    <tr>
+      <td class="lbl">Onset of symtoms</td>
+      <td class="val">{{ additional.get('onsetOfSymptoms','') if additional.get else '' or case.dateOfIncident or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">First consultation</td>
+      <td class="val">{{ additional.get('firstConsultation','') if additional.get else '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Referal Doctor's detail</td>
+      <td class="val">{{ case.familyDoctor or additional.get('referralDoctor','') if additional.get else '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Intial treatment Details</td>
+      <td class="val">{{ additional.get('initialTreatment','') if additional.get else '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Pre Hosp Inv and Treatment details</td>
+      <td class="val">{{ additional.get('preHospitalisationDetails','') if additional.get else '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Post Hosp Inv and treatment details</td>
+      <td class="val">{{ additional.get('postHospitalisationDetails','') if additional.get else '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Investigations Suggesting Diagnosis (Attach relevant copies)</td>
+      <td class="val">{{ additional.get('investigationsSuggestingDiagnosis','') if additional.get else '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Outcome</td>
+      <td class="val">{{ (case.get('interviewDetails') or {}).get('outcome') or '' }}</td>
+    </tr>
+  </table>
+
+  <!-- ═══════════════════════════════════════ -->
+  <!-- INSURED'S ADDRESS / OPINION / INTERVIEW -->
+  <!-- ═══════════════════════════════════════ -->
+  <table>
+    <tr>
+      <td style="width:30%; font-weight:bold;">INSURED'S ADDRESS DETAILS</td>
+      <td style="width:70%;">{{ case.claimantAddress or '' }}{% if case.claimantMobile %} / {{ case.claimantMobile }}{% endif %}</td>
+    </tr>
+    <tr>
+      <td style="font-weight:bold; vertical-align:top;">OPINION</td>
+      <td style="padding:0;">
+        <div class="conclusion-wrapper">{{ conclusion_html | safe }}</div>
+      </td>
+    </tr>
+    <tr>
+      <td style="font-weight:bold; vertical-align:top;">INSURED'S INTERVIEW</td>
+      <td>{{ (case.get('interviewDetails') or {}).get('insuredInterview') or '' }}</td>
+    </tr>
+  </table>
+
+  <!-- ═══════════════════════════════════════ -->
+  <!-- LIST OF DOCUMENTS COLLECTED             -->
+  <!-- ═══════════════════════════════════════ -->
+  <table>
+    <tr><td style="font-weight:bold; border-bottom:none;">lIST OF DOCUMENTS COLLECTED</td></tr>
+  </table>
+  <div class="docs-list">
+    {% if case.enclosures %}
+      {{ case.enclosures }}
+    {% else %}
+      (i)&nbsp;&nbsp; Photography/copy of Pan Card/Voter ID of the claimant<br>
+      (ii)&nbsp; Copy of different pathology test etc<br>
+      (iii) Copy of Indoor case papers/investigation papers/discharge summary<br>
+    {% endif %}
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <!-- SIGNATURE                               -->
+  <!-- ═══════════════════════════════════════ -->
+  <table class="sig-table" style="margin-top:6px;">
+    <tr>
+      <td style="width:18%; font-weight:bold;">Signature</td>
+      <td style="width:32%; text-align:center; height:80px;">
+        {% if show_stamp != false %}
+          <img src="{{ stamp_image }}" class="sig-stamp" alt="Stamp">
+        {% endif %}
+      </td>
+      <td style="width:10%; font-weight:bold;">Date :</td>
+      <td style="width:26%;">{{ case.reportDate or '' }}</td>
+      <td style="width:7%; font-weight:bold;">Place</td>
+      <td style="width:7%;">{{ hospital.city or 'Kochi' }}</td>
+    </tr>
+  </table>
+
+</div>
+</body>
+</html>

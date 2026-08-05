@@ -1,0 +1,1427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DoctorAssist.ai — Clinical Knowledge Intelligence</title>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300;0,400;0,600;0,700;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg2: #f7f7f7;
+    --bg3: #111111;
+    --text: #111111;
+    --text-muted: #555555;
+    --text-light: #888888;
+    --border: #e0e0e0;
+    --border-dark: #222222;
+    --accent: #111111;
+    --white: #ffffff;
+    --mono: 'Open Sans', sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'Open Sans', sans-serif;
+    font-weight: 300;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    overflow-x: hidden;
+  }
+
+  /* ── NAV ── */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 3rem;
+    height: 60px;
+    background: rgba(255,255,255,0.97);
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(8px);
+  }
+  .nav-logo {
+    font-weight: 700; font-size: 1rem; letter-spacing: -0.02em;
+    display: flex; align-items: center; gap: 8px; text-decoration: none; color: var(--text);
+  }
+  .nav-logo span { font-weight: 300; color: var(--text-muted); }
+  .nav-links { display: flex; gap: 2rem; list-style: none; }
+  .nav-links a {
+    font-size: 0.82rem; font-weight: 300; color: var(--text-muted);
+    text-decoration: none; letter-spacing: 0.03em;
+    transition: color 0.2s;
+  }
+  .nav-links a:hover { color: var(--text); }
+  .nav-cta {
+    font-size: 0.82rem; font-weight: 600; letter-spacing: 0.05em;
+    padding: 8px 20px; border: 1px solid var(--text);
+    background: var(--text); color: var(--white);
+    cursor: pointer; text-decoration: none;
+    transition: background 0.2s, color 0.2s;
+  }
+  .nav-cta:hover { background: var(--white); color: var(--text); }
+
+  /* ── SECTIONS ── */
+  section { padding: 7rem 3rem; }
+  .container { max-width: 1100px; margin: 0 auto; }
+
+  /* ── HERO ── */
+  #hero {
+    padding: 10rem 3rem 7rem;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    position: relative; overflow: hidden;
+  }
+  #hero::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: repeating-linear-gradient(
+      0deg, transparent, transparent 39px,
+      var(--border) 40px
+    ),
+    repeating-linear-gradient(
+      90deg, transparent, transparent 79px,
+      var(--border) 80px
+    );
+    opacity: 0.3;
+    pointer-events: none;
+  }
+  .hero-inner { max-width: 900px; position: relative; z-index: 1; }
+  .hero-badge {
+    display: inline-block;
+    font-size: 0.72rem; font-weight: 600; letter-spacing: 0.15em;
+    text-transform: uppercase; color: var(--text-muted);
+    border: 1px solid var(--border-dark);
+    padding: 4px 12px; margin-bottom: 2rem;
+  }
+  h1 {
+    font-size: clamp(2.6rem, 6vw, 5rem);
+    font-weight: 300; line-height: 1.05;
+    letter-spacing: -0.03em;
+    margin-bottom: 1.5rem;
+  }
+  h1 strong { font-weight: 700; }
+  .hero-sub {
+    font-size: 1.15rem; font-weight: 300;
+    color: var(--text-muted); max-width: 600px;
+    line-height: 1.8; margin-bottom: 2.5rem;
+  }
+  .hero-actions { display: flex; gap: 1rem; flex-wrap: wrap; }
+  .btn-primary {
+    font-family: 'Open Sans', sans-serif;
+    font-size: 0.85rem; font-weight: 600; letter-spacing: 0.06em;
+    padding: 14px 32px; background: var(--text); color: var(--white);
+    border: 1px solid var(--text); cursor: pointer; text-decoration: none;
+    transition: background 0.2s, color 0.2s;
+    display: inline-block;
+  }
+  .btn-primary:hover { background: transparent; color: var(--text); }
+  .btn-secondary {
+    font-family: 'Open Sans', sans-serif;
+    font-size: 0.85rem; font-weight: 400; letter-spacing: 0.04em;
+    padding: 14px 32px; background: transparent; color: var(--text);
+    border: 1px solid var(--border); cursor: pointer; text-decoration: none;
+    transition: border-color 0.2s;
+    display: inline-block;
+  }
+  .btn-secondary:hover { border-color: var(--text); }
+  .hero-stats {
+    margin-top: 4rem;
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 0; border: 1px solid var(--border);
+    max-width: 700px;
+  }
+  .hero-stat {
+    padding: 1.4rem 1.8rem;
+    border-right: 1px solid var(--border);
+  }
+  .hero-stat:last-child { border-right: none; }
+  .hero-stat-num {
+    font-size: 2rem; font-weight: 700; letter-spacing: -0.03em;
+    line-height: 1;
+  }
+  .hero-stat-label {
+    font-size: 0.75rem; font-weight: 300; color: var(--text-muted);
+    margin-top: 4px; letter-spacing: 0.04em;
+  }
+
+  /* ── SECTION HEADERS ── */
+  .section-label {
+    font-size: 0.72rem; font-weight: 600; letter-spacing: 0.18em;
+    text-transform: uppercase; color: var(--text-light);
+    margin-bottom: 1rem; display: block;
+  }
+  h2 {
+    font-size: clamp(1.8rem, 4vw, 2.8rem);
+    font-weight: 300; letter-spacing: -0.02em;
+    line-height: 1.15; margin-bottom: 1.2rem;
+  }
+  h2 strong { font-weight: 700; }
+  .section-desc {
+    font-size: 1rem; font-weight: 300; color: var(--text-muted);
+    max-width: 600px; line-height: 1.8;
+  }
+  .divider {
+    width: 40px; height: 2px; background: var(--text);
+    margin: 1.5rem 0;
+  }
+
+  /* ── HOW IT WORKS ── */
+  #how { background: var(--bg2); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  .steps {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 0; border: 1px solid var(--border);
+    margin-top: 3rem;
+  }
+  .step {
+    padding: 2.5rem 2rem;
+    border-right: 1px solid var(--border);
+    position: relative;
+    transition: background 0.2s;
+  }
+  .step:last-child { border-right: none; }
+  .step:hover { background: var(--white); }
+  .step-num {
+    font-size: 2.5rem; font-weight: 700; color: var(--border);
+    line-height: 1; margin-bottom: 1.2rem;
+    letter-spacing: -0.04em;
+  }
+  .step h3 {
+    font-size: 0.95rem; font-weight: 600;
+    margin-bottom: 0.6rem; letter-spacing: -0.01em;
+  }
+  .step p {
+    font-size: 0.85rem; font-weight: 300; color: var(--text-muted);
+    line-height: 1.7;
+  }
+  .step-icon {
+    position: absolute; top: 2rem; right: 2rem;
+    font-size: 1.2rem; opacity: 0.12;
+  }
+
+  /* ── KNOWLEDGE GRAPH DEMO ── */
+  #graph { border-bottom: 1px solid var(--border); }
+  .graph-layout {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 4rem; align-items: start; margin-top: 3rem;
+  }
+  .graph-vis {
+    border: 1px solid var(--border);
+    background: var(--bg2);
+    aspect-ratio: 1 / 0.85;
+    position: relative; overflow: hidden;
+    cursor: pointer;
+  }
+  .graph-vis svg { width: 100%; height: 100%; }
+  .graph-legend { margin-top: 1rem; display: flex; gap: 1.5rem; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; font-weight: 300; color: var(--text-muted); }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .legend-dot.clinical { background: #111; }
+  .legend-dot.evidence { background: #555; }
+  .legend-dot.regulation { background: #999; }
+  .graph-features { display: flex; flex-direction: column; gap: 1.5rem; }
+  .graph-feature {
+    padding: 1.2rem 1.5rem;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .graph-feature:hover, .graph-feature.active {
+    border-color: var(--text); background: var(--bg2);
+  }
+  .graph-feature h4 {
+    font-size: 0.88rem; font-weight: 600; margin-bottom: 0.3rem;
+  }
+  .graph-feature p {
+    font-size: 0.8rem; font-weight: 300; color: var(--text-muted); line-height: 1.6;
+  }
+
+  /* ── UPLOAD ZONE ── */
+  #upload { background: var(--bg3); color: var(--white); border-bottom: 1px solid #333; }
+  #upload .section-label { color: #666; }
+  #upload h2 { color: var(--white); }
+  #upload .section-desc { color: #888; }
+  #upload .divider { background: var(--white); opacity: 0.2; }
+  .upload-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 4rem; align-items: start; margin-top: 3rem;
+  }
+  .upload-zone {
+    border: 1px dashed #444;
+    padding: 3rem 2rem; text-align: center;
+    cursor: pointer; transition: border-color 0.2s;
+    position: relative;
+  }
+  .upload-zone:hover, .upload-zone.drag-over { border-color: #888; }
+  .upload-icon { font-size: 2rem; margin-bottom: 1rem; opacity: 0.4; }
+  .upload-title { font-size: 0.9rem; font-weight: 600; margin-bottom: 0.4rem; color: var(--white); }
+  .upload-sub { font-size: 0.78rem; font-weight: 300; color: #777; }
+  .file-types {
+    display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 2rem;
+  }
+  .file-tag {
+    font-size: 0.72rem; font-weight: 600; letter-spacing: 0.1em;
+    padding: 4px 10px; border: 1px solid #333; color: #999;
+  }
+  .upload-features { display: flex; flex-direction: column; gap: 1rem; }
+  .upload-feat {
+    display: flex; align-items: flex-start; gap: 1rem;
+    padding: 1.2rem 1.5rem; border: 1px solid #222;
+  }
+  .upload-feat-num {
+    font-size: 0.72rem; font-weight: 700;
+    color: #555; min-width: 24px; padding-top: 2px;
+  }
+  .upload-feat-text h4 { font-size: 0.88rem; font-weight: 600; color: var(--white); margin-bottom: 0.2rem; }
+  .upload-feat-text p { font-size: 0.78rem; font-weight: 300; color: #777; line-height: 1.6; }
+
+  /* ── SKILLS ── */
+  #skills { border-bottom: 1px solid var(--border); }
+  .skills-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem; margin-top: 3rem;
+  }
+  .skill-card {
+    border: 1px solid var(--border); padding: 1.8rem;
+    cursor: pointer; position: relative; overflow: hidden;
+    transition: border-color 0.2s, transform 0.15s;
+  }
+  .skill-card:hover { border-color: var(--text); transform: translateY(-2px); }
+  .skill-card::after {
+    content: ''; position: absolute; bottom: 0; left: 0; right: 0;
+    height: 2px; background: var(--text);
+    transform: scaleX(0); transform-origin: left;
+    transition: transform 0.2s;
+  }
+  .skill-card:hover::after { transform: scaleX(1); }
+  .skill-icon { font-size: 1.4rem; margin-bottom: 1rem; }
+  .skill-card h3 { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.5rem; }
+  .skill-card p { font-size: 0.8rem; font-weight: 300; color: var(--text-muted); line-height: 1.6; }
+  .skill-tags { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 1rem; }
+  .skill-tag { font-size: 0.68rem; letter-spacing: 0.06em; padding: 2px 8px; background: var(--bg2); color: var(--text-muted); }
+
+  /* ── USE CASES ── */
+  #usecases { background: var(--bg2); border-bottom: 1px solid var(--border); }
+  .usecase-tabs {
+    display: flex; gap: 0; border-bottom: 1px solid var(--border);
+    margin-top: 3rem; margin-bottom: 2.5rem;
+    overflow-x: auto;
+  }
+  .usecase-tab {
+    font-family: 'Open Sans', sans-serif;
+    font-size: 0.82rem; font-weight: 300;
+    padding: 0.8rem 1.5rem; border: none;
+    background: transparent; cursor: pointer; color: var(--text-muted);
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+    white-space: nowrap; transition: color 0.2s;
+  }
+  .usecase-tab.active { color: var(--text); border-bottom-color: var(--text); font-weight: 600; }
+  .usecase-tab:hover { color: var(--text); }
+  .usecase-panel { display: none; }
+  .usecase-panel.active { display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: start; }
+  .usecase-content h3 { font-size: 1.3rem; font-weight: 600; margin-bottom: 0.8rem; letter-spacing: -0.01em; }
+  .usecase-content p { font-size: 0.88rem; font-weight: 300; color: var(--text-muted); line-height: 1.8; margin-bottom: 1rem; }
+  .usecase-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
+  .usecase-list li {
+    display: flex; align-items: flex-start; gap: 0.8rem;
+    font-size: 0.85rem; font-weight: 300;
+  }
+  .usecase-list li::before { content: '—'; color: var(--text-light); flex-shrink: 0; }
+  .usecase-visual {
+    border: 1px solid var(--border); background: var(--white);
+    padding: 2rem; min-height: 280px;
+  }
+  .usecase-visual-title { font-size: 0.72rem; font-weight: 600; letter-spacing: 0.12em; color: var(--text-light); text-transform: uppercase; margin-bottom: 1.2rem; }
+  .mini-graph { display: flex; flex-direction: column; gap: 0.6rem; }
+  .mg-row { display: flex; gap: 0.5rem; align-items: center; }
+  .mg-node { padding: 5px 10px; border: 1px solid var(--border); font-size: 0.72rem; font-weight: 300; white-space: nowrap; }
+  .mg-node.primary { border-color: var(--text); font-weight: 600; background: var(--text); color: var(--white); }
+  .mg-node.secondary { border-color: #aaa; }
+  .mg-line { width: 20px; height: 1px; background: var(--border); }
+  .mg-line-v { width: 1px; height: 16px; background: var(--border); margin: 0 auto; }
+
+  /* ── CME ── */
+  #cme { border-bottom: 1px solid var(--border); }
+  .cme-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: start; margin-top: 3rem; }
+  .cme-card {
+    border: 1px solid var(--border); padding: 1.5rem;
+    display: flex; flex-direction: column; gap: 0.8rem;
+  }
+  .cme-badge { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--white); background: var(--text); padding: 3px 8px; display: inline-block; align-self: flex-start; }
+  .cme-card-title { font-size: 0.95rem; font-weight: 600; }
+  .cme-card-meta { font-size: 0.78rem; font-weight: 300; color: var(--text-muted); }
+  .cme-progress { height: 3px; background: var(--bg2); margin-top: 0.5rem; }
+  .cme-progress-bar { height: 100%; background: var(--text); }
+  .cme-features-list { display: flex; flex-direction: column; gap: 0; }
+  .cme-feat {
+    display: flex; align-items: flex-start; gap: 1.2rem;
+    padding: 1.5rem 0; border-bottom: 1px solid var(--border);
+  }
+  .cme-feat:last-child { border-bottom: none; }
+  .cme-feat-icon { font-size: 1.2rem; flex-shrink: 0; padding-top: 2px; }
+  .cme-feat h4 { font-size: 0.88rem; font-weight: 600; margin-bottom: 0.2rem; }
+  .cme-feat p { font-size: 0.8rem; font-weight: 300; color: var(--text-muted); line-height: 1.6; }
+
+  /* ── REGULATION ── */
+  #regulation { background: var(--bg2); border-bottom: 1px solid var(--border); }
+  .reg-timeline { margin-top: 3rem; display: flex; flex-direction: column; gap: 0; position: relative; }
+  .reg-timeline::before { content: ''; position: absolute; left: 119px; top: 0; bottom: 0; width: 1px; background: var(--border); }
+  .reg-event { display: flex; gap: 2rem; align-items: flex-start; padding: 1.5rem 0; }
+  .reg-date { font-size: 0.78rem; font-weight: 700; color: var(--text-muted); width: 100px; flex-shrink: 0; text-align: right; padding-top: 2px; letter-spacing: 0.04em; }
+  .reg-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--white); border: 2px solid var(--text); flex-shrink: 0; margin-top: 4px; position: relative; z-index: 1; }
+  .reg-dot.active { background: var(--text); }
+  .reg-content { flex: 1; }
+  .reg-content h4 { font-size: 0.88rem; font-weight: 600; margin-bottom: 0.2rem; }
+  .reg-content p { font-size: 0.8rem; font-weight: 300; color: var(--text-muted); line-height: 1.6; }
+  .reg-action { font-size: 0.72rem; font-weight: 600; letter-spacing: 0.06em; display: inline-block; margin-top: 0.4rem; padding: 2px 8px; border: 1px solid var(--border); color: var(--text-muted); cursor: pointer; }
+  .reg-action:hover { border-color: var(--text); color: var(--text); }
+
+  /* ── WORKFLOW ── */
+  #workflow { border-bottom: 1px solid var(--border); }
+  .workflow-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; border: 1px solid var(--border); margin-top: 3rem; }
+  .workflow-col { padding: 2rem; border-right: 1px solid var(--border); }
+  .workflow-col:last-child { border-right: none; }
+  .workflow-col-title { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-light); margin-bottom: 1.5rem; padding-bottom: 0.8rem; border-bottom: 1px solid var(--border); }
+  .workflow-item {
+    display: flex; align-items: flex-start; gap: 0.8rem;
+    padding: 0.8rem 0; border-bottom: 1px solid var(--bg2);
+  }
+  .workflow-item:last-child { border-bottom: none; }
+  .workflow-item-icon { width: 28px; height: 28px; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 0.7rem; flex-shrink: 0; }
+  .workflow-item-text { font-size: 0.8rem; font-weight: 300; color: var(--text-muted); line-height: 1.5; }
+  .workflow-item-text strong { font-weight: 600; color: var(--text); display: block; }
+
+  /* ── TESTIMONIALS ── */
+  #testimonials { background: var(--bg2); border-bottom: 1px solid var(--border); }
+  .testimonials-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-top: 3rem; }
+  .testimonial-card { background: var(--white); border: 1px solid var(--border); padding: 2rem; }
+  .testimonial-quote { font-size: 0.88rem; font-weight: 300; line-height: 1.8; margin-bottom: 1.5rem; color: var(--text); }
+  .testimonial-author { font-size: 0.78rem; font-weight: 600; }
+  .testimonial-role { font-size: 0.75rem; font-weight: 300; color: var(--text-muted); margin-top: 2px; }
+
+  /* ── PRICING ── */
+  #pricing { border-bottom: 1px solid var(--border); }
+  .pricing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; border: 1px solid var(--border); margin-top: 3rem; }
+  .pricing-card { padding: 2.5rem 2rem; border-right: 1px solid var(--border); }
+  .pricing-card:last-child { border-right: none; }
+  .pricing-card.featured { background: var(--text); color: var(--white); }
+  .pricing-tier { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 1.2rem; color: var(--text-muted); }
+  .pricing-card.featured .pricing-tier { color: #888; }
+  .pricing-price { font-size: 2.4rem; font-weight: 300; letter-spacing: -0.03em; margin-bottom: 0.3rem; }
+  .pricing-price span { font-size: 0.9rem; font-weight: 300; }
+  .pricing-desc { font-size: 0.8rem; font-weight: 300; color: var(--text-muted); margin-bottom: 2rem; line-height: 1.6; }
+  .pricing-card.featured .pricing-desc { color: #888; }
+  .pricing-feats { list-style: none; display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 2rem; }
+  .pricing-feats li { font-size: 0.82rem; font-weight: 300; display: flex; align-items: flex-start; gap: 0.6rem; }
+  .pricing-feats li::before { content: '✓'; font-weight: 700; flex-shrink: 0; }
+  .pricing-card.featured .pricing-feats li::before { color: #aaa; }
+  .pricing-btn {
+    font-family: 'Open Sans', sans-serif;
+    font-size: 0.82rem; font-weight: 600; letter-spacing: 0.06em;
+    padding: 12px 24px; border: 1px solid var(--border);
+    background: transparent; cursor: pointer; width: 100%;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+  }
+  .pricing-btn:hover { background: var(--text); color: var(--white); border-color: var(--text); }
+  .pricing-card.featured .pricing-btn { border-color: #555; color: var(--white); }
+  .pricing-card.featured .pricing-btn:hover { background: var(--white); color: var(--text); }
+
+  /* ── CTA ── */
+  #cta { background: var(--bg3); color: var(--white); text-align: center; }
+  #cta h2 { color: var(--white); }
+  #cta .section-desc { color: #888; margin: 0 auto; }
+  #cta .divider { background: #444; margin: 1.5rem auto; }
+  .cta-actions { display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap; margin-top: 2.5rem; }
+  .btn-primary-inv { background: var(--white); color: var(--text); border: 1px solid var(--white); }
+  .btn-primary-inv:hover { background: transparent; color: var(--white); }
+
+  /* ── FOOTER ── */
+  footer {
+    padding: 3rem;
+    border-top: 1px solid #222;
+    background: var(--bg3);
+    color: #555;
+  }
+  .footer-inner { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 3rem; }
+  .footer-brand h3 { font-size: 0.9rem; font-weight: 700; color: var(--white); margin-bottom: 0.5rem; }
+  .footer-brand p { font-size: 0.78rem; font-weight: 300; line-height: 1.7; }
+  .footer-col h4 { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #777; margin-bottom: 1rem; }
+  .footer-col ul { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
+  .footer-col ul li a { font-size: 0.8rem; font-weight: 300; color: #555; text-decoration: none; }
+  .footer-col ul li a:hover { color: var(--white); }
+  .footer-bottom { max-width: 1100px; margin: 2rem auto 0; padding-top: 1.5rem; border-top: 1px solid #222; display: flex; justify-content: space-between; font-size: 0.75rem; color: #444; }
+
+  /* ── INTERACTIVE GRAPH SVG ── */
+  .graph-node { cursor: pointer; transition: all 0.2s; }
+  .graph-node:hover circle { stroke-width: 2; }
+  .node-tooltip {
+    position: absolute; bottom: 12px; left: 12px;
+    background: var(--white); border: 1px solid var(--border);
+    padding: 0.6rem 0.8rem; font-size: 0.72rem; font-weight: 300;
+    pointer-events: none; max-width: 200px; line-height: 1.5;
+    display: none;
+  }
+
+  /* ── ANIMATIONS ── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .fade-up { animation: fadeUp 0.5s ease forwards; }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 0.8; }
+  }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 768px) {
+    nav { padding: 0 1.5rem; }
+    .nav-links { display: none; }
+    section { padding: 4rem 1.5rem; }
+    #hero { padding: 8rem 1.5rem 4rem; }
+    h1 { font-size: 2.2rem; }
+    .hero-stats { grid-template-columns: 1fr; }
+    .hero-stat { border-right: none; border-bottom: 1px solid var(--border); }
+    .steps { grid-template-columns: 1fr 1fr; }
+    .step { border-bottom: 1px solid var(--border); }
+    .graph-layout, .upload-grid, .cme-layout, .usecase-panel.active, .footer-inner { grid-template-columns: 1fr; }
+    .skills-grid, .testimonials-grid, .pricing-grid, .workflow-grid { grid-template-columns: 1fr; }
+    .pricing-card { border-right: none; border-bottom: 1px solid; }
+    .pricing-card.featured { border-color: #333; }
+    .reg-timeline::before { left: 79px; }
+    .reg-date { width: 60px; font-size: 0.7rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="#" class="nav-logo">DoctorAssist.Ai</a>
+  <ul class="nav-links">
+    <li><a href="#how">How It Works</a></li>
+    <li><a href="#graph">Knowledge Graph</a></li>
+    <li><a href="#usecases">Use Cases</a></li>
+    <li><a href="#cme">CME</a></li>
+    <li><a href="#pricing">Pricing</a></li>
+  </ul>
+  <a href="https://doctorassist.ai/login" class="nav-cta">Request Access</a>
+</nav>
+
+<!-- HERO -->
+<section id="hero">
+  <div class="hero-inner">
+    <span class="hero-badge">Clinical Knowledge Intelligence</span>
+    <h1>Turn Medical Literature<br>into <strong>Living Knowledge</strong></h1>
+    <p class="hero-sub">
+      Upload clinical papers, guidelines, and regulations — DoctorAssist.ai converts them into interactive knowledge graphs, saveable skill sets, and workflow-ready insights that evolve with medicine.
+    </p>
+    <div class="hero-actions">
+      <a href="https://doctorassist.ai/login" class="btn-primary">Start Free Trial</a>
+      <a href="#how" class="btn-secondary">See How It Works →</a>
+    </div>
+    <div class="hero-stats">
+      <div class="hero-stat">
+        <div class="hero-stat-num">10s</div>
+        <div class="hero-stat-label">Paper to graph conversion</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-num">500+</div>
+        <div class="hero-stat-label">Prebuilt clinical skills</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-num">HIPAA</div>
+        <div class="hero-stat-label">Compliant & encrypted</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section id="how">
+  <div class="container">
+    <span class="section-label">Process</span>
+    <h2>From <strong>Document</strong> to Clinical Decision — in Four Steps</h2>
+    <div class="divider"></div>
+    <p class="section-desc">Any document you already work with — papers, PDFs, guidelines, trial results — becomes structured, searchable, and actionable.</p>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">01</div>
+        <span class="step-icon">📄</span>
+        <h3>Upload Any Document</h3>
+        <p>Drag in PDFs, DOCX, PubMed links, CME modules, regulatory guidelines, or paste raw text from any clinical source.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">02</div>
+        <span class="step-icon">🕸</span>
+        <h3>AI Builds Knowledge Graph</h3>
+        <p>Our engine extracts entities — diagnoses, drugs, dosages, contraindications, evidence levels — and maps their relationships visually.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">03</div>
+        <span class="step-icon">💾</span>
+        <h3>Save as Skills</h3>
+        <p>Package any graph or subset as a reusable "Skill" — a portable clinical knowledge unit you can share, version, or import.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">04</div>
+        <span class="step-icon">⚡</span>
+        <h3>Integrate to Workflow</h3>
+        <p>Push Skills into your clinical workflow — EHR, checklist, decision support, or AI assistant — and update them as evidence evolves.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- KNOWLEDGE GRAPH -->
+<section id="graph">
+  <div class="container">
+    <span class="section-label">Knowledge Graph</span>
+    <h2>See the <strong>Connections</strong> Inside Every Paper</h2>
+    <div class="divider"></div>
+    <p class="section-desc">Every clinical document contains hidden structure. DoctorAssist surfaces it as an interactive graph — not a wall of text.</p>
+    <div class="graph-layout">
+      <div>
+        <div class="graph-vis" id="graphVis">
+          <svg viewBox="0 0 500 380" xmlns="http://www.w3.org/2000/svg" id="kgSvg"></svg>
+          <div class="node-tooltip" id="nodeTooltip"></div>
+        </div>
+        <div class="graph-legend">
+          <div class="legend-item"><div class="legend-dot clinical"></div>Clinical entity</div>
+          <div class="legend-item"><div class="legend-dot evidence"></div>Evidence node</div>
+          <div class="legend-item"><div class="legend-dot regulation"></div>Regulation / Guideline</div>
+        </div>
+      </div>
+      <div class="graph-features">
+        <div class="graph-feature active" onclick="setFeature(0, this)">
+          <h4>📍 Entity Extraction</h4>
+          <p>Every disease, drug, biomarker, procedure, and contraindication is automatically identified and placed as a node in the graph.</p>
+        </div>
+        <div class="graph-feature" onclick="setFeature(1, this)">
+          <h4>🔗 Relationship Mapping</h4>
+          <p>Edges show causation, correlation, dosage links, drug interactions, and evidence strength — color-coded and filterable.</p>
+        </div>
+        <div class="graph-feature" onclick="setFeature(2, this)">
+          <h4>🔍 Graph Search</h4>
+          <p>Type any term and instantly highlight all connected nodes. Find drug contraindications or off-label evidence in one click.</p>
+        </div>
+        <div class="graph-feature" onclick="setFeature(3, this)">
+          <h4>🧩 Multi-Document Merge</h4>
+          <p>Upload multiple papers on the same topic — the AI reconciles conflicting evidence and shows where consensus lies.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- UPLOAD & DOCUMENT TYPES -->
+<section id="upload">
+  <div class="container">
+    <span class="section-label">Document Intelligence</span>
+    <h2>Every Format, <strong>One System</strong></h2>
+    <div class="divider"></div>
+    <p class="section-desc">Whether it's a 40-page RCT, a regulatory memo, or a CME slide deck — DoctorAssist reads it, structures it, and makes it actionable.</p>
+    <div class="upload-grid">
+      <div>
+        <div class="upload-zone" id="dropZone" onclick="simulateUpload()">
+          <div class="upload-icon">⬆</div>
+          <div class="upload-title">Drop your clinical document here</div>
+          <div class="upload-sub">or click to browse</div>
+          <div id="uploadStatus" style="margin-top:1.5rem; font-size:0.8rem; color:#666; display:none;"></div>
+        </div>
+        <div class="file-types">
+          <span class="file-tag">PDF</span>
+          <span class="file-tag">DOCX</span>
+          <span class="file-tag">PUBMED LINK</span>
+          <span class="file-tag">CME MODULE</span>
+          <span class="file-tag">GUIDELINE</span>
+          <span class="file-tag">RCT</span>
+          <span class="file-tag">META-ANALYSIS</span>
+          <span class="file-tag">COCHRANE</span>
+          <span class="file-tag">FDA LETTER</span>
+          <span class="file-tag">CLINICAL TRIAL</span>
+        </div>
+      </div>
+      <div class="upload-features">
+        <div class="upload-feat">
+          <div class="upload-feat-num">01</div>
+          <div class="upload-feat-text">
+            <h4>Evidence Grading</h4>
+            <p>Every extracted claim is automatically tagged with GRADE levels (A, B, C, D) or Oxford EBM grades based on study design.</p>
+          </div>
+        </div>
+        <div class="upload-feat">
+          <div class="upload-feat-num">02</div>
+          <div class="upload-feat-text">
+            <h4>Conflict Detection</h4>
+            <p>When two uploaded papers contradict each other, the system flags the conflict and shows both positions side by side.</p>
+          </div>
+        </div>
+        <div class="upload-feat">
+          <div class="upload-feat-num">03</div>
+          <div class="upload-feat-text">
+            <h4>Citation Linking</h4>
+            <p>Every node traces back to its source sentence. Click any graph element to see the exact text it was extracted from.</p>
+          </div>
+        </div>
+        <div class="upload-feat">
+          <div class="upload-feat-num">04</div>
+          <div class="upload-feat-text">
+            <h4>Version History</h4>
+            <p>Every graph is versioned. When a guideline updates, you see exactly what changed — nothing is silently overwritten.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SKILLS LIBRARY -->
+<section id="skills">
+  <div class="container">
+    <span class="section-label">Skills System</span>
+    <h2>Package Knowledge. <strong>Import Anywhere.</strong></h2>
+    <div class="divider"></div>
+    <p class="section-desc">A Skill is a portable clinical knowledge unit — a structured graph subset you can save, share, update, or delete as guidelines evolve.</p>
+    <div class="skills-grid">
+      <div class="skill-card">
+        <div class="skill-icon">💊</div>
+        <h3>Antimicrobial Stewardship Skill</h3>
+        <p>Covers empirical therapy choices, de-escalation protocols, and resistance patterns from local and global guidelines. Integrates WHO AWaRe categories.</p>
+        <div class="skill-tags"><span class="skill-tag">INFECTIOUS DISEASE</span><span class="skill-tag">PRESCRIBING</span></div>
+      </div>
+      <div class="skill-card">
+        <div class="skill-icon">🫀</div>
+        <h3>ACS Management Skill</h3>
+        <p>STEMI vs NSTEMI pathways, antiplatelet evidence, reperfusion timelines, and post-discharge medication choices from ACC/AHA guidelines.</p>
+        <div class="skill-tags"><span class="skill-tag">CARDIOLOGY</span><span class="skill-tag">EMERGENCY</span></div>
+      </div>
+      <div class="skill-card">
+        <div class="skill-icon">🧠</div>
+        <h3>Stroke Protocol Skill</h3>
+        <p>Thrombolysis eligibility, thrombectomy criteria, BP targets, and secondary prevention from ISC and ESO guidelines — graph view included.</p>
+        <div class="skill-tags"><span class="skill-tag">NEUROLOGY</span><span class="skill-tag">TIME-CRITICAL</span></div>
+      </div>
+      <div class="skill-card">
+        <div class="skill-icon">🩺</div>
+        <h3>Sepsis 3.0 Skill</h3>
+        <p>qSOFA, SOFA scoring, fluid resuscitation evidence, vasopressor thresholds, and source control — Surviving Sepsis Campaign 2024 compliant.</p>
+        <div class="skill-tags"><span class="skill-tag">ICU</span><span class="skill-tag">CRITICAL CARE</span></div>
+      </div>
+      <div class="skill-card">
+        <div class="skill-icon">📊</div>
+        <h3>Diabetes T2DM Skill</h3>
+        <p>HbA1c targets, GLP-1 vs SGLT-2 evidence matrix, cardiovascular benefit data, and renal dosing adjustments from ADA 2024 standards.</p>
+        <div class="skill-tags"><span class="skill-tag">ENDOCRINOLOGY</span><span class="skill-tag">CHRONIC CARE</span></div>
+      </div>
+      <div class="skill-card">
+        <div class="skill-icon">🔬</div>
+        <h3>Custom Skills Builder</h3>
+        <p>Create your own Skill from any uploaded document. Name it, version it, share it with your team, or publish to the DoctorAssist library.</p>
+        <div class="skill-tags"><span class="skill-tag">ANY SPECIALTY</span><span class="skill-tag">CUSTOM</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- USE CASES -->
+<section id="usecases">
+  <div class="container">
+    <span class="section-label">Clinical Applications</span>
+    <h2>Built for <strong>Every Clinical Role</strong></h2>
+    <div class="divider"></div>
+    <p class="section-desc">From bedside decisions to hospital policy — DoctorAssist serves the full spectrum of clinical knowledge work.</p>
+    <div class="usecase-tabs">
+      <button class="usecase-tab active" onclick="switchTab(0, this)">Clinician</button>
+      <button class="usecase-tab" onclick="switchTab(1, this)">Resident / Trainee</button>
+      <button class="usecase-tab" onclick="switchTab(2, this)">Hospital Formulary</button>
+      <button class="usecase-tab" onclick="switchTab(3, this)">Research Team</button>
+      <button class="usecase-tab" onclick="switchTab(4, this)">Medical Educator</button>
+    </div>
+
+    <!-- Tab 0: Clinician -->
+    <div class="usecase-panel active" id="tab0">
+      <div class="usecase-content">
+        <h3>Point-of-Care Clinical Decision Support</h3>
+        <p>During rounds or in consultation, instantly pull up a knowledge graph for any diagnosis — drug choices, dosages, contraindications, and the latest evidence level — in under 10 seconds.</p>
+        <ul class="usecase-list">
+          <li>Check drug-drug interactions against current patient medications</li>
+          <li>Compare guideline-concordant options side by side</li>
+          <li>See which evidence supports off-label use</li>
+          <li>Access your institution's approved protocols as graphs</li>
+          <li>Flag when a current prescription conflicts with a new guideline</li>
+        </ul>
+      </div>
+      <div class="usecase-visual">
+        <div class="usecase-visual-title">Drug Decision Graph — Warfarin Alternatives</div>
+        <div class="mini-graph">
+          <div class="mg-row"><div class="mg-node primary">AF Patient</div><div class="mg-line"></div><div class="mg-node secondary">CHAD₂-VASc Score ≥2</div></div>
+          <div style="display:flex; gap:1rem; margin-left:20px;">
+            <div class="mg-line-v"></div>
+          </div>
+          <div class="mg-row" style="gap:0.4rem; flex-wrap:wrap;">
+            <div class="mg-node secondary">Apixaban 5mg BD</div>
+            <div class="mg-node secondary">Rivaroxaban 20mg OD</div>
+            <div class="mg-node secondary">Warfarin (if renal failure)</div>
+          </div>
+          <div style="margin-top:0.8rem; padding:0.6rem; border:1px solid var(--border); background:#fafafa;">
+            <div style="font-size:0.72rem; color:#555; font-weight:600;">⚠ Contraindication detected</div>
+            <div style="font-size:0.72rem; color:#888; margin-top:2px;">Patient has eGFR 25 — avoid Rivaroxaban. Source: BNF 2024, GRADE A.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 1: Trainee -->
+    <div class="usecase-panel" id="tab1">
+      <div class="usecase-content">
+        <h3>Learn by Visualising — Not Memorising</h3>
+        <p>Medical knowledge is fundamentally relational. Trainees who see the graph structure of a disease — not just its list of features — build durable understanding faster.</p>
+        <ul class="usecase-list">
+          <li>Visualise pathophysiology as a connected graph</li>
+          <li>Explore how one lab finding links to multiple diagnoses</li>
+          <li>Compare management across guidelines from different countries</li>
+          <li>Annotate graphs with personal notes for exam revision</li>
+          <li>Import CME modules directly into their learning graph</li>
+        </ul>
+      </div>
+      <div class="usecase-visual">
+        <div class="usecase-visual-title">Pathophysiology Map — Heart Failure</div>
+        <div class="mini-graph">
+          <div class="mg-row"><div class="mg-node primary">Reduced EF</div></div>
+          <div style="display:flex; gap:1rem; margin-left:8px; margin-top:4px;"><div class="mg-line-v"></div></div>
+          <div class="mg-row" style="flex-wrap:wrap; gap:0.4rem;">
+            <div class="mg-node secondary">↑ Sympathetic tone</div>
+            <div class="mg-node secondary">RAAS activation</div>
+            <div class="mg-node secondary">Ventricular remodelling</div>
+          </div>
+          <div style="display:flex; gap:1rem; margin-left:8px; margin-top:4px;"><div class="mg-line-v"></div></div>
+          <div class="mg-row" style="flex-wrap:wrap; gap:0.4rem;">
+            <div class="mg-node secondary">ACEi/ARB target</div>
+            <div class="mg-node secondary">Beta-blocker target</div>
+            <div class="mg-node secondary">MRA target</div>
+            <div class="mg-node secondary">SGLT-2i</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 2: Formulary -->
+    <div class="usecase-panel" id="tab2">
+      <div class="usecase-content">
+        <h3>Live Hospital Formulary Management</h3>
+        <p>When a drug is added, removed, or restricted, update your formulary graph in one action. Every downstream clinical skill that references that drug is flagged for review automatically.</p>
+        <ul class="usecase-list">
+          <li>Import NABH or JCI accreditation requirements as regulation nodes</li>
+          <li>Track drug availability changes across departments</li>
+          <li>Flag alternative agents when a drug goes out of stock</li>
+          <li>Publish approved formulary graphs to clinical teams</li>
+          <li>Audit trail for all changes with timestamps</li>
+        </ul>
+      </div>
+      <div class="usecase-visual">
+        <div class="usecase-visual-title">Formulary Change — Regulation Update</div>
+        <div class="mini-graph">
+          <div class="mg-row"><div class="mg-node primary">Formulary Update</div><div class="mg-line"></div><div class="mg-node secondary">Cefoperazone restricted</div></div>
+          <div style="margin-top:0.6rem; display:flex; flex-direction:column; gap:0.4rem;">
+            <div style="display:flex; align-items:center; gap:0.6rem;">
+              <div style="width:6px;height:6px;background:#c00;border-radius:50%;"></div>
+              <div style="font-size:0.75rem; color:#c00; font-weight:600;">3 Skills affected — review required</div>
+            </div>
+            <div class="mg-node secondary" style="font-size:0.72rem;">→ Sepsis Skill v2.1 — antibiotic section</div>
+            <div class="mg-node secondary" style="font-size:0.72rem;">→ Periop Prophylaxis Skill v1.4</div>
+            <div class="mg-node secondary" style="font-size:0.72rem;">→ ICU Empirical Therapy Skill v3.0</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 3: Research -->
+    <div class="usecase-panel" id="tab3">
+      <div class="usecase-content">
+        <h3>Rapid Systematic Literature Mapping</h3>
+        <p>Upload 50 papers from a PubMed search and DoctorAssist builds a merged evidence graph — showing where studies agree, where they conflict, and what questions remain unanswered.</p>
+        <ul class="usecase-list">
+          <li>Identify research gaps in a field visually</li>
+          <li>Export graph as structured data for meta-analysis</li>
+          <li>Track how evidence has evolved across publication years</li>
+          <li>Map patient population characteristics across trials</li>
+          <li>Share annotated evidence maps with co-investigators</li>
+        </ul>
+      </div>
+      <div class="usecase-visual">
+        <div class="usecase-visual-title">Evidence Map — GLP-1 in Heart Failure</div>
+        <div class="mini-graph">
+          <div style="display:flex; gap:1.5rem; flex-wrap:wrap;">
+            <div style="display:flex; flex-direction:column; gap:0.4rem; align-items:center;">
+              <div style="font-size:0.68rem; color:#888; font-weight:600;">CONSENSUS</div>
+              <div class="mg-node primary" style="font-size:0.72rem;">Weight reduction</div>
+              <div class="mg-node primary" style="font-size:0.72rem;">CV risk ↓</div>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:0.4rem; align-items:center;">
+              <div style="font-size:0.68rem; color:#888; font-weight:600;">CONTESTED</div>
+              <div class="mg-node secondary" style="font-size:0.72rem;">EF improvement</div>
+              <div class="mg-node secondary" style="font-size:0.72rem; border-style:dashed;">NYHA class benefit</div>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:0.4rem; align-items:center;">
+              <div style="font-size:0.68rem; color:#888; font-weight:600;">GAP</div>
+              <div class="mg-node secondary" style="font-size:0.72rem; color:#c00; border-color:#c00;">HFrEF vs HFpEF?</div>
+            </div>
+          </div>
+          <div style="margin-top:0.8rem; font-size:0.72rem; color:#888;">Based on 31 papers uploaded · 8 RCTs · 6 meta-analyses</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 4: Educator -->
+    <div class="usecase-panel" id="tab4">
+      <div class="usecase-content">
+        <h3>Graph-First Medical Education</h3>
+        <p>Build curricula around knowledge graphs — not lecture slides. Export any graph as a teaching case, quiz, or CME module. Students see relationships, not bullet points.</p>
+        <ul class="usecase-list">
+          <li>Assign graph-based reading instead of textbook chapters</li>
+          <li>Create quiz questions directly from graph nodes</li>
+          <li>Track which skills each trainee has completed</li>
+          <li>Award CME credits for completed skill imports</li>
+          <li>Build institution-specific competency maps</li>
+        </ul>
+      </div>
+      <div class="usecase-visual">
+        <div class="usecase-visual-title">Teaching Module — Diabetic Ketoacidosis</div>
+        <div class="mini-graph">
+          <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
+            <div class="mg-node primary">DKA Trigger</div>
+            <div class="mg-line"></div>
+            <div class="mg-node secondary">Insulin deficiency</div>
+            <div class="mg-line"></div>
+            <div class="mg-node secondary">Ketogenesis</div>
+          </div>
+          <div style="margin-top:0.4rem; display:flex; gap:0.4rem; margin-left:130px; flex-wrap:wrap;">
+            <div class="mg-node secondary" style="font-size:0.72rem;">Anion gap ↑</div>
+            <div class="mg-node secondary" style="font-size:0.72rem;">pH &lt; 7.3</div>
+            <div class="mg-node secondary" style="font-size:0.72rem;">Bicarb &lt;15</div>
+          </div>
+          <div style="margin-top:0.8rem; display:flex; gap:0.6rem; align-items:center;">
+            <div style="width:60%; height:6px; background:var(--border); border-radius:2px; overflow:hidden;"><div style="width:70%; height:100%; background:var(--text);"></div></div>
+            <div style="font-size:0.72rem; color:#888;">Module 70% complete · 1.5 CME credits earned</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CME SECTION -->
+<section id="cme">
+  <div class="container">
+    <span class="section-label">Continuing Medical Education</span>
+    <h2>Import CME. <strong>Keep Learning Structured.</strong></h2>
+    <div class="divider"></div>
+    <p class="section-desc">CME modules from accredited providers import directly into DoctorAssist — every learning objective becomes a node in your personal knowledge graph.</p>
+    <div class="cme-layout">
+      <div class="cme-features-list">
+        <div class="cme-feat">
+          <div class="cme-feat-icon">🎓</div>
+          <div>
+            <h4>Accredited Provider Integration</h4>
+            <p>Import CME from AMA, RCPCH, NMC, MCI-accredited platforms. Credits are automatically tracked and linked to the skills you build.</p>
+          </div>
+        </div>
+        <div class="cme-feat">
+          <div class="cme-feat-icon">🗺</div>
+          <div>
+            <h4>Learning to Knowledge Map</h4>
+            <p>Every CME learning objective becomes a node. Complete the module — the knowledge appears in your skill graph, not just in a certificate folder.</p>
+          </div>
+        </div>
+        <div class="cme-feat">
+          <div class="cme-feat-icon">🔁</div>
+          <div>
+            <h4>Renewal Alerts</h4>
+            <p>DoctorAssist tracks your CME expiry dates. When a topic you've completed is updated with new evidence, you get an alert to re-review that skill node.</p>
+          </div>
+        </div>
+        <div class="cme-feat">
+          <div class="cme-feat-icon">📋</div>
+          <div>
+            <h4>Portfolio Export</h4>
+            <p>Generate your complete CME and skills portfolio as a PDF — ready for appraisals, licensing renewals, or hospital credentialing.</p>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:1.2rem;">
+        <p style="font-size:0.78rem; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-light);">Your CME Dashboard</p>
+        <div class="cme-card">
+          <span class="cme-badge">Active</span>
+          <div class="cme-card-title">Sepsis Recognition & Management 2024</div>
+          <div class="cme-card-meta">Surviving Sepsis Campaign · 3 CME credits · Expires Dec 2025</div>
+          <div class="cme-progress"><div class="cme-progress-bar" style="width:85%"></div></div>
+          <div style="font-size:0.72rem; color:var(--text-light); margin-top:4px;">85% complete · Skill imported ✓</div>
+        </div>
+        <div class="cme-card">
+          <span class="cme-badge" style="background:#555;">Completed</span>
+          <div class="cme-card-title">Atrial Fibrillation — Current Evidence</div>
+          <div class="cme-card-meta">ESC 2024 Guidelines · 4 CME credits · Completed Mar 2024</div>
+          <div class="cme-progress"><div class="cme-progress-bar" style="width:100%"></div></div>
+          <div style="font-size:0.72rem; color:var(--text-light); margin-top:4px;">Skill active in workflow · 2 updates available</div>
+        </div>
+        <div class="cme-card">
+          <span class="cme-badge" style="background:#999;">Pending</span>
+          <div class="cme-card-title">Oncology Immunotherapy — Toxicity Management</div>
+          <div class="cme-card-meta">ASCO 2024 · 6 CME credits · Not started</div>
+          <div class="cme-progress"><div class="cme-progress-bar" style="width:0%"></div></div>
+          <div style="font-size:0.72rem; color:var(--text-light); margin-top:4px;">Click to import and begin</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- REGULATION MANAGEMENT -->
+<section id="regulation">
+  <div class="container">
+    <span class="section-label">Regulation Lifecycle</span>
+    <h2>When Guidelines Change, <strong>Your Skills Update.</strong></h2>
+    <div class="divider"></div>
+    <p class="section-desc">Clinical regulations aren't static. DoctorAssist gives you a living system — add new guidance, deprecate old nodes, and track exactly what changed and why.</p>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:4rem; align-items:start; margin-top:2rem;">
+      <div class="reg-timeline">
+        <div class="reg-event">
+          <div class="reg-date">Jan 2024</div>
+          <div class="reg-dot active"></div>
+          <div class="reg-content">
+            <h4>ESC Heart Failure Guidelines 2024 Added</h4>
+            <p>New SGLT-2i recommendation imported. 14 skill nodes updated automatically.</p>
+            <span class="reg-action">View diff →</span>
+          </div>
+        </div>
+        <div class="reg-event">
+          <div class="reg-date">Mar 2024</div>
+          <div class="reg-dot active"></div>
+          <div class="reg-content">
+            <h4>WHO AWaRe 2024 Antibiotics Update</h4>
+            <p>Cefoperazone moved from Watch to Reserve. Formulary Skill flagged for review.</p>
+            <span class="reg-action">Review skill →</span>
+          </div>
+        </div>
+        <div class="reg-event">
+          <div class="reg-date">Jul 2024</div>
+          <div class="reg-dot"></div>
+          <div class="reg-content">
+            <h4>ADA Diabetes Standards — Pending Update</h4>
+            <p>New draft published. DoctorAssist has pre-imported for your review before activation.</p>
+            <span class="reg-action">Preview →</span>
+          </div>
+        </div>
+        <div class="reg-event">
+          <div class="reg-date">Oct 2024</div>
+          <div class="reg-dot"></div>
+          <div class="reg-content">
+            <h4>Regulation Archived: NICE NG185 (superseded)</h4>
+            <p>Replaced by NG238. Old nodes deprecated — linked skills show deprecation warning.</p>
+            <span class="reg-action">See replacement →</span>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:1.5rem;">
+        <div style="border:1px solid var(--border); padding:2rem;">
+          <div style="font-size:0.72rem; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-light); margin-bottom:1.2rem;">Regulation Actions</div>
+          <div style="display:flex; flex-direction:column; gap:0.8rem;">
+            <div style="display:flex; align-items:center; gap:1rem; padding:0.8rem; border:1px solid var(--border); cursor:pointer; transition:background 0.2s;" onmouseenter="this.style.background='var(--bg2)'" onmouseleave="this.style.background=''">
+              <span style="font-size:1.1rem;">➕</span>
+              <div><div style="font-size:0.85rem; font-weight:600;">Add New Regulation</div><div style="font-size:0.75rem; color:var(--text-muted);">Import PDF or paste official URL</div></div>
+            </div>
+            <div style="display:flex; align-items:center; gap:1rem; padding:0.8rem; border:1px solid var(--border); cursor:pointer; transition:background 0.2s;" onmouseenter="this.style.background='var(--bg2)'" onmouseleave="this.style.background=''">
+              <span style="font-size:1.1rem;">✏️</span>
+              <div><div style="font-size:0.85rem; font-weight:600;">Edit Existing Guidance</div><div style="font-size:0.75rem; color:var(--text-muted);">Modify nodes, edges, or evidence ratings</div></div>
+            </div>
+            <div style="display:flex; align-items:center; gap:1rem; padding:0.8rem; border:1px solid var(--border); cursor:pointer; transition:background 0.2s;" onmouseenter="this.style.background='var(--bg2)'" onmouseleave="this.style.background=''">
+              <span style="font-size:1.1rem;">🗑</span>
+              <div><div style="font-size:0.85rem; font-weight:600;">Deprecate Outdated Guideline</div><div style="font-size:0.75rem; color:var(--text-muted);">Archive without deletion — full history kept</div></div>
+            </div>
+            <div style="display:flex; align-items:center; gap:1rem; padding:0.8rem; border:1px solid var(--border); cursor:pointer; transition:background 0.2s;" onmouseenter="this.style.background='var(--bg2)'" onmouseleave="this.style.background=''">
+              <span style="font-size:1.1rem;">🔔</span>
+              <div><div style="font-size:0.85rem; font-weight:600;">Subscribe to Guideline Alerts</div><div style="font-size:0.75rem; color:var(--text-muted);">Auto-notify when source organisation publishes</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- WORKFLOW INTEGRATION -->
+<section id="workflow">
+  <div class="container">
+    <span class="section-label">Workflow Integration</span>
+    <h2>Skills Flow Into <strong>Where You Already Work</strong></h2>
+    <div class="divider"></div>
+    <p class="section-desc">DoctorAssist doesn't replace your workflow — it plugs knowledge into it. Export skills to EHRs, clinical checklists, and decision support tools.</p>
+    <div class="workflow-grid">
+      <div class="workflow-col">
+        <div class="workflow-col-title">EHR Integration</div>
+        <div class="workflow-item">
+          <div class="workflow-item-icon">📋</div>
+          <div class="workflow-item-text"><strong>Epic / Cerner</strong>Pull relevant skill nodes into the patient note sidebar based on active diagnoses.</div>
+        </div>
+        <div class="workflow-item">
+          <div class="workflow-item-icon">💉</div>
+          <div class="workflow-item-text"><strong>Prescription Assist</strong>Graph-based drug suggestions appear inline when prescribing, with evidence level shown.</div>
+        </div>
+        <div class="workflow-item">
+          <div class="workflow-item-icon">🧪</div>
+          <div class="workflow-item-text"><strong>Lab Result Linking</strong>Abnormal lab values trigger relevant skill nodes automatically in the workflow.</div>
+        </div>
+      </div>
+      <div class="workflow-col">
+        <div class="workflow-col-title">Clinical Decision Tools</div>
+        <div class="workflow-item">
+          <div class="workflow-item-icon">✅</div>
+          <div class="workflow-item-text"><strong>Smart Checklists</strong>Convert any protocol skill into a checklist — steps pulled from the graph in sequence.</div>
+        </div>
+        <div class="workflow-item">
+          <div class="workflow-item-icon">📱</div>
+          <div class="workflow-item-text"><strong>Mobile Graph View</strong>Access your full knowledge graph on mobile during ward rounds, referrals, or emergencies.</div>
+        </div>
+        <div class="workflow-item">
+          <div class="workflow-item-icon">🤖</div>
+          <div class="workflow-item-text"><strong>AI Chat with Skills</strong>Ask questions and get answers grounded in your uploaded documents — not the open internet.</div>
+        </div>
+      </div>
+      <div class="workflow-col">
+        <div class="workflow-col-title">Team & Institutional</div>
+        <div class="workflow-item">
+          <div class="workflow-item-icon">👥</div>
+          <div class="workflow-item-text"><strong>Team Skill Libraries</strong>Share skills across a department. Everyone works from the same evidence base.</div>
+        </div>
+        <div class="workflow-item">
+          <div class="workflow-item-icon">🏥</div>
+          <div class="workflow-item-text"><strong>Hospital SOP Graphs</strong>Convert your SOPs and clinical policies into searchable, versionable graphs.</div>
+        </div>
+        <div class="workflow-item">
+          <div class="workflow-item-icon">📊</div>
+          <div class="workflow-item-text"><strong>Usage Analytics</strong>See which skills your team accesses most — evidence for quality and audit committees.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TESTIMONIALS -->
+<section id="testimonials">
+  <div class="container">
+    <span class="section-label">From the Clinical Community</span>
+    <h2>Doctors Who've <strong>Changed How They Learn</strong></h2>
+    <div class="divider"></div>
+    <div class="testimonials-grid">
+      <div class="testimonial-card">
+        <p class="testimonial-quote">"I uploaded the ESC guidelines and within 30 seconds had an interactive graph of the entire AF management pathway. My SpR team now uses it every morning on rounds."</p>
+        <div class="testimonial-author">Dr. Ananya James </div>
+        <div class="testimonial-role">Consultant Cardiologist</div>
+      </div>
+      <div class="testimonial-card">
+        <p class="testimonial-quote">"As a PG trainee, reading 40-page guidelines is impractical. Graph view showed me the entire sepsis pathway in 5 minutes. I actually remember it because I saw the connections."</p>
+        <div class="testimonial-author">Dr. Roy Mehta</div>
+        <div class="testimonial-role">Senior Resident</div>
+      </div>
+      <div class="testimonial-card">
+        <p class="testimonial-quote">"When WHO updated the AWaRe list, I imported the new guidance and every affected antibiotic in our formulary was flagged instantly. That would have taken our committee weeks."</p>
+        <div class="testimonial-author">Dr. Jeff </div>
+        <div class="testimonial-role">Clinical Pharmacologist</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section id="pricing">
+  <div class="container">
+    <span class="section-label">Plans</span>
+    <h2>Simple Pricing, <strong>No Lock-In</strong></h2>
+    <div class="divider"></div>
+    <p class="section-desc">Start free. Upgrade when your knowledge graph grows. Cancel anytime — all your data exports cleanly.</p>
+    <div class="pricing-grid">
+      <div class="pricing-card">
+        <div class="pricing-tier">Individual</div>
+        <div class="pricing-price">Free<span></span></div>
+        <p class="pricing-desc">For residents, students, and doctors exploring graph-based clinical learning.</p>
+        <ul class="pricing-feats">
+          <li>5 documents per month</li>
+          <li>3 saved Skills</li>
+          <li>Graph view + export</li>
+          <li>CME module import (2/month)</li>
+          <li>Community skill library access</li>
+        </ul>
+        <button class="pricing-btn">Get Started Free</button>
+      </div>
+      <div class="pricing-card featured">
+        <div class="pricing-tier">Professional</div>
+        <div class="pricing-price">₹1,999<span>/month</span></div>
+        <p class="pricing-desc">For practising clinicians who want a complete clinical knowledge system.</p>
+        <ul class="pricing-feats">
+          <li>Unlimited documents</li>
+          <li>Unlimited Skills</li>
+          <li>Multi-document merge</li>
+          <li>Unlimited CME imports</li>
+          <li>Regulation lifecycle tracking</li>
+          <li>EHR workflow export</li>
+          <li>Mobile graph access</li>
+        </ul>
+        <button class="pricing-btn">Start 14-day Trial</button>
+      </div>
+      <div class="pricing-card">
+        <div class="pricing-tier">Institutional</div>
+        <div class="pricing-price">Custom<span></span></div>
+        <p class="pricing-desc">For hospitals, medical schools, and clinical teams needing shared knowledge infrastructure.</p>
+        <ul class="pricing-feats">
+          <li>Everything in Professional</li>
+          <li>Team skill libraries</li>
+          <li>Hospital SOP graph builder</li>
+          <li>NABH/JCI compliance tools</li>
+          <li>SSO & EHR integration</li>
+          <li>Analytics dashboard</li>
+          <li>Dedicated support</li>
+        </ul>
+        <button class="pricing-btn">Contact Sales</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section id="cta">
+  <div class="container" style="text-align:center;">
+    <span class="section-label" style="color:#555;">Get Started</span>
+    <h2>Your Next Paper Could Be a <strong>Knowledge Graph</strong></h2>
+    <div class="divider" style="margin:1.5rem auto;"></div>
+    <p class="section-desc">Join 3,000+ clinicians building structured, living knowledge — one document at a time.</p>
+    <div class="cta-actions">
+      <a href="https://doctorassist.ai/login" class="btn-primary btn-primary-inv">Start Free — No Credit Card</a>
+      <a href="https://doctorassist.ai/login" class="btn-secondary" style="border-color:#444; color:#aaa;">Book a Demo →</a>
+    </div>
+    <p style="margin-top:2rem; font-size:0.78rem; font-weight:300; color:#555;">HIPAA compliant · Data never used for training · Hosted on AWS Mumbai</p>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <h3>DoctorAssist.ai</h3>
+      <p>Clinical knowledge intelligence for the evidence-based physician. Turn every paper, guideline, and regulation into a living, connected knowledge graph.</p>
+    </div>
+    <div class="footer-col">
+      <h4>Product</h4>
+      <ul>
+        <li><a href="#">Knowledge Graph</a></li>
+        <li><a href="#">Skills Library</a></li>
+        <li><a href="#">CME Import</a></li>
+        <li><a href="#">Workflow Integration</a></li>
+        <li><a href="#">Regulation Tracker</a></li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h4>Specialties</h4>
+      <ul>
+        <li><a href="#">Cardiology</a></li>
+        <li><a href="#">Neurology</a></li>
+        <li><a href="#">Infectious Disease</a></li>
+        <li><a href="#">Critical Care</a></li>
+        <li><a href="#">All Specialties</a></li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h4>Company</h4>
+      <ul>
+        <li><a href="#">About</a></li>
+        <li><a href="#">Privacy Policy</a></li>
+        <li><a href="#">Security</a></li>
+        <li><a href="#">Contact</a></li>
+        <li><a href="#">API Docs</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>© 2024 DoctorAssist.ai · All rights reserved</span>
+    <span>HIPAA · ISO 27001 · NABH Ready</span>
+  </div>
+</footer>
+
+<script>
+// ── KNOWLEDGE GRAPH SVG ──
+const kgData = {
+  nodes: [
+    { id: 0, x: 250, y: 140, r: 22, label: 'Atrial\nFibrillation', type: 'clinical' },
+    { id: 1, x: 120, y: 70,  r: 16, label: 'Stroke Risk', type: 'clinical' },
+    { id: 2, x: 380, y: 70,  r: 16, label: 'Heart Failure', type: 'clinical' },
+    { id: 3, x: 80,  y: 200, r: 14, label: 'Apixaban', type: 'evidence' },
+    { id: 4, x: 160, y: 230, r: 14, label: 'Warfarin', type: 'evidence' },
+    { id: 5, x: 340, y: 230, r: 14, label: 'Rate Control', type: 'evidence' },
+    { id: 6, x: 420, y: 200, r: 14, label: 'Bisoprolol', type: 'evidence' },
+    { id: 7, x: 250, y: 280, r: 13, label: 'ESC 2020', type: 'regulation' },
+    { id: 8, x: 130, y: 300, r: 12, label: 'CHA₂DS₂', type: 'regulation' },
+    { id: 9, x: 370, y: 300, r: 12, label: 'EHRA Score', type: 'regulation' },
+    { id: 10,x: 60,  y: 120, r: 11, label: 'TIA', type: 'clinical' },
+    { id: 11,x: 440, y: 130, r: 11, label: 'Tachycardia', type: 'clinical' },
+  ],
+  edges: [
+    [0,1],[0,2],[0,3],[0,4],[0,5],[0,6],[0,7],
+    [1,3],[1,4],[1,8],[3,7],[4,8],[5,6],[2,6],
+    [1,10],[2,11],[7,9]
+  ]
+};
+
+function buildGraph() {
+  const svg = document.getElementById('kgSvg');
+  const W = 500, H = 380;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+  const colors = { clinical: '#111', evidence: '#555', regulation: '#999' };
+  const tooltip = document.getElementById('nodeTooltip');
+  const tooltips = {
+    0: 'Core diagnosis node — connects to all management branches',
+    1: 'Links to anticoagulation choice via CHA₂DS₂-VASc',
+    2: 'HFrEF association — rate vs rhythm strategy',
+    3: 'GRADE A evidence · preferred over warfarin in non-valvular AF',
+    4: 'GRADE A · use if mechanical valve or mitral stenosis',
+    5: 'Beta-blocker or digoxin — resting HR <110 target',
+    6: 'First-line rate control agent · evidence from AFFIRM trial',
+    7: 'ESC 2020 Guidelines · source document uploaded',
+    8: 'Scoring tool · determines anticoagulation threshold',
+    9: 'Symptom burden score · guides rhythm strategy',
+    10:'Recent TIA → urgent anticoagulation within 24h',
+    11:'Tachycardia-induced cardiomyopathy risk',
+  };
+
+  // Draw edges
+  const edgeGroup = document.createElementNS('http://www.w3.org/2000/svg','g');
+  kgData.edges.forEach(([a,b]) => {
+    const n1 = kgData.nodes[a], n2 = kgData.nodes[b];
+    const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1', n1.x); line.setAttribute('y1', n1.y);
+    line.setAttribute('x2', n2.x); line.setAttribute('y2', n2.y);
+    line.setAttribute('stroke', '#ddd'); line.setAttribute('stroke-width', '1');
+    edgeGroup.appendChild(line);
+  });
+  svg.appendChild(edgeGroup);
+
+  // Draw nodes
+  kgData.nodes.forEach(node => {
+    const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+    g.setAttribute('class','graph-node');
+    g.setAttribute('transform',`translate(${node.x},${node.y})`);
+
+    const circle = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    circle.setAttribute('r', node.r);
+    circle.setAttribute('fill', node.id === 0 ? '#111' : '#fff');
+    circle.setAttribute('stroke', colors[node.type]);
+    circle.setAttribute('stroke-width', node.id === 0 ? '0' : '1.5');
+
+    const lines = node.label.split('\n');
+    const textEls = lines.map((line, i) => {
+      const t = document.createElementNS('http://www.w3.org/2000/svg','text');
+      t.setAttribute('text-anchor','middle');
+      t.setAttribute('dominant-baseline','central');
+      t.setAttribute('y', lines.length > 1 ? (i === 0 ? -5 : 6) : 0);
+      t.setAttribute('font-size', node.r < 13 ? '7' : node.r < 16 ? '8' : node.id === 0 ? '9' : '8');
+      t.setAttribute('font-family', 'Open Sans, sans-serif');
+      t.setAttribute('font-weight', node.id === 0 ? '600' : '300');
+      t.setAttribute('fill', node.id === 0 ? '#fff' : colors[node.type]);
+      t.textContent = line;
+      return t;
+    });
+
+    g.appendChild(circle);
+    textEls.forEach(t => g.appendChild(t));
+
+    g.addEventListener('mouseenter', (e) => {
+      circle.setAttribute('r', node.r + 3);
+      circle.setAttribute('stroke-width', '2');
+      tooltip.style.display = 'block';
+      tooltip.innerHTML = `<strong style="font-weight:600;">${node.label.replace('\n',' ')}</strong><br>${tooltips[node.id] || ''}`;
+    });
+    g.addEventListener('mouseleave', () => {
+      circle.setAttribute('r', node.r);
+      circle.setAttribute('stroke-width', node.id === 0 ? '0' : '1.5');
+      tooltip.style.display = 'none';
+    });
+
+    svg.appendChild(g);
+  });
+
+  // Animate edges
+  const allLines = edgeGroup.querySelectorAll('line');
+  allLines.forEach((l,i) => {
+    l.style.opacity = 0;
+    setTimeout(() => { l.style.transition = 'opacity 0.3s'; l.style.opacity = 1; }, i * 40);
+  });
+}
+
+buildGraph();
+
+// ── TAB SWITCHING ──
+function switchTab(idx, el) {
+  document.querySelectorAll('.usecase-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.usecase-panel').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab' + idx).classList.add('active');
+}
+
+// ── GRAPH FEATURE ──
+function setFeature(idx, el) {
+  document.querySelectorAll('.graph-feature').forEach(f => f.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// ── UPLOAD SIMULATION ──
+function simulateUpload() {
+  const status = document.getElementById('uploadStatus');
+  const zone = document.getElementById('dropZone');
+  const messages = [
+    '⬆ Uploading document...',
+    '🔍 Extracting entities...',
+    '🕸 Building knowledge graph...',
+    '✅ Graph ready! 23 nodes · 41 edges extracted.',
+  ];
+  status.style.display = 'block';
+  let i = 0;
+  const iv = setInterval(() => {
+    status.textContent = messages[i];
+    i++;
+    if (i >= messages.length) {
+      clearInterval(iv);
+      zone.style.borderColor = '#888';
+      setTimeout(() => { status.style.display='none'; zone.style.borderColor=''; }, 4000);
+    }
+  }, 900);
+}
+
+// ── DRAG OVER ──
+const dropZone = document.getElementById('dropZone');
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); simulateUpload(); });
+
+// ── SCROLL FADE-IN ──
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.style.opacity = '1';
+      entry.target.style.transform = 'translateY(0)';
+    }
+  });
+}, { threshold: 0.08 });
+
+document.querySelectorAll('.skill-card, .testimonial-card, .step, .cme-feat').forEach(el => {
+  el.style.opacity = '0';
+  el.style.transform = 'translateY(16px)';
+  el.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
+  observer.observe(el);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,381 @@
+DATA REFERENCE
+============================================================
+data.py  |  router prefix: "" (empty)  |  tags: ["doctor"]  |  1234 lines
+9 MongoDB collections (1 unused variable)  |  2 Mongo clients (sync + async)
+5 Pydantic models  |  25 active endpoints (+2 commented-out/dead endpoints)
+0 helper functions
+============================================================
+
+
+############################################################
+# 1. DATABASES & COLLECTIONS
+############################################################
+
+### MONGODB COLLECTIONS
+------------------------------------------------------------
+Format:  variable name in code  ->  actual MongoDB collection
+
+  patient_user_collection             -> patient_users            (sync)
+  patient_appointments_collection     -> patient_appointments      (sync)
+  patient_vitals_collection           -> patient_vitals            (async)
+  patient_reports_collection          -> patient_report_documents  (async, UNUSED - see note)
+  patient_consultation_collection     -> patient_consultations     (async)
+  doctor_user_collection              -> doctor_users              (async)
+  tumor_board_collection              -> tumor_board_cases         (async)
+  doctor_referrals_collection         -> doctor_referrals          (async)
+  patient_images_collection           -> patient_images            (async)
+
+Note: patient_reports_collection is assigned at module load but never
+referenced again - every route that needs "patient_report_documents"
+instead re-derives it inline via database["patient_report_documents"]
+(see documents_patient_retrieval and documents_patient_retrieval_by_type).
+Dead variable; the two endpoints work fine but are inconsistent with the
+rest of the file's pattern of using a named collection variable.
+
+### DATABASE CLIENTS (TWO IN THIS FILE)
+------------------------------------------------------------
+  Sync  : MongoClient(MONGO_URI) -> db = client[MONGO_DB]
+          used by patient_user_collection, patient_appointments_collection
+          only. These two collections are queried WITHOUT await anywhere
+          in the file (correct, since PyMongo is synchronous) - but it
+          means these two collections are on a different client/connection
+          pool than every other collection in the file.
+
+  Async : AsyncIOMotorClient(MONGO_URI) -> database = mongodb_client[MONGO_DB]
+          used by all 7 remaining collections above.
+
+  MONGO_DB = "doctorassistai"
+
+### COLLECTION ACCESS BUG
+------------------------------------------------------------
+  save_doctors_recommendation (POST /save-doctors-recommendation) calls:
+    tumor_board_collection.insert_one(insert_data)
+  with no `await`. tumor_board_collection lives on the async Motor client,
+  so this returns an unawaited coroutine - the insert is silently never
+  executed (aside from a RuntimeWarning at runtime) and the endpoint still
+  returns a "saved successfully" message. doctor_referrals_collection's
+  insert_one calls elsewhere in the file ARE awaited correctly, so this
+  is a one-off mistake rather than a file-wide pattern.
+
+### NEO4J
+------------------------------------------------------------
+  Not used in this file.
+
+### CELERY
+------------------------------------------------------------
+  Used once, inside save_patient_vitals: after vitals are stored, the file
+  does a local `from users.celery_client import celery_app` and sends
+  task "legacy_lab_ai.process_mongo_batch" (queue="agentic_queue",
+  routing_key="agentic", exchange="agentic") with patient_id/doctor_id.
+  Wrapped in its own try/except that only logs on failure.
+
+### OTHER EXTERNAL SERVICES
+------------------------------------------------------------
+  Groq LLM API : groq_client = Groq(api_key=GROQ_API_KEY) is instantiated
+                 at module load but groq_client is never called anywhere
+                 in this file - dead initialization (unlike
+                 protocol_master.py, which actually uses its groq_client
+                 inside _adapt_protocol_with_llm).
+  Internal HMS API : two outbound httpx calls inside save_patient_vitals,
+                 both hitting {api_base_url}hms/users/data/context/...:
+                   1. .../process_feature_context_llm  (10s timeout, hard
+                      failure -> raises 500 if non-200)
+                   2. .../general/temp/save  (15s timeout, wrapped in its
+                      own try/except that only logs on failure - does not
+                      block the response)
+  Twilio       : Not used in this file.
+
+### FILE STORAGE
+------------------------------------------------------------
+  Not used in this file (no upload dir / file endpoints), despite File,
+  Form, and UploadFile being imported - see Section 5.
+
+### IN-MEMORY STATE
+------------------------------------------------------------
+  None (no in-memory caches/session dicts in this file).
+
+### ENVIRONMENT VARIABLES USED
+------------------------------------------------------------
+  MONGO_URI, VITE_BACKEND_URL, GROQ_API_KEY
+  SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_DAYS
+
+  Note: SECRET_KEY, ALGORITHM, and ACCESS_TOKEN_EXPIRE_DAYS are read via
+  os.getenv() at module load (lines 52-54) but never referenced again
+  anywhere else in this file - same dead/unused boilerplate pattern seen
+  in protocol_master.py, likely copy-pasted from an auth-related module.
+
+
+############################################################
+# 2. PYDANTIC MODELS
+############################################################
+
+### VITALS & CONSULTATION PAYLOADS  (2 models)
+------------------------------------------------------------
+  PatientVitals
+         sys_user_id, appointment_id, vitals (Dict[str, Dict[str, Any]])
+
+  ConsultationPayload
+         doctor_id, patient_id, dictation (optional, default ""),
+         features (list of dict), timestamp
+
+### VERIFICATION / LOOKUP PAYLOADS  (3 models)
+------------------------------------------------------------
+  HMSIdRequest
+         hms_id
+
+  PatientVerificationRequest
+         hms_id, date_of_birth (str, expected "DD-MM-YYYY")
+
+  PatientDetailsRequest
+         sys_user_id
+
+### PLAIN DICT / RAW-REQUEST PAYLOADS (not BaseModel)
+------------------------------------------------------------
+  save_doctors_recommendation, refer_patient, and update_doctor_speciality
+  all take `request: Request` and manually pull fields via
+  `await request.json()` / `data.get(...)` instead of a typed Pydantic
+  model, with manual "missing required fields" checks - inconsistent with
+  the 5 typed models above. Worth normalizing into dedicated request
+  models if this file is revisited (mirrors the same pattern flagged in
+  protocol_master.py for POST /protocol-master/select).
+
+### NAMES SHARED WITH OTHER FILES
+------------------------------------------------------------
+  None of the five models here reuse a class name seen in the
+  ProtocolMaster reference (DrugSchedule, ProtocolMaster) - no naming
+  collisions to check before merging/importing.
+
+
+############################################################
+# 3. API ENDPOINTS
+############################################################
+
+Router prefix is "" (empty string), so every route path below IS the
+full effective path (no additional segment is prepended) - unlike
+protocol_master.py, there's no prefix/path mismatch to worry about here.
+
+### PATIENT DEMOGRAPHICS  (1 endpoint, +1 dead)
+------------------------------------------------------------
+  GET  /patient_basic_screening_details/{patient_id}/{doctor_id}
+         function : get_patient_basic_demographics
+         does     : Fetch patient demographics (name, date_of_birth,
+                    patient_id, gender) plus the most recently updated
+                    appointment for a given doctor_id (across all dates,
+                    not just today)
+         touches  : patient_user_collection, patient_appointments_collection
+
+  DEAD: an earlier version of this same route/function is commented out
+  directly above the active one - it restricted the appointment lookup to
+  today's date only (today = utcnow) before being superseded.
+
+### PATIENT VITALS  (4 active endpoints, +1 dead - 3-way function name collision)
+------------------------------------------------------------
+  NOTE: get_patient_vitals is defined as a Python function name THREE
+  separate times in this file (once here, once further down under
+  "Alwin Section", once as get_patient_vitals_v2's twin). Each redefinition
+  overwrites the previous one in the module namespace. FastAPI still
+  routes correctly because each @router decorator captured its own
+  function object at decoration time, but auto-generated OpenAPI
+  operationIds and any code that does `from data import get_patient_vitals`
+  will only ever get the LAST definition. Worth renaming for clarity.
+
+  POST /save_patient_vitals
+         function : save_patient_vitals
+         does     : Looks up patient_id from sys_user_id, validates the
+                    appointment_id exists and its doctor_id matches the
+                    latest vitals entry's doctor_id, upserts vitals keyed
+                    by a Mongo-safe timestamp, then fires three side
+                    effects: (1) blocking call to the feature-context LLM
+                    endpoint (hard-fails the request on non-200), (2) a
+                    "temp save" call that only logs on failure, (3) a
+                    Celery task dispatch that only logs on failure
+         touches  : patient_user_collection, patient_appointments_collection,
+                    patient_vitals_collection
+
+  GET  /get_patient_vitals/{sys_user_id}
+         function : get_patient_vitals  (1st definition)
+         does     : Returns the raw vitals_doc exactly as stored, no
+                    reshaping. 404 if none found
+         touches  : patient_vitals_collection
+
+  DELETE /delete_all_vitals
+         function : delete_all_vitals
+         does     : Deletes ALL documents in patient_vitals_collection.
+                    Requires ?confirm=true or returns 400
+         touches  : patient_vitals_collection
+         note     : no auth/role check visible in this file guarding this
+                    destructive endpoint
+
+  GET  /get_patient_vitals/{patient_id}/{doctor_id}
+         function : get_patient_vitals  (2nd definition, under
+                    "########...Alwin Section...########" comment)
+         does     : Same doc lookup as above, but filters entries to only
+                    the given doctor_id and reshapes into a list of
+                    {date, vital_data} (date split off the timestamp;
+                    vital_data keeps doctor_id inside, unlike the v2 route)
+         touches  : patient_vitals_collection
+
+  GET  /get_patient_vitals_v2/{patient_id}
+         function : get_patient_vitals  (3rd definition)
+         does     : Same reshape into {date, vital_data} list, but across
+                    ALL doctors (no doctor_id filter) and explicitly strips
+                    doctor_id out of each vital_data entry before returning
+         touches  : patient_vitals_collection
+
+  DEAD: a commented-out GET /get_patient_vitals/{patient_id} sits between
+  the 1st definition and delete_all_vitals - an older list-shaped response
+  (id/dictation_id stringified, no date-grouping) that predates the v2/
+  Alwin-section reshaping logic.
+
+### PATIENT DOCUMENTS  (2 endpoints)
+------------------------------------------------------------
+  GET  /documents_patient_retrieval/{patient_id}
+         function : get_patient_documents
+         does     : Lists all uploaded documents for a patient
+         touches  : database["patient_report_documents"]  (inline, not the
+                    patient_reports_collection variable - see Section 1)
+
+  GET  /documents_patient_retrieval_by_type/{patient_id}/{doc_type}
+         function : get_patient_documents_by_type
+         does     : Same as above, filtered by a "type" field
+         touches  : database["patient_report_documents"]  (inline)
+
+### CONSULTATIONS  (3 endpoints)
+------------------------------------------------------------
+  POST /patient_save_consultation
+         function : patient_save_consultation
+         does     : Appends a consultation entry (frontend timestamp +
+                    backend-generated stored_at + dictation + features)
+                    into a nested map keyed by (doctor_id, patient_id),
+                    upserting the parent doc
+         touches  : patient_consultation_collection
+
+  GET  /get_saved_consultations/{doctor_id}/{patient_id}
+         function : get_saved_consultations
+         does     : Returns the raw consultations doc for a doctor/patient
+                    pair. 404 if none found
+         touches  : patient_consultation_collection
+
+  DELETE /delete_all_consultation
+         function : delete_all_consultation
+         does     : Deletes ALL documents in patient_consultation_collection.
+                    Requires ?confirm=true or returns 400
+         touches  : patient_consultation_collection
+         note     : no auth/role check visible in this file guarding this
+                    destructive endpoint (same pattern as delete_all_vitals)
+
+### DOCTORS  (3 endpoints)
+------------------------------------------------------------
+  GET  /get_doctors_list/{hospital_id}
+         function : get_doctors_list
+         does     : Lists doctors (sys_user_id, name, specialization) for
+                    a hospital_id
+         touches  : doctor_user_collection
+
+  GET  /get-doctor-info/{sys_user_id}
+         function : get_doctor_info
+         does     : Fetch a single doctor's name/specialization/id/
+                    hospital_id/hospital_name
+         touches  : doctor_user_collection
+
+  PUT  /doctor/update-speciality
+         function : update_doctor_speciality
+         does     : Raw-JSON body (sys_user_id, speciality). Verifies the
+                    doctor exists, updates specialization, re-fetches and
+                    returns the updated doc
+         touches  : doctor_user_collection
+
+### TUMOR BOARD  (3 endpoints)
+------------------------------------------------------------
+  POST /save-doctors-recommendation
+         function : save_doctors_recommendation
+         does     : Raw-JSON body (doctor_id, patient_id, hospital_id,
+                    speciality, doctor_recommendation). Saves a tumor
+                    board case with a server-generated created_at
+         touches  : tumor_board_collection
+         note     : missing `await` on insert_one - see Section 1 bug note
+
+  GET  /tumor_board_cases
+         function : get_tumor_board_cases
+         does     : Lists all tumor board cases, stringifying every
+                    ObjectId field and isoformatting every datetime field
+                    generically (not just _id)
+         touches  : tumor_board_collection
+
+  GET  /latest_doctor_recommendations/{hospital_id}/{patient_id}
+         function : get_latest_doctor_recommendations
+         does     : Aggregation pipeline - matches on patient+hospital,
+                    sorts by created_at desc, groups by doctor_id keeping
+                    only the latest recommendation per doctor, projects a
+                    flat shape
+         touches  : tumor_board_collection
+
+### REFERRALS  (4 endpoints)
+------------------------------------------------------------
+  POST /refer_patient
+         function : refer_patient
+         does     : Raw-JSON body (from_doctor_id, to_doctor_id,
+                    patient_id, reason). Inserts a referral with
+                    status="pending" and a server-generated referral_date
+         touches  : doctor_referrals_collection
+
+  GET  /get_referrals
+         function : get_referrals
+         does     : Lists ALL referrals, stringifying _id. 404 if empty
+         touches  : doctor_referrals_collection
+
+  GET  /get_referrals_by_doctor/{doctor_id}
+         function : get_referrals_by_doctor
+         does     : Lists pending referrals TO a given doctor_id. 404 if
+                    none found
+         touches  : doctor_referrals_collection
+
+  PUT  /update_referral_status/{doctor_id}/{patient_id}
+         function : update_referral_status
+         does     : Bulk-updates (update_many) all pending referrals for a
+                    doctor/patient pair to status="completed". 404 if
+                    nothing matched
+         touches  : doctor_referrals_collection
+
+### PATIENT VERIFICATION & PORTAL  (3 endpoints)
+------------------------------------------------------------
+  POST /check-patient-by-hms-id
+         function : check_patient_by_hms_id
+         does     : Looks up a patient by hms_id, returns only a boolean
+                    "found" flag (no patient data)
+         touches  : patient_user_collection
+
+  POST /verify-patient
+         function : verify_patient
+         does     : Converts date_of_birth from DD-MM-YYYY to YYYY-MM-DD,
+                    then matches on (hms_id, date_of_birth). Returns the
+                    full patient doc on success, or a success:false message
+                    on bad date format / no match (no HTTPException raised
+                    for the not-found case - always 200)
+         touches  : patient_user_collection
+
+  POST /patient/details
+         function : get_patient_details
+         does     : Looks up a patient by sys_user_id, returns the full
+                    doc. 404 if not found
+         touches  : patient_user_collection
+
+### PATIENT IMAGES  (1 endpoint)
+------------------------------------------------------------
+  GET  /patient-images/{doctor_id}/{patient_id}
+         function : get_patient_images
+         does     : Lists active images for a doctor/patient pair, sorted
+                    by created_at descending, stringifying _id
+         touches  : patient_images_collection
+
+
+############################################################
+# 4. SUPPORTING HELPER FUNCTIONS (not routes)
+############################################################
+------------------------------------------------------------
+  None. Unlike protocol_master.py (which has 6 underscore-prefixed helper
+  functions for diagnosis matching / LLM adaptation), every function in
+  this file is a route handler - there is no shared/reusable logic
+  factored out, which is part of why the same reshaping logic
+  (date-splitting, doctor_id stripping) is duplicated across the three
+  get_patient_vitals variants instead of living in one helper.

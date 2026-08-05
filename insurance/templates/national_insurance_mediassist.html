@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Medi Assist India TPA Pvt Ltd - Investigation Report</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 12mm 12mm;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: Arial, sans-serif;
+      font-size: 10px;
+      color: #000;
+      background: #fff;
+    }
+
+    .page {
+      width: 186mm;
+      margin: 0 auto;
+      background: #fff;
+    }
+
+    /* HEADER */
+    .header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 14px;
+      gap: 16px;
+    }
+
+    .header-logo {
+      width: 160px;
+      height: 105px;
+      object-fit: contain;
+      flex-shrink: 0;
+    }
+
+    .header-title {
+      font-size: 13px;
+      font-weight: bold;
+      line-height: 1.7;
+      text-align: center;
+      text-decoration: underline;
+      text-transform: uppercase;
+    }
+
+    /* ALL TABLES */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      margin-bottom: 0;
+    }
+
+    td {
+      border: 1px solid #000;
+      padding: 3px 5px;
+      vertical-align: top;
+      font-size: 10px;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+    }
+
+    /* Grey section header */
+    .sec-hdr td {
+      background-color: #c0c0c0;
+      font-weight: bold;
+      font-size: 10px;
+      padding: 4px 5px;
+      border: 1px solid #000;
+    }
+
+    .lbl { width: 38%; font-weight: normal; }
+    .val { width: 62%; }
+
+    /* Brief-of-case 5-col */
+    .bc-label    { width: 28%; }
+    .bc-insured  { width: 14%; }
+    .bc-invest   { width: 22%; }
+    .bc-verified { width: 18%; }
+    .bc-comments { width: 18%; }
+
+    /* Checklist */
+    .cl-sl   { width: 6%;  text-align: center; }
+    .cl-item { width: 82%; }
+    .cl-yn   { width: 12%; text-align: center; }
+
+    /* Interview */
+    .iv-lbl { width: 28%; font-weight: bold; }
+    .iv-val { width: 72%; }
+
+    /* Outcome/opinion big box */
+    .opinion-box td {
+      padding: 6px 5px;
+      font-size: 10px;
+      line-height: 1.6;
+    }
+
+    /* Signature */
+    .sig-table td {
+      border: 1px solid #000;
+      padding: 5px 7px;
+      font-size: 10px;
+      vertical-align: middle;
+    }
+
+    .sig-stamp {
+      width: 90px;
+      height: 75px;
+      object-fit: contain;
+    }
+
+    .docs-list {
+      border: 1px solid #000;
+      border-top: none;
+      padding: 5px 8px 6px 20px;
+      font-size: 10px;
+      line-height: 1.8;
+    }
+    /* ── Conclusion formatting ─────────────────────────────── */
+.conclusion-wrapper {
+  font-family: Arial, sans-serif;
+  font-size: 10px;
+  color: #000;
+  padding: 0;
+}
+
+.trigger-section {
+  margin-bottom: 0;
+  page-break-inside: avoid;
+  border-bottom: 1.5px solid #2c4a8c;
+}
+
+.trigger-section:last-child {
+  border-bottom: none;
+}
+
+.trigger-body {
+  padding: 8px 10px;
+}
+
+.section-header {
+  background: #e8eef8;
+  border-left: 3px solid #2c4a8c;
+  padding: 5px 8px;
+  font-weight: bold;
+  font-size: 10px;
+  color: #2c4a8c;
+  margin: 8px 0 4px 0;
+}
+
+.sub-header {
+  margin: 5px 0 2px 0;
+  font-size: 10px;
+  color: #000;
+  line-height: 1.5;
+}
+
+.sub-letter {
+  color: #2c4a8c;
+  font-weight: bold;
+}
+
+.body-para {
+  margin: 3px 0 5px 0;
+  line-height: 1.6;
+  text-align: justify;
+  font-size: 10px;
+}
+
+.disc-item {
+  padding: 4px 8px;
+  margin: 3px 0;
+  border-radius: 3px;
+  page-break-inside: avoid;
+  border-left: 3px solid #888;
+}
+
+.disc-tag {
+  font-weight: bold;
+  font-size: 8px;
+  text-transform: uppercase;
+  display: inline-block;
+  margin-right: 6px;
+}
+
+.disc-content {
+  font-size: 10px;
+  line-height: 1.5;
+  color: #222;
+  display: inline;
+}
+
+.recommendation-block {
+  background: #e85d24;
+  border-radius: 3px;
+  padding: 7px 10px;
+  margin-top: 8px;
+  page-break-inside: avoid;
+}
+
+.rec-label {
+  color: #fff;
+  font-weight: bold;
+  font-size: 10px;
+  margin-bottom: 3px;
+}
+
+.rec-body {
+  color: #fff;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.no-disc {
+  color: #777;
+  font-style: italic;
+  font-size: 10px;
+  margin: 3px 0;
+}
+
+.no-conclusion {
+  color: #777;
+  font-style: italic;
+  font-size: 10px;
+  padding: 6px;
+}
+    @media print {
+      body  { margin: 0; background: #fff; }
+      .page { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- HEADER -->
+  <div class="header">
+    <img src="{{ header_image }}" class="header-logo" alt="Medi Assist Logo">
+    <div class="header-title">
+      MEDI ASSIST INDIA TPA PVT LTD.<br>
+      INVESTIGATION REPORT<br>
+      (NATIONAL INSURANCE COMPANY)
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <!-- POLICY DETAILS                          -->
+  <!-- ═══════════════════════════════════════ -->
+  <table>
+    <tr class="sec-hdr"><td colspan="2">Policy Details</td></tr>
+    <tr>
+      <td class="lbl">Policy Number</td>
+      <td class="val">{{ case.policyNumber or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Policy Period/Claim id</td>
+      <td class="val">
+        {{ (case.get('policyDetails') or {}).get('startDate') or '' }}
+        {% if (case.get('policyDetails') or {}).get('endDate') %} - {{ case.policyDetails.endDate }}{% endif %}
+        {% if case.insurerRef %} / {{ case.insurerRef }}{% endif %}
+      </td>
+    </tr>
+    <tr>
+      <td class="lbl">Sum Insured</td>
+      <td class="val">{{ (case.get('policyDetails') or {}).get('sumInsured') or 'NA' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Name of Insured</td>
+      <td class="val">{{ case.claimantName or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Address, E-dress &amp; contact number of insured</td>
+      <td class="val">{{ case.claimantAddress or 'NA' }}{% if case.claimantMobile %} / {{ case.claimantMobile }}{% endif %}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Type of Policy (NMP/NMPP/Group/Individual/Floater/ BOI National Swasthya/Baroda Health) Specify</td>
+      <td class="val">{{ case.policyType or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Agent/Broker in record</td>
+      <td class="val">{{ (case.get('policyDetails') or {}).get('agentBroker') or 'NA' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">First date of commencement of policy in record</td>
+      <td class="val">{{ (case.get('policyDetails') or {}).get('inceptionDate') or (case.get('policyDetails') or {}).get('startDate') or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Original Sum Insured on commencement</td>
+      <td class="val">{{ (case.get('policyDetails') or {}).get('originalSumInsured') or 'NA' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Sum Insured Enhancement details, if any</td>
+      <td class="val">{{ (case.get('policyDetails') or {}).get('sumInsuredEnhancement') or 'NA' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Number of years policy with the Company</td>
+      <td class="val">{{ (case.get('policyDetails') or {}).get('policyYears') or '' }}</td>
+    </tr>
+  </table>
+
+  <!-- ═══════════════════════════════════════ -->
+  <!-- PATIENT DETAIL                          -->
+  <!-- ═══════════════════════════════════════ -->
+  <table>
+    <tr class="sec-hdr"><td colspan="5">Patient Detail</td></tr>
+    <!-- Brief of the case header -->
+    <tr>
+      <td class="bc-label" style="font-weight:bold;">Brief of the case</td>
+      <td class="bc-insured" style="font-weight:bold;">As per insured</td>
+      <td class="bc-invest" style="font-weight:bold;">As per investigation</td>
+      <td class="bc-verified" style="font-weight:bold;">Verified or Not</td>
+      <td class="bc-comments" style="font-weight:bold;">If NO, comments</td>
+    </tr>
+    {% set bv = case.get('briefVerification',  {}) %}
+    {% set bc = case.get('briefComments',      {}) %}
+    {% set bi = case.get('briefInsured',       {}) %}
+    {% set bn = case.get('briefInvestigation', {}) %}
+    <tr>
+      <td class="bc-label">Name of the Insured patient</td>
+      <td class="bc-insured">{{ bi.get('patientName','') }}</td>
+      <td class="bc-invest">{{ case.claimantName or '' }}</td>
+      <td class="bc-verified">{{ bv.get('patientName','') }}</td>
+      <td class="bc-comments">{{ bc.get('patientName','') }}</td>
+    </tr>
+    <tr>
+      <td class="bc-label">Date of Birth/Age</td>
+      <td class="bc-insured">{{ bi.get('dob','') }}</td>
+      <td class="bc-invest">{{ case.claimantAge or '' }}</td>
+      <td class="bc-verified">{{ bv.get('dob','') }}</td>
+      <td class="bc-comments">{{ bc.get('dob','') }}</td>
+    </tr>
+    <tr>
+      <td class="bc-label">Age proof</td>
+      <td class="bc-insured">{{ bi.get('ageProof','') }}</td>
+      <td class="bc-invest">{{ bn.get('ageProof','') }}</td>
+      <td class="bc-verified">{{ bv.get('ageProof','') }}</td>
+      <td class="bc-comments">{{ bc.get('ageProof','') }}</td>
+    </tr>
+    <tr>
+      <td class="bc-label">Occupation</td>
+      <td class="bc-insured">{{ bi.get('occupation','') }}</td>
+      <td class="bc-invest">{{ bn.get('occupation','') }}</td>
+      <td class="bc-verified">{{ bv.get('occupation','') }}</td>
+      <td class="bc-comments">{{ bc.get('occupation','') }}</td>
+    </tr>
+  </table>
+
+  <!-- ═══════════════════════════════════════ -->
+  <!-- HOSPITAL DETAIL                         -->
+  <!-- ═══════════════════════════════════════ -->
+  <table>
+    <tr class="sec-hdr"><td colspan="2">Hospital Detail</td></tr>
+    <tr>
+      <td class="lbl">Name of hospital</td>
+      <td class="val">{{ hospital.name or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Address &amp; E-dress of hospital</td>
+      <td class="val">{{ hospital.address or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Registration number of hospital</td>
+      <td class="val">{{ hospital.get('registrationNumber','') if hospital.get else '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Whether PPN or Non-PPN hospital, Specify</td>
+      <td class="val">{{ hospital.get('ppnStatus','-') if hospital.get else '-' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Name of contact person and contact number</td>
+      <td class="val">{{ hospital.get('contactPerson','') if hospital.get else '' }}{% if hospital.hospitalContactNumber %} - {{ hospital.hospitalContactNumber }}{% endif %}</td>
+    </tr>
+  </table>
+
+  <!-- ═══════════════════════════════════════ -->
+  <!-- CLAIM DETAILS AND AILMENT DETAILS       -->
+  <!-- ═══════════════════════════════════════ -->
+  <table>
+    <tr class="sec-hdr"><td colspan="2">Claim details and ailment detais</td></tr>
+    <tr>
+      <td class="lbl">Whether Cashless claim or Non Cashless, Specify</td>
+      <td class="val">{{ case.claimMode or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Date and Time of Admission</td>
+      <td class="val">{{ hospital.admissionDate or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Date and Time of Discharge</td>
+      <td class="val">{{ hospital.dischargeDate or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">ICU Admission Details</td>
+      <td class="val">{{ (case.get('cashlessDetails') or {}).get('icuDetails') or 'NO' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Disease for which admitted</td>
+      <td class="val">{{ critical.diagnosis or '' }}</td>
+    </tr>
+  </table>
+
+  <!-- continuation without section header (matches image page 2 top) -->
+  <table>
+    <tr>
+      <td class="lbl">Estimated amount of treatment costs submitted by hospital</td>
+      <td class="val">{{ (case.get('cashlessDetails') or {}).get('estimatedCost') or 'NA' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Amount Authorized</td>
+      <td class="val">{{ (case.get('cashlessDetails') or {}).get('amountAuthorized') or 'NA' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Name of treating Doctor</td>
+      <td class="val">{{ hospital.doctorName or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Registration Number</td>
+      <td class="val">{{ hospital.get('doctorRegNumber','NA') if hospital.get else 'NA' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Name of referral Doctor</td>
+      <td class="val">{{ case.familyDoctor or additional.get('referralDoctor','NA') if additional.get else 'NA' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Registration Number</td>
+      <td class="val">{{ hospital.get('referralDoctorRegNumber','NA') if hospital.get else 'NA' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Initial treatment details</td>
+      <td class="val">{{ additional.get('initialTreatment','NA') if additional.get else 'NA' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Date of first onset of symptoms</td>
+      <td class="val">{{ additional.get('onsetOfSymptoms','') if additional.get else '' or case.dateOfIncident or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Particulars of pre-hospitalization treatments</td>
+      <td class="val">{{ additional.get('preHospitalisationDetails','NA') if additional.get else 'NA' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Particulars of post hospitalization treatments</td>
+      <td class="val">{{ additional.get('postHospitalisationDetails','NA') if additional.get else 'NA' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Particulars of investigations done for diagnosis (attach documents)</td>
+      <td class="val">{{ additional.get('investigationsSuggestingDiagnosis','') if additional.get else '' }}</td>
+    </tr>
+  </table>
+
+  <!-- ═══════════════════════════════════════ -->
+  <!-- CHECKLIST                               -->
+  <!-- ═══════════════════════════════════════ -->
+  {% set cl = case.get('checklist', {}) %}
+  <table>
+    <tr>
+      <td class="cl-sl"   style="font-weight:bold; background:#fff;">Sl No</td>
+      <td class="cl-item" style="font-weight:bold; background:#fff;">Checklist for Verification</td>
+      <td class="cl-yn"   style="font-weight:bold; background:#fff;">Yes/No</td>
+    </tr>
+    <tr><td class="cl-sl">1</td><td class="cl-item">ID proof of insured patient</td><td class="cl-yn">{{ cl.get('idProofInsured','NA') }}</td></tr>
+    <tr><td class="cl-sl">2</td><td class="cl-item">Hospital existence &amp; registration</td><td class="cl-yn">{{ cl.get('hospitalExistence','NA') }}</td></tr>
+    <tr><td class="cl-sl">3</td><td class="cl-item">Admission of insured patient in the hospital on the stated dates</td><td class="cl-yn">{{ cl.get('admissionVerified','NA') }}</td></tr>
+    <tr><td class="cl-sl">4</td><td class="cl-item">Treatment particulars</td><td class="cl-yn">{{ cl.get('treatmentParticulars','NA') }}</td></tr>
+    <tr><td class="cl-sl">5</td><td class="cl-item">Copy of ICP</td><td class="cl-yn">{{ cl.get('copyOfICP','NA') }}</td></tr>
+    <tr><td class="cl-sl">6</td><td class="cl-item">Whether lab is in vicinity of hospital or far off</td><td class="cl-yn">{{ cl.get('labVicinity','NA') }}</td></tr>
+    <tr><td class="cl-sl">7</td><td class="cl-item">Whether Lab registers verified</td><td class="cl-yn">{{ cl.get('labRegistersVerified','NA') }}</td></tr>
+    <tr><td class="cl-sl">8</td><td class="cl-item">Verification of bills &amp; receipts</td><td class="cl-yn">{{ cl.get('billsReceipts','NA') }}</td></tr>
+    <tr><td class="cl-sl">9</td><td class="cl-item">Checking purchases from medicine shops</td><td class="cl-yn">{{ cl.get('medicinePurchases','NA') }}</td></tr>
+    <tr><td class="cl-sl">10</td><td class="cl-item">Matching of signatures in different documents-patients/doctors etc</td><td class="cl-yn">{{ cl.get('signatureMatching','NA') }}</td></tr>
+    <tr><td class="cl-sl">11</td><td class="cl-item">Collection of copies of OT/ copy of receipt books</td><td class="cl-yn">{{ cl.get('otReceiptBooks','NA') }}</td></tr>
+    <tr><td class="cl-sl">12</td><td class="cl-item">Any other, specify</td><td class="cl-yn">{{ cl.get('anyOther','NA') }}</td></tr>
+  </table>
+
+  <!-- ═══════════════════════════════════════ -->
+  <!-- INTERVIEW DETAIL                        -->
+  <!-- ═══════════════════════════════════════ -->
+  <table>
+    <tr class="sec-hdr"><td colspan="2">Interview detail</td></tr>
+    <tr>
+      <td class="iv-lbl">Insured</td>
+      <td class="iv-val">{{ case.claimantName or '' }}</td>
+    </tr>
+    <tr>
+      <td class="iv-lbl">Treating Doctor</td>
+      <td class="iv-val">{{ hospital.doctorName or '' }}</td>
+    </tr>
+    <tr>
+      <td class="iv-lbl">Neighbours</td>
+      <td class="iv-val">{{ (case.get('interviewDetails') or {}).get('neighbours') or 'NA' }}</td>
+    </tr>
+  </table>
+
+  <!-- ═══════════════════════════════════════ -->
+  <!-- LIST OF DOCUMENTS COLLECTED             -->
+  <!-- ═══════════════════════════════════════ -->
+  <table>
+    <tr>
+      <td style="font-weight:bold; border-bottom:none;">LIST OF DOCUMENTS COLLECTED</td>
+    </tr>
+  </table>
+  <div class="docs-list">
+    {% if case.enclosures %}
+      {{ case.enclosures }}
+    {% else %}
+      (i)&nbsp;&nbsp; Photograph of patient/ PAN Card/ Voter ID-<br>
+      (ii)&nbsp; Copies of diagnostic /pathological reports-<br>
+      (iii) Copies of indoor documents-<br>
+      (iv)&nbsp; Copies of Investigation reports-<br>
+      (v)&nbsp;&nbsp; Discharge Summary-<br>
+      (vi)&nbsp; List any other-final bills-
+    {% endif %}
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <!-- INVESTIGATION OUTCOME / OPINION         -->
+  <!-- ═══════════════════════════════════════ -->
+<!-- UPDATED -->
+<table>
+  <tr class="sec-hdr"><td>Investigation «Outcome»,«Opinion»</td></tr>
+  <tr>
+    <td style="padding: 0;">
+      <div class="conclusion-wrapper">
+        {{ conclusion_html | safe }}
+      </div>
+    </td>
+  </tr>
+</table>
+
+  <!-- ═══════════════════════════════════════ -->
+  <!-- SIGNATURE                               -->
+  <!-- ═══════════════════════════════════════ -->
+  <table class="sig-table" style="margin-top:6px;">
+    <tr>
+      <td style="width:18%; font-weight:bold;">Signature</td>
+      <td style="width:32%; text-align:center; height:80px;">
+        {% if show_stamp != false %}
+          <img src="{{ stamp_image }}" class="sig-stamp" alt="Stamp">
+        {% endif %}
+      </td>
+      <td style="width:14%; font-weight:bold;">Date :</td>
+      <td style="width:22%;">{{ case.reportDate or '' }}</td>
+      <td style="width:7%; font-weight:bold;">Place</td>
+      <td style="width:7%;">{{ hospital.city or 'Kochi' }}</td>
+    </tr>
+  </table>
+
+</div>
+</body>
+</html>

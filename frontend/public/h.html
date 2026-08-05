@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Widget Login Test</title>
+
+    <style>
+        body{
+            font-family:Arial,Helvetica,sans-serif;
+            display:flex;
+            justify-content:center;
+            align-items:center;
+            height:100vh;
+            background:#f5f5f5;
+        }
+
+        .card{
+            background:#fff;
+            padding:40px;
+            border-radius:10px;
+            width:350px;
+            box-shadow:0 0 15px rgba(0,0,0,.15);
+            text-align:center;
+        }
+
+        button{
+            width:100%;
+            padding:15px;
+            border:none;
+            border-radius:6px;
+            background:#007bff;
+            color:#fff;
+            font-size:18px;
+            cursor:pointer;
+        }
+
+        button:hover{
+            background:#0056b3;
+        }
+
+        #status{
+            margin-top:20px;
+            color:red;
+            word-break:break-word;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="card">
+
+    <h2>Widget Login Test</h2>
+
+    <button onclick="login()">
+        Login
+    </button>
+
+    <p id="status"></p>
+
+</div>
+
+<script>
+
+async function login(){
+
+    document.getElementById("status").innerHTML = "Logging in...";
+
+    try{
+
+        const response = await fetch(
+            "https://doctorassist.ai/api/hms/integration/system/widget-login",
+            {
+                method: "POST",
+
+                credentials: "include",
+
+                headers:{
+                    "Content-Type":"application/json",
+                    "Authorization":"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJJTlQtZmQ5NmNiOGEtMDYyOC00Yjk5LWE2NTEtMzg3YTVkYmMzZjM4Iiwicm9sZSI6ImludGVncmF0b3IiLCJzY29wZXMiOltdLCJleHAiOjE3ODM5OTQ4NjR9.DCN5jx-UmkmMRfswEVFWT9w-Efv0mxBUsfojg4IRPfs"
+                },
+
+                body: JSON.stringify({
+
+                    hospital_id: "xDDt2uQrmi",
+
+                    doctor_id: "2FFvzVVIgP",
+
+                   
+
+                })
+            }
+        );
+
+        const data = await response.json();
+
+        console.log(data);
+
+        if(!response.ok){
+            throw new Error(data.detail || "Login failed");
+        }
+
+        // Cookie has already been stored by the browser
+        // if Set-Cookie is returned by the backend.
+
+        window.location.href = data.dashboard_url;
+
+    }
+    catch(err){
+
+        console.error(err);
+
+        document.getElementById("status").innerHTML = err.message;
+
+    }
+
+}
+
+</script>
+
+</body>
+</html>

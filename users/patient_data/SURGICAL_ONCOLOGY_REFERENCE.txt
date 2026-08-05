@@ -1,0 +1,508 @@
+SURGICAL ONCOLOGY REFERENCE
+============================================================
+surgical_oncology.py  |  router prefix: "/surgical-oncology"  |  tags: ["Surgical Oncology"]  |  2624 lines
+4 named MongoDB collections + 6 inline (unnamed-variable) collections  |  1 Mongo client (async only)
+18 Pydantic models (2 unused/dead)  |  33 active endpoints (0 commented-out/dead endpoints, but 2 endpoints
+flagged in-code as slated for removal)  |  5 helper functions (1 async)
+
+
+############################################################
+# 1. DATABASES & COLLECTIONS
+############################################################
+
+### MONGODB COLLECTIONS
+------------------------------------------------------------
+Format:  variable name in code  ->  actual MongoDB collection
+
+  surgical_oncology_collection             -> surgical_oncology            (async)
+  surgical_oncology_documents_collection   -> surgical_oncology_documents  (async)
+  ot_room_bookings_collection              -> ot_room_bookings             (async)
+  ot_booking_prefills_collection           -> ot_booking_prefills          (async)
+
+Accessed inline via database["..."] instead of a named module-level variable
+(no dead-variable issue like data.py's patient_reports_collection - these were
+just never given a variable in the first place):
+
+  database["dictation"]              -> latest clinical dictation lookup (get_ot_booking_prefill)
+  database["patient_summary"]        -> patient clinical summary (generate_investigation_suggestion,
+                                         generate_doctors_narration, and indirectly via
+                                         _match-style aggregation is NOT here - that's the RT file)
+  database["chemotherapy_records"]   -> get_oncology_records
+  database["radiotherapy_records"]   -> get_oncology_records
+  database["patient_vitals"]         -> get_patient_vitals
+  database["patient_users"]          -> patient_users_lookup, get_patient_info
+
+### DATABASE CLIENTS
+------------------------------------------------------------
+  Single async client: AsyncIOMotorClient(MONGO_URI) -> database = mongodb_client[MONGO_DB]
+  MONGO_DB = "doctorassistai"  (same DB name as data.py / protocol_master.py)
+  No sync PyMongo client in this file (unlike data.py, which keeps two collections
+  on a separate sync client).
+
+### NEO4J / CELERY / TWILIO
+------------------------------------------------------------
+  None of the three are used anywhere in this file.
+
+### OTHER EXTERNAL SERVICES
+------------------------------------------------------------
+  Groq LLM API : `from groq import Groq` is imported at module load, but there is
+                 NO module-level groq_client instantiation (unlike protocol_master.py).
+                 Instead, 10 different endpoints each do their own
+                 `groq_client = Groq(api_key=api_key)` right before their own
+                 `chat.completions.create(...)` call - every single one uses
+                 model "llama-3.1-8b-instant" with response_format json_object.
+                 Endpoints that call Groq: get_ot_booking_prefill, structure_post_op,
+                 structure_surgical_management, structure_surgical_checklist,
+                 structure_anaesthesia_checklist, structure_anaesthesia_procedure,
+                 predict_asa_status, generate_investigation_suggestion,
+                 generate_doctors_narration, generate_discharge_narrative.
+                 Every one of these checks `if not api_key: raise HTTPException(500, ...)`
+                 BEFORE constructing the client, so a missing key fails loudly and
+                 immediately (contrast with protocol_master.py's module-level client,
+                 which would only fail down inside the try/except at call time).
+
+  Storage service (STORAGE_BASE_URL) : one outbound httpx call inside upload_document,
+                 POSTing the raw file bytes to "{STORAGE_BASE_URL}/upload" (60s timeout).
+                 Whole function is wrapped in try/except -> 500 on any failure (hard
+                 dependency, not best-effort).
+
+  Internal HMS API (api_base_url) : one outbound httpx call inside save_section, POSTing
+                 a "temp save" snapshot of whatever section was just saved to
+                 "{api_base_url}hms/users/data/context/general/temp/save" (15s timeout).
+                 Wrapped in its own try/except that only logs on failure - non-blocking,
+                 same "log and continue" pattern used for the equivalent call in data.py's
+                 save_patient_vitals.
+                 api_base_url = os.getenv("API_BASE_URL", "https://doctorassist.ai/api/")
+                 NOTE: `import httpx` and `from fastapi.encoders import jsonable_encoder`
+                 are NOT at the top of the file with the other imports - they sit at
+                 line 491, immediately above this api_base_url line, right before the
+                 first place they're needed. Unconventional placement, but still
+                 module-level (not a per-function import).
+
+### FILE STORAGE
+------------------------------------------------------------
+  Used for real in this file (unlike data.py, where File/Form/UploadFile are imported
+  but never wired to an endpoint). upload_document accepts a multipart UploadFile via
+  Form(...) fields (doctor_id, patient_id, hospital_id, doc_type, remarks, category,
+  subcategory) - NOT a Pydantic model - proxies the bytes to STORAGE_BASE_URL, then
+  records a history row keyed by a fresh document_id UUID in
+  surgical_oncology_documents_collection. delete_document only removes the Mongo
+  history record; the storage service has no delete API, so the underlying file is
+  left orphaned on the storage backend.
+
+### IN-MEMORY STATE
+------------------------------------------------------------
+  None (no in-memory caches/session dicts in this file). Contrast with
+  protocol_master.py's module-level `_corpus_doc_freq_cache`.
+
+### ENVIRONMENT VARIABLES USED
+------------------------------------------------------------
+  MONGO_URI, STORAGE_BASE_URL, GROQ_API_KEY, API_BASE_URL (defaults to
+  "https://doctorassist.ai/api/" if unset - the only env var in this file with a
+  hardcoded fallback).
+
+### CROSS-FUNCTION CALLS (endpoint calling another endpoint's function directly)
+------------------------------------------------------------
+  Two endpoints call another route handler as a plain Python coroutine instead of
+  making an HTTP request to it - works because they're just async functions in the
+  same module, but means the "callee" endpoint's own request/response cycle,
+  auth, and error handling are bypassed:
+    - generate_doctors_narration  calls  await get_doctors_note_summary(payload.patient_id)
+    - get_discharge_summary       calls  await get_oncology_records(patient_id)
+                                   and    await patient_users_lookup(patient_id)
+
+
+############################################################
+# 2. PYDANTIC MODELS
+############################################################
+
+### BOOKING CRUD PAYLOADS  (5 models)
+------------------------------------------------------------
+  CreateBookingPayload    patient_id, doctor_id, hospital_id (optional), data (dict)
+  UpdateBookingPayload    data (dict)
+  SaveSectionPayload      data (dict)  - generic container for any of the section-path writes
+  UpdateStatusPayload     status
+  CompleteBookingPayload  end_time (optional) - only model in the file with a default
+                          instance used directly in a signature:
+                          `payload: CompleteBookingPayload = CompleteBookingPayload()`
+
+### DEAD / UNUSED MODELS  (2 models)
+------------------------------------------------------------
+  DoctorLogsPayload       doctor_id, data (Any)
+  PatientDiagramsPayload  patient_id, data (Any)
+
+  Neither model is referenced anywhere outside its own class definition - no endpoint
+  takes either as a parameter. Likely leftover scaffolding for a "doctor logs" and a
+  "patient diagrams" feature that were never built, or were removed without deleting
+  the models.
+
+### LLM-STRUCTURING TEXT PAYLOADS  (6 models, all `{text: str}` shape or close to it)
+------------------------------------------------------------
+  PostOpStructurePayload                 text
+  SurgicalManagementStructurePayload     text
+  SurgicalChecklistStructurePayload      text
+  AnaesthesiaChecklistStructurePayload   text
+  AnaesthesiaProcedureStructurePayload   text, section (one of: mm | ga | reg | mac | io | eo)
+  AsaStatusPredictionPayload             chemo_data (dict) - the one outlier that takes
+                                         structured data instead of free text
+
+### GENERATION / SUGGESTION PAYLOADS  (3 models)
+------------------------------------------------------------
+  GenerateInvestigationSuggestionPayload   patient_id
+  GenerateNarrationPayload                 patient_id, transcript
+  GenerateDischargeNarrativePayload        patient_id, section
+                                            ("course_in_hospital" | "discharge_advice")
+
+### LAB FLOW PAYLOADS  (2 models - see "flagged for removal" note in Section 3)
+------------------------------------------------------------
+  LabOrderPayload      data (dict)  - { status, sentBy, sentAt, fields: [...] }
+  LabResultsPayload    data (dict)  - { approved, approvedAt, approvedBy, values: [...] }
+
+### RAW-DICT / MULTIPART PAYLOADS (not typed BaseModel)
+------------------------------------------------------------
+  upload_document takes doctor_id/patient_id/hospital_id/doc_type/remarks/category/
+  subcategory as individual Form(...) fields plus an UploadFile, rather than a single
+  typed model - unavoidable given it's multipart, but worth flagging alongside
+  protocol_master.py's `select_protocol(payload: dict)`, which takes a raw JSON dict
+  for the same reason data.py's raw-dict endpoints do (quick prototyping, never
+  normalized into a model).
+
+### NAMES SHARED WITH OTHER FILES
+------------------------------------------------------------
+  None of the 18 model names here collide with data.py's 5 models or with
+  protocol_master.py's 10 models (SimulationProtocol, TargetVolumes,
+  PrescriptionProtocol, MachineProtocol, IGRTProtocol, PlanningProtocol, QAProtocol,
+  FollowUpProtocol, BrachytherapyProtocol, RadiotherapyProtocol) - safe to import
+  all three routers into the same app without class-name conflicts.
+
+
+############################################################
+# 3. API ENDPOINTS
+############################################################
+
+Router prefix is "/surgical-oncology", so every path below is prepended with that
+segment for the actual route (e.g. "/booking" is really
+POST /surgical-oncology/booking).
+
+### BOOKING CRUD  (4 endpoints)
+------------------------------------------------------------
+  POST /booking
+         function : create_booking
+         does     : Creates a booking with a fresh UUID booking_id. Sets is_active=True
+                    only if this is the patient's very first booking (count_documents==0).
+                    If otRoom/surgeryDate/startTime are present in the payload, also
+                    inserts a companion OT room reservation (end time derived from a
+                    parsed duration string via calculate_end_time).
+         touches  : surgical_oncology_collection, ot_room_bookings_collection
+
+  PUT  /booking/{booking_id}
+         function : update_booking
+         does     : Overwrites the "booking" sub-document. Mirrors the OT room
+                    reservation update logic from create_booking, but here it's an
+                    upsert (create_booking's initial reservation insert is not upsert).
+         touches  : surgical_oncology_collection, ot_room_bookings_collection
+
+  GET  /booking/{booking_id}
+         function : get_booking
+         does     : Fetch the full booking document (all sections). Returns
+                    {"status": "success", "data": {}} (empty dict, not a 404) if the
+                    booking_id doesn't exist.
+         touches  : surgical_oncology_collection
+
+  PUT  /patient/{patient_id}/active-booking/{booking_id}
+         function : set_active_booking
+         does     : Two-step write - first sets is_active=False on ALL of the
+                    patient's bookings, then sets is_active=True on the one specified.
+                    Not run in a transaction, so a crash between the two update_many/
+                    update_one calls could leave the patient with zero active bookings.
+         touches  : surgical_oncology_collection
+
+### PREFILL FROM DICTATION  (1 endpoint)
+------------------------------------------------------------
+  GET  /patient/{patient_id}/doctor/{doctor_id}/ot-booking-prefill
+         function : get_ot_booking_prefill
+         does     : Finds the latest dictation for the patient/doctor pair, then
+                    checks ot_booking_prefills_collection for a cache entry keyed by
+                    dictation_id. On a cache miss, joins the dictation's raw_data
+                    text blocks and runs a Groq extraction to populate OT booking
+                    fields (caseStatus, surgeryType, laterality, procedureName, etc.
+                    - full field list truncated in this pass but confirmed to be a
+                    single large extraction prompt).
+         touches  : database["dictation"], ot_booking_prefills_collection
+
+### SECTION SAVE (generic — works for all sections)  (1 endpoint)
+------------------------------------------------------------
+  PUT  /booking/{booking_id}/section/{section_path:path}
+         function : save_section
+         does     : Generic `$set: {"{section_path}": data}` writer. section_path is
+                    validated against an explicit allow-list (checklist, management,
+                    post_op, discharge, doctors_note, doctors_note.narration, and six
+                    anaesthesia.* sub-paths: pac, pi, mm, ga, reg, mac, io, eo - note
+                    pac/pi are marked "← add" in the source, i.e. recently appended to
+                    the allow-list). After a successful save, best-effort mirrors the
+                    just-saved section to the internal HMS "general/temp/save"
+                    endpoint via httpx (failure only logged, never raised).
+         touches  : surgical_oncology_collection
+
+### WORKLIST / LISTING  (5 endpoints)
+------------------------------------------------------------
+  GET  /bookings/{doctor_id}
+         function : get_bookings
+         does     : Lists a doctor's bookings (optionally filtered by patient_id
+                    and/or status), sorted oldest-first, reshaped into a flat
+                    worklist row per booking (sno, patientName, procedure, otRoom,
+                    priority, etc.) alongside the full checklist/management/post_op/
+                    discharge sub-documents.
+         touches  : surgical_oncology_collection
+
+  GET  /patient/{patient_id}/bookings
+         function : get_patient_bookings
+         does     : Same reshape as get_bookings, but scoped to one patient across
+                    ALL doctors instead of one doctor.
+         touches  : surgical_oncology_collection
+
+  GET  /patient/{patient_id}/latest-booking
+         function : get_latest_booking
+         does     : Pulls up to 50 of the patient's bookings (newest first) and picks
+                    the first one flagged is_active=True; if none is active, falls
+                    back to the first with status in ["Pending", "In Progress"]; if
+                    still none, falls back to the single newest booking regardless of
+                    status. Returns the full sub-document set (anaesthesia, checklist,
+                    post_op, management, doctors_note).
+         touches  : surgical_oncology_collection
+
+  GET  /patient/{patient_id}/anaesthesia-history
+         function : get_anaesthesia_history
+         does     : Lists only the bookings that actually carry anaesthesia/
+                    doctors_note data, newest first (bandwidth-saving filter noted
+                    in the docstring, though the filter is done in Python after
+                    fetching up to 100 docs, not in the Mongo query itself).
+         touches  : surgical_oncology_collection
+
+  GET  /patient/{patient_id}/post-op-history
+         function : get_post_op_history
+         does     : Same pattern as anaesthesia-history, but for post_op data.
+         touches  : surgical_oncology_collection
+
+### DOCTORS NOTE SUMMARY  (1 endpoint)
+------------------------------------------------------------
+  GET  /patient/{patient_id}/doctors-note-summary
+         function : get_doctors_note_summary
+         does     : Walks up to 100 of the patient's past bookings and aggregates the
+                    most recent non-empty value per field across vitals (bp, rr, pr,
+                    spo2, temperature, height, weight - up to 3 most recent each),
+                    labs, ASA/aspiration-risk/consciousness assessment, tumor
+                    staging/findings/high-risk-MDT flags, past surgeries, and past
+                    intra-op/post-op complications, plus a critical-alerts list built
+                    from allergy and transfusion-reaction flags. All aggregation
+                    logic lives inline in this one function - see Section 4 note on
+                    duplicated reshaping patterns.
+         touches  : surgical_oncology_collection
+
+### STATUS MANAGEMENT  (2 endpoints)
+------------------------------------------------------------
+  PUT  /booking/{booking_id}/status
+         function : update_status
+         does     : Simple `$set: {"status": payload.status}` write.
+         touches  : surgical_oncology_collection
+
+  PUT  /booking/{booking_id}/complete
+         function : complete_booking
+         does     : Marks surgery_finished=True and status="Completed" on the
+                    booking, and mirrors status="Completed" (plus end_time) onto the
+                    companion OT room booking. payload defaults to an empty
+                    CompleteBookingPayload() if omitted, so end_time falls back to
+                    the current UTC time formatted "%H:%M".
+         touches  : surgical_oncology_collection, ot_room_bookings_collection
+
+### OT SCHEDULE  (1 endpoint)
+------------------------------------------------------------
+  GET  /ot-schedule/{room_name}/{date}
+         function : get_ot_schedule
+         does     : Lists all OT room reservations for one room on one date, sorted
+                    by start_time.
+         touches  : ot_room_bookings_collection
+
+### LAB ORDER FLOW  (2 endpoints — FLAGGED FOR REMOVAL IN-CODE)
+------------------------------------------------------------
+  The section header comment reads: "dedicated endpoints — nested under doctors_note)
+  XXX TO BE REMOVED - LAB ORDER WAS REPLACED BY COMMON ENDPOINT XXX" - both endpoints
+  are fully functional but the source itself flags them as superseded by the generic
+  save_section endpoint (doctors_note / doctors_note.narration paths). Left in place,
+  presumably for backward compatibility with clients still calling them directly.
+
+  PUT  /booking/{booking_id}/lab-order
+         function : save_lab_order
+         does     : Writes only to doctors_note.labOrder (does not touch sibling
+                    doctors_note fields).
+         touches  : surgical_oncology_collection
+
+  PUT  /booking/{booking_id}/lab-results
+         function : save_lab_results
+         does     : Writes only to doctors_note.labResults. Docstring notes that
+                    saving results implicitly marks the order approved
+                    (data.approved = True) - but that flag is set by the CALLER in
+                    the request body, not enforced server-side in this function.
+         touches  : surgical_oncology_collection
+
+### DOCUMENT UPLOAD  (3 endpoints)
+------------------------------------------------------------
+  POST /documents/upload
+         function : upload_document
+         does     : Reads the multipart file into memory, proxies it to
+                    STORAGE_BASE_URL/upload, then records a history row (fresh
+                    document_id UUID, original + stored filename, file_url,
+                    content_type, uploaded_at) in surgical_oncology_documents_collection.
+                    Hard-fails with 500 if STORAGE_BASE_URL isn't configured, or if the
+                    storage service itself returns a non-200.
+         touches  : surgical_oncology_documents_collection
+
+  GET  /documents/{patient_id}
+         function : get_documents
+         does     : Lists a patient's uploaded-document history, optionally filtered
+                    by doctor_id and/or hospital_id, newest first.
+         touches  : surgical_oncology_documents_collection
+
+  DELETE /documents/{document_id}
+         function : delete_document
+         does     : Deletes the Mongo history record only. The actual file on the
+                    storage service is left in place (storage service exposes no
+                    delete API) - orphaned-file risk noted directly in the docstring.
+         touches  : surgical_oncology_documents_collection
+
+### LLM STRUCTURING ENDPOINTS  (7 endpoints — all follow the same shape: take free
+### text, call Groq with model="llama-3.1-8b-instant" + response_format json_object,
+### return the parsed JSON, 500 on JSONDecodeError)
+------------------------------------------------------------
+  POST /post-op/structure
+         function : structure_post_op
+         does     : Extracts hasComplications, complications (from a fixed allowed
+                    list), description, clavienDindo grade, and 30/90-day
+                    readmit/mortality flags from transcribed post-op text.
+
+  POST /surgical-management/structure
+         function : structure_surgical_management
+         does     : Extracts surgical team fields (primary/assistant surgeons x3,
+                    primary/secondary anaesthetists, reconstruction team) plus
+                    (per later prompt content not fully re-quoted here) staging,
+                    diagnosis, findings, and intra-op details for the
+                    SurgicalManagementTab form.
+
+  POST /surgical-checklist/structure
+         function : structure_surgical_checklist
+         does     : Extracts surgical safety checklist fields from voice text. Given
+                    LOWEST priority by the frontend versus other auto-populated
+                    sources (OT booking, doctor's note, anaesthesia checklist) - only
+                    fills fields still empty after those other sources are applied.
+
+  POST /anaesthesia/structure
+         function : structure_anaesthesia_checklist
+         does     : Extracts Part-A anaesthesia safety-checklist fields (status rows
+                    as "Yes"/"No" plus free-text "*_remark" fields).
+
+  POST /anaesthesia/procedure/structure
+         function : structure_anaesthesia_procedure
+         does     : Extracts Part-B intra-op anaesthesia fields for ONE of six
+                    sub-tabs selected via payload.section: mm (Mode & Monitoring), ga
+                    (General Anaesthesia), reg (Regional - nested object), mac
+                    (MAC/Local), io (Intra-op/Fluids), eo (End Op/Post-op). Field
+                    specs for each section live in the module-level
+                    _PROCEDURE_FIELD_SPECS dict and are interpolated into the prompt.
+
+  POST /asa-status/predict
+         function : predict_asa_status
+         does     : Given chemo_data (dict), asks Groq to output an ASA Physical
+                    Status Class (I-VI) with a short reasoning string, weighing
+                    comorbidities, organ function, vitals, ECOG/functional status,
+                    and age.
+
+  POST /booking/{booking_id}/generate-investigation-suggestion
+         function : generate_investigation_suggestion
+         does     : Fetches the booking + the patient's latest patient_summary doc
+                    (rendered to text via format_patient_summary_text), then asks
+                    Groq to pick pre-induction lab/radiology tests from two fixed
+                    lists (23 lab fields, 11 radiology fields) with clinical
+                    justification. UNLIKE the other structuring endpoints, this one
+                    also WRITES its own output back into
+                    doctors_note.investigationSuggestion on the booking - it both
+                    generates and persists in one call.
+         touches  : surgical_oncology_collection, database["patient_summary"]
+
+### ONCOLOGY RECORDS  (1 endpoint)
+------------------------------------------------------------
+  GET  /oncology-records/{patient_id}
+         function : get_oncology_records
+         does     : Fetches the patient's latest chemotherapy_records doc (tries a
+                    query with "doctorId": {"$exists": True} first, then falls back
+                    to a plain patientId match if that returns nothing) and latest
+                    radiotherapy_records doc. Stringifies both _ids.
+         touches  : database["chemotherapy_records"], database["radiotherapy_records"]
+
+### PATIENT VITALS  (1 endpoint)
+------------------------------------------------------------
+  GET  /patient-vitals/{patient_id}
+         function : get_patient_vitals
+         does     : Fetches the most recently updated patient_vitals doc, then picks
+                    the lexicographically-largest key inside its nested "vitals" map
+                    (sorted_keys[0] after reverse sort) as the "latest" entry - relies
+                    on those keys being timestamp-like strings that sort correctly as
+                    text; not a true datetime sort.
+         touches  : database["patient_vitals"]
+
+### DOCTORS NARRATION  (1 endpoint)
+------------------------------------------------------------
+  POST /booking/{booking_id}/generate-narration
+         function : generate_doctors_narration
+         does     : Builds context from the booking + a direct in-process call to
+                    get_doctors_note_summary() + the patient's patient_summary doc,
+                    then asks Groq to produce two parallel outputs from one voice
+                    transcript: "narration" (professional prose) and "synoptic"
+                    (structured bullet summary).
+         touches  : surgical_oncology_collection, database["patient_summary"]
+                    (indirectly also whatever get_doctors_note_summary touches)
+
+### DISCHARGE SUMMARY  (2 endpoints)
+------------------------------------------------------------
+  GET  /patient/{patient_id}/booking/{booking_id}/discharge-summary
+         function : get_discharge_summary
+         does     : Assembles a read-only discharge summary by reshaping the
+                    booking's already-captured booking/management/doctors_note/
+                    anaesthesia/post_op data into discharge-oriented blocks
+                    (demographics, diagnosis, procedure, findings, investigations,
+                    complications), folding in patient demographics via a direct call
+                    to patient_users_lookup() and adjuvant chemo/radiotherapy context
+                    via a direct call to get_oncology_records(). Also returns the
+                    doctor-entered "discharge" block verbatim so the frontend can
+                    hydrate its editable fields. Every enrichment step (patient
+                    lookup, oncology records) is individually try/excepted as
+                    non-fatal - a failure there degrades a section rather than
+                    failing the whole summary.
+         touches  : surgical_oncology_collection, database["patient_users"] (via
+                    patient_users_lookup), database["chemotherapy_records"] +
+                    database["radiotherapy_records"] (via get_oncology_records)
+
+  POST /booking/{booking_id}/generate-discharge-narrative
+         function : generate_discharge_narrative
+         does     : Generates ONE free-text section of the discharge summary via
+                    Groq - either "course_in_hospital" (professional peri-operative
+                    narrative) or "discharge_advice" (patient-facing advice organized
+                    under fixed headings: Diet, Wound/Dressing Care, Activity
+                    Restrictions, Medications, Warning Signs, Follow-up). Explicit
+                    prompt rules forbid salutations/sign-offs/markdown since this is
+                    meant to be one section embedded in a larger document, not a
+                    standalone letter. The doctor edits the result before saving (not
+                    auto-persisted, unlike generate_investigation_suggestion above).
+         touches  : surgical_oncology_collection
+
+### PATIENT INFO (REVERSE COMPATIBLE)  (1 endpoint)
+------------------------------------------------------------
+  GET  /get-patient-info
+         function : get_patient_info
+         does     : Looks up patient_users by patient_id, falling back to
+                    sys_user_id if not found. Derives "age" from date_of_birth and
+                    aliases "name" to "patient_name" for backward compatibility -
+                    duplicates the exact same derivation logic found in the
+                    patient_users_lookup helper (see Section 4) rather than calling
+                    it, and additionally hand-serializes _id/created_at, which
+                    patient_users_lookup does not do.
+         touches  : database["patient_users"]

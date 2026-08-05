@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Medi Assist TPA – UIIC Investigation Report Annexure 3</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 15mm 15mm;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 11px;
+      color: #000;
+      background: #fff;
+    }
+
+    .page {
+      width: 180mm;
+      margin: 0 auto;
+      background: #fff;
+    }
+
+    .page-break {
+      page-break-before: always;
+      break-before: always;
+    }
+
+    /* ── HEADER: logo left, stamp right ── */
+    .header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .header-logo {
+      width: 130px;
+      height: auto;
+      object-fit: contain;
+    }
+
+    .header-stamp {
+      width: 80px;
+      height: auto;
+      object-fit: contain;
+    }
+
+    /* ── TITLES ── */
+    .report-titles {
+      text-align: center;
+      margin-bottom: 8px;
+    }
+
+    .report-titles .t1 {
+      font-size: 14px;
+      font-weight: bold;
+      text-decoration: underline;
+      margin-bottom: 5px;
+    }
+
+    .report-titles .t2 {
+      font-size: 12px;
+      font-weight: bold;
+      text-decoration: underline;
+      margin-bottom: 8px;
+    }
+
+    /* ── REF / DATE ── */
+    .ref-date {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      margin-bottom: 8px;
+      padding: 0 4px;
+    }
+
+    /* ── INSURER ── */
+    .insurer-line {
+      text-align: center;
+      font-size: 12px;
+      font-weight: bold;
+      text-decoration: underline;
+      margin-bottom: 12px;
+    }
+
+    /* ── SECTION HEADINGS ── */
+    .sec-heading {
+      font-size: 12px;
+      font-weight: bold;
+      text-decoration: underline;
+      margin: 12px 0 5px 0;
+    }
+
+    /* ── TABLES ── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      margin-bottom: 0;
+    }
+
+    td, th {
+      border: 1.2px solid #000;
+      padding: 4px 6px;
+      vertical-align: top;
+      font-size: 11px;
+      line-height: 1.5;
+      word-wrap: break-word;
+    }
+
+    th {
+      font-weight: bold;
+      text-align: left;
+      background: #fff;
+    }
+
+    .lbl { font-weight: bold; width: 50%; }
+    .val { width: 50%; }
+
+    /* ── BRIEF TABLE – 5 col ── */
+    .bc-label    { width: 26%; font-weight: bold; }
+    .bc-insured  { width: 16%; }
+    .bc-invest   { width: 20%; }
+    .bc-verified { width: 18%; }
+    .bc-comments { width: 20%; }
+
+    /* ── CHECKLIST ── */
+    .cl-sl   { width: 8%;  text-align: center; }
+    .cl-item { width: 72%; }
+    .cl-yn   { width: 10%; text-align: center; }
+
+    /* ── TALL BOXES ── */
+    .address-box td { min-height: 70px; height: 70px; }
+    .interview-box td { min-height: 50px; height: 50px; }
+    .opinion-box td { min-height: 50px; height: 50px; }
+
+    /* ── DOCS LIST ── */
+    .docs-list {
+      border: 1.2px solid #000;
+      border-top: none;
+      padding: 6px 8px 6px 22px;
+      font-size: 11px;
+      line-height: 2;
+    }
+
+    /* ── STAMP ── */
+    .stamp-img {
+      width: 90px;
+      height: auto;
+      object-fit: contain;
+    }
+
+    /* ── CONCLUSION ── */
+    .conclusion-wrapper {
+      font-family: Arial, sans-serif;
+      font-size: 11px;
+      color: #000;
+    }
+
+    .footer-line {
+      text-align: left;
+      font-size: 10px;
+      margin-top: 6px;
+      letter-spacing: 1px;
+    }
+
+    @media print {
+      body  { background: #fff; }
+      .page { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- PAGE 1                                              -->
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="page">
+
+  <!-- HEADER: Medi Assist logo left, stamp right -->
+  <div class="header">
+    <img src="{{ header_image }}" class="header-logo" alt="Medi Assist Logo">
+    {% if show_stamp != false %}
+      <img src="{{ stamp_image }}" class="header-stamp" alt="Stamp">
+    {% endif %}
+  </div>
+
+  <!-- TITLES -->
+  <div class="report-titles">
+    <div class="t1">Medi Assist India TPA Pvt Ltd.</div>
+    <div class="t2">INVESTIGATION REPORT(Annexure 3)</div>
+  </div>
+
+  <!-- REF / DATE -->
+  <div class="ref-date">
+    <span><strong>Ref:</strong>&nbsp;&nbsp;{{ case.insurerRef or '' }}</span>
+    <span><strong>Date:</strong>&nbsp;&nbsp;{{ case.reportDate or '' }}</span>
+  </div>
+
+  <!-- INSURER -->
+  <div class="insurer-line">Insurer: United India Insurance Company Limited</div>
+
+  <!-- ── POLICY DETAILS ── -->
+  <div class="sec-heading">Policy Details :</div>
+
+  {% set bv = case.get('briefVerification',  {}) or {} %}
+  {% set bc = case.get('briefComments',      {}) or {} %}
+  {% set bi = case.get('briefInsured',       {}) or {} %}
+  {% set bn = case.get('briefInvestigation', {}) or {} %}
+
+  <!-- Brief of case – 5 col -->
+  <table>
+    <tr>
+      <th class="bc-label">Brief of the Case</th>
+      <th class="bc-insured">As per Insured</th>
+      <th class="bc-invest">As per Investigation</th>
+      <th class="bc-verified">Verified or Not</th>
+      <th class="bc-comments">If No, Comments</th>
+    </tr>
+    <tr>
+      <td class="bc-label">Name of the Insured Patient</td>
+      <td class="bc-insured">{{ bi.get('patientName','') }}</td>
+      <td class="bc-invest">{{ case.claimantName or '' }}</td>
+      <td class="bc-verified">{{ bv.get('patientName','') }}</td>
+      <td class="bc-comments">{{ bc.get('patientName','') }}</td>
+    </tr>
+    <tr>
+      <td class="bc-label">Date of Birth / Age</td>
+      <td class="bc-insured">{{ bi.get('dob','') }}</td>
+      <td class="bc-invest">{{ case.claimantAge or '' }}</td>
+      <td class="bc-verified">{{ bv.get('dob','') }}</td>
+      <td class="bc-comments">{{ bc.get('dob','') }}</td>
+    </tr>
+    <tr>
+      <td class="bc-label">Age Proof</td>
+      <td class="bc-insured">{{ bi.get('ageProof','') }}</td>
+      <td class="bc-invest">{{ bn.get('ageProof','') }}</td>
+      <td class="bc-verified">{{ bv.get('ageProof','') }}</td>
+      <td class="bc-comments">{{ bc.get('ageProof','') }}</td>
+    </tr>
+    <tr>
+      <td class="bc-label">Occupation</td>
+      <td class="bc-insured">{{ bi.get('occupation','') }}</td>
+      <td class="bc-invest">{{ bn.get('occupation','') }}</td>
+      <td class="bc-verified">{{ bv.get('occupation','') }}</td>
+      <td class="bc-comments">{{ bc.get('occupation','') }}</td>
+    </tr>
+  </table>
+
+  <!-- Policy No / CCN / Holder / Type -->
+  <table>
+    <tr>
+      <td class="lbl">Policy No.</td>
+      <td class="val">{{ case.policyNumber or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">CCN /PA #</td>
+      <td class="val">{{ case.insurerRef or (case.get('cashlessDetails') or {}).get('ccnNumber') or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Policy Holder Name &amp; Relation</td>
+      <td class="val">{{ case.claimantName or '' }}{% if case.relationWithInsured %} / {{ case.relationWithInsured }}{% endif %}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Policy Type</td>
+      <td class="val">{{ case.policyType or '' }}</td>
+    </tr>
+  </table>
+
+  <!-- ── CLAIM DETAILS ── -->
+  <div class="sec-heading">Claim Details :</div>
+
+  <table>
+    <tr>
+      <td class="lbl">Date &amp; Time of Admission</td>
+      <td class="val">{{ hospital.admissionDate or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Date &amp; Time of Discharge</td>
+      <td class="val">{{ hospital.dischargeDate or (case.get('cashlessDetails') or {}).get('expectedDischargeDate') or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">ICU Admission Details</td>
+      <td class="val">{{ (case.get('cashlessDetails') or {}).get('icuDetails') or 'NO' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Cashless / Non Cashless</td>
+      <td class="val">{{ case.claimMode or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl" style="vertical-align:top;">
+        Pre Auth Details (Amount Authorized, Estimate, Medical History etc.)
+        <em style="font-size:9px;">(Attach copy of pre Auth Documents)</em>
+      </td>
+      <td class="val">
+        {% set cd = case.get('cashlessDetails') or {} %}
+        {% if cd.get('amountAuthorized') %}Authorized: {{ cd.amountAuthorized }}{% endif %}
+        {% if cd.get('estimatedCost') %} | Estimate: {{ cd.estimatedCost }}{% endif %}
+        {{ cd.get('preAuthDetails','') }}
+      </td>
+    </tr>
+  </table>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- PAGE 2                                              -->
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="page page-break">
+
+  <!-- Claim Details continued -->
+  <table>
+    <tr>
+      <td class="lbl">Diagnosis:</td>
+      <td class="val">{{ critical.diagnosis or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Treatment</td>
+      <td class="val">{{ additional.courseInHospital or critical.procedure or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Hospital Name &amp; Address</td>
+      <td class="val">{{ hospital.name or '' }}{% if hospital.address %}, {{ hospital.address }}{% endif %}</td>
+    </tr>
+    <tr>
+      <td class="lbl">
+        Registration &amp; other details
+        <em style="font-size:9px;">(attach hospital information sheet &amp; related Documents)</em>
+      </td>
+      <td class="val">{{ hospital.get('registrationNumber','') if hospital.get else '' }}</td>
+    </tr>
+  </table>
+
+  <!-- ── AILMENT DETAILS ── -->
+  <div class="sec-heading">Ailment Details :</div>
+
+  <table>
+    <tr>
+      <td class="lbl">Onset of Symptoms</td>
+      <td class="val">{{ additional.get('onsetOfSymptoms','') if additional.get else '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">1<sup>st</sup> Consultation</td>
+      <td class="val">{{ additional.get('firstConsultation','') if additional.get else '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Referral Doctor Details</td>
+      <td class="val">{{ case.familyDoctor or additional.get('referralDoctor','') if additional.get else '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Initial Treatment Details</td>
+      <td class="val">{{ additional.get('initialTreatment','') if additional.get else '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Pre Hosp. Inv &amp; Treatment Details</td>
+      <td class="val">{{ additional.get('preHospitalisationDetails','') if additional.get else '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Post Hosp. Inv &amp; Treatment Details</td>
+      <td class="val">{{ additional.get('postHospitalisationDetails','') if additional.get else '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Investigations Suggesting Diagnosis <em style="font-size:9px;">(Attach Relevant Copies)</em></td>
+      <td class="val">{{ additional.get('investigationsSuggestingDiagnosis','') if additional.get else '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Outcome:</td>
+      <td class="val">
+        <div class="conclusion-wrapper">{{ conclusion_html | safe }}</div>
+      </td>
+    </tr>
+  </table>
+
+  <!-- ── CHECKLIST ── -->
+  <div class="sec-heading">CHECKLIST:</div>
+
+  {% set cl = case.get('checklist') or {} %}
+  <table>
+    <tr>
+      <th class="cl-sl">Sl. No.</th>
+      <th class="cl-item">Checklist for Verification</th>
+      <th class="cl-yn">Yes</th>
+      <th class="cl-yn">No</th>
+    </tr>
+    {% set items = [
+      ('1',  'inpatientVerification',    'Inpatient Verification Report'),
+      ('2',  'idProofInsured',           'ID Proof'),
+      ('3',  'copyOfICP',                'Copies of IPD Records'),
+      ('4',  'hospitalExistence',        'Whether the hospital is Registered or Not'),
+      ('5',  'mlcRegisterCheck',         'MLC Register check ( for medico legal cases )'),
+      ('6',  'mlcRegistrationCopy',      'Copy of the MLC Registration'),
+      ('7',  'billsReceipts',            'Check Bills &amp; Receipts'),
+      ('8',  'labVicinity',              'Place of Lab (whether in vicinity of the hospital or Not )'),
+      ('9',  'labRegistersVerified',     'Checking of Lab Register'),
+      ('10', 'labRegisterPhotocopy',     'Photocopy of the Lab Register'),
+      ('11', 'pharmacyVicinity',         'Place of Pharmacy (whether in vicinity of the hospital or Not )'),
+    ] %}
+    {% for sl, key, label in items %}
+    <tr>
+      <td class="cl-sl">{{ sl }}</td>
+      <td class="cl-item">{{ label }}</td>
+      {% set val = cl.get(key, '') %}
+      <td class="cl-yn">{% if val | lower in ('yes','y') %}&#10003;{% endif %}</td>
+      <td class="cl-yn">{% if val | lower in ('no','n') %}&#10003;{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </table>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- PAGE 3                                              -->
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="page page-break">
+
+  <!-- Checklist continued -->
+  {% set cl = case.get('checklist') or {} %}
+  <table>
+    <tr>
+      <th class="cl-sl">Sl. No.</th>
+      <th class="cl-item">Checklist for Verification</th>
+      <th class="cl-yn">Yes</th>
+      <th class="cl-yn">No</th>
+    </tr>
+    {% set items2 = [
+      ('12', 'medicineReceiptBook',      'Checking of Receipt book of Medicines'),
+      ('13', 'receiptBookPhotocopy',     'Photocopy of the Receipt book'),
+      ('14', 'testsAtHospital',          'Check Tests done at the Hospital'),
+      ('15', 'testsAtDiagnostic',        'Check Test done at the Diagnostic Centre'),
+      ('16', 'medicinesDispensedHosp',   'Check Medicines Dispensed from Hospital'),
+      ('17', 'medicinesPurchasedPharm',  'Check Medicines purchased from Pharmacy ( outside)'),
+      ('18', 'patientSignatureVerified', "Check Patient's Signature - Verified"),
+      ('19', 'otRegisterTaken',          'Copy of OT Register Taken'),
+      ('20', 'hospLabRegVerified',       "Hospital's Lab Register Verified"),
+      ('22', 'centreLabRegVerified',     "Centre's Lab Register Verified"),
+      ('23', 'billsHospVerified',        'Copy of Bills at Hospital verified'),
+      ('24', 'billsPharmVerified',       'Copy of Bills verified at the Pharmacy verified ( Close to Hospital)'),
+      ('25', 'doctorCredentials',        "Verification of treating Doctor's credentials"),
+      ('26', 'signatureMatching',        'Whether Signature Matching of \u2013 Doctor / Claimant / Life Insured'),
+    ] %}
+    {% for sl, key, label in items2 %}
+    <tr>
+      <td class="cl-sl">{{ sl }}</td>
+      <td class="cl-item">{{ label }}</td>
+      {% set val = cl.get(key, '') %}
+      <td class="cl-yn">{% if val | lower in ('yes','y') %}&#10003;{% endif %}</td>
+      <td class="cl-yn">{% if val | lower in ('no','n') %}&#10003;{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </table>
+
+  <!-- ── INSURED'S ADDRESS ── -->
+  <div class="sec-heading">Insured 's Address Details :</div>
+  <div class="sec-heading" style="font-size:11px; margin-top:0; margin-bottom:4px;">Address:</div>
+  <table class="address-box">
+    <tr><td>{{ case.claimantAddress or '' }}</td></tr>
+  </table>
+
+  <!-- ── INSURED'S INTERVIEW ── -->
+  <div class="sec-heading">Insured 's Interview :</div>
+  <table class="interview-box">
+    <tr><td>{{ case.insuredStatement or '' }}</td></tr>
+  </table>
+
+  <!-- ── OPINION ── -->
+  <div class="sec-heading">Opinion:</div>
+  <table class="opinion-box">
+    <tr>
+      <td>
+        <div class="conclusion-wrapper">{{ conclusion_html | safe }}</div>
+      </td>
+    </tr>
+  </table>
+
+  <!-- ── LIST OF DOCUMENTS COLLECTED ── -->
+  <div class="sec-heading">List of Documents Collected :</div>
+  <table>
+    <tr><td style="border-bottom:none; padding-bottom:0;"></td></tr>
+  </table>
+  <div class="docs-list">
+    {% if case.enclosures %}
+      {{ case.enclosures }}
+    {% else %}
+      &#x27A4;&nbsp;&nbsp;<strong>Photography / Copy of Pan Card / Voter ID of the Claimant.</strong><br>
+      &#x27A4;&nbsp;&nbsp;<strong>Copy of Different Pathological tests etc.</strong><br>
+      &#x27A4;&nbsp;&nbsp;<strong>Copy of Indoor case papers / investigation papers / discharge summary.</strong>
+    {% endif %}
+  </div>
+
+  <!-- ── REPORT GENERATED BY ── -->
+  <table style="margin-top: 14px;">
+    <tr>
+      <td colspan="3" style="font-weight:bold; border-bottom:none;">REPORT GENERATED BY :</td>
+    </tr>
+    <tr>
+      <td style="width:34%; vertical-align:top;">
+        <strong>Signature :</strong>
+      </td>
+      <td style="width:33%; vertical-align:top;">
+        <strong>Date :</strong>&nbsp;&nbsp;{{ case.reportDate or '' }}
+      </td>
+      <td style="width:33%; vertical-align:top;">
+        <strong>Place :</strong>&nbsp;&nbsp;{{ hospital.city or 'Kochi' }}
+      </td>
+    </tr>
+  </table>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- PAGE 4  – Stamp page (matches PDF page 4)          -->
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="page page-break">
+
+  {% if show_stamp != false %}
+    <img src="{{ stamp_image }}" class="stamp-img" alt="Stamp" style="margin-top:10px;">
+  {% endif %}
+
+  <div class="footer-line" style="margin-top:6px;">**********</div>
+  <div class="footer-line">*************************************************************************</div>
+
+</div>
+
+</body>
+</html>

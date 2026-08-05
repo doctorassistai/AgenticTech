@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Raksha Health Insurance TPA Pvt Ltd - DHFL General Insurance Investigation Format</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 12mm 12mm;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: Arial, sans-serif;
+      font-size: 10px;
+      color: #000;
+      background: #fff;
+    }
+
+    .page {
+      width: 186mm;
+      margin: 0 auto;
+      background: #fff;
+    }
+
+    /* HEADER */
+    .header {
+      text-align: center;
+      margin-bottom: 16px;
+    }
+
+    .header-logo {
+      width: 80px;
+      height: 70px;
+      object-fit: contain;
+      display: block;
+      margin: 0 auto 4px auto;
+    }
+
+    .header-tpa {
+      font-size: 14px;
+      font-weight: bold;
+      text-decoration: underline;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .header-sub {
+      font-size: 12px;
+      font-weight: bold;
+      text-decoration: underline;
+      margin-bottom: 4px;
+    }
+
+    .header-insurer {
+      font-size: 11px;
+      font-weight: bold;
+      margin-bottom: 2px;
+    }
+
+    /* FOOTER bar matching PDF */
+    .page-footer {
+      margin-top: 10px;
+      border-top: 1px solid #000;
+      padding-top: 3px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 8px;
+      color: #333;
+    }
+
+    /* ALL TABLES */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      margin-bottom: 0;
+    }
+
+    td {
+      border: 1px solid #000;
+      padding: 3px 6px;
+      vertical-align: top;
+      font-size: 10px;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+    }
+
+    .lbl { width: 50%; }
+    .val { width: 50%; min-height: 14px; }
+
+    .lbl-bold { font-weight: bold; }
+
+    /* Remarks big box */
+    .remarks-box {
+      min-height: 50px;
+    }
+
+    /* Other remarks big box */
+    .other-remarks-box {
+      min-height: 60px;
+    }
+
+    /* Investigator sign section */
+    .sign-section {
+      margin-top: 10px;
+    }
+
+    .sign-row {
+      display: flex;
+      align-items: flex-end;
+      margin-bottom: 12px;
+      gap: 8px;
+    }
+
+    .sign-label {
+      font-weight: bold;
+      font-size: 10px;
+      width: 200px;
+      flex-shrink: 0;
+    }
+
+    .sign-colon {
+      font-weight: bold;
+      margin-right: 4px;
+    }
+
+    .sign-line {
+      flex: 1;
+      border-bottom: 1px solid #000;
+      min-width: 120px;
+    }
+
+    /* Conclusion formatting */
+    .conclusion-wrapper {
+      font-family: Arial, sans-serif;
+      font-size: 10px;
+      color: #000;
+      padding: 0;
+    }
+
+    .body-para {
+      margin: 3px 0 5px 0;
+      line-height: 1.6;
+      text-align: justify;
+      font-size: 10px;
+    }
+
+    .disc-item {
+      padding: 4px 8px;
+      margin: 3px 0;
+      border-radius: 3px;
+      page-break-inside: avoid;
+      border-left: 3px solid #888;
+    }
+
+    .disc-tag {
+      font-weight: bold;
+      font-size: 8px;
+      text-transform: uppercase;
+      display: inline-block;
+      margin-right: 6px;
+    }
+
+    .disc-content {
+      font-size: 10px;
+      line-height: 1.5;
+      color: #222;
+      display: inline;
+    }
+
+    .recommendation-block {
+      background: #e85d24;
+      border-radius: 3px;
+      padding: 7px 10px;
+      margin-top: 8px;
+      page-break-inside: avoid;
+    }
+
+    .rec-label {
+      color: #fff;
+      font-weight: bold;
+      font-size: 10px;
+      margin-bottom: 3px;
+    }
+
+    .rec-body {
+      color: #fff;
+      font-size: 10px;
+      line-height: 1.5;
+    }
+
+    .no-conclusion {
+      color: #777;
+      font-style: italic;
+      font-size: 10px;
+      padding: 6px;
+    }
+
+    @media print {
+      body  { margin: 0; background: #fff; }
+      .page { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- HEADER -->
+  <div class="header">
+    <img src="{{ header_image }}" class="header-logo" alt="Raksha Logo">
+    <div class="header-tpa">Raksha Health Insurance TPA Pvt Ltd..</div>
+    <div class="header-sub">Investigation format</div>
+    <div class="header-insurer">For &nbsp; DHFL General Insurance Ltd.</div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- MAIN DETAILS TABLE                                      -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  {% set dhfl = case.get('dhflDetails', {}) or {} %}
+  {% set cd   = case.get('cashlessDetails', {}) or {} %}
+
+  <table>
+    <!-- Header row -->
+    <tr>
+      <td class="lbl" style="font-weight:bold; text-align:center;">Details</td>
+      <td class="val" style="font-weight:bold; text-align:center;">Investigator's Input</td>
+    </tr>
+
+    <tr>
+      <td class="lbl">POLICY_NUMBER_(MASTER_POLICY_NO)</td>
+      <td class="val">{{ case.policyNumber or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">CERTIFICATE_OF_INSURANCE_NO</td>
+      <td class="val">{{ dhfl.get('certificateOfInsuranceNo','') or (case.get('policyDetails') or {}).get('certificateNo') or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">NAME_OF_THE_INSURED</td>
+      <td class="val">{{ case.claimantName or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">TPA_CLAIM_NO</td>
+      <td class="val">{{ case.insurerRef or dhfl.get('tpaClaimNo','') or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">DHFL_GI_CLAIM_NUMBER</td>
+      <td class="val">{{ dhfl.get('dhflClaimNumber','') or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Date of Investigation (DD-MMM-YYYY)</td>
+      <td class="val">{{ case.reportDate or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Hospital Visited &nbsp;&nbsp; - Yes / No</td>
+      <td class="val">{{ dhfl.get('hospitalVisited','') or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">INSURED_PHONE_(MOBILE)</td>
+      <td class="val">{{ case.claimantMobile or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">HOSPTIAL_NAME</td>
+      <td class="val">{{ hospital.name or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Hospital_Address</td>
+      <td class="val">{{ hospital.address or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">HOSPITAL_CITY</td>
+      <td class="val">{{ hospital.city or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">HOSPITAL_STATE</td>
+      <td class="val">{{ hospital.get('state','') if hospital.get else '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">HOSPITAL_PINCODE</td>
+      <td class="val">{{ hospital.get('pincode','') if hospital.get else '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">HOSPITAL_ROHINI_ID</td>
+      <td class="val">{{ hospital.get('rohiniId','') if hospital.get else '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">TPA Hospital Code</td>
+      <td class="val">{{ hospital.get('tpaHospitalCode','') if hospital.get else '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">DATE_OF_ADMISSION (DD-MMM-YYYY HH:MM)</td>
+      <td class="val">{{ hospital.admissionDate or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">DATE_OF_DISCHARGE (DD-MMM-YYYY HH:MM)</td>
+      <td class="val">{{ hospital.dischargeDate or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">FINAL_DIGNOSIS</td>
+      <td class="val">{{ critical.diagnosis or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">NETWORK_HOSPITAL_FLAG &nbsp;&nbsp; - Yes / No</td>
+      <td class="val">{{ hospital.get('ppnStatus','') if hospital.get else '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">TOTAL_CLAIMED_AMOUNT</td>
+      <td class="val">{{ case.claimedAmount or billing.get('totalAmount','') if billing.get else '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Name of treating Doctor</td>
+      <td class="val">{{ hospital.doctorName or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Is patient admitted &nbsp;&nbsp; - Yes / No</td>
+      <td class="val">{{ dhfl.get('isPatientAdmitted','') or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Patient current condition</td>
+      <td class="val">{{ dhfl.get('patientCurrentCondition','') or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Information verified with</td>
+      <td class="val">{{ dhfl.get('informationVerifiedWith','') or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Hospital Existence &nbsp;&nbsp; - Yes / No (In case of reimbursement claim)</td>
+      <td class="val">{{ dhfl.get('hospitalExistence','') or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Is Hospital registered &nbsp;&nbsp; - Yes / No</td>
+      <td class="val">{{ dhfl.get('isHospitalRegistered','') or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Response from Hospital (Co-operative / Non-co-operative / Indifferent)</td>
+      <td class="val">{{ dhfl.get('hospitalResponse','') or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Actual date &amp; time of Hospitalisation (DD-MMM-YYYY HH:MM) - As per hospital record</td>
+      <td class="val">{{ dhfl.get('actualAdmissionDate','') or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">IF DOA differ then please specify the reason</td>
+      <td class="val">{{ dhfl.get('doaDifferReason','') or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Patient is admitted in the same Room Category as billed and as intimated earlier</td>
+      <td class="val">{{ dhfl.get('roomCategoryMatch','') or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Actual Disease (As per hospital record)</td>
+      <td class="val">{{ dhfl.get('actualDisease','') or critical.diagnosis or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">If actual disease is different from claim documents then please provide the reason</td>
+      <td class="val">{{ dhfl.get('actualDiseaseDifferReason','') or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Treatment given to Patient (Conservative / Surgical)</td>
+      <td class="val">{{ dhfl.get('treatmentType','') or additional.get('treatment','') if additional.get else '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Is ICP available</td>
+      <td class="val">{{ dhfl.get('icpAvailable','') or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">If ICP not available then specify the reason</td>
+      <td class="val">{{ dhfl.get('icpNotAvailableReason','') or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">If information on claim document differ from ICP then specify the reasons</td>
+      <td class="val">{{ dhfl.get('icpClaimDifferReason','') or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">All medical history of the patient is documented &nbsp;&nbsp; - Yes / No</td>
+      <td class="val">{{ dhfl.get('medicalHistoryDocumented','') or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Patient's clinical information is documented &nbsp;&nbsp; - Yes / No</td>
+      <td class="val">{{ dhfl.get('clinicalInfoDocumented','') or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Is there any previous Hospitalisation claim of same patient from same hospital - Yes / No</td>
+      <td class="val">{{ dhfl.get('previousHospitalisationClaim','') or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Past history Details documented &nbsp;&nbsp; - Yes / No</td>
+      <td class="val">{{ dhfl.get('pastHistoryDocumented','') or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Alcohol use/substance abuse history is documented &nbsp;&nbsp; - Yes / No</td>
+      <td class="val">{{ dhfl.get('alcoholHistoryDocumented','') or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Ailment is not related to any alcohol use or substance abuse &nbsp;&nbsp; - Yes / No</td>
+      <td class="val">{{ dhfl.get('ailmentNotAlcoholRelated','') or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Complete medication list on chart and Nursing chart &nbsp;&nbsp; - Yes / No</td>
+      <td class="val">{{ dhfl.get('medicationListComplete','') or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Findings and follow ups are documented &nbsp;&nbsp; - Yes / No</td>
+      <td class="val">{{ dhfl.get('findingsDocumented','') or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Detailed progress notes reflecting evaluation of each visit, reason for visit is documented &nbsp;&nbsp; - Yes / No</td>
+      <td class="val">{{ dhfl.get('progressNotesDocumented','') or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Is MLC/FIR available &nbsp;&nbsp; - Yes / No</td>
+      <td class="val">{{ dhfl.get('mlcFirAvailable','') or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">If MLC/FIR not available then specify the reasons</td>
+      <td class="val">{{ dhfl.get('mlcFirNotAvailableReason','') or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Details of FIR / MLC</td>
+      <td class="val">{{ dhfl.get('firMlcDetails','') or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Is tariff checked &nbsp;&nbsp; - Yes / No</td>
+      <td class="val">{{ dhfl.get('tariffChecked','') or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">If difference in tariff then specify the reasons</td>
+      <td class="val">{{ dhfl.get('tariffDifferenceReason','') or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Claim details verified with patient relatives / Hospital Staff &nbsp;&nbsp; - Yes / No</td>
+      <td class="val">{{ dhfl.get('claimVerifiedWithRelatives','') or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Specify the details of patient relatives / hospital staff</td>
+      <td class="val">{{ dhfl.get('relativesHospitalStaffDetails','') or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Any other visits (Police station, pharmacy, neighbours, diagnostic center etc.) conducted &nbsp;&nbsp; - Yes / No</td>
+      <td class="val">{{ dhfl.get('otherVisitsConducted','') or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">If Yes, provide details (Please provide details of other visits along with contact details of person)</td>
+      <td class="val">{{ dhfl.get('otherVisitsDetails','') or '' }}</td>
+    </tr>
+
+    <!-- Remarks from Investigator - tall box -->
+    <tr>
+      <td class="lbl lbl-bold" colspan="2" style="font-weight:bold;">Remarks from Investigator</td>
+    </tr>
+    <tr>
+      <td colspan="2" class="remarks-box">
+        <div class="conclusion-wrapper">
+          {{ conclusion_html | safe }}
+        </div>
+      </td>
+    </tr>
+
+    <!-- Decision on claim -->
+    <tr>
+      <td class="lbl" style="font-weight:bold;">Decision on claim (Genuine Claim / Fraud Claim - Rejected / Suspicious Claim - on hold / Recovery Claim)</td>
+      <td class="val">{{ dhfl.get('claimDecision','') or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Amount saved</td>
+      <td class="val">{{ dhfl.get('amountSaved','') or '' }}</td>
+    </tr>
+  </table>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- ANY OTHER REMARKS - big box                             -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <table style="margin-top:6px;">
+    <tr>
+      <td class="other-remarks-box" style="font-weight:bold; vertical-align:top;">
+        Any other remarks -<br><br>
+        {{ dhfl.get('anyOtherRemarks','') or '' }}
+      </td>
+    </tr>
+  </table>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- INVESTIGATOR SIGN SECTION                               -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="sign-section">
+    <div class="sign-row">
+      <span class="sign-label">Investigator's signature</span>
+      <span class="sign-colon">&nbsp;:&nbsp;</span>
+      <span class="sign-line">
+        {% if show_stamp != false %}
+          <img src="{{ stamp_image }}" style="width:70px; height:55px; object-fit:contain;" alt="Stamp">
+        {% endif %}
+      </span>
+    </div>
+    <div class="sign-row">
+      <span class="sign-label">Investigator's full name</span>
+      <span class="sign-colon">&nbsp;:&nbsp;</span>
+      <span class="sign-line">&nbsp;</span>
+    </div>
+    <div class="sign-row">
+      <span class="sign-label">Investigator's phone number</span>
+      <span class="sign-colon">&nbsp;:&nbsp;</span>
+      <span class="sign-line">&nbsp;</span>
+    </div>
+    <div class="sign-row">
+      <span class="sign-label">Date and time</span>
+      <span class="sign-colon">&nbsp;:&nbsp;</span>
+      <span class="sign-line">{{ case.reportDate or '' }}</span>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="page-footer">
+    <span><img src="{{ header_image }}" style="width:40px; height:18px; object-fit:contain; vertical-align:middle;"> &nbsp; <strong>Medi Assist Insurance TPA Pvt. Ltd.</strong></span>
+    <span>Investigation format for <strong>DHFL General Insurance Ltd.</strong></span>
+  </div>
+
+</div>
+</body>
+</html>

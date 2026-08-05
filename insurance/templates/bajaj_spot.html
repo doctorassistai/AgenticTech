@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Optimus Medical Services - Spot Case Final Report</title>
+  <style>
+    @page { size: A4; margin: 12mm 12mm; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; font-size: 10px; color: #000; background: #fff; }
+    .page { width: 186mm; margin: 0 auto; background: #fff; }
+
+    /* HEADER */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-top: 4px solid #4caf50;
+      border-bottom: 2px solid #4caf50;
+      padding: 8px 0;
+      margin-bottom: 10px;
+    }
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .header-logo { height: 40px; object-fit: contain; }
+    .header-company { font-weight: bold; font-size: 11px; color: #000; }
+    .header-addr {
+      font-size: 8px;
+      line-height: 1.6;
+      color: #333;
+      text-align: right;
+    }
+
+    /* REPORT TITLE */
+    .report-title {
+      font-size: 16px;
+      font-weight: bold;
+      color: #3a7bd5;
+      margin-bottom: 8px;
+    }
+
+    /* MAIN TABLE */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      word-wrap: break-word;
+    }
+    td {
+      border: 1px solid #000;
+      padding: 5px 7px;
+      vertical-align: top;
+      font-size: 10px;
+      word-wrap: break-word;
+    }
+    .lbl      { font-weight: bold; width: 30%; }
+    .val      { width: 70%; min-height: 18px; }
+    .lbl-half { font-weight: bold; width: 20%; }
+    .val-half { width: 30%; min-height: 18px; }
+
+    .findings-box { line-height: 1.7; }
+    .findings-section { margin-bottom: 8px; }
+    .findings-title {
+      font-weight: bold;
+      font-size: 10px;
+      text-decoration: underline;
+      margin-bottom: 3px;
+    }
+
+    .conclusion-content img {
+      max-width: 140mm;
+      height: auto;
+      display: block;
+      margin: 4px 0;
+    }
+
+    .stamp-area { margin-top: 16px; }
+    .stamp-img  { width: 90px; height: 90px; object-fit: contain; }
+
+    .footer-text {
+      margin-top: 12px;
+      font-size: 10px;
+      font-weight: bold;
+      line-height: 1.7;
+    }
+
+    .page-break { page-break-before: always; margin-top: 10px; }
+
+    @media print {
+      body { margin: 0; }
+      .page { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ══════════════════════════════════════════
+       HEADER — PAGE 1
+  ══════════════════════════════════════════ -->
+  <div class="header">
+    <div class="header-left">
+      {% if header_image %}
+        <img src="{{ header_image }}" class="header-logo" alt="Optimus Medical Services">
+      {% endif %}
+      <div class="header-company">Optimus Medical Services Pvt.Ltd.</div>
+    </div>
+    <div class="header-addr">
+      #99, Second Floor, DD Milestone,<br>
+      Kadavanthra, Kochi, Kerala - 682 020<br>
+      Tel.: 755 990 4333, 0484-4069017<br>
+      E-mail: mail@letchek.in<br>
+      www.letchek.in
+    </div>
+  </div>
+
+  <div class="report-title">Spot Case – Final Report</div>
+
+  <table>
+
+    <!-- Row 1: Insured Name | Claim ID -->
+    <tr>
+      <td class="lbl-half">Name of the Insured</td>
+      <td class="val-half">{{ case.claimantName or facts.patient_name or '' }}</td>
+      <td class="lbl-half">Claim ID</td>
+      <td class="val-half">{{ case.insurerRef or case.caseId or '' }}</td>
+    </tr>
+
+    <!-- Row 2: Hospital | Place -->
+    <tr>
+      <td class="lbl-half">Hospital</td>
+      <td class="val-half">{{ facts.hospital_name or hospital.name or '' }}</td>
+      <td class="lbl-half">Place</td>
+      <td class="val-half">
+        {{ facts.hospital_address or hospital.address or hospital.city or facts.accident_place or '' }}
+      </td>
+    </tr>
+
+    <!-- Row 3: Date of Admission | Date of Discharge -->
+    <tr>
+      <td class="lbl-half">Date of Admission</td>
+      <td class="val-half">
+        {{ facts.admission_date or hospital.admissionDate or '' }}
+        {% if facts.admission_time %}&nbsp;{{ facts.admission_time }}{% endif %}
+      </td>
+      <td class="lbl-half">Date of Discharge</td>
+      <td class="val-half">
+        {{ facts.discharge_date or hospital.dischargeDate or '' }}
+        {% if facts.discharge_time %}&nbsp;{{ facts.discharge_time }}{% endif %}
+      </td>
+    </tr>
+
+    <!-- Row 4: Admission Status | ID Proof -->
+    <tr>
+      <td class="lbl-half">Admission Status</td>
+      <td class="val-half">
+        {{ facts.cashless_availed or (case.claimMode | upper) or '' }}
+        {% if facts.room_type %}&nbsp;|&nbsp;{{ facts.room_type }}{% endif %}
+      </td>
+      <td class="lbl-half">ID Proof</td>
+      <td class="val-half">
+        {{ case.idProofType or '' }}
+        {% if case.idProofNumber %}&nbsp;— {{ case.idProofNumber }}{% endif %}
+      </td>
+    </tr>
+
+    <!-- Row 5: Findings -->
+    <tr>
+      <td class="lbl" style="vertical-align:top; width:15%;">FINDINGS</td>
+      <td colspan="3" class="val findings-box">
+
+        <!-- HOSPITAL PART -->
+        <div class="findings-section">
+          <div class="findings-title">HOSPITAL PART:</div>
+          <div>• Investigated by Optimus Medical Services Pvt Limited--</div>
+          <div>• As per ICP</div>
+          {% if facts.field_officer_hospital_opinion %}
+            <div style="padding-left:10px;">{{ facts.field_officer_hospital_opinion }}</div>
+          {% endif %}
+          {% if facts.hospital_registration_number %}
+            <div style="padding-left:10px;">Reg No: {{ facts.hospital_registration_number }}
+              {% if facts.hospital_registration_validity %} (Valid till: {{ facts.hospital_registration_validity }}){% endif %}
+            </div>
+          {% endif %}
+          {% if facts.hospital_bed_strength %}
+            <div style="padding-left:10px;">Beds: {{ facts.hospital_bed_strength }}</div>
+          {% endif %}
+          {% if facts.treating_doctor %}
+            <div style="padding-left:10px;">Treating Doctor: {{ facts.treating_doctor }}
+              {% if facts.doctor_reg_number %} (Reg: {{ facts.doctor_reg_number }}){% endif %}
+            </div>
+          {% endif %}
+          {% if facts.ip_register_collected %}
+            <div style="padding-left:10px;">IP Register: {{ facts.ip_register_collected }}</div>
+          {% endif %}
+          {% if facts.vitals_on_admission %}
+            <div style="padding-left:10px;">Vitals on admission: {{ facts.vitals_on_admission }}</div>
+          {% endif %}
+          {% if facts.investigations_done %}
+            <div style="padding-left:10px;">Investigations: {{ facts.investigations_done }}</div>
+          {% endif %}
+          {% if facts.bill_amount %}
+            <div style="padding-left:10px;">Bill amount: &#8377;{{ facts.bill_amount }}</div>
+          {% endif %}
+        </div>
+
+        <!-- MEMBER VERIFICATION -->
+        <div class="findings-section">
+          <div class="findings-title">MEMBER VERIFICATION:</div>
+          <div>• As per the member's statement,</div>
+          {% if facts.field_officer_member_opinion %}
+            <div style="padding-left:10px;">{{ facts.field_officer_member_opinion }}</div>
+          {% endif %}
+          {% if facts.chief_complaints %}
+            <div style="padding-left:10px;">Complaints: {{ facts.chief_complaints }}</div>
+          {% endif %}
+          {% if facts.past_history %}
+            <div style="padding-left:10px;">Past history: {{ facts.past_history }}</div>
+          {% endif %}
+          {% if facts.accident_place %}
+            <div style="padding-left:10px;">Accident place: {{ facts.accident_place }}</div>
+          {% endif %}
+          {% if facts.accident_narration %}
+            <div style="padding-left:10px;">Narration: {{ facts.accident_narration }}</div>
+          {% endif %}
+          {% if facts.mlc_registered %}
+            <div style="padding-left:10px;">MLC: {{ facts.mlc_registered }}
+              {% if facts.mlc_number %} — No: {{ facts.mlc_number }}{% endif %}
+            </div>
+          {% endif %}
+          {% if facts.physical_visit_confirmed %}
+            <div style="padding-left:10px;">Physical visit confirmed: {{ facts.physical_visit_confirmed }}</div>
+          {% endif %}
+        </div>
+
+      </td>
+    </tr>
+
+    <!-- Co-morbidities / NDC / PED -->
+    <tr>
+      <td class="lbl-half">Co morbidities / NDC / PED</td>
+      <td colspan="3" class="val">
+        {{ facts.past_history or facts.ped_declared_at_proposal or facts.ped_mentioned_in_records or '' }}
+      </td>
+    </tr>
+
+    <!-- Diagnosis -->
+    <tr>
+      <td class="lbl-half">Diagnosis</td>
+      <td colspan="3" class="val">
+        {{ facts.final_diagnosis or facts.provisional_diagnosis or facts.chief_complaints or '' }}
+      </td>
+    </tr>
+
+    <!-- Treatment -->
+    <tr>
+      <td class="lbl-half">Treatment</td>
+      <td colspan="3" class="val">
+        {{ facts.all_treatments or '' }}
+        {% if facts.surgeon_name %}<br>Surgeon: {{ facts.surgeon_name }}{% endif %}
+        {% if facts.anaesthesia_type %}&nbsp;|&nbsp;Anaesthesia: {{ facts.anaesthesia_type }}{% endif %}
+      </td>
+    </tr>
+
+    <!-- Conclusion -->
+    <tr>
+      <td class="lbl-half" style="vertical-align:top;">Conclusion</td>
+      <td colspan="3" class="val" style="min-height:80px;">
+        <div class="conclusion-content">
+          {% if conclusion_html %}
+            {{ conclusion_html | safe }}
+          {% elif facts.final_verdict_verbatim %}
+            PID — {{ facts.final_verdict_verbatim }}
+          {% elif facts.discrepancies_verbatim %}
+            PID — {{ facts.discrepancies_verbatim }}
+          {% elif case.description %}
+            PID — {{ case.description }}
+          {% else %}
+            PID —
+          {% endif %}
+        </div>
+      </td>
+    </tr>
+
+  </table>
+
+  <div class="footer-text">
+    Optimus Medical Services PVT LTD<br>
+    Cochin
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       PAGE 2 — STAMP
+  ══════════════════════════════════════════ -->
+  <div class="page-break"></div>
+
+  <div class="header">
+    <div class="header-left">
+      {% if header_image %}
+        <img src="{{ header_image }}" class="header-logo" alt="Optimus Medical Services">
+      {% endif %}
+      <div class="header-company">Optimus Medical Services Pvt.Ltd.</div>
+    </div>
+    <div class="header-addr">
+      #99, Second Floor, DD Milestone,<br>
+      Kadavanthra, Kochi, Kerala - 682 020<br>
+      Tel.: 755 990 4333, 0484-4069017<br>
+      E-mail: mail@letchek.in<br>
+      www.letchek.in
+    </div>
+  </div>
+
+  {% if show_stamp and stamp_image %}
+  <div class="stamp-area">
+    <img src="{{ stamp_image }}" class="stamp-img" alt="Optimus Stamp">
+  </div>
+  {% endif %}
+
+</div>
+</body>
+</html>

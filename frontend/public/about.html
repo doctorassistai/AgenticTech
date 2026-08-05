@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>About DoctorAssist.AI — Agentic AI for Clinical Excellence</title>
+  <meta name="description" content="DoctorAssist.AI is an agentic, multimodal clinical decision support & efficiency engine that helps clinicians deliver safer, faster, evidence-based care." />
+  <link rel="icon" href="/static/NewWeb/assets/img/favicon.png" />
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="About DoctorAssist.AI" />
+  <meta property="og:description" content="Agentic AI for clinical excellence, documentation, decision support, and compliant care." />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="/static/NewWeb/assets/img/og/doctorassist-og.jpg" />
+  <meta property="og:url" content="https://www.doctorassist.ai/about" />
+
+  <!-- Brand Styles (self-contained) -->
+  <style>
+    :root{
+      --c1:#19aaac; /* teal */
+      --c2:#26588b; /* deep blue */
+      --c3:#388596; /* blue-green */
+      --c4:#526665; /* slate */
+      --ink:#0d1b2a;
+      --muted:#5f6b78;
+      --bg:#f7fafc;
+      --card:#ffffff;
+      --ring:rgba(38,88,139,.18);
+      --shadow:0 10px 30px rgba(13,27,42,.08);
+      --radius:16px;
+      --radius-sm:12px;
+      --radius-lg:24px;
+      --max:1180px;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0;background:#fff;color:var(--ink);font:16px/1.6 "Inter",system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial}
+    img{max-width:100%;display:block}
+    a{color:var(--c2);text-decoration:none}
+    .container{max-width:var(--max);margin-inline:auto;padding:0 20px}
+    .badge{display:inline-block;padding:.45rem .75rem;border-radius:999px;font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;background:rgba(25,170,172,.08);color:var(--c1);font-weight:700}
+    .btn{display:inline-flex;gap:.5rem;align-items:center;padding:.85rem 1.15rem;border-radius:999px;font-weight:700}
+    .btn-primary{background:linear-gradient(90deg,var(--c2),var(--c3));color:#fff;box-shadow:0 8px 20px rgba(38,88,139,.25)}
+    .btn-outline{border:2px solid var(--c2);color:var(--c2);background:#fff}
+    .grid{display:grid;gap:24px}
+    .shadow{box-shadow:var(--shadow)}
+    .card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow)}
+    .section{padding:64px 0}
+    .muted{color:var(--muted)}
+    .pill{display:inline-block;padding:.4rem .7rem;border-radius:999px;background:rgba(56,133,150,.1);color:var(--c3);font-weight:600;font-size:.8rem}
+    .check{width:20px;height:20px;border-radius:6px;background:var(--c1);display:inline-grid;place-items:center;color:#fff;font-size:.9rem;margin-right:.5rem}
+    /* Hero */
+    .hero{position:relative;background:linear-gradient(135deg,#eaf6ff 0%,#f4fbfb 40%,#f9fdfd 100%)}
+    .hero .bg-blob{position:absolute;inset:auto -10% -20% auto;width:50vw;max-width:760px;height:50vw;background:radial-gradient(40% 40% at 60% 40%, rgba(25,170,172,.18), transparent 70%), radial-gradient(45% 45% at 30% 60%, rgba(38,88,139,.14), transparent 70%);filter:blur(24px);opacity:.8}
+    .hero h1{font-size:clamp(28px,4vw,48px);line-height:1.15;margin:12px 0 12px;color:var(--c2)}
+    .hero p{font-size:clamp(16px,1.6vw,18px);max-width:760px;margin:0;color:#203040}
+    .hero .cta{display:flex;gap:14px;flex-wrap:wrap;margin-top:22px}
+    /* 3-up mission/vision/values */
+    .triplet{grid-template-columns:repeat(3,minmax(0,1fr))}
+    .triplet .tile{padding:26px;border:1px solid var(--ring);border-radius:var(--radius-sm);background:#fff}
+    .tile h3{margin:.25rem 0 .35rem;font-size:1.15rem;color:var(--c2)}
+    /* Credibility bar */
+    .cred{display:flex;gap:24px;flex-wrap:wrap;align-items:center;justify-content:space-between;padding:18px;border-radius:999px;background:#f1f6fb;border:1px solid rgba(38,88,139,.12)}
+    .cred img{height:28px;opacity:.9}
+    /* Modules */
+    .features{grid-template-columns:repeat(3,minmax(0,1fr))}
+    .features .card{padding:22px;border:1px solid var(--ring)}
+    .features h4{margin:.4rem 0 .25rem;color:var(--ink)}
+    .features p{margin:0}
+    /* Timeline */
+    .timeline{position:relative;padding-left:28px}
+    .timeline::before{content:"";position:absolute;left:10px;top:0;bottom:0;width:2px;background:linear-gradient(var(--c2),var(--c1))}
+    .step{position:relative;padding:12px 0 12px 16px}
+    .dot{position:absolute;left:2px;top:18px;width:16px;height:16px;border-radius:50%;background:#fff;border:3px solid var(--c2)}
+    .step h5{margin:.1rem 0;color:var(--c2)}
+    /* Stats */
+    .stats{grid-template-columns:repeat(4,minmax(0,1fr))}
+    .kpi{padding:22px;text-align:center;border-radius:14px;background:linear-gradient(180deg,#ffffff 0%,#f8fbff 100%);border:1px solid var(--ring)}
+    .kpi .num{font-size:clamp(24px,3.5vw,36px);font-weight:800;color:var(--c2)}
+    .kpi .lbl{color:var(--muted)}
+    /* Leadership */
+    .team{grid-template-columns:repeat(3,minmax(0,1fr))}
+    .person{padding:20px;border:1px solid var(--ring);border-radius:14px;background:#fff}
+    .person img{border-radius:12px;aspect-ratio:4/3;object-fit:cover;width:100%}
+    .person h6{margin:.75rem 0 .15rem;font-size:1rem;color:var(--ink)}
+    .person p{margin:0;font-size:.92rem;color:var(--muted)}
+    /* CTA */
+    .cta-box{padding:26px;border-radius:var(--radius-lg);background:linear-gradient(135deg,var(--c2),var(--c3));color:#fff;display:grid;gap:14px;align-items:center}
+    .cta-box .row{display:flex;flex-wrap:wrap;gap:12px}
+    /* Footer note */
+    .note{font-size:.9rem;color:#445260;background:#f1f6fb;border:1px solid rgba(38,88,139,.12);padding:14px;border-radius:12px}
+    /* Responsive */
+    @media (max-width:1024px){
+      .triplet,.features,.stats,.team{grid-template-columns:1fr 1fr}
+    }
+    @media (max-width:640px){
+      .triplet,.features,.stats,.team{grid-template-columns:1fr}
+      .cred{border-radius:16px}
+    }
+  </style>
+
+  <!-- Organization Schema -->
+  <script type="application/ld+json">
+  {
+    "@context":"https://schema.org",
+    "@type":"Organization",
+    "name":"DoctorAssist.AI",
+    "url":"https://www.doctorassist.ai",
+    "logo":"https://www.doctorassist.ai/static/NewWeb/assets/img/white-doctorassist.png",
+    "sameAs":["https://www.linkedin.com/company/doctorassist"],
+    "contactPoint":[{"@type":"ContactPoint","contactType":"sales","email":"hello@doctorassist.ai","areaServed":"IN,OM,SA,KW,QA,AE,GB"}]
+  }
+  </script>
+</head>
+<body>
+
+  <!-- HERO -->
+  <section class="hero section">
+    <div class="bg-blob" aria-hidden="true"></div>
+    <div class="container">
+      <span class="badge">About DoctorAssist.AI</span>
+      <h1>Agentic AI for <span style="color:var(--c1)">Clinical Excellence</span></h1>
+      <p>
+        DoctorAssist.AI is a multimodal, agentic clinical decision support & efficiency engine (CDSSE) built with clinicians. It transforms complex data
+        — clinical notes, labs, imaging, pathology, genomics, guidelines — into real-time, explainable insights that help doctors document faster, treat safer, and comply effortlessly.
+      </p>
+      <div class="cta">
+        <a href="/contact" class="btn btn-primary" aria-label="Book a demo with DoctorAssist.AI">Book a Demo</a>
+        <a href="/our_team" class="btn btn-outline" aria-label="Meet the DoctorAssist.AI team">Meet the Team</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- CREDIBILITY BAR -->
+ <!--  <div class="container section" style="padding-top:0">
+    <div class="cred shadow" role="group" aria-label="Standards & Frameworks">
+      <span class="pill">Built for Compliance</span>
+      <img src="/static/NewWeb/assets/img/logos/nabh.svg" alt="NABH" />
+      <img src="/static/NewWeb/assets/img/logos/jci.svg" alt="JCI" />
+      <img src="/static/NewWeb/assets/img/logos/hipaa.svg" alt="HIPAA" />
+      <img src="/static/NewWeb/assets/img/logos/gdpr.svg" alt="GDPR" />
+      <img src="/static/NewWeb/assets/img/logos/abdm.svg" alt="ABDM" />
+      <img src="/static/NewWeb/assets/img/logos/tefca.svg" alt="TEFCA" />
+    </div>
+  </div> -->
+
+  <!-- MISSION / VISION / VALUES -->
+  <section class="section" style="background:var(--bg)">
+    <div class="container">
+      <div class="grid triplet">
+        <div class="tile">
+          <span class="pill">Our Mission</span>
+          <h3>Care Smarter, Every Visit</h3>
+          <p class="muted">Empower clinicians with AI that reduces administrative burden, strengthens decisions with evidence, and improves outcomes — without adding clicks.</p>
+          <ul class="muted" style="margin:.65rem 0 0;padding:0;list-style:none">
+            <li><span class="check">✓</span> Zero-fatigue documentation</li>
+            <li><span class="check">✓</span> Explainable decision support</li>
+            <li><span class="check">✓</span> Built-in safety & compliance</li>
+          </ul>
+        </div>
+        <div class="tile">
+          <span class="pill">Our Vision</span>
+          <h3>The Brain of the Hospital</h3>
+          <p class="muted">An AI that thinks with clinicians — turning routine practice into a living knowledge system for safer, faster, more precise care.</p>
+          <p class="muted" style="margin:.5rem 0 0">From OP/IP to critical care, DoctorAssist.AI plugs into HMS, PACS, LIS, RIS, and EHR to surface the right insight at the right moment.</p>
+        </div>
+        <div class="tile">
+          <span class="pill">Our Values</span>
+          <h3>Clinical. Secure. Evidence-Led.</h3>
+          <p class="muted">Patient-centered design, clinician trust, rigorous privacy, and measurable impact. We ship only what we’d want our own families treated with.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- WHAT WE DO -->
+  <section class="section">
+    <div class="container">
+      <div class="grid features">
+        <article class="card">
+          
+          <h4>Clinical Documentation</h4>
+          <p class="muted">Speech-to-note, structured SOAP, ICD-10/CPT, auto-summaries, and discharge — with specialty-aware templates and quality checks.</p>
+        </article>
+        <article class="card">
+          
+          <h4>SafeRx & Decision Support</h4>
+          <p class="muted">Drug–drug & renal dosing safety, antibiotic stewardship, and guideline-linked recommendations (AHA/ESC/ADA/WHO AMR, etc.).</p>
+        </article>
+        <article class="card">
+         
+          <h4>Analytics & Research</h4>
+          <p class="muted">Turn daily care into evidence — cohorts, outcomes, adherence, and region-specific studies with de-identification pipelines.</p>
+        </article>
+      </div>
+      <div class="grid features" style="margin-top:24px">
+        <article class="card">
+         
+          <h4>Multimodal Intelligence</h4>
+          <p class="muted">Fuse notes, vitals, labs, imaging, pathology, and genomics for end-to-end reasoning across diagnosis, staging, and therapy.</p>
+        </article>
+        <article class="card">
+         
+          <h4>Seamless Integrations</h4>
+          <p class="muted">Works with HMS/EHR, PACS/OHIF, LIS/RIS (FHIR/HL7/DICOM). Deploy on-prem or VPC with audit trails and role-based access.</p>
+        </article>
+        <article class="card">
+         
+          <h4>Specialty Modules</h4>
+          <p class="muted">OncoAgent, SafeRx, CardioAgent, OrthoAgent, NephroAgent & more — tailored to OP, IP, and critical care workflows.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- TIMELINE -->
+  <section class="section" style="background:var(--bg)">
+    <div class="container">
+      <span class="badge">Our Journey</span>
+      <h2 style="margin:.4rem 0 1rem;color:var(--c2)">From Scribe to Agentic Engine</h2>
+      <div class="timeline card" style="padding:24px">
+        <div class="step">
+          <div class="dot"></div>
+          <h5>2019 — Founding Insight</h5>
+          <p class="muted">Started as an AI medical scribe to reduce documentation fatigue and restore face-time with patients.</p>
+        </div>
+        <div class="step">
+          <div class="dot"></div>
+          <h5>2021 — Multimodal CDS</h5>
+          <p class="muted">Integrated labs, imaging, guidelines; added explainability and clinician controls to build trust.</p>
+        </div>
+        <div class="step">
+          <div class="dot"></div>
+          <h5>2023 — Compliance-First</h5>
+          <p class="muted">Aligned with HIPAA/GDPR, NABH/JCI, ABDM/TEFCA rails; auditability and least-privilege by default.</p>
+        </div>
+        <div class="step">
+          <div class="dot"></div>
+          <h5>2025 — Agentic AI</h5>
+          <p class="muted">Live agents across OP/IP, SafeRx stewardship, and oncology intelligence — the hospital’s AI nervous system.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- STATS -->
+  <section class="section">
+    <div class="container">
+      <div class="grid stats">
+        <div class="kpi">
+          <div class="num">5–10×</div>
+          <div class="lbl">Documentation speed-up</div>
+        </div>
+        <div class="kpi">
+          <div class="num">99%+</div>
+          <div class="lbl">Guideline traceability</div>
+        </div>
+        <div class="kpi">
+          <div class="num">90%+</div>
+          <div class="lbl">Orders auto-structured</div>
+        </div>
+        <div class="kpi">
+          <div class="num">24/7</div>
+          <div class="lbl">On-prem or VPC support</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- LEADERSHIP (placeholders) -->
+  <section class="section" style="background:var(--bg)">
+    <div class="container">
+      <span class="badge">Leadership</span>
+      <h2 style="margin:.4rem 0 1rem;color:var(--c2)">Clinician-Led. Engineer-Built.</h2>
+      <div class="grid team">
+        <div class="person">
+         
+          <h6>Abilash Raghunadanan</h6>
+          <p>CEO &amp; CTO — Healthcare futurist, architect of DoctorAssist.AI’s agentic intelligence engine.</p>
+        </div>
+        <div class="person">
+         
+          <h6>Chief Medical Officer</h6>
+          <p>Senior clinician overseeing guideline alignment, safety, and clinical relevance.</p>
+        </div>
+        <div class="person">
+         
+          <h6>Head of Security &amp; Compliance</h6>
+          <p>Leads HIPAA/GDPR, ISO-27001, and audit readiness; “secure by design” across stack.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="section">
+    <div class="container">
+      <div class="cta-box shadow">
+        <h3 style="margin:0">Ready to see agentic AI at work in your hospital?</h3>
+        <p style="margin:0;opacity:.95">We’ll map your specialty workflows, integrate with HMS/PACS/LIS, and demonstrate measurable gains in 2–4 weeks.</p>
+       <!--  <div class="row">
+          <a class="btn btn-primary" href="/contact">Schedule a Discovery Call</a>
+          <a class="btn btn-outline" href="/webpages/agentic-ai-healthcare">Learn About Agentic AI</a>
+        </div> -->
+        <p class="note" role="note">
+          DoctorAssist.AI is undergoing clinical validation and is intended solely for licensed healthcare professionals. It supports — not replaces — independent clinical judgment.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER CONTACT -->
+  <footer class="section" style="padding-top:0">
+    <div class="container">
+      <div class="card" style="padding:20px">
+        <div class="grid" style="grid-template-columns:1fr 1fr;gap:16px">
+          <div>
+            <h4 style="margin:.25rem 0;color:var(--c2)">Contact</h4>
+           <!--  <p class="muted" style="margin:.25rem 0">
+              <strong>Email:</strong> <a href="mailto:hello@doctorassist.ai">hello@doctorassist.ai</a><br />
+              <strong>India:</strong> Cove Office, PHI Tower, Tower-2, SJR I Park, EPIP Zone, Whitefield, Bengaluru 560066<br />
+              <strong>UK:</strong> 1B Halford Street, LE1 1JA, Leicester
+            </p> -->
+          </div>
+          <div>
+            <h4 style="margin:.25rem 0;color:var(--c2)">Follow</h4>
+            <p class="muted" style="margin:.25rem 0">
+              <a href="https://www.linkedin.com/company/doctorassist" target="_blank" rel="noopener">LinkedIn</a>
+            </p>
+          </div>
+        </div>
+        <p class="muted" style="margin:.5rem 0 0;font-size:.85rem">© 2025 DoctorAssist.AI. All rights reserved.</p>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

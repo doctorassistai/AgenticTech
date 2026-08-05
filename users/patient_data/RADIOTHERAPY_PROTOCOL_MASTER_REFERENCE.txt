@@ -1,0 +1,390 @@
+RADIOTHERAPY PROTOCOL MASTER REFERENCE
+============================================================
+Radiotherapy_protocol_master.py  |  router prefix: "/radiotherapy-protocol"  |  tags: ["radiotherapy_protocol_master"]  |  1123 lines
+3 named MongoDB collections + 0 inline (unnamed-variable) collections  |  1 Mongo client (async only)
+10 Pydantic models (0 unused/dead)  |  8 active endpoints (0 commented-out/dead endpoints, 0 flagged
+in-code for removal)  |  12 helper functions (3 async) + a dedicated protocol-value-mapping layer
+(4 of the 12) not found in any other file in this codebase
+
+
+############################################################
+# 1. DATABASES & COLLECTIONS
+############################################################
+
+### MONGODB COLLECTIONS
+------------------------------------------------------------
+Format:  variable name in code  ->  actual MongoDB collection
+
+  radiotherapy_protocol_collection   -> radiotherapy_protocol_master  (async)
+  radiotherapy_records_collection    -> radiotherapy_records          (async)
+  summary_collection                 -> patient_summary               (async)
+
+No inline database["..."] lookups anywhere in this file - unlike surgical_oncology.py,
+every collection this file touches is given a named module-level variable up front.
+
+### DATABASE CLIENTS
+------------------------------------------------------------
+  Single async client: AsyncIOMotorClient(MONGO_URI) -> database = mongodb_client[MONGO_DB]
+  MONGO_DB = "doctorassistai"  (same DB name as data.py / surgical_oncology.py)
+  Client construction, database handle, and all three collection assignments are wrapped in
+  one shared try/except at module load - a single logger.error(...) covers all four, so a
+  failure here doesn't distinguish which piece broke (contrast with surgical_oncology.py,
+  which has no such module-level try/except at all because it never needs one).
+
+### NEO4J / CELERY / TWILIO
+------------------------------------------------------------
+  None of the three are used anywhere in this file.
+
+### OTHER EXTERNAL SERVICES
+------------------------------------------------------------
+  Groq LLM API : `from groq import Groq` is imported at module load, AND (unlike
+                 surgical_oncology.py) a single module-level `groq_client = Groq(api_key=api_key)`
+                 is constructed once at import time and reused by the one function that calls
+                 it: `_adapt_protocol_with_llm`. Model used is "llama-3.3-70b-versatile" (different
+                 from surgical_oncology.py's "llama-3.1-8b-instant"), response_format json_object,
+                 temperature=0. Only one Groq-calling site in the whole file - a stark contrast
+                 with surgical_oncology.py's ten independent per-endpoint client constructions.
+                 Because the client is built at import time, a missing/bad GROQ_API_KEY would
+                 only surface later, inside the try/except around the actual chat.completions.create
+                 call in _adapt_protocol_with_llm (which is caught and treated as non-fatal - see
+                 Section 4) - it will never raise loudly at startup or via an explicit
+                 `if not api_key: raise HTTPException(...)` guard the way every surgical_oncology.py
+                 Groq call does.
+
+  No httpx / storage-service / internal-HMS outbound calls anywhere in this file (contrast
+  with surgical_oncology.py's STORAGE_BASE_URL upload proxy and api_base_url "temp save" mirror).
+
+### FILE STORAGE
+------------------------------------------------------------
+  Not used. No File/Form/UploadFile handling anywhere in this file.
+
+### IN-MEMORY STATE
+------------------------------------------------------------
+  One module-level cache: `_corpus_doc_freq_cache = {"freqs": None, "total": 0}`. Populated
+  lazily by `_get_corpus_doc_frequencies()` on first use and then reused for the lifetime of
+  the process - it is never invalidated or refreshed on protocol add/update/delete, so newly
+  added or edited protocols won't affect keyword-rarity weighting in `/list` matching until
+  the process restarts. Unique to this file - neither data.py nor surgical_oncology.py caches
+  anything in memory.
+
+### ENVIRONMENT VARIABLES USED
+------------------------------------------------------------
+  MONGO_URI, GROQ_API_KEY. No hardcoded-fallback env vars in this file (contrast with
+  surgical_oncology.py's API_BASE_URL, which defaults to "https://doctorassist.ai/api/").
+
+### CROSS-FUNCTION CALLS (endpoint calling another endpoint's function directly)
+------------------------------------------------------------
+  None. Every endpoint in this file is self-contained; no route handler calls another
+  route handler's coroutine directly the way surgical_oncology.py's generate_doctors_narration
+  and get_discharge_summary do.
+
+
+############################################################
+# 2. PYDANTIC MODELS
+############################################################
+
+### PROTOCOL SUB-SECTION MODELS  (9 models, all fully optional, nested inside RadiotherapyProtocol)
+------------------------------------------------------------
+  SimulationProtocol       patient_position, immobilization, imaging, slice_thickness, contrast
+  TargetVolumes            gtv, ctv, ptv
+  PrescriptionProtocol     total_dose, fractions, dose_per_fraction, overall_time
+  MachineProtocol          technique, linac, energy
+  IGRTProtocol             type, frequency
+  PlanningProtocol         peer_review, adaptive, bolus
+  QAProtocol                physics_check, patient_specific_QA
+  FollowUpProtocol         first_review
+  BrachytherapyProtocol    applicator_type, technique, dose_rate, total_dose, fractions,
+                           dose_per_fraction, number_of_implants
+
+  All nine are Optional[...] = None at the point they're embedded in RadiotherapyProtocol,
+  so a protocol document can omit any whole sub-section entirely - the mapping layer (Section
+  5) treats a missing sub-section the same as an empty dict (`proto.get("simulation") or {}`).
+
+### TOP-LEVEL MODEL  (1 model)
+------------------------------------------------------------
+  RadiotherapyProtocol    protocol_id, protocol_name, display_name, aliases (list, default []),
+                          disease_site, subsite (optional), intent (list, required), technique,
+                          rt_type ("External Beam" | "Brachytherapy" | "Combined"), simulation,
+                          target_volumes, prescription, machine, igrt, oar_constraints (dict,
+                          default {}), planning, qa, followup, brachytherapy, references (list,
+                          default []), version (default "1.0"), status (default "Active").
+                          This is the only model any endpoint actually takes as a typed request
+                          body - both add_protocol and add_protocols_bulk (List[RadiotherapyProtocol])
+                          and update_protocol use it directly.
+
+### DEAD / UNUSED MODELS  (0 models)
+------------------------------------------------------------
+  None - every one of the 10 models is referenced by at least one endpoint, either directly
+  (RadiotherapyProtocol) or as a nested field type of RadiotherapyProtocol. Contrast with
+  surgical_oncology.py's DoctorLogsPayload / PatientDiagramsPayload, which are dead scaffolding.
+
+### RAW-DICT PAYLOADS (not typed BaseModel)
+------------------------------------------------------------
+  select_protocol takes `payload: dict` (patientId, doctorId, protocolId as raw JSON keys)
+  rather than a typed model - the same "quick prototyping, never normalized" pattern flagged
+  in surgical_oncology.py's own note about this exact endpoint.
+
+### NAMES SHARED WITH OTHER FILES
+------------------------------------------------------------
+  None of the 10 model names here collide with data.py's 5 models or with surgical_oncology.py's
+  18 models - safe to import all three routers into the same app without class-name conflicts
+  (surgical_oncology.py's own reference doc makes the identical claim from its side).
+
+
+############################################################
+# 3. API ENDPOINTS
+############################################################
+
+Router prefix is "/radiotherapy-protocol", so every path below is prepended with that
+segment for the actual route (e.g. "/list" is really GET /radiotherapy-protocol/list).
+
+### BULK SEED  (1 endpoint)
+------------------------------------------------------------
+  POST /bulk
+         function : add_protocols_bulk
+         does     : Takes a List[RadiotherapyProtocol] and upserts each one by protocol_id
+                    (update_one with upsert=True), incrementing an "added" counter when
+                    result.upserted_id is set and an "updated" counter when
+                    result.modified_count > 0. Returns both counts plus the total submitted -
+                    useful for seeding the collection from a bulk JSON file in one call rather
+                    than looping individual POSTs.
+         touches  : radiotherapy_protocol_collection
+
+### PROTOCOL CRUD  (4 endpoints)
+------------------------------------------------------------
+  POST /  (empty path string, so effectively POST /radiotherapy-protocol)
+         function : add_protocol
+         does     : Rejects with 409 if a protocol with the same protocol_id already exists,
+                    otherwise inserts it verbatim.
+         touches  : radiotherapy_protocol_collection
+
+  PUT  /{protocol_id}
+         function : update_protocol
+         does     : 404s if the protocol doesn't already exist, otherwise overwrites the whole
+                    document via $set. The protocol_id in the URL path is authoritative - it is
+                    force-written into update_data even if the request body's own protocol_id
+                    field disagrees, explicitly commented in-code ("protocol_id in path is
+                    authoritative").
+         touches  : radiotherapy_protocol_collection
+
+  DELETE /{protocol_id}
+         function : delete_protocol
+         does     : Deletes one protocol by protocol_id; 404s if nothing was deleted.
+         touches  : radiotherapy_protocol_collection
+
+  DELETE /  (empty path string, so effectively DELETE /radiotherapy-protocol)
+         function : delete_all_protocols
+         does     : Unconditionally wipes the entire collection (delete_many({})) and returns
+                    the deleted count. No confirmation param, no auth check visible in this
+                    file - a single call empties the whole protocol library.
+         touches  : radiotherapy_protocol_collection
+
+### LISTING / LOOKUP  (2 endpoints)
+------------------------------------------------------------
+  GET  /list?search=...&patient_id=...
+         function : list_protocols
+         does     : Regex/case-insensitive search across protocol_name, display_name, aliases,
+                    and disease_site (query is empty/matches-all if search is omitted). Projects
+                    a lightweight row per protocol (drops the full nested sub-documents, flattens
+                    prescription.total_dose/fractions into top-level "dose"/"fractions" keys for
+                    an easy browser table). If patient_id is supplied, pulls that patient's
+                    patient_summary doc, builds a wide match-text blob via _build_match_text,
+                    and runs it through the deterministic (NO LLM) keyword scorer
+                    _match_protocols_by_diagnosis to flag up to 5 protocols "recommended": true.
+                    Matching failure is caught and logged as non-fatal - falls back to the plain
+                    unranked list. Final sort is recommended-first, then alphabetical by
+                    protocol_name within each group. Explicitly commented as needing to stay
+                    declared before the "/{protocol_id}" GET route (path-ordering constraint,
+                    same class of issue noted for surgical_oncology.py's own "/list"-vs-"/{id}"
+                    ordering concerns). Docstring/comment notes the old separate
+                    "POST /recommend" endpoint is gone - recommendation is now folded into this
+                    one call.
+         touches  : radiotherapy_protocol_collection, summary_collection (only when patient_id
+                    is supplied)
+
+  GET  /{protocol_id}
+         function : get_protocol
+         does     : Fetches one full protocol document (all sub-sections, _id stripped). 404s
+                    if not found - unlike surgical_oncology.py's get_booking, which returns an
+                    empty {"data": {}} instead of a 404 for a missing id.
+         touches  : radiotherapy_protocol_collection
+
+### PROTOCOL SELECTION / APPLICATION  (1 endpoint)
+------------------------------------------------------------
+  POST /select
+         function : select_protocol
+         does     : Takes a raw dict payload (patientId, doctorId, protocolId). 400s if
+                    patientId or protocolId is missing. Looks up the protocol; if not found,
+                    returns {"status": "error", "detail": "Protocol not found."} as a 200-status
+                    JSON body rather than raising an HTTPException - inconsistent with every
+                    other not-found case in this file (add/update/delete/get all use
+                    HTTPException 404/409). Fetches the patient's patient_summary doc, builds
+                    clinical context via _build_clinical_context, calls
+                    _adapt_protocol_with_llm (Groq) to derive patient-specific metadata only,
+                    then runs the protocol + that metadata through _map_protocol_to_form to
+                    produce the final EBRT/brachy/common form payload. Upserts the result into
+                    radiotherapy_records_collection keyed by (patient_id, doctor_id), stamping
+                    protocol_ref and applied_at (isoformat). In-code comment explicitly states
+                    this mirrors "the chemotherapy select flow" (protocol -> context ->
+                    LLM-adapt -> map-to-form -> save -> return) and replaces an older separate
+                    "/apply" endpoint. The LLM is architecturally barred from touching dose,
+                    fractions, PTV/CTV/GTV, OAR constraints, machine, or technique - those
+                    always come from the stored protocol document untouched, enforced by
+                    _map_protocol_to_form reading them straight off `proto`, never off
+                    `llm_data` (see Section 5).
+         touches  : radiotherapy_protocol_collection, summary_collection,
+                    radiotherapy_records_collection
+
+
+############################################################
+# 4. SUPPORTING HELPER FUNCTIONS (not routes)
+############################################################
+------------------------------------------------------------
+  _strip_markdown(text) -> str
+    Strips runs of "*" characters (markdown bold/italic markers) out of a string via regex
+    and trims whitespace. Used to clean diagnosis headers pulled from patient_summary before
+    they're used as match text or LLM context.
+
+  _normalize_spelling(text) -> str
+    Rewrites UK spellings to US spellings (oesophagus->esophagus, tumour->tumor, anaemia->
+    anemia, haemoglobin->hemoglobin, oedema->edema, leukaemia->leukemia, oestrogen->estrogen)
+    via word-boundary regex substitution, case-insensitive. Explicitly there so the same
+    disease site isn't split into two different keyword tokens depending on which spelling a
+    given document happens to use. Called by both _build_match_text's keyword path (indirectly,
+    via _extract_diagnosis_keywords) and _match_protocols_by_diagnosis / corpus-frequency
+    building.
+
+  _build_match_text(summary_doc) -> str
+    Assembles a wider text pool than diagnosis_header alone for protocol matching: pulls
+    diagnosis_header, every confirmed_diagnoses entry (string or dict with text/diagnosis/name
+    keys), and up to 2000 characters of full_text/paragraphs, each passed through
+    _strip_markdown, then joins them with spaces. In-code comment explains histology-only
+    headers (e.g. "invasive carcinoma NST") often omit the anatomical site, hence the wider pool.
+
+  _build_clinical_context(summary_doc) -> dict
+    Builds the dict fed into the Groq metadata-adaptation prompt: diagnosis (falls back from
+    diagnosis_header to the first confirmed_diagnoses entry), clinical_narrative (first 6000
+    chars of full_text/paragraphs), and six "_evidence" fields (stage, histology, surgery,
+    prior_rt, chemo, ecog, tumor_board) each resolved by a locally-defined find_evidence()
+    closure that scans a flattened list of every entity across every timeline entry/entity_type
+    for a name containing one of a few hardcoded fragments, returning that entity's "evidence"
+    string.
+
+  _extract_diagnosis_keywords(diagnosis) -> List[str]
+    Normalizes spelling, lowercases, splits on non-alphanumeric runs, and drops any token of
+    length <=3 or present in the large _STOPWORDS set (~50 generic/report-boilerplate words
+    like "patient", "presented", "showed", "current" - explicitly NOT medical vocabulary, just
+    filler). Not actually called anywhere else in the file's current endpoints - only
+    _match_protocols_by_diagnosis is wired into /list, and it re-implements an equivalent
+    tokenize-and-filter step inline rather than calling this function, so this helper is
+    effectively unused dead code despite looking like the "real" entry point.
+
+  _get_corpus_doc_frequencies() -> tuple[Dict[str, int], int]  [async]
+    Lazily populates and returns the module-level _corpus_doc_freq_cache: on first call, pulls
+    disease_site/subsite/aliases for every protocol (up to 1000), tokenizes/normalizes them,
+    and counts how many distinct protocols each token appears in. Subsequent calls return the
+    cached dict without hitting Mongo again - see Section 1's in-memory-state note on staleness.
+
+  _match_protocols_by_diagnosis(diagnosis, limit=5) -> List[dict]  [async]
+    The deterministic (no LLM) recommendation engine behind GET /list's "recommended" flag.
+    Tokenizes/filters the diagnosis text inline (duplicating _extract_diagnosis_keywords'
+    logic rather than calling it), builds a regex $or query across disease_site/subsite/aliases,
+    fetches up to 100 candidates, then scores each one with a TF-IDF-flavored formula: per
+    keyword, weight = log((total_protocols+1)/(doc_freq+1)) + 0.01, capped at 2.0 before being
+    multiplied by sqrt(term-frequency) so a repeated word can't be beaten by one rare word alone;
+    a disease_site hit counts 5x that contribution, subsite 2x, aliases 1x. Candidates are
+    dropped below an absolute floor score of 2.0, then further dropped unless within 50% of the
+    top candidate's score (relative floor) - both floors exist specifically to keep one generic-
+    but-technically-rare word (e.g. "biopsy", "lesion") from surfacing an unrelated disease site
+    as a false recommendation. Logs the keyword term-frequencies and final (protocol_id, score)
+    list at info level for every call.
+
+  _adapt_protocol_with_llm(proto, context) -> dict  [async]
+    The one Groq call in this file. Builds a system prompt that explicitly enumerates what the
+    model is FORBIDDEN to touch (dose, fraction, PTV/CTV/GTV, OAR, machine, technique) and asks
+    for a fixed 6-key JSON object (treatmentIntent, startDate, specialInstructions,
+    concurrentTherapy, reasonForChange, safetyFlags) using model "llama-3.3-70b-versatile",
+    response_format json_object, temperature=0. On any exception (bad key, malformed JSON,
+    network error, etc.) the failure is caught, logged as a warning, and llm_data falls back to
+    {} - selecting a protocol is never allowed to hard-fail just because metadata adaptation
+    failed. Result is merged onto _DEFAULT_LLM_ADAPTATION (unknown keys from the LLM are
+    dropped), treatmentIntent falls back to the protocol's own first intent value if the LLM
+    left it blank, and safetyFlags is coerced to [] if the LLM returned a non-list.
+
+  _classify(value, options, synonyms=None, other_label="Other") -> tuple[str, Optional[str]]
+    The core of the "PROTOCOL VALUE MAPPING LAYER" (see below): three-level resolution of a raw
+    protocol string against a fixed UI option list - exact case-insensitive match, then synonym-
+    table match (first a direct key lookup, then a substring-contains fallback so a longer
+    protocol phrase like "RapidArc (VMAT) technique" still resolves), then falls through to
+    other_label with the original text preserved as the second tuple element. Returns ("", None)
+    for empty/None input.
+
+  _classify_energy(value) -> Dict[str, Any]
+    Purpose-built parser (not routed through _classify) for free-text machine-energy strings
+    like "6 MV" or "9 MeV Electron". Regex-extracts an "N MV" photon energy and/or an "N MeV"
+    electron energy, independently detects "proton" as a substring, and sets boolean flags
+    (photon/electron/proton) plus their numeric value fields. Anything that doesn't match any
+    of the three patterns is preserved verbatim in an "other" string field rather than dropped.
+
+  _classify_field(proto, path, options, synonyms, other_label="Other") -> dict
+    Thin convenience wrapper around _classify for the bulk-mapping-by-path style: walks a dotted
+    path (e.g. ["simulation", "patient_position"]) into the protocol dict, classifies the leaf
+    value, and returns a ready-to-merge {"<key>": ..., "<key>Other": ..., "<key>FromProtocol":
+    True} fragment (only when the value fell to "Other"), or {} entirely if the source field was
+    empty. Notably NOT actually called by _map_protocol_to_form below, which instead calls
+    _classify directly field-by-field and assembles the same triple inline - _classify_field
+    looks like unused/leftover scaffolding for a more generic mapping loop that was never wired
+    up, similar in spirit to surgical_oncology.py's two genuinely dead payload models.
+
+  _map_protocol_to_form(proto, llm_data=None) -> dict
+    The endpoint of the mapping layer, called once per /select request. Derives rt_type_ui
+    ("Both" | "Brachytherapy" | "EBRT") from the protocol's rt_type string, then builds three
+    top-level blocks:
+      - "common": intent/rtRole/rtType plus whatever startDate/concurrentTherapy/
+        specialInstructions/reasonForChange/safetyFlags the LLM adaptation produced.
+      - "ebrt" (only if rt_type_ui is EBRT or Both): runs patient_position, imaging, technique,
+        linac, and energy each through _classify/_classify_energy against their respective
+        canonical option+synonym tables, assembles a simulationSets list (single entry) with
+        dose/fraction values copied straight from prescription (never LLM-touched), a procedure
+        block, a planning.adaptiveRadiation Yes/No flag, and a read-only "protocolReference"
+        block (target volumes, OAR constraints, IGRT, QA, follow-up guidance, references) that
+        is never bound to a form input - it exists purely so the treating doctor can see the raw,
+        unclassified protocol data regardless of how the classified fields resolved.
+      - "brachy" (only if rt_type_ui is Brachytherapy or Both): same pattern for applicator_type
+        and dose_rate, plus a dosePrescription block and its own protocolReference sub-block.
+    Immobilization is explicitly left as raw free text (comment notes the UI field is already
+    free-text, so no classification step is needed there, unlike patient_position/imaging).
+
+  Unlike data.py and surgical_oncology.py, this file's helpers are the only place in the
+  codebase that scores, ranks, or classifies free-text values against a fixed option list -
+  both the deterministic diagnosis-matching (_match_protocols_by_diagnosis /
+  _get_corpus_doc_frequencies) and the protocol-to-form value-classification layer
+  (_classify / _classify_energy / _classify_field / _map_protocol_to_form) are unique to
+  Radiotherapy_protocol_master.py.
+
+
+############################################################
+# 5. PROTOCOL VALUE MAPPING LAYER (feature unique to this file)
+############################################################
+------------------------------------------------------------
+  Purpose stated in-code: every protocol value that must land in a fixed radio/select UI
+  control is classified into one of three buckets so nothing is ever silently dropped -
+  it's either matched into a known option, or preserved verbatim in a "<field>Other"
+  companion key (flagged "<field>FromProtocol": True so the frontend can badge it "Imported
+  from Protocol Master").
+
+  Canonical option + synonym tables (module-level, must stay in sync with the <option> lists
+  in RadiotherapyRecord.jsx per an explicit in-code comment):
+    _TECHNIQUE_OPTIONS   Single Portal, 2 Dimensional, 3DCRT, IMRT, VMAT
+    _MACHINE_OPTIONS     Cobalt, LA, CyberKnife, MRI LINAC, Proton
+    _POSITION_OPTIONS    Supine, Prone, Lateral        (other_label override: "Others")
+    _IMAGING_OPTIONS     CT, CT / MRI, CT / PET, X-Ray, Clinical
+    _IMPLANT_OPTIONS     13 brachytherapy applicator types (Tandem & Ovoid ... COMS Plaque)
+    _DOSE_RATE_OPTIONS   HDR, LDR, PDR
+
+  Fields run through this layer during /select: patient_position, imaging, technique
+  (machine.technique or protocol.technique as fallback), linac, energy (via the dedicated
+  _classify_energy parser, not the generic three-level _classify), applicator_type, dose_rate.
+  Fields deliberately left as raw free text (no classification): immobilization,
+  concurrentTherapy, specialInstructions, reasonForChange - these already map to free-text UI
+  inputs rather than fixed option sets.

@@ -1,0 +1,6 @@
+pika
+pymongo
+pydantic
+fastapi
+uvicorn
+

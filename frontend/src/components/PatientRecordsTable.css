@@ -1,0 +1,84 @@
+/* PatientRecordsTable.css */
+.records-container {
+  width: 100%;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.group-header {
+  background: #f9fafb;
+  padding: 1rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.group-header:hover {
+  background: #f3f4f6;
+}
+
+.document-row {
+  padding: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.document-row:hover {
+  background: #f9fafb;
+}
+
+.report-card {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  margin: 0.5rem 0;
+}
+
+.test-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.test-table th {
+  background: #f9fafb;
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  font-weight: 500;
+  color: #374151;
+}
+
+.test-table td {
+  padding: 0.5rem 0.75rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.test-table tr:hover {
+  background: #f9fafb;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.status-normal {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status-abnormal {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.status-critical {
+  background: #dc2626;
+  color: white;
+  font-weight: bold;
+}

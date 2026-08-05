@@ -1,0 +1,1304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Clinical Agent Skills — DoctorAssist.AI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Sora:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg:        #000000;
+    --surface:   #0a0a0a;
+    --surface-2: #111111;
+    --surface-3: #1a1a1a;
+    --border:    rgba(255,255,255,0.08);
+    --border-hi: rgba(255,255,255,0.18);
+    --text:      #ffffff;
+    --text-2:    #a0a0a0;
+    --text-3:    #4a4a4a;
+    --font-body: 'Sora', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+    --r:         8px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 14px;
+    line-height: 1.7;
+    overflow-x: hidden;
+  }
+
+  /* NAV */
+  nav {
+    position: sticky; top: 0; z-index: 100;
+    height: 58px;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 40px;
+    background: rgba(0,0,0,0.94);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .nav-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--text); }
+
+  .nav-logo-mark {
+    width: 26px; height: 26px;
+    border: 1px solid var(--border-hi); border-radius: 5px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-mono); font-size: 11px; color: var(--text);
+  }
+
+  .nav-logo-text { font-size: 13px; font-weight: 600; letter-spacing: -0.01em; }
+
+  .nav-links { display: flex; align-items: center; gap: 28px; list-style: none; }
+
+  .nav-links a {
+    font-size: 12.5px; color: var(--text-2); text-decoration: none;
+    font-weight: 400; transition: color 0.12s;
+  }
+
+  .nav-links a:hover, .nav-links a.active { color: var(--text); }
+
+  .nav-cta {
+    background: var(--text) !important; color: var(--bg) !important;
+    padding: 6px 16px; border-radius: 5px;
+    font-weight: 600 !important; font-size: 12px !important;
+  }
+
+  /* BREADCRUMB */
+  .breadcrumb {
+    padding: 13px 40px;
+    display: flex; align-items: center; gap: 8px;
+    font-family: var(--font-mono); font-size: 11px; color: var(--text-3);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .breadcrumb a { color: var(--text-2); text-decoration: none; }
+  .breadcrumb a:hover { color: var(--text); }
+
+  /* LAYOUT */
+  .page-wrapper {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    min-height: calc(100vh - 58px);
+  }
+
+  /* SIDEBAR */
+  .sidebar {
+    border-right: 1px solid var(--border);
+    padding: 28px 0;
+    position: sticky; top: 58px;
+    height: calc(100vh - 58px);
+    overflow-y: auto;
+  }
+
+  .sidebar::-webkit-scrollbar { width: 3px; }
+  .sidebar::-webkit-scrollbar-thumb { background: var(--border); }
+
+  .sidebar-section { margin-bottom: 24px; }
+
+  .sidebar-heading {
+    font-family: var(--font-mono); font-size: 9.5px; font-weight: 500;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--text-3); padding: 0 20px 8px;
+  }
+
+  .sidebar-link {
+    display: block; padding: 6px 20px;
+    font-size: 12.5px; color: var(--text-2); text-decoration: none;
+    border-left: 2px solid transparent; transition: all 0.12s;
+  }
+
+  .sidebar-link:hover { color: var(--text); }
+
+  .sidebar-link.active {
+    color: var(--text); border-left-color: var(--text);
+    background: rgba(255,255,255,0.03);
+  }
+
+  /* MAIN */
+  .main { padding: 52px 64px 96px; max-width: 860px; }
+
+  /* BADGE */
+  .page-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    border: 1px solid var(--border-hi); border-radius: 4px;
+    padding: 4px 10px; font-family: var(--font-mono); font-size: 10px;
+    color: var(--text-2); letter-spacing: 0.08em;
+    text-transform: uppercase; margin-bottom: 20px;
+  }
+
+  .page-badge::before {
+    content: ''; width: 5px; height: 5px; border-radius: 50%;
+    background: var(--text); opacity: 0.5;
+  }
+
+  h1 {
+    font-size: 40px; font-weight: 300; line-height: 1.15;
+    letter-spacing: -0.03em; color: var(--text); margin-bottom: 14px;
+  }
+
+  .page-intro {
+    font-size: 15px; color: var(--text-2); line-height: 1.72;
+    max-width: 580px; margin-bottom: 32px; font-weight: 300;
+  }
+
+  .tag-row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  .tag {
+    display: inline-flex; font-family: var(--font-mono); font-size: 10px;
+    padding: 3px 9px; border-radius: 3px; border: 1px solid var(--border-hi);
+    color: var(--text-2); letter-spacing: 0.04em;
+  }
+
+  h2 {
+    font-size: 24px; font-weight: 400; letter-spacing: -0.02em;
+    color: var(--text); margin: 0 0 14px;
+    padding-top: 56px; border-top: 1px solid var(--border);
+    margin-top: 56px;
+  }
+
+  h3 {
+    font-size: 11px; font-weight: 600; color: var(--text-3);
+    margin: 32px 0 10px;
+    text-transform: uppercase; letter-spacing: 0.1em;
+  }
+
+  p { color: var(--text-2); margin-bottom: 14px; line-height: 1.75; font-weight: 300; }
+
+  a { color: var(--text-2); }
+  a:hover { color: var(--text); }
+
+  code {
+    font-family: var(--font-mono); font-size: 11.5px;
+    background: var(--surface-2); color: var(--text);
+    padding: 2px 6px; border-radius: 3px; border: 1px solid var(--border);
+  }
+
+  strong { color: var(--text); font-weight: 600; }
+
+  /* SKILL FILE BLOCK */
+  .skill-file-block {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--r); overflow: hidden; margin: 24px 0;
+  }
+
+  .file-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 16px; background: var(--surface-2);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .file-name { font-family: var(--font-mono); font-size: 11px; color: var(--text-2); }
+
+  .file-copy {
+    font-family: var(--font-mono); font-size: 10px; color: var(--text-2);
+    background: none; border: 1px solid var(--border); border-radius: 3px;
+    padding: 3px 10px; cursor: pointer; transition: all 0.12s;
+  }
+
+  .file-copy:hover { border-color: var(--border-hi); color: var(--text); }
+
+  .skill-meta {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .skill-meta-item { padding: 12px 16px; border-right: 1px solid var(--border); }
+  .skill-meta-item:last-child { border-right: none; }
+
+  .skill-meta-label {
+    font-family: var(--font-mono); font-size: 9px;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--text-3); margin-bottom: 3px;
+  }
+
+  .skill-meta-value { font-size: 12px; font-weight: 500; color: var(--text); }
+  .skill-meta-value.dim { color: var(--text-2); font-weight: 400; }
+
+  .skill-content {
+    padding: 20px 20px 24px;
+    font-family: var(--font-mono); font-size: 12px;
+    line-height: 1.85; color: var(--text-2);
+    white-space: pre;
+  }
+
+  .skill-content .comment { color: var(--text-3); }
+  .skill-content .key { color: var(--text); }
+  .skill-content .str { color: var(--text-2); }
+  .skill-content .section { color: var(--text); font-weight: 500; }
+  .skill-content .warn { color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
+
+  /* TREE */
+  .tree-block {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--r); padding: 18px 22px;
+    font-family: var(--font-mono); font-size: 12px;
+    line-height: 1.95; margin: 16px 0; color: var(--text-2);
+    white-space: pre;
+  }
+
+  .tree-block .folder { color: var(--text); }
+  .tree-block .file-main { color: var(--text); font-weight: 500; }
+  .tree-block .dim { color: var(--text-3); }
+
+  /* STEPS */
+  .steps { display: flex; flex-direction: column; margin: 20px 0; }
+
+  .step {
+    display: flex; gap: 18px; padding: 18px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .step:last-child { border-bottom: none; }
+
+  .step-num {
+    font-family: var(--font-mono); font-size: 11px; color: var(--text-3);
+    padding-top: 3px; min-width: 24px; flex-shrink: 0;
+  }
+
+  .step-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+  .step-desc { font-size: 13px; color: var(--text-2); margin: 0; font-weight: 300; line-height: 1.65; }
+
+  /* SPECIALTY GRID */
+  .specialty-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 1px; border: 1px solid var(--border);
+    border-radius: var(--r); overflow: hidden;
+    margin: 20px 0; background: var(--border);
+  }
+
+  .specialty-card { background: var(--surface); padding: 20px 22px; transition: background 0.12s; }
+  .specialty-card:hover { background: var(--surface-2); }
+
+  .specialty-name { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+
+  .specialty-desc { font-size: 12px; color: var(--text-2); line-height: 1.65; margin: 0 0 10px; font-weight: 300; }
+
+  .specialty-tag { font-family: var(--font-mono); font-size: 9.5px; color: var(--text-3); letter-spacing: 0.06em; text-transform: uppercase; }
+
+  /* TRANSFER FLOW */
+  .transfer-flow {
+    display: grid; grid-template-columns: 1fr 80px 1fr;
+    border: 1px solid var(--border); border-radius: var(--r);
+    overflow: hidden; margin: 20px 0;
+  }
+
+  .flow-box { padding: 22px 20px; background: var(--surface); }
+  .flow-box-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 5px; }
+  .flow-box-sub { font-family: var(--font-mono); font-size: 10.5px; color: var(--text-3); line-height: 1.6; }
+
+  .flow-arrow-col {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: var(--surface-2); border-left: 1px solid var(--border); border-right: 1px solid var(--border);
+    gap: 4px;
+  }
+
+  .flow-arrow-symbol { font-size: 16px; color: var(--text-2); }
+  .flow-arrow-label { font-family: var(--font-mono); font-size: 9px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.08em; writing-mode: vertical-rl; }
+
+  /* TABLE */
+  table {
+    width: 100%; border-collapse: collapse; font-size: 12.5px;
+    margin: 16px 0; border: 1px solid var(--border); border-radius: var(--r); overflow: hidden;
+  }
+
+  th {
+    background: var(--surface-2); color: var(--text-3); font-weight: 500;
+    padding: 9px 14px; text-align: left; border-bottom: 1px solid var(--border);
+    font-family: var(--font-mono); font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.07em;
+  }
+
+  td {
+    padding: 10px 14px; border-bottom: 1px solid var(--border);
+    color: var(--text-2); background: var(--surface); font-weight: 300;
+  }
+
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--surface-2); }
+  td.mono { font-family: var(--font-mono); font-size: 11px; color: var(--text); }
+
+  /* ADVANTAGE LIST */
+  .advantage-list {
+    display: flex; flex-direction: column;
+    margin: 14px 0; border: 1px solid var(--border);
+    border-radius: var(--r); overflow: hidden;
+  }
+
+  .advantage-item {
+    padding: 16px 20px; border-bottom: 1px solid var(--border);
+    transition: background 0.12s;
+  }
+
+  .advantage-item:last-child { border-bottom: none; }
+  .advantage-item:hover { background: var(--surface-2); }
+
+  .advantage-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+  .advantage-desc { font-size: 12.5px; color: var(--text-2); margin: 0; font-weight: 300; line-height: 1.65; }
+
+  /* CALLOUT */
+  .callout {
+    padding: 14px 18px; border-radius: var(--r); margin: 20px 0;
+    border: 1px solid var(--border-hi); background: var(--surface-2);
+  }
+
+  .callout-label {
+    font-family: var(--font-mono); font-size: 9.5px;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--text-3); margin-bottom: 6px;
+  }
+
+  .callout p { font-size: 13px; color: var(--text-2); margin: 0; line-height: 1.65; }
+
+  /* CTA */
+  .cta-block {
+    margin-top: 64px; padding: 40px;
+    border: 1px solid var(--border-hi); border-radius: 12px; text-align: center;
+  }
+
+  .cta-block h2 { border: none; margin-top: 0; padding-top: 0; font-size: 28px; font-weight: 300; }
+  .cta-block p { max-width: 440px; margin: 0 auto 28px; font-size: 14px; }
+
+  .cta-buttons { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 22px; border-radius: 6px; font-size: 13px;
+    font-weight: 500; text-decoration: none; transition: all 0.15s;
+    cursor: pointer; border: none; font-family: var(--font-body);
+    letter-spacing: -0.01em;
+  }
+
+  .btn-primary { background: var(--text); color: var(--bg); }
+  .btn-primary:hover { background: #ddd; color: var(--bg); }
+
+  .btn-secondary {
+    background: transparent; color: var(--text-2);
+    border: 1px solid var(--border-hi);
+  }
+
+  .btn-secondary:hover { color: var(--text); border-color: var(--text); }
+
+  /* FOOTER */
+  footer {
+    border-top: 1px solid var(--border); padding: 24px 40px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+
+  .footer-copy { font-family: var(--font-mono); font-size: 11px; color: var(--text-3); }
+  .footer-links { display: flex; gap: 24px; }
+
+  .footer-links a { font-size: 11px; color: var(--text-3); text-decoration: none; transition: color 0.12s; }
+  .footer-links a:hover { color: var(--text-2); }
+
+  /* ── MODAL OVERLAY ── */
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 500;
+    background: rgba(0, 0, 0, 0.82);
+    backdrop-filter: blur(6px);
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+
+  .modal-overlay.open {
+    opacity: 1; pointer-events: all;
+  }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border-hi);
+    border-radius: 12px;
+    width: 100%; max-width: 480px;
+    padding: 36px 36px 32px;
+    position: relative;
+    transform: translateY(12px);
+    transition: transform 0.2s ease;
+    margin: 20px;
+  }
+
+  .modal-overlay.open .modal {
+    transform: translateY(0);
+  }
+
+  .modal-header {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    margin-bottom: 6px;
+  }
+
+  .modal-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    border: 1px solid var(--border-hi); border-radius: 4px;
+    padding: 3px 9px; font-family: var(--font-mono); font-size: 9.5px;
+    color: var(--text-3); letter-spacing: 0.08em;
+    text-transform: uppercase; margin-bottom: 14px;
+  }
+
+  .modal-badge::before {
+    content: ''; width: 4px; height: 4px; border-radius: 50%;
+    background: var(--text); opacity: 0.4;
+  }
+
+  .modal-close {
+    background: none; border: 1px solid var(--border); border-radius: 4px;
+    color: var(--text-3); font-size: 16px; line-height: 1;
+    width: 28px; height: 28px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.12s; flex-shrink: 0; margin-top: 2px;
+    font-family: var(--font-mono);
+  }
+
+  .modal-close:hover { border-color: var(--border-hi); color: var(--text); }
+
+  .modal-title {
+    font-size: 22px; font-weight: 300; letter-spacing: -0.02em;
+    color: var(--text); margin-bottom: 4px;
+  }
+
+  .modal-subtitle {
+    font-size: 12.5px; color: var(--text-3); font-weight: 300;
+    margin-bottom: 28px; line-height: 1.6;
+  }
+
+  .modal-divider {
+    border: none; border-top: 1px solid var(--border);
+    margin: 0 0 24px;
+  }
+
+  /* FORM */
+  .form-grid {
+    display: grid; gap: 16px;
+  }
+
+  .form-row {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+  }
+
+  .form-field {
+    display: flex; flex-direction: column; gap: 6px;
+  }
+
+  .form-label {
+    font-family: var(--font-mono); font-size: 9.5px;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--text-3);
+  }
+
+  .form-input {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 9px 12px;
+    font-family: var(--font-body);
+    font-size: 13px;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.12s;
+    width: 100%;
+  }
+
+  .form-input::placeholder { color: var(--text-3); }
+
+  .form-input:focus {
+    border-color: var(--border-hi);
+    background: var(--surface-3);
+  }
+
+  .form-input.error {
+    border-color: rgba(255, 80, 80, 0.5);
+  }
+
+  .form-error {
+    font-family: var(--font-mono); font-size: 10px;
+    color: rgba(255, 100, 100, 0.8); margin-top: 2px;
+    display: none;
+  }
+
+  .form-error.visible { display: block; }
+
+  .modal-actions {
+    display: flex; gap: 10px; margin-top: 24px;
+    border-top: 1px solid var(--border); padding-top: 20px;
+  }
+
+  .btn-modal-submit {
+    flex: 1; background: var(--text); color: var(--bg);
+    border: none; border-radius: 6px; padding: 10px 20px;
+    font-family: var(--font-body); font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: background 0.15s; letter-spacing: -0.01em;
+  }
+
+  .btn-modal-submit:hover:not(:disabled) { background: #ddd; }
+
+  .btn-modal-submit:disabled {
+    opacity: 0.45; cursor: not-allowed;
+  }
+
+  .btn-modal-cancel {
+    background: transparent; color: var(--text-2);
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 10px 18px; font-family: var(--font-body);
+    font-size: 13px; cursor: pointer; transition: all 0.15s;
+  }
+
+  .btn-modal-cancel:hover { border-color: var(--border-hi); color: var(--text); }
+
+  /* SUCCESS STATE */
+  .modal-success {
+    display: none; flex-direction: column;
+    align-items: center; text-align: center; padding: 12px 0 4px;
+  }
+
+  .modal-success.visible { display: flex; }
+
+  .success-icon {
+    width: 44px; height: 44px; border-radius: 50%;
+    border: 1px solid var(--border-hi);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; margin-bottom: 16px; color: var(--text);
+  }
+
+  .success-title {
+    font-size: 18px; font-weight: 400; letter-spacing: -0.02em;
+    color: var(--text); margin-bottom: 6px;
+  }
+
+  .success-sub {
+    font-size: 12.5px; color: var(--text-3); line-height: 1.65;
+    max-width: 300px; font-weight: 300; margin-bottom: 24px;
+  }
+
+  /* SPINNER */
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spinner {
+    display: inline-block; width: 14px; height: 14px;
+    border: 2px solid rgba(0,0,0,0.3);
+    border-top-color: var(--bg);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    vertical-align: middle; margin-right: 6px;
+  }
+
+  @media (max-width: 860px) {
+    .page-wrapper { grid-template-columns: 1fr; }
+    .sidebar { display: none; }
+    .main { padding: 32px 22px 64px; }
+    h1 { font-size: 28px; }
+    .specialty-grid { grid-template-columns: 1fr; }
+    .transfer-flow { grid-template-columns: 1fr; }
+    .flow-arrow-col { display: none; }
+    nav { padding: 0 20px; }
+    .nav-links { display: none; }
+    footer { flex-direction: column; gap: 12px; text-align: center; }
+    .form-row { grid-template-columns: 1fr; }
+    .modal { padding: 28px 22px 24px; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="https://doctorassist.ai" class="nav-logo">
+    <div class="nav-logo-mark">DA</div>
+    <span class="nav-logo-text">DoctorAssist.AI</span>
+  </a>
+  <ul class="nav-links">
+    <li><a href="#">Platform</a></li>
+    <li><a href="#">Specialties</a></li>
+    <li><a href="#" class="active">Clinical Skills</a></li>
+    <li><a href="#">Security</a></li>
+    <li><a href="#">About</a></li>
+    <li><a href="#" class="nav-cta">Request Demo</a></li>
+  </ul>
+</nav>
+
+<div class="breadcrumb">
+  <a href="#">DoctorAssist.AI</a> &nbsp;/&nbsp; <a href="#">Documentation</a> &nbsp;/&nbsp; Clinical Agent Skills
+</div>
+
+<div class="page-wrapper">
+
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-heading">Overview</div>
+      <a href="#what-are-skills" class="sidebar-link active">What are Clinical Skills?</a>
+      <a href="#skill-file" class="sidebar-link">SKILL.md Format</a>
+      <a href="#how-it-works" class="sidebar-link">How Skills Work</a>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-heading">Specialty Skills</div>
+      <a href="#specialties" class="sidebar-link">Available Specialties</a>
+      <a href="#add-specialty" class="sidebar-link">Adding a Specialty</a>
+      <a href="#oncology-example" class="sidebar-link">Oncology — Example</a>
+      <a href="#cardiology-example" class="sidebar-link">Cardiology — Example</a>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-heading">Skill Transfer</div>
+      <a href="#transfer-hospital" class="sidebar-link">Hospital to Hospital</a>
+      <a href="#transfer-doctor" class="sidebar-link">Doctor to Doctor</a>
+      <a href="#advantages" class="sidebar-link">Clinical Advantages</a>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-heading">Reference</div>
+      <a href="#skill-registry" class="sidebar-link">Skill Registry</a>
+    </div>
+  </aside>
+
+  <main class="main">
+
+    <div class="page-badge">Clinical Agent Skills &nbsp;·&nbsp; v2.4</div>
+    <h1>Clinical Decision<br />Protocol Skills</h1>
+    <p class="page-intro">A standardised, version-controlled format for packaging specialty clinical knowledge, decision protocols, and institutional guidelines into portable AI skills — deployable across specialties, hospitals, and clinicians in DoctorAssist.AI.</p>
+    <div class="tag-row">
+      <span class="tag">Open Standard</span>
+      <span class="tag">HIPAA-Aligned</span>
+      <span class="tag">Guideline-Linked</span>
+    </div>
+
+    <h2 id="what-are-skills">What are Clinical Agent Skills?</h2>
+
+    <p>Clinical Agent Skills are structured, portable packages of medical expertise. Each skill encodes a specialty's decision logic — guidelines, risk scores, dosing rules, alert thresholds, and institutional protocols — into a folder that DoctorAssist.AI agents load on demand at the point of care.</p>
+
+    <p>Modelled on the open <a href="https://agentskills.io">Agent Skills standard</a>, clinical skills carry additional medical metadata: evidence grades, guideline sources (AHA, ESC, WHO, NCCN), specialty context, and patient safety constraints built into the architecture rather than applied as an afterthought.</p>
+
+    <div class="callout">
+      <div class="callout-label">Progressive Disclosure</div>
+      <p><strong>Agents load only a skill's name and description at startup.</strong> The full clinical protocol loads into context only when a matching patient scenario is detected — keeping the AI's reasoning efficient and precise without overwhelming the context window.</p>
+    </div>
+
+    <h2 id="skill-file">The SKILL.md Format</h2>
+
+    <p>Every clinical skill is a folder with a <code>SKILL.md</code> file as its entrypoint, using frontmatter for metadata and Markdown for clinical instructions. Additional directories bundle calculators, drug protocols, and reference guidelines.</p>
+
+    <div class="tree-block"><span class="folder">oncology-skill/</span>
+├── <span class="file-main">SKILL.md</span>          <span class="dim"># Required: metadata + protocol</span>
+├── <span class="folder">guidelines/</span>       <span class="dim"># NCCN, ESMO, WHO PDFs / links</span>
+├── <span class="folder">calculators/</span>      <span class="dim"># Risk scores — ECOG, TNM, etc.</span>
+├── <span class="folder">drug-protocols/</span>   <span class="dim"># Regimen templates, dose tables</span>
+├── <span class="folder">templates/</span>        <span class="dim"># SOAP notes, MDT summaries</span>
+└── <span class="dim">institution.json  # Hospital-specific overrides</span></div>
+
+    <div id="oncology-example" class="skill-file-block">
+      <div class="file-header">
+        <span class="file-name">oncology-skill / SKILL.md</span>
+        <button class="file-copy" onclick="this.textContent='Copied'; setTimeout(()=>this.textContent='Copy',1600)">Copy</button>
+      </div>
+      <div class="skill-meta">
+        <div class="skill-meta-item">
+          <div class="skill-meta-label">Specialty</div>
+          <div class="skill-meta-value dim">Medical Oncology</div>
+        </div>
+        <div class="skill-meta-item">
+          <div class="skill-meta-label">Guideline Source</div>
+          <div class="skill-meta-value dim">NCCN v2.2025 · ESMO</div>
+        </div>
+        <div class="skill-meta-item">
+          <div class="skill-meta-label">Evidence Grade</div>
+          <div class="skill-meta-value">Level 1A</div>
+        </div>
+      </div>
+      <div class="skill-content"><span class="comment">---</span>
+<span class="key">name</span>: oncology-clinical-decision
+<span class="key">version</span>: <span class="str">"2.4.1"</span>
+<span class="key">specialty</span>: <span class="str">"Medical Oncology"</span>
+<span class="key">subSpecialties</span>: <span class="str">["Breast", "GI", "Lung", "Haematology"]</span>
+<span class="key">guidelineSources</span>: <span class="str">["NCCN v2.2025", "ESMO 2024", "WHO AMR"]</span>
+<span class="key">evidenceGrade</span>: <span class="str">"1A"</span>
+<span class="key">safetyClass</span>: <span class="str">"HIGH — physician approval required for all actions"</span>
+<span class="key">institution</span>: <span class="str">"Tata Memorial Centre, Mumbai"</span>
+<span class="key">description</span>: <span class="str">"Activate for oncology patients — staging, regimen
+  selection, toxicity management, MDT summaries,
+  and palliative transitions."</span>
+<span class="comment">---</span>
+
+<span class="section">## Activation Criteria</span>
+<span class="comment"># Activates when patient has active malignancy, chemotherapy</span>
+<span class="comment"># orders, staging workup, or oncology consult request.</span>
+
+<span class="section">## Clinical Decision Workflow</span>
+1. Confirm pathological diagnosis and molecular markers
+   (ER/PR/HER2, EGFR, PD-L1)
+2. Apply TNM staging using bundled calculator
+3. Cross-reference NCCN guidelines for recommended regimen
+4. Check renal/hepatic dose adjustments via drug-protocols/
+5. Flag drug-drug interactions with current medication list
+6. Generate MDT summary template with evidence links
+7. Set monitoring schedule and toxicity alert thresholds
+
+<span class="section">## Safety Constraints</span>
+- <span class="warn">NEVER</span> initiate chemotherapy without consultant co-sign
+- <span class="warn">ALWAYS</span> display ECOG performance status before regimen
+- Flag fertility preservation for patients under 40 years</div>
+    </div>
+
+    <div id="cardiology-example" class="skill-file-block">
+      <div class="file-header">
+        <span class="file-name">cardiology-skill / SKILL.md</span>
+        <button class="file-copy" onclick="this.textContent='Copied'; setTimeout(()=>this.textContent='Copy',1600)">Copy</button>
+      </div>
+      <div class="skill-meta">
+        <div class="skill-meta-item">
+          <div class="skill-meta-label">Specialty</div>
+          <div class="skill-meta-value dim">Interventional Cardiology</div>
+        </div>
+        <div class="skill-meta-item">
+          <div class="skill-meta-label">Guideline Source</div>
+          <div class="skill-meta-value dim">AHA / ACC 2024 · ESC</div>
+        </div>
+        <div class="skill-meta-item">
+          <div class="skill-meta-label">Evidence Grade</div>
+          <div class="skill-meta-value">Level 1A</div>
+        </div>
+      </div>
+      <div class="skill-content"><span class="comment">---</span>
+<span class="key">name</span>: cardiology-acs-protocol
+<span class="key">version</span>: <span class="str">"3.1.0"</span>
+<span class="key">specialty</span>: <span class="str">"Cardiology"</span>
+<span class="key">subSpecialties</span>: <span class="str">["ACS", "Heart Failure", "Arrhythmia", "Structural"]</span>
+<span class="key">guidelineSources</span>: <span class="str">["AHA/ACC 2024", "ESC 2023", "STEMI Guidelines"]</span>
+<span class="key">evidenceGrade</span>: <span class="str">"1A"</span>
+<span class="key">safetyClass</span>: <span class="str">"CRITICAL — real-time troponin and ECG monitoring"</span>
+<span class="key">description</span>: <span class="str">"Activate on chest pain presentations, troponin
+  elevation, ECG changes, or known cardiac history.
+  Runs ACS risk stratification, activates cath lab
+  protocol, manages antiplatelet therapy."</span>
+<span class="comment">---</span>
+
+<span class="section">## ACS Risk Stratification</span>
+1. Compute HEART Score
+   (History · ECG · Age · Risk Factors · Troponin)
+2. Delta troponin at 0h / 3h / 6h — flag above 0.04
+3. STEMI     → immediate cath lab activation
+4. NSTEMI/UA → risk-stratified timeline
+5. Load dual antiplatelet therapy per renal function
+6. Hold metformin if eGFR below 45 and contrast planned
+
+<span class="section">## Alert Thresholds</span>
+- Troponin delta > 0.04 → <span class="warn">CRITICAL</span> → auto-page cardiology
+- MAP below 65 mmHg    → haemodynamic instability protocol
+- New LBBB on ECG      → treat as STEMI equivalent</div>
+    </div>
+
+    <h2 id="how-it-works">How Skills Work in Practice</h2>
+    <p>DoctorAssist.AI agents use a three-stage progressive disclosure model to activate clinical skills at the right moment — without loading unnecessary context or adding friction to the clinical workflow.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">01</div>
+        <div class="step-content">
+          <div class="step-title">Discovery — Lightweight Scan</div>
+          <p class="step-desc">At session start, the agent loads only each skill's <code>name</code> and <code>description</code> fields. This gives it a complete map of available clinical expertise without loading any protocol detail into active memory.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">02</div>
+        <div class="step-content">
+          <div class="step-title">Activation — Pattern Match</div>
+          <p class="step-desc">As the agent reads incoming data — labs, vitals, notes, orders — it matches clinical signals to skill descriptions. A rising troponin activates the Cardiology ACS skill. A new lung mass activates the Oncology skill. Activation is automatic, no prompting required.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">03</div>
+        <div class="step-content">
+          <div class="step-title">Execution — Protocol in Context</div>
+          <p class="step-desc">The full SKILL.md loads into the agent's reasoning context. It follows the decision workflow, cross-references bundled guidelines, runs calculators, and surfaces evidence-linked recommendations before you ask.</p>
+        </div>
+      </div>
+    </div>
+
+    <h2 id="specialties">Available Specialty Skills</h2>
+    <p>DoctorAssist.AI ships with a core library of specialty skills, each maintained against the latest international guidelines. Institutions can extend, fork, or layer these with local protocols.</p>
+
+    <div class="specialty-grid">
+      <div class="specialty-card">
+        <div class="specialty-name">Cardiology</div>
+        <p class="specialty-desc">ACS protocols, HEART score, heart failure staging, arrhythmia management, and antiplatelet therapy — aligned to AHA/ACC 2024 and ESC 2023.</p>
+        <div class="specialty-tag">AHA · ACC · ESC 2024</div>
+      </div>
+      <div class="specialty-card">
+        <div class="specialty-name">Oncology</div>
+        <p class="specialty-desc">Staging, molecular profiling, regimen selection, toxicity grading, MDT summaries, and palliative transitions across solid tumours and haematological malignancies.</p>
+        <div class="specialty-tag">NCCN · ESMO · WHO</div>
+      </div>
+      <div class="specialty-card">
+        <div class="specialty-name">Neurology</div>
+        <p class="specialty-desc">Acute stroke pathways (NIHSS, tPA eligibility, thrombectomy window), epilepsy management, Parkinson's titration, and neuro ICU monitoring protocols.</p>
+        <div class="specialty-tag">AHA Stroke · EAN</div>
+      </div>
+      <div class="specialty-card">
+        <div class="specialty-name">Critical Care / ICU</div>
+        <p class="specialty-desc">Sepsis bundles (Surviving Sepsis 2024), ventilator management, vasopressor titration, ARDS protocols, and haemodynamic monitoring decision trees.</p>
+        <div class="specialty-tag">SCCM · Surviving Sepsis 2024</div>
+      </div>
+      <div class="specialty-card">
+        <div class="specialty-name">Endocrinology</div>
+        <p class="specialty-desc">Diabetes management (ADA 2025), insulin titration, DKA protocol, thyroid workup, adrenal crisis management, and HbA1c stratification by comorbidity.</p>
+        <div class="specialty-tag">ADA 2025 · ETA</div>
+      </div>
+      <div class="specialty-card">
+        <div class="specialty-name">Nephrology</div>
+        <p class="specialty-desc">AKI staging (KDIGO), CKD dose adjustment, contrast nephropathy prevention, renal replacement therapy thresholds, and electrolyte correction protocols.</p>
+        <div class="specialty-tag">KDIGO · ERA-EDTA</div>
+      </div>
+    </div>
+
+    <h2 id="add-specialty">Adding a Specialty Skill</h2>
+    <p>Any licensed clinician or hospital administrator with author access can add a specialty skill to their DoctorAssist.AI instance — sourced from the Skill Registry, forked from another institution, or authored from scratch.</p>
+
+    <h3>Step-by-step: Deploy Oncology to your instance</h3>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <div class="step-title">Open the Skill Registry</div>
+          <p class="step-desc">In your DoctorAssist.AI dashboard, go to <strong>Settings → Clinical Skills → Browse Registry</strong>. Search by specialty or filter by guideline source, evidence grade, or institution adoption count.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <div class="step-title">Review the Skill</div>
+          <p class="step-desc">Preview the full SKILL.md, evidence grades, guideline versions, and last-updated date. Each skill shows how many institutions have validated it in production use.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <div class="step-title">Configure Institution Overrides</div>
+          <p class="step-desc">Optionally add an <code>institution.json</code> overlay for local formulary restrictions, department-specific thresholds, or preferred drug brands — without modifying the base skill or breaking future updates.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <div class="step-title">Assign to Clinicians or Departments</div>
+          <p class="step-desc">Deploy hospital-wide, to a single department, or to individual physician accounts. Skills are immediately active for new patient encounters on assigned accounts with no restart required.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout">
+      <div class="callout-label">Instant Activation</div>
+      <p>Once deployed, the skill begins pattern-matching on all incoming patient data for assigned clinicians — surfacing staging alerts, regimen suggestions, and MDT prompts automatically before the next encounter opens.</p>
+    </div>
+
+    <h2 id="transfer-hospital">Copying Skills: Hospital to Hospital</h2>
+    <p>Skills are portable, version-controlled folders. A validated protocol from one institution can be adopted — with or without customisation — by any other hospital on DoctorAssist.AI in minutes, not months of committee review.</p>
+
+    <div class="transfer-flow">
+      <div class="flow-box">
+        <div class="flow-box-title">Tata Memorial Centre</div>
+        <div class="flow-box-sub">oncology-skill v2.4.1<br />Validated · 847 patients</div>
+      </div>
+      <div class="flow-arrow-col">
+        <div class="flow-arrow-symbol">→</div>
+        <div class="flow-arrow-label">Transfer</div>
+      </div>
+      <div class="flow-box" style="border-left: 1px solid var(--border);">
+        <div class="flow-box-title">AIIMS New Delhi</div>
+        <div class="flow-box-sub">Fork + local overrides<br />institution.json applied</div>
+      </div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Method</th>
+          <th>Use Case</th>
+          <th>Customisation</th>
+          <th>Time to Deploy</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="mono">Registry Install</td>
+          <td>Adopt a published skill as-is</td>
+          <td>Institution overlay only</td>
+          <td>&lt; 5 minutes</td>
+        </tr>
+        <tr>
+          <td class="mono">Fork &amp; Customise</td>
+          <td>Adapt a peer institution's protocol</td>
+          <td>Full edit access</td>
+          <td>1–2 hours</td>
+        </tr>
+        <tr>
+          <td class="mono">Export / Import</td>
+          <td>Air-gapped or on-prem transfer</td>
+          <td>Full edit access</td>
+          <td>&lt; 30 minutes</td>
+        </tr>
+        <tr>
+          <td class="mono">API Sync</td>
+          <td>Automated multi-site updates</td>
+          <td>Version-locked or floating</td>
+          <td>Automated</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2 id="transfer-doctor">Copying Skills: Doctor to Doctor</h2>
+    <p>A senior consultant's curated skill set — refined over years of clinical practice — can be shared directly with a registrar, fellow, or colleague joining the team. This transfers institutional knowledge that no textbook contains.</p>
+
+    <div class="callout">
+      <div class="callout-label">Controlled Sharing</div>
+      <p><strong>Skill sharing between clinicians requires administrator approval and full audit logging.</strong> All transferred skills inherit the receiving clinician's institution's safety constraints and approval workflows. No action can be taken without the receiving clinician's explicit consent.</p>
+    </div>
+
+    <div class="advantage-list">
+      <div class="advantage-item">
+        <div class="advantage-title">Consultant shares a skill package</div>
+        <p class="advantage-desc">From their profile, a senior clinician selects one or more skills and shares via a secure link or direct push to a colleague's account. The package includes the SKILL.md, calculators, and any personalised decision thresholds.</p>
+      </div>
+      <div class="advantage-item">
+        <div class="advantage-title">Recipient reviews and accepts</div>
+        <p class="advantage-desc">The receiving clinician previews the full protocol before accepting. They can merge it with their existing skills or apply it selectively — for example, only for paediatric oncology patients within their panel.</p>
+      </div>
+      <div class="advantage-item">
+        <div class="advantage-title">Audit trail preserved</div>
+        <p class="advantage-desc">Every transfer is logged with timestamp, sender, recipient, version, and any post-transfer modifications. This creates a traceable lineage of protocol adoption for compliance, accreditation, and quality governance.</p>
+      </div>
+    </div>
+
+    <h2 id="advantages">Advantages in Clinical Practice</h2>
+    <p>Standardising clinical decision logic through portable skills has measurable benefits across patient safety, operational efficiency, and institutional knowledge — grounded in how medicine is actually practised.</p>
+
+    <h3>Patient Safety</h3>
+    <div class="advantage-list">
+      <div class="advantage-item">
+        <div class="advantage-title">Eliminate protocol drift between shifts</div>
+        <p class="advantage-desc">When a night registrar takes over, the same evidence-based protocol governs every decision — not memory or habit. A STEMI patient at 3am receives the same cath lab activation logic as at 3pm with the attending consultant present.</p>
+      </div>
+      <div class="advantage-item">
+        <div class="advantage-title">Dose safety across renal and hepatic impairment</div>
+        <p class="advantage-desc">Drug protocols embedded in skills automatically adjust recommendations based on the patient's current eGFR, liver enzymes, and weight — catching prescribing errors before orders are placed, not after.</p>
+      </div>
+    </div>
+
+    <h3>Institutional Knowledge Transfer</h3>
+    <div class="advantage-list">
+      <div class="advantage-item">
+        <div class="advantage-title">Preserve senior expertise when consultants leave</div>
+        <p class="advantage-desc">A retiring oncologist's curated treatment approach — built from decades of MDT discussions — persists in a skill file rather than departing with them. The institution retains that clinical intelligence in a queryable, auditable form.</p>
+      </div>
+      <div class="advantage-item">
+        <div class="advantage-title">Accelerate junior clinician training</div>
+        <p class="advantage-desc">Registrars and fellows operate with a consultant-level clinical framework from day one. Skills scaffold decision-making with evidence links and confidence scores, reducing the learning curve without removing clinical autonomy.</p>
+      </div>
+    </div>
+
+    <h3>Operational Efficiency</h3>
+    <div class="advantage-list">
+      <div class="advantage-item">
+        <div class="advantage-title">Reduce time-to-treatment in time-critical conditions</div>
+        <p class="advantage-desc">For ACS, stroke, and sepsis — where minutes alter outcomes — automated skill activation means the right protocol is in front of the clinician before they finish reviewing the presenting complaint. No search required.</p>
+      </div>
+      <div class="advantage-item">
+        <div class="advantage-title">One guideline update propagates everywhere</div>
+        <p class="advantage-desc">When NCCN releases new oncology guidelines, updating the base skill in the registry propagates the change to every hospital and physician using it — with full changelog visibility and rollback support.</p>
+      </div>
+    </div>
+
+    <h3>Research and Quality Improvement</h3>
+    <div class="advantage-list">
+      <div class="advantage-item">
+        <div class="advantage-title">Cross-institutional outcome comparison</div>
+        <p class="advantage-desc">When multiple hospitals run the same skill version against similar patient cohorts, DoctorAssist.AI can generate de-identified comparative outcome data — turning everyday clinical practice into real-world evidence.</p>
+      </div>
+      <div class="advantage-item">
+        <div class="advantage-title">Guideline adherence becomes measurable</div>
+        <p class="advantage-desc">Because every recommendation links to a specific skill version and guideline clause, adherence can be tracked per-physician, per-department, and per-institution — making audit a continuous feedback loop rather than a periodic event.</p>
+      </div>
+    </div>
+
+    <h2 id="skill-registry">The Clinical Skill Registry</h2>
+    <p>DoctorAssist.AI maintains a curated registry of peer-reviewed, guideline-anchored clinical skills. Each entry is versioned, attributed, and carries a transparent evidence grade.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Skill</th>
+          <th>Version</th>
+          <th>Guidelines</th>
+          <th>Institutions</th>
+          <th>Updated</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="mono">cardiology-acs-protocol</td>
+          <td>3.1.0</td>
+          <td>AHA/ACC 2024 · ESC</td>
+          <td>42</td>
+          <td>Jan 2025</td>
+        </tr>
+        <tr>
+          <td class="mono">oncology-clinical-decision</td>
+          <td>2.4.1</td>
+          <td>NCCN v2.2025 · ESMO</td>
+          <td>31</td>
+          <td>Feb 2025</td>
+        </tr>
+        <tr>
+          <td class="mono">sepsis-surviving-sepsis</td>
+          <td>4.0.0</td>
+          <td>Surviving Sepsis 2024</td>
+          <td>58</td>
+          <td>Dec 2024</td>
+        </tr>
+        <tr>
+          <td class="mono">stroke-acute-pathway</td>
+          <td>2.2.0</td>
+          <td>AHA Stroke 2024 · EAN</td>
+          <td>27</td>
+          <td>Nov 2024</td>
+        </tr>
+        <tr>
+          <td class="mono">diabetes-ada-management</td>
+          <td>5.0.0</td>
+          <td>ADA Standards 2025</td>
+          <td>64</td>
+          <td>Mar 2025</td>
+        </tr>
+        <tr>
+          <td class="mono">aki-kdigo-protocol</td>
+          <td>1.8.3</td>
+          <td>KDIGO 2024 · ERA-EDTA</td>
+          <td>19</td>
+          <td>Oct 2024</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="cta-block">
+      <h2>Deploy your first skill</h2>
+      <p>Start with a core specialty from the registry, or bring your own institutional protocols into DoctorAssist.AI in under an hour.</p>
+      <div class="cta-buttons">
+        <a href="https://doctorassist.ai/agent_skill_repository.html" class="btn btn-primary">Browse Skill Registry</a>
+        <button class="btn btn-secondary" id="openModalBtn">Request Access</button>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<footer>
+  <div class="footer-copy">© 2025 DoctorAssist.AI — For licensed healthcare professionals only.</div>
+  <div class="footer-links">
+    <a href="#">Privacy</a>
+    <a href="#">Security</a>
+    <a href="#">HIPAA</a>
+    <a href="#">Contact</a>
+  </div>
+</footer>
+
+<!-- ── MODAL ── -->
+<div class="modal-overlay" id="modalOverlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+  <div class="modal">
+
+    <div class="modal-badge">Skill Contribution</div>
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="modalTitle">Add Your Skills</div>
+        <div class="modal-subtitle">Share your clinical expertise with the DoctorAssist.AI registry.</div>
+      </div>
+      <button class="modal-close" id="modalClose" aria-label="Close">✕</button>
+    </div>
+    <hr class="modal-divider" />
+
+    <!-- FORM -->
+    <div id="modalForm">
+      <div class="form-grid">
+        <div class="form-row">
+          <div class="form-field">
+            <label class="form-label" for="field-name">Full Name</label>
+            <input class="form-input" id="field-name" type="text" placeholder="Dr. Name" autocomplete="name" />
+            <span class="form-error" id="err-name">Please enter your name.</span>
+          </div>
+          <div class="form-field">
+            <label class="form-label" for="field-phone">Phone Number</label>
+            <input class="form-input" id="field-phone" type="tel" placeholder="+91 1232334121" autocomplete="tel" />
+            <span class="form-error" id="err-phone">Please enter a valid phone number.</span>
+          </div>
+        </div>
+        <div class="form-field">
+          <label class="form-label" for="field-email">Email Address</label>
+          <input class="form-input" id="field-email" type="email" placeholder="name@gmail.com" autocomplete="email" />
+          <span class="form-error" id="err-email">Please enter a valid email address.</span>
+        </div>
+        <div class="form-row">
+          <div class="form-field">
+            <label class="form-label" for="field-speciality">Speciality</label>
+            <input class="form-input" id="field-speciality" type="text" placeholder="e.g. Medical Oncology" />
+            <span class="form-error" id="err-speciality">Please enter your speciality.</span>
+          </div>
+          <div class="form-field">
+            <label class="form-label" for="field-hospital">Hospital / Institution</label>
+            <input class="form-input" id="field-hospital" type="text" placeholder="e.g. Example Hospital" />
+            <span class="form-error" id="err-hospital">Please enter your hospital name.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-modal-cancel" id="modalCancel" type="button">Cancel</button>
+        <button class="btn-modal-submit" id="modalSubmit" type="button">Submit Details</button>
+      </div>
+    </div>
+
+    <!-- SUCCESS -->
+    <div class="modal-success" id="modalSuccess">
+      <div class="success-icon">✓</div>
+      <div class="success-title">Details received</div>
+      <p class="success-sub">Thanks for contributing. Our clinical team will review your submission and be in touch within 2 business days.</p>
+      <button class="btn-modal-cancel" id="successClose" type="button">Close</button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  /* ── Sidebar active state ── */
+  const sections = document.querySelectorAll('[id]');
+  const links = document.querySelectorAll('.sidebar-link');
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        links.forEach(l => {
+          l.classList.toggle('active', l.getAttribute('href') === '#' + e.target.id);
+        });
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+  sections.forEach(s => obs.observe(s));
+
+  /* ── Modal logic ── */
+  const overlay   = document.getElementById('modalOverlay');
+  const openBtn   = document.getElementById('openModalBtn');
+  const closeBtn  = document.getElementById('modalClose');
+  const cancelBtn = document.getElementById('modalCancel');
+  const submitBtn = document.getElementById('modalSubmit');
+  const successCloseBtn = document.getElementById('successClose');
+  const modalForm    = document.getElementById('modalForm');
+  const modalSuccess = document.getElementById('modalSuccess');
+
+  function openModal() {
+    overlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    document.getElementById('field-name').focus();
+  }
+
+  function closeModal() {
+    overlay.classList.remove('open');
+    document.body.style.overflow = '';
+    // Reset form after transition
+    setTimeout(resetForm, 220);
+  }
+
+  function resetForm() {
+    ['field-name','field-phone','field-email','field-speciality','field-hospital'].forEach(id => {
+      const el = document.getElementById(id);
+      el.value = '';
+      el.classList.remove('error');
+    });
+    ['err-name','err-phone','err-email','err-speciality','err-hospital'].forEach(id => {
+      document.getElementById(id).classList.remove('visible');
+    });
+    modalForm.style.display = '';
+    modalSuccess.classList.remove('visible');
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = 'Submit Details';
+  }
+
+  openBtn.addEventListener('click', openModal);
+  closeBtn.addEventListener('click', closeModal);
+  cancelBtn.addEventListener('click', closeModal);
+  successCloseBtn.addEventListener('click', closeModal);
+
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) closeModal();
+  });
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && overlay.classList.contains('open')) closeModal();
+  });
+
+  /* ── Validation ── */
+  function validate() {
+    let valid = true;
+
+    const fields = [
+      { id: 'field-name',      err: 'err-name',      test: v => v.trim().length >= 2 },
+      { id: 'field-phone',     err: 'err-phone',     test: v => /^\+?[\d\s\-().]{7,20}$/.test(v.trim()) },
+      { id: 'field-email',     err: 'err-email',     test: v => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()) },
+      { id: 'field-speciality',err: 'err-speciality',test: v => v.trim().length >= 2 },
+      { id: 'field-hospital',  err: 'err-hospital',  test: v => v.trim().length >= 2 },
+    ];
+
+    fields.forEach(({ id, err, test }) => {
+      const el  = document.getElementById(id);
+      const errEl = document.getElementById(err);
+      const ok  = test(el.value);
+      el.classList.toggle('error', !ok);
+      errEl.classList.toggle('visible', !ok);
+      if (!ok) valid = false;
+    });
+
+    return valid;
+  }
+
+  /* ── Submit ── */
+  submitBtn.addEventListener('click', async () => {
+    if (!validate()) return;
+
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner"></span>Submitting…';
+
+    const payload = {
+      name:         document.getElementById('field-name').value.trim(),
+      phone_number: document.getElementById('field-phone').value.trim(),
+      email:        document.getElementById('field-email').value.trim(),
+      speciality:   document.getElementById('field-speciality').value.trim(),
+      hospital:     document.getElementById('field-hospital').value.trim(),
+    };
+
+    try {
+      const res = await fetch('https://doctorassist.ai/api/hms/users/doctors/doctor-details', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) throw new Error('Network response was not ok');
+
+      modalForm.style.display = 'none';
+      modalSuccess.classList.add('visible');
+
+    } catch (err) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = 'Submit Details';
+
+      // Show a subtle inline error rather than a noisy alert
+      const existingErr = document.getElementById('submit-error');
+      if (!existingErr) {
+        const errDiv = document.createElement('p');
+        errDiv.id = 'submit-error';
+        errDiv.style.cssText = 'font-family:var(--font-mono);font-size:10.5px;color:rgba(255,100,100,0.8);margin:12px 0 0;text-align:center;';
+        errDiv.textContent = 'Submission failed — please try again or contact support.';
+        document.querySelector('.modal-actions').before(errDiv);
+        setTimeout(() => errDiv.remove(), 5000);
+      }
+    }
+  });
+</script>
+</body>
+</html>

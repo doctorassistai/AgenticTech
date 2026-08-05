@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+  <meta charset="UTF-8" />
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  />
+
+  <title>
+    DoctorAssist Widgets Demo
+  </title>
+
+  <style>
+
+    body {
+
+      font-family: Arial, sans-serif;
+
+      padding: 20px;
+
+      background: #f4f6f9;
+    }
+
+    .widget-container {
+
+      margin-bottom: 30px;
+
+      padding: 20px;
+
+      background: #fff;
+
+      border-radius: 12px;
+
+      border: 1px solid #e5e7eb;
+    }
+
+    h2 {
+
+      margin-bottom: 30px;
+    }
+
+  </style>
+
+</head>
+
+<body>
+
+  <h2>
+    DoctorAssist.AI
+  </h2>
+
+  <!-- ===================================== -->
+  <!-- PATIENT ONBOARDING -->
+  <!-- ===================================== -->
+
+  
+
+  <!-- ===================================== -->
+  <!-- PATIENT -->
+  <!-- ===================================== -->
+
+  <div class="widget-container">
+
+    <h3>
+      Patient Summary
+    </h3>
+
+    <div id="patient-widget"></div>
+
+  </div>
+
+  <!-- ===================================== -->
+  <!-- TRANSCRIPTION -->
+  <!-- ===================================== -->
+
+  <div class="widget-container">
+
+    <h3>
+      Transcription
+    </h3>
+
+    <div id="transcription-widget"></div>
+
+  </div>
+
+  <!-- ===================================== -->
+  <!-- DIAGNOSIS -->
+  <!-- ===================================== -->
+
+  <div class="widget-container">
+
+    <h3>
+      Diagnosis
+    </h3>
+
+    <div id="diagnosis-widget"></div>
+
+  </div>
+
+  <!-- ===================================== -->
+  <!-- TREATMENT PLAN -->
+  <!-- ===================================== -->
+
+  <div class="widget-container">
+
+    <h3>
+      Treatment Plan
+    </h3>
+
+    <div id="treatmentplan-widget"></div>
+
+  </div>
+  <!-- ===================================== -->
+<!-- PROCEDURE NOTES -->
+<!-- ===================================== -->
+
+<div class="widget-container">
+  <h3>Procedure Notes</h3>
+  <div id="procedure-notes-widget"></div>
+</div>
+<div class="widget-container">
+  <h3>Tumor Board</h3>
+  <div id="tumorboard-widget"></div>
+</div>
+
+  <!-- ===================================== -->
+  <!-- COMBINED DOCUMENTATION -->
+  <!-- ===================================== -->
+
+  <div class="widget-container">
+
+    <h3>
+      Combined Documentation
+    </h3>
+
+    <div id="combined-documentation-widget"></div>
+
+  </div>
+
+  <!-- ===================================== -->
+  <!-- SAVE SESSION -->
+  <!-- ===================================== -->
+
+<div class="widget-container">
+
+  <h3>
+    Report Upload
+  </h3>
+
+  <div id="report-upload-widget"></div>
+
+</div>
+
+
+<!-- ===================================== -->
+<!-- PATIENT PORTAL -->
+<!-- ===================================== -->
+
+<div class="widget-container">
+
+  <h3>
+    Patient Portal
+  </h3>
+
+  <div id="patient-portal-widget"></div>
+
+</div>
+
+
+  <!-- ===================================== -->
+  <!-- GLOBAL VARIABLES -->
+  <!-- ===================================== -->
+
+  <script>
+
+    window.process = {
+      env: {}
+    };
+
+    window.PATIENT_WIDGET_API =
+      "https://doctorassist.ai/api/";
+
+    // =====================================
+    // SHARED GLOBAL DATA
+    // =====================================
+
+    window.DOCTOR_ASSIST_DATA = {
+
+      transcript: "",
+
+      diagnosis: "",
+
+      treatment_plan: "",
+
+      document_treatment_plan: "",
+
+      medications: [],
+
+      investigations: [],
+
+      clinical_notes: "",
+
+      onboarding_summary: ""
+    };
+
+  </script>
+
+  <!-- ===================================== -->
+  <!-- LOAD WIDGET FILES -->
+  <!-- ===================================== -->
+
+  <script src="https://doctorassist.ai/widgets/patient-widget.js?v=1"></script>
+
+  <script src="https://doctorassist.ai/widgets/transcription-widget.js?v=5.0"></script>
+
+  <script src="https://doctorassist.ai/widgets/patient-onboarding-widget.js?v=1.0"></script>
+
+  <script src="https://doctorassist.ai/widgets/diagnosis-widget.js?v=1.0"></script>
+
+  <script src="https://doctorassist.ai/widgets/treatmentplan-widget.js?v=1.0"></script>
+
+  <script src="https://doctorassist.ai/widgets/document-treatmentplan-widget.js?v=1.0"></script>
+
+  <script src="https://doctorassist.ai/widgets/medication-widget.js?v=1.0"></script>
+
+  <script src="https://doctorassist.ai/widgets/investigation-widget.js?v=1.0"></script>
+
+  <script src="https://doctorassist.ai/widgets/clinicalnotes-widget.js?v=1.0"></script>
+
+  <script src="https://doctorassist.ai/widgets/combined-documentation-widget.js?v=1.0.0"></script>
+
+  <script src="https://doctorassist.ai/widgets/save-session-widget.js?v=1.0"></script>
+  <script src="https://doctorassist.ai/widgets/report-upload-widget.js?v=4"></script>
+  <script src="https://doctorassist.ai/widgets/patient-portal-widget.js?v=1.0"></script>
+  <script src="https://doctorassist.ai/widgets/procedure-notes-widget.js?v=1.5"></script>
+<script src="https://doctorassist.ai/widgets/tumorboard-widget.js?v=1.2"></script>
+
+  <!-- ===================================== -->
+  <!-- INITIALIZE -->
+  <!-- ===================================== -->
+
+  <script>
+
+    window.addEventListener(
+      "load",
+      async function () {
+
+        console.log(
+          "🚀 Initializing widgets..."
+        );
+
+        // =====================================
+        // API CONFIG
+        // =====================================
+
+        const endpoint =
+          "https://doctorassist.ai/api/hms/integration/system/validate-widget-session";
+
+        const bearerToken =
+          "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJJTlQtZmQ5NmNiOGEtMDYyOC00Yjk5LWE2NTEtMzg3YTVkYmMzZjM4Iiwicm9sZSI6ImludGVncmF0b3IiLCJzY29wZXMiOltdLCJleHAiOjE3ODU1NDY4MzB9.bB7_MnyDAd7JhwP0VW4EsNaibfqT6HM__3luImj9Nic";
+
+        // =====================================
+        // REQUEST PAYLOAD
+        // =====================================
+
+        const payload = {
+
+          hospital_id:
+            "xDDt2uQrmi",
+
+          // doctor_id:
+          //   "DOC_999877",
+             doctor_id:
+            "2FFvzVVIgP",
+
+          patient_id:
+            "HMS-PAT-@2292925"
+        };
+
+        // =====================================
+        // COMMON VALIDATION FUNCTION
+        // =====================================
+
+        async function validateSession() {
+
+          const response = await fetch(
+            endpoint,
+            {
+              method: "POST",
+
+              headers: {
+
+                "Content-Type":
+                  "application/json",
+
+                Authorization:
+                  `Bearer ${bearerToken}`
+              },
+
+              body: JSON.stringify(payload)
+            }
+          );
+
+          if (!response.ok) {
+
+            throw new Error(
+              `Validation failed: ${response.status}`
+            );
+          }
+
+          return await response.json();
+        }
+
+        // =====================================
+        // PATIENT SUMMARY WIDGET
+        // =====================================
+
+        try {
+
+          const data =
+            await validateSession();
+
+          window.PatientWidget?.init({
+
+            containerId:
+              "patient-widget",
+
+            patientId:
+              data.patient.patient_sys_user_id,
+            doctorId:
+              data.doctor.doctor_sys_user_id
+          });
+
+          console.log(
+            "✅ Patient widget initialized"
+          );
+
+        } catch (err) {
+
+          console.error(
+            "❌ Patient widget failed",
+            err
+          );
+        }
+
+        // =====================================
+        // TRANSCRIPTION WIDGET
+        // =====================================
+
+        try {
+
+          const data =
+            await validateSession();
+
+          window.TranscriptionWidget?.init({
+
+            containerId:
+              "transcription-widget",
+
+            doctorId:
+              data.doctor.doctor_sys_user_id,
+
+            patientId:
+              data.patient.patient_sys_user_id
+          });
+
+          console.log(
+            "✅ Transcription widget initialized"
+          );
+
+        } catch (err) {
+
+          console.error(
+            "❌ Transcription widget failed",
+            err
+          );
+        }
+
+        // =====================================
+        // PATIENT ONBOARDING WIDGET
+        // =====================================
+
+        try {
+
+          const data =
+            await validateSession();
+
+          window.PatientOnboardingWidget?.init({
+
+            containerId:
+              "onboarding-widget",
+
+            doctorId:
+              data.doctor.doctor_sys_user_id,
+
+            patientId:
+              data.patient.patient_sys_user_id
+          });
+
+          console.log(
+            "✅ Onboarding widget initialized"
+          );
+
+        } catch (err) {
+
+          console.error(
+            "❌ Onboarding widget failed",
+            err
+          );
+        }
+
+        // =====================================
+        // DIAGNOSIS WIDGET
+        // =====================================
+
+        try {
+
+          const data =
+            await validateSession();
+
+          window.DiagnosisWidget?.init({
+
+            containerId:
+              "diagnosis-widget",
+
+            doctorId:
+              data.doctor.doctor_sys_user_id,
+
+            patientId:
+              data.patient.patient_sys_user_id
+          });
+
+          console.log(
+            "✅ Diagnosis widget initialized"
+          );
+
+        } catch (err) {
+
+          console.error(
+            "❌ Diagnosis widget failed",
+            err
+          );
+        }
+
+        // =====================================
+        // TREATMENT PLAN WIDGET
+        // =====================================
+
+        try {
+
+          const data =
+            await validateSession();
+
+          window.TreatmentPlanWidget?.init({
+
+            containerId:
+              "treatmentplan-widget",
+
+            doctorId:
+              data.doctor.doctor_sys_user_id,
+
+            patientId:
+              data.patient.patient_sys_user_id
+          });
+
+          console.log(
+            "✅ Treatment Plan widget initialized"
+          );
+
+        } catch (err) {
+
+          console.error(
+            "❌ Treatment Plan widget failed",
+            err
+          );
+        }
+        // =====================================
+// PROCEDURE NOTES WIDGET
+// =====================================
+
+try {
+
+  const data =
+    await validateSession();
+
+  window.ProcedureNotesWidget?.init({
+
+    containerId:
+      "procedure-notes-widget",
+
+    doctorId:
+      data.doctor.doctor_sys_user_id,
+
+    patientId:
+      data.patient.patient_sys_user_id
+  });
+
+  console.log(
+    "✅ Procedure Notes widget initialized"
+  );
+
+} catch (err) {
+
+  console.error(
+    "❌ Procedure Notes widget failed",
+    err
+  );
+}
+
+
+// tumour board WIDGET
+
+try {
+  const data = await validateSession();
+
+  if (!window.TumorBoardWidget) {
+    throw new Error("TumorBoardWidget script did not load");
+  }
+
+  console.log("🔍 Doctor object:", data.doctor);
+  console.log("🔍 Specialization value:", data.doctor.specialization);
+
+  window.TumorBoardWidget.init({
+    containerId: "tumorboard-widget",
+    doctorId: data.doctor.doctor_sys_user_id,
+    patientId: data.patient.patient_sys_user_id,
+    doctorSpeciality: data.doctor.specialization,
+    doctorName: data.doctor.name,
+    patientName: data.patient.name,
+  });
+
+  console.log("✅ Tumor Board widget initialized");
+
+} catch (err) {
+  console.error("❌ Tumor Board widget failed", err);
+}
+
+        // =====================================
+        // COMBINED DOCUMENTATION WIDGET
+        // =====================================
+
+        try {
+
+          const data =
+            await validateSession();
+
+          window.CombinedDocumentationWidget?.init({
+
+            containerId:
+              "combined-documentation-widget",
+
+            doctorId:
+              data.doctor.doctor_sys_user_id,
+
+            patientId:
+              data.patient.patient_sys_user_id
+          });
+
+          console.log(
+            "✅ Combined Documentation initialized"
+          );
+
+        } catch (err) {
+
+          console.error(
+            "❌ Combined Documentation failed",
+            err
+          );
+        }
+
+        // =====================================
+        // SAVE SESSION WIDGET
+        // =====================================
+
+        try {
+
+          const data =
+            await validateSession();
+
+          window.SaveSessionWidget?.init({
+
+            containerId:
+              "save-session-widget",
+
+            doctorId:
+              data.doctor.doctor_sys_user_id,
+
+            patientId:
+              data.patient.patient_sys_user_id
+          });
+
+          console.log(
+            "✅ Save Session initialized"
+          );
+
+        } catch (err) {
+
+          console.error(
+            "❌ Save Session failed",
+            err
+          );
+        }
+
+        console.log(
+          "🎉 Widget initialization completed"
+        );
+
+      }
+    );
+
+  </script>
+
+<script>
+  window.addEventListener(
+    "load",
+    async function () {
+
+      const endpoint =
+        "https://doctorassist.ai/api/hms/integration/system/validate-widget-session";
+
+      // ✅ Use the same valid token as the first block
+      const bearerToken =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJJTlQtZmQ5NmNiOGEtMDYyOC00Yjk5LWE2NTEtMzg3YTVkYmMzZjM4Iiwicm9sZSI6ImludGVncmF0b3IiLCJzY29wZXMiOltdLCJleHAiOjE3ODU1NDY4MzB9.bB7_MnyDAd7JhwP0VW4EsNaibfqT6HM__3luImj9Nic";
+
+      const payload = {
+        hospital_id: "xDDt2uQrmi",
+        doctor_id: "2FFvzVVIgP",
+        patient_id: "HMS-PAT-@2292925"
+      };
+
+      async function validateSession() {
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${bearerToken}`
+          },
+          body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+          throw new Error(`Validation failed: ${response.status}`);
+        }
+
+        return await response.json();
+      }
+
+      // Report Upload Widget
+      try {
+        const data = await validateSession();
+
+        window.ReportUploadWidget?.init({
+          containerId: "report-upload-widget",
+          doctorId: data.doctor.doctor_sys_user_id,
+          patientId: data.patient.patient_sys_user_id,
+          appointmentId: data.appointment?.appointment_id
+        });
+
+        console.log("✅ Report Upload Widget Initialized");
+      } catch (err) {
+        console.error("❌ Report Upload Widget failed", err);
+      }
+
+      // Patient Portal Widget
+      try {
+        const data = await validateSession();
+
+        window.PatientPortalWidget?.init({
+          containerId: "patient-portal-widget",
+          hospitalId: data.hospital.hospital_sys_user_id,
+          doctorId: data.doctor.doctor_sys_user_id,
+          patientId: data.patient.patient_sys_user_id,
+          appointmentId: data.appointment?.appointment_id
+        });
+
+        console.log("✅ Patient Portal Initialized");
+      } catch (err) {
+        console.error("❌ Patient Portal Widget failed", err);
+      }
+    }
+  );
+</script>
+
+</script>
+
+
+</body>
+</html>

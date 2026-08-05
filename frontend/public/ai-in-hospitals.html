@@ -1,0 +1,1158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DoctorAssist.AI — For Hospitals & Health Systems</title>
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #fafafa;
+            --bg-tertiary: #f5f5f5;
+            --text-primary: #000000;
+            --text-secondary: #444444;
+            --text-muted: #888888;
+            --border: #e0e0e0;
+            --border-strong: #000000;
+            --accent: #000000;
+        }
+        body {
+            font-family: 'Open Sans', sans-serif;
+            font-weight: 300;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+        }
+        ::selection { background: var(--accent); color: var(--bg-primary); }
+        html { scroll-behavior: smooth; }
+
+        /* NAV */
+        nav {
+            position: fixed; top: 0; width: 100%; padding: 1rem 2rem;
+            display: flex; justify-content: space-between; align-items: center;
+            background: rgba(255,255,255,0.98); backdrop-filter: blur(10px);
+            z-index: 1000; border-bottom: 1px solid var(--border);
+        }
+        .logo { font-weight: 400; font-size: 1rem; letter-spacing: -0.01em; text-decoration: none; color: var(--text-primary); }
+        .logo span { color: var(--text-muted); font-weight: 300; font-size: 0.78rem; margin-left: 0.75rem; }
+        .nav-links { display: flex; gap: 1.5rem; }
+        .nav-links a { text-decoration: none; color: var(--text-secondary); font-size: 0.78rem; font-weight: 300; transition: color 0.2s; }
+        .nav-links a:hover { color: var(--text-primary); }
+        .nav-cta { padding: 0.5rem 1rem; background: var(--accent); color: #fff; text-decoration: none; font-size: 0.75rem; font-weight: 400; border: 1px solid var(--accent); transition: all 0.2s; }
+        .nav-cta:hover { background: transparent; color: var(--text-primary); }
+
+        /* SHARED */
+        .section { padding: 6rem 2rem; }
+        .section.alt { background: var(--bg-secondary); }
+        .container { max-width: 1100px; margin: 0 auto; }
+        .container-narrow { max-width: 900px; margin: 0 auto; }
+        .section-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.2em; color: var(--text-muted); margin-bottom: 1rem; font-weight: 400; }
+        .section-h2 { font-size: clamp(1.5rem, 3vw, 2.2rem); font-weight: 300; letter-spacing: -0.02em; margin-bottom: 0.75rem; }
+        .section-sub { font-size: 0.9rem; color: var(--text-secondary); max-width: 650px; margin-bottom: 3rem; line-height: 1.8; }
+        .divider { height: 1px; background: var(--border); margin: 3rem 0; }
+        .plain-callout { background: var(--bg-secondary); border: 1px solid var(--border); border-left: 4px solid var(--accent); padding: 1.25rem 1.5rem; margin: 1.5rem 0; }
+        .plain-callout strong { font-weight: 400; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); display: block; margin-bottom: 0.4rem; }
+        .plain-callout p { font-size: 0.9rem; color: var(--text-secondary); }
+
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+        @keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
+        /* HERO */
+        .hero {
+            min-height: 100vh; display: flex; flex-direction: column;
+            justify-content: center; align-items: center; text-align: center;
+            padding: 10rem 2rem 4rem; position: relative; border-bottom: 1px solid var(--border);
+        }
+        .hero-eyebrow { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.4rem 1rem; border: 1px solid var(--border); font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.2em; color: var(--text-muted); margin-bottom: 2rem; }
+        .hero-eyebrow-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: pulse 2s infinite; }
+        .hero h1 { font-size: clamp(2rem, 5.5vw, 4rem); font-weight: 300; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 1.5rem; max-width: 900px; }
+        .hero h1 em { font-style: normal; border-bottom: 2px solid var(--accent); }
+        .hero-subtitle { font-size: clamp(0.9rem, 1.8vw, 1.1rem); color: var(--text-secondary); max-width: 600px; margin-bottom: 3rem; line-height: 1.8; }
+        .hero-actions { display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center; }
+        .btn-primary { padding: 1rem 2rem; background: var(--accent); color: #fff; text-decoration: none; font-size: 0.9rem; font-weight: 400; border: 1px solid var(--accent); transition: all 0.3s; }
+        .btn-primary:hover { background: transparent; color: var(--text-primary); }
+        .btn-secondary { padding: 1rem 2rem; background: transparent; color: var(--text-primary); text-decoration: none; font-size: 0.9rem; font-weight: 300; border: 1px solid var(--border); transition: all 0.3s; }
+        .btn-secondary:hover { border-color: var(--accent); }
+        .hero-note { margin-top: 1.5rem; font-size: 0.7rem; color: var(--text-muted); }
+
+        /* MARQUEE */
+        .marquee-bar { width: 100%; overflow: hidden; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 0.875rem 0; margin-top: 4rem; background: var(--bg-secondary); }
+        .marquee-inner { display: flex; gap: 3rem; animation: marquee 35s linear infinite; white-space: nowrap; width: max-content; }
+        .marquee-item { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--text-muted); display: flex; align-items: center; gap: 0.75rem; }
+        .marquee-item::after { content: '·'; color: var(--border); }
+
+        /* ROI */
+        .roi-board { border: 1px solid var(--border-strong); margin: 3rem 0; }
+        .roi-header { display: flex; justify-content: space-between; align-items: center; padding: 0.875rem 1.5rem; background: var(--accent); color: #fff; flex-wrap: wrap; gap: 0.5rem; }
+        .roi-header-title { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.15em; font-weight: 400; }
+        .roi-header-sub { font-size: 0.62rem; opacity: 0.7; }
+        .roi-grid { display: grid; grid-template-columns: repeat(4, 1fr); }
+        .roi-cell { padding: 1.75rem 1.25rem; text-align: center; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); position: relative; overflow: hidden; transition: background 0.2s; }
+        .roi-cell:hover { background: var(--bg-secondary); }
+        .roi-cell:nth-child(4n) { border-right: none; }
+        .roi-cell:nth-last-child(-n+4) { border-bottom: none; }
+        .roi-num { font-size: 2.5rem; font-weight: 300; letter-spacing: -0.05em; line-height: 1; margin-bottom: 0.4rem; }
+        .roi-label { font-size: 0.72rem; color: var(--text-secondary); line-height: 1.5; }
+        .roi-source { font-size: 0.58rem; color: var(--text-muted); margin-top: 0.4rem; font-style: italic; }
+        .roi-cell::before { content: ''; position: absolute; top: 0; left: 0; width: 3px; height: 0; background: var(--accent); transition: height 0.4s; }
+        .roi-cell:hover::before { height: 100%; }
+
+        /* TICKER */
+        .ticker-wrap { overflow: hidden; border: 1px solid var(--border); background: var(--bg-secondary); padding: 0.75rem 1.5rem; margin: 2rem 0; display: flex; align-items: center; gap: 1rem; }
+        .ticker-label { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--text-muted); white-space: nowrap; flex-shrink: 0; display: flex; align-items: center; gap: 0.4rem; }
+        .ticker-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: pulse 2s infinite; }
+        .ticker-items { display: flex; gap: 2rem; animation: marquee 25s linear infinite; white-space: nowrap; overflow: hidden; }
+        .ticker-item { font-size: 0.72rem; color: var(--text-secondary); }
+
+        /* STATS */
+        .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; margin: 3rem 0; }
+        .stat-box { border: 1px solid var(--border); padding: 1.5rem; text-align: center; transition: all 0.3s; }
+        .stat-box:hover { border-color: var(--accent); }
+        .stat-number { font-size: 2.5rem; font-weight: 300; letter-spacing: -0.05em; margin-bottom: 0.5rem; }
+        .stat-label { font-size: 0.75rem; color: var(--text-secondary); }
+
+        /* COMPARISON TABLE */
+        .comp-table { border: 1px solid var(--border-strong); margin: 2rem 0; overflow-x: auto; }
+        .comp-table table { width: 100%; border-collapse: collapse; min-width: 600px; }
+        .comp-table th { padding: 0.875rem 1rem; text-align: left; font-weight: 400; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; background: var(--bg-secondary); border-bottom: 1px solid var(--border); color: var(--text-muted); }
+        .comp-table th.hl { background: var(--accent); color: #fff; }
+        .comp-table td { padding: 0.75rem 1rem; font-size: 0.8rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+        .comp-table tr:last-child td { border-bottom: none; }
+        .comp-table td.fn { font-weight: 400; }
+        .comp-table td.hl { background: rgba(0,0,0,0.02); font-weight: 400; }
+        .chk { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; background: var(--accent); color: #fff; font-size: 0.6rem; border-radius: 50%; }
+        .crs { color: var(--text-muted); }
+        .prt { font-size: 0.72rem; color: var(--text-secondary); }
+
+        /* DEEP AGENT VIZ */
+        .dav-wrap { border: 1px solid var(--border-strong); background: var(--bg-secondary); margin: 2rem 0; overflow: hidden; }
+        .dav-header { padding: 0.875rem 1.5rem; background: var(--accent); color: #fff; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
+        .dav-title { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.15em; }
+        .dav-meta { font-size: 0.62rem; opacity: 0.7; }
+        canvas#dav { display: block; width: 100%; }
+        .dav-legend { display: flex; gap: 1.5rem; padding: 0.75rem 1.5rem; border-top: 1px solid var(--border); background: var(--bg-primary); flex-wrap: wrap; }
+        .dav-legend-item { display: flex; align-items: center; gap: 0.4rem; font-size: 0.65rem; color: var(--text-secondary); }
+        .dav-legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+        /* AGENT ARCH */
+        .agent-arch { border: 1px solid var(--border-strong); margin: 2rem 0; }
+        .aa-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; background: var(--accent); color: #fff; flex-wrap: wrap; gap: 0.5rem; }
+        .aa-title { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.15em; font-weight: 400; }
+        .aa-badge { font-size: 0.6rem; padding: 0.2rem 0.6rem; border: 1px solid rgba(255,255,255,0.3); }
+        .aa-body { display: grid; grid-template-columns: 1fr 1fr; }
+        .aa-side { padding: 2rem; }
+        .aa-side:first-child { border-right: 1px solid var(--border); }
+        .aa-side h4 { font-weight: 400; font-size: 0.95rem; margin-bottom: 1rem; }
+        .agent-list { list-style: none; }
+        .agent-list li { display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.75rem 0; border-bottom: 1px solid var(--border); font-size: 0.82rem; }
+        .agent-list li:last-child { border-bottom: none; }
+        .al-badge { width: 28px; height: 28px; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.6rem; flex-shrink: 0; }
+        .al-content strong { font-weight: 400; display: block; margin-bottom: 0.15rem; }
+        .al-content span { font-size: 0.75rem; color: var(--text-secondary); }
+
+        /* WORKFLOW PHASES */
+        .workflow-visual { border: 1px solid var(--border-strong); margin: 2rem 0; }
+        .wv-header { padding: 0.875rem 1.5rem; background: var(--bg-secondary); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
+        .wv-title { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text-muted); }
+        .wv-status { display: flex; align-items: center; gap: 0.5rem; font-size: 0.65rem; color: var(--text-muted); }
+        .wv-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: pulse 2s infinite; }
+        .phase-strip { display: grid; grid-template-columns: repeat(5, 1fr); border-bottom: 1px solid var(--border); }
+        .phase-step { padding: 1.25rem 1rem; border-right: 1px solid var(--border); cursor: pointer; transition: background 0.2s; }
+        .phase-step:last-child { border-right: none; }
+        .phase-step:hover, .phase-step.active { background: var(--bg-secondary); }
+        .phase-step.active { border-top: 2px solid var(--accent); margin-top: -1px; }
+        .ps-num { font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.35rem; }
+        .ps-title { font-size: 0.8rem; font-weight: 400; margin-bottom: 0.25rem; }
+        .ps-time { font-size: 0.65rem; color: var(--text-muted); }
+        .phase-detail { padding: 1.5rem; display: none; }
+        .phase-detail.active { display: block; }
+        .pd-agents { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 1rem; }
+        .pd-agent { font-size: 0.62rem; padding: 0.2rem 0.5rem; border: 1px solid var(--border); background: var(--accent); color: #fff; }
+        .pd-text { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.7; }
+
+        /* HOSPITAL GRID */
+        .hosp-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-top: 2rem; }
+        .hosp-card { border: 1px solid var(--border); padding: 1.75rem; transition: all 0.3s; }
+        .hosp-card:hover { border-color: var(--accent); }
+        .hosp-type { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--text-muted); margin-bottom: 1rem; }
+        .hosp-card h3 { font-weight: 400; font-size: 1rem; margin-bottom: 0.75rem; }
+        .hosp-card p { font-size: 0.8rem; color: var(--text-secondary); line-height: 1.7; margin-bottom: 1.25rem; }
+        .hosp-metrics { display: flex; flex-direction: column; gap: 0; }
+        .hm-row { display: flex; justify-content: space-between; font-size: 0.75rem; padding: 0.4rem 0; border-bottom: 1px solid var(--border); }
+        .hm-row:last-child { border-bottom: none; }
+        .hm-val { font-weight: 400; }
+
+        /* TALENT */
+        .talent-split { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--border-strong); margin: 2rem 0; }
+        .ts-side { padding: 2.5rem; }
+        .ts-side:first-child { border-right: 1px solid var(--border); }
+        .ts-badge { display: inline-block; font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.12em; padding: 0.25rem 0.6rem; border: 1px solid var(--border); margin-bottom: 1rem; }
+        .ts-badge.dark { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .ts-side h3 { font-weight: 400; font-size: 1.2rem; margin-bottom: 0.5rem; }
+        .ts-side .tagline { font-size: 0.82rem; color: var(--text-muted); margin-bottom: 1.5rem; font-style: italic; }
+        .doc-quote { padding: 1.25rem; background: var(--bg-secondary); border-left: 3px solid var(--accent); margin: 1rem 0; }
+        .doc-quote p { font-size: 0.85rem; font-style: italic; line-height: 1.7; margin-bottom: 0.5rem; }
+        .doc-quote cite { font-size: 0.65rem; color: var(--text-muted); font-style: normal; }
+        .outcome-row { display: flex; align-items: center; gap: 1rem; padding: 0.875rem 0; border-bottom: 1px solid var(--border); font-size: 0.82rem; }
+        .outcome-row:last-child { border-bottom: none; }
+        .or-num { font-size: 1.5rem; font-weight: 300; letter-spacing: -0.03em; min-width: 55px; }
+
+        /* IMPLEMENTATION */
+        .impl-steps { border: 1px solid var(--border-strong); margin: 2rem 0; }
+        .impl-step { display: grid; grid-template-columns: 70px 1fr auto; gap: 1.5rem; padding: 1.75rem; border-bottom: 1px solid var(--border); align-items: start; transition: background 0.2s; }
+        .impl-step:hover { background: var(--bg-secondary); }
+        .impl-step:last-child { border-bottom: none; }
+        .impl-num { font-size: 2.2rem; font-weight: 300; letter-spacing: -0.05em; color: var(--text-muted); }
+        .impl-content h4 { font-weight: 400; font-size: 1rem; margin-bottom: 0.4rem; }
+        .impl-content p { font-size: 0.8rem; color: var(--text-secondary); line-height: 1.7; }
+        .impl-time { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); white-space: nowrap; padding: 0.3rem 0.6rem; border: 1px solid var(--border); }
+
+        /* SECURITY */
+        .sec-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-top: 2rem; }
+        .sec-card { border: 1px solid var(--border); padding: 1.5rem; text-align: center; transition: all 0.3s; }
+        .sec-card:hover { border-color: var(--accent); }
+        .sec-icon { width: 44px; height: 44px; border: 1px solid var(--border); margin: 0 auto 1rem; display: flex; align-items: center; justify-content: center; font-size: 0.72rem; transition: all 0.3s; }
+        .sec-card:hover .sec-icon { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .sec-card h4 { font-weight: 400; font-size: 0.85rem; margin-bottom: 0.4rem; }
+        .sec-card p { font-size: 0.72rem; color: var(--text-secondary); line-height: 1.6; }
+
+        /* CTA */
+        .cta-block { border: 1px solid var(--border-strong); padding: 4rem 3rem; text-align: center; margin: 3rem 0; }
+        .cta-block h2 { font-size: clamp(1.5rem, 3vw, 2.5rem); font-weight: 300; letter-spacing: -0.02em; margin-bottom: 1rem; }
+        .cta-block p { font-size: 0.95rem; color: var(--text-secondary); max-width: 560px; margin: 0 auto 2.5rem; line-height: 1.8; }
+        .cta-options { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+        .cta-note { font-size: 0.7rem; color: var(--text-muted); margin-top: 1rem; }
+
+        /* PRICING */
+        .pricing-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem; margin: 2.5rem 0; }
+        .price-card { border: 1px solid var(--border); padding: 2rem; transition: all 0.3s; }
+        .price-card:hover { border-color: var(--accent); transform: translateY(-3px); }
+        .price-card.featured { border-color: var(--accent); position: relative; }
+        .price-card.featured::before { content: 'Best Value'; position: absolute; top: -11px; left: 50%; transform: translateX(-50%); background: var(--accent); color: #fff; padding: 0.2rem 0.875rem; font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.1em; }
+        .price-name { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.75rem; }
+        .price-val { font-size: 2.5rem; font-weight: 300; letter-spacing: -0.04em; margin-bottom: 0.25rem; }
+        .price-val span { font-size: 0.9rem; color: var(--text-muted); font-weight: 300; }
+        .price-desc { font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 1.5rem; }
+        .price-features { list-style: none; margin-bottom: 1.5rem; }
+        .price-features li { padding: 0.5rem 0; border-bottom: 1px solid var(--border); font-size: 0.8rem; color: var(--text-secondary); display: flex; gap: 0.5rem; align-items: flex-start; }
+        .price-features li:last-child { border-bottom: none; }
+        .price-features li::before { content: '→'; color: var(--text-muted); font-size: 0.7rem; flex-shrink: 0; margin-top: 2px; }
+        .price-cta { display: block; width: 100%; padding: 0.875rem; text-align: center; background: var(--accent); color: #fff; text-decoration: none; font-size: 0.8rem; font-weight: 400; border: 1px solid var(--accent); transition: all 0.2s; }
+        .price-cta:hover { background: transparent; color: var(--text-primary); }
+
+        /* FOOTER */
+        footer { padding: 5rem 2rem; text-align: center; border-top: 1px solid var(--border); }
+        .footer-tagline { font-size: clamp(1.5rem, 3vw, 2.5rem); font-weight: 300; letter-spacing: -0.02em; margin-bottom: 2rem; }
+        .footer-cta { display: inline-block; padding: 1.25rem 2.5rem; background: var(--accent); color: #fff; text-decoration: none; font-size: 1rem; font-weight: 400; border: 1px solid var(--accent); transition: all 0.3s; }
+        .footer-cta:hover { background: transparent; color: var(--text-primary); }
+        .footer-links { display: flex; justify-content: center; gap: 2rem; margin-top: 3rem; flex-wrap: wrap; }
+        .footer-links a { color: var(--text-muted); text-decoration: none; font-size: 0.75rem; transition: color 0.2s; }
+        .footer-links a:hover { color: var(--text-primary); }
+
+        /* RESPONSIVE */
+        @media (max-width: 900px) {
+            .roi-grid { grid-template-columns: repeat(2, 1fr); }
+            .roi-cell:nth-child(4n) { border-right: 1px solid var(--border); }
+            .roi-cell:nth-child(2n) { border-right: none; }
+            .aa-body { grid-template-columns: 1fr; }
+            .aa-side:first-child { border-right: none; border-bottom: 1px solid var(--border); }
+            .talent-split { grid-template-columns: 1fr; }
+            .ts-side:first-child { border-right: none; border-bottom: 1px solid var(--border); }
+            .hosp-grid { grid-template-columns: 1fr 1fr; }
+            .pricing-row { grid-template-columns: 1fr; }
+            .phase-strip { grid-template-columns: 1fr 1fr; }
+            .sec-grid { grid-template-columns: repeat(2, 1fr); }
+            .stats-row { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 600px) {
+            .nav-links { display: none; }
+            .roi-grid { grid-template-columns: 1fr 1fr; }
+            .hosp-grid { grid-template-columns: 1fr; }
+            .impl-step { grid-template-columns: 50px 1fr; }
+            .impl-time { display: none; }
+            .sec-grid { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+    <a href="https://doctorassist.ai" class="logo">DoctorAssist.AI <span>For Hospitals &amp; Health Systems</span></a>
+    <div class="nav-links">
+        <a href="#roi">ROI</a>
+        <a href="#technology">Technology</a>
+        <a href="#talent">Talent</a>
+        <a href="#implementation">Deploy</a>
+        <a href="#security">Security</a>
+        <a href="#pricing">Pricing</a>
+    </div>
+    <a href="https://doctorassist.ai/login" class="nav-cta">Request Demo</a>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+    <div class="hero-eyebrow">
+        <div class="hero-eyebrow-dot"></div>
+        Deep Agent Technology &mdash; Clinical Intelligence Platform
+    </div>
+
+    <h1>AI is mature—its impact depends on who implements it.
+
+The wrong team can make average . The right team delivers real results.
+</h1>
+    <!-- <h1>The hospital that deploys AI first <em>wins</em> the decade.</h1> -->
+    <p class="hero-subtitle">DoctorAssist.AI is the world&rsquo;s most advanced deep-agent clinical reasoning platform. The physicians who use it become your most accurate, most efficient, and most loyal clinicians. The hospitals that deploy it first set the standard everyone else chases.</p>
+    <div class="hero-actions">
+        <a href="https://doctorassist.ai/login" class="btn-primary">Request Enterprise Demo &rarr;</a>
+        <a href="#roi" class="btn-secondary">See the ROI Numbers</a>
+    </div>
+    <p class="hero-note">HIPAA-compliant &middot; SOC 2 Type II &middot; Zero PHI retention &middot; Deploys in 14 days &middot; No EHR replacement required</p>
+
+    <div class="marquee-bar">
+        <div class="marquee-inner">
+            <span class="marquee-item">World&rsquo;s First Deep Agent Clinical Platform</span>
+            <span class="marquee-item">80+ Specialist AI Agents Per Patient</span>
+            <span class="marquee-item">&lt;2% Hallucination Rate</span>
+            <span class="marquee-item">100% Evidence-Linked Decisions</span>
+            <span class="marquee-item">Sub-Second Clinical Reasoning</span>
+            <span class="marquee-item">Epic &middot; Cerner &middot; Athena Integration</span>
+            <span class="marquee-item">HIPAA BAA + SOC 2 Type II</span>
+            <span class="marquee-item">14-Day Deployment</span>
+            <span class="marquee-item">ROI Positive by Month 3</span>
+            <span class="marquee-item">World&rsquo;s First Deep Agent Clinical Platform</span>
+            <span class="marquee-item">80+ Specialist AI Agents Per Patient</span>
+            <span class="marquee-item">&lt;2% Hallucination Rate</span>
+            <span class="marquee-item">100% Evidence-Linked Decisions</span>
+            <span class="marquee-item">Sub-Second Clinical Reasoning</span>
+            <span class="marquee-item">Epic &middot; Cerner &middot; Athena Integration</span>
+            <span class="marquee-item">HIPAA BAA + SOC 2 Type II</span>
+            <span class="marquee-item">14-Day Deployment</span>
+            <span class="marquee-item">ROI Positive by Month 3</span>
+        </div>
+    </div>
+</section>
+
+<!-- THE STAKES -->
+<section class="section alt">
+    <div class="container-narrow">
+        <p class="section-label">The Market Shift</p>
+        <h2 class="section-h2">Healthcare is entering its AI bifurcation.</h2>
+        <p class="section-sub">Within five years, every major health system will have a clinical AI platform. The difference is who deploys first &mdash; and which platform they choose. The gap between AI-enabled and non-AI hospitals will be measured in outcomes, revenue, and physician retention. Not in percentages. In survival.</p>
+        <div class="stats-row">
+            <div class="stat-box">
+                <div class="stat-number">$2.4M</div>
+                <div class="stat-label">Annual cost per physician vacancy (recruitment + locums + revenue loss)</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number">63%</div>
+                <div class="stat-label">Of physicians report burnout &mdash; documentation and cognitive overload as primary cause</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number">17&ndash;45%</div>
+                <div class="stat-label">Hallucination rate of general-purpose AI in clinical contexts</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number">$29B</div>
+                <div class="stat-label">Estimated annual US cost of diagnostic errors in ambulatory settings</div>
+            </div>
+        </div>
+        <div class="plain-callout">
+            <strong>The window is narrow</strong>
+            <p>The hospitals that deploy clinical AI in 2025&ndash;2026 will own the physician talent pool for the next decade. Top residents and fellows are already choosing training programs based on access to advanced clinical tools. This is where recruitment happens before candidates even apply.</p>
+        </div>
+    </div>
+</section>
+
+<!-- ROI -->
+<section class="section" id="roi">
+    <div class="container">
+        <p class="section-label">Return on Investment</p>
+        <h2 class="section-h2">The numbers your CFO needs.</h2>
+        <p class="section-sub">Clinical AI investment is not a cost center. It is a revenue and retention multiplier with measurable ROI across every department it touches. Here is the financial case.</p>
+
+        <div class="roi-board">
+            <div class="roi-header">
+                <div class="roi-header-title">ROI Impact Matrix &mdash; Per 100 Physicians Deployed</div>
+                <div class="roi-header-sub">Based on clinical efficiency data, published literature, and platform benchmarks</div>
+            </div>
+            <div class="roi-grid">
+                <div class="roi-cell">
+                    <div class="roi-num">2.1h</div>
+                    <div class="roi-label">Documentation time saved per physician per day</div>
+                    <div class="roi-source">Documentation Agent + MDM automation</div>
+                </div>
+                <div class="roi-cell">
+                    <div class="roi-num">$6.2M</div>
+                    <div class="roi-label">Annual revenue recovered from physician time redeployed to patient care</div>
+                    <div class="roi-source">Based on avg physician RVU productivity</div>
+                </div>
+                <div class="roi-cell">
+                    <div class="roi-num">41%</div>
+                    <div class="roi-label">Reduction in preventable adverse drug events flagged before order completion</div>
+                    <div class="roi-source">Pharmacy Agent safety intercept data</div>
+                </div>
+                <div class="roi-cell">
+                    <div class="roi-num">$890K</div>
+                    <div class="roi-label">Annual malpractice risk reduction per adverse event prevented</div>
+                    <div class="roi-source">Average ADE litigation settlement cost</div>
+                </div>
+                <div class="roi-cell">
+                    <div class="roi-num">0.6d</div>
+                    <div class="roi-label">Average reduction in length of stay from earlier deterioration detection</div>
+                    <div class="roi-source">Early warning + sepsis protocol data</div>
+                </div>
+                <div class="roi-cell">
+                    <div class="roi-num">$1.8M</div>
+                    <div class="roi-label">Annual bed-day cost savings from reduced LOS per 200-bed unit</div>
+                    <div class="roi-source">CMS bed-day cost data 2024</div>
+                </div>
+                <div class="roi-cell">
+                    <div class="roi-num">34%</div>
+                    <div class="roi-label">Reduction in physician-reported burnout within first 6 months of deployment</div>
+                    <div class="roi-source">Platform satisfaction and wellness survey</div>
+                </div>
+                <div class="roi-cell">
+                    <div class="roi-num">$4.8M</div>
+                    <div class="roi-label">Saved per 2 physician vacancies avoided (recruitment, locum, revenue loss)</div>
+                    <div class="roi-source">MGMA physician vacancy cost benchmark</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="ticker-wrap">
+            <div class="ticker-label"><div class="ticker-dot"></div>ROI signal</div>
+            <div class="ticker-items">
+                <span class="ticker-item">Every 1 physician retained = $2.4M in avoided costs</span>
+                <span class="ticker-item">&nbsp;&nbsp;·&nbsp;&nbsp;</span>
+                <span class="ticker-item">2.1h/day &times; 250 working days &times; $250/hr = $131,250 per physician per year</span>
+                <span class="ticker-item">&nbsp;&nbsp;·&nbsp;&nbsp;</span>
+                <span class="ticker-item">At 100 physicians: $13.1M in recovered physician time annually</span>
+                <span class="ticker-item">&nbsp;&nbsp;·&nbsp;&nbsp;</span>
+                <span class="ticker-item">Platform cost at scale: &lt;$60/physician/day</span>
+                <span class="ticker-item">&nbsp;&nbsp;·&nbsp;&nbsp;</span>
+                <span class="ticker-item">ROI positive in month 3 at average deployment</span>
+                <span class="ticker-item">&nbsp;&nbsp;·&nbsp;&nbsp;</span>
+                <span class="ticker-item">Every 1 physician retained = $2.4M in avoided costs</span>
+                <span class="ticker-item">&nbsp;&nbsp;·&nbsp;&nbsp;</span>
+                <span class="ticker-item">2.1h/day &times; 250 working days &times; $250/hr = $131,250 per physician per year</span>
+                <span class="ticker-item">&nbsp;&nbsp;·&nbsp;&nbsp;</span>
+                <span class="ticker-item">At 100 physicians: $13.1M in recovered physician time annually</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- TECHNOLOGY -->
+<section class="section alt" id="technology">
+    <div class="container">
+        <p class="section-label">Deep Agent Technology</p>
+        <h2 class="section-h2">Not an AI tool. A clinical reasoning infrastructure.</h2>
+        <p class="section-sub">DoctorAssist.AI is built on a proprietary deep-agent architecture &mdash; a swarm of specialist AI agents that operate in parallel, share findings, reach consensus, and surface decisions before your physicians even formulate the question. This is not a chatbot. It is a reasoning engine purpose-built for clinical complexity.</p>
+
+        <div class="plain-callout">
+            <strong>What &ldquo;Deep Agent&rdquo; means for your hospital</strong>
+            <p>Unlike single-model AI that generates text responses, our deep agent architecture deploys 80+ specialist agents per patient encounter. Each has domain expertise, persistent memory, and direct access to clinical tools. They work like a specialist team that never sleeps, never misses a result, and never forgets a guideline. The orchestrator coordinates everything. The physician commands everything. The system never acts without explicit physician approval.</p>
+        </div>
+
+        <div class="dav-wrap">
+            <div class="dav-header">
+                <div class="dav-title">Deep Agent Architecture &mdash; Live Reasoning Visualization</div>
+                <div class="dav-meta">80+ agents &middot; Orchestrator-coordinated &middot; &lt;1s latency per decision</div>
+            </div>
+            <div style="background:var(--bg-secondary);padding:0;position:relative;">
+                <canvas id="dav" height="300"></canvas>
+            </div>
+            <div class="dav-legend">
+                <div class="dav-legend-item"><div class="dav-legend-dot" style="background:#000;"></div>Orchestrator</div>
+                <div class="dav-legend-item"><div class="dav-legend-dot" style="border:1px solid #000;background:#fff;"></div>Specialist Agent (active)</div>
+                <div class="dav-legend-item"><div class="dav-legend-dot" style="background:#e0e0e0;border:1px solid #e0e0e0;"></div>Tool / Data Source</div>
+                <div style="margin-left:auto;font-size:0.62rem;color:var(--text-muted);">Each pulse ring = a reasoning event firing in real time</div>
+            </div>
+        </div>
+
+        <div class="agent-arch">
+            <div class="aa-header">
+                <div class="aa-title">The Specialist Agent Swarm</div>
+                <div class="aa-badge">80+ agents active per patient encounter</div>
+            </div>
+            <div class="aa-body">
+                <div class="aa-side">
+                    <h4>Clinical Specialist Agents</h4>
+                    <ul class="agent-list">
+                        <li><div class="al-badge">Dx</div><div class="al-content"><strong>Diagnostic Agent</strong><span>Ranked differential generation with pre-test probability and confidence scores. Continuously watches for pattern changes without prompting.</span></div></li>
+                        <li><div class="al-badge">ECG</div><div class="al-content"><strong>ECG Analysis Agent</strong><span>12-lead interpretation against 12,000+ annotated cases. Detects subtle new changes invisible to time-pressured eyes at 3am.</span></div></li>
+                        <li><div class="al-badge">Risk</div><div class="al-content"><strong>Risk Stratification Agent</strong><span>Computes HEART, TIMI, Wells, qSOFA, CURB-65 in real time using live patient data. No manual entry. No errors.</span></div></li>
+                        <li><div class="al-badge">Pharm</div><div class="al-content"><strong>Pharmacy Agent</strong><span>Drug interaction scanning at order entry. CYP450 conflicts, renal dosing, allergy cross-reactivity &mdash; in under 400ms, every single time.</span></div></li>
+                        <li><div class="al-badge">Doc</div><div class="al-content"><strong>Documentation Agent</strong><span>Real-time note generation with MDM complexity calculation and ICD coding optimization. 2.1 hours returned per physician per day.</span></div></li>
+                        <li><div class="al-badge">Sep</div><div class="al-content"><strong>Sepsis / Deterioration Agent</strong><span>Continuous monitoring for early decompensation &mdash; MAP trending, lactate rise, subtle vital drift hours before clinical deterioration is apparent.</span></div></li>
+                    </ul>
+                </div>
+                <div class="aa-side">
+                    <h4>Infrastructure &amp; Intelligence Agents</h4>
+                    <ul class="agent-list">
+                        <li><div class="al-badge">Ev</div><div class="al-content"><strong>Evidence Agent</strong><span>Real-time guideline synthesis from AHA, ACC, ESC, ADA, and 200+ specialty bodies. Every recommendation cites its source. Zero black box.</span></div></li>
+                        <li><div class="al-badge">KG</div><div class="al-content"><strong>Knowledge Graph Engine</strong><span>Multi-layered graph connecting patients, conditions, medications, evidence, and outcomes. SNOMED CT + RxNorm + ICD-11 + LOINC unified into one semantic layer.</span></div></li>
+                        <li><div class="al-badge">Mem</div><div class="al-content"><strong>Clinical Memory Agent</strong><span>Three-tier memory (hot/warm/cold) persists clinical context across shifts, encounters, and departments. Your institution gets smarter over time.</span></div></li>
+                        <li><div class="al-badge">QA</div><div class="al-content"><strong>Quality &amp; Compliance Agent</strong><span>Tracks core measures, HEDIS gaps, and CMS quality metrics in real time. Generates institutional compliance dashboards automatically every shift.</span></div></li>
+                        <li><div class="al-badge">Dis</div><div class="al-content"><strong>Discharge Planning Agent</strong><span>Flags discharge barriers 48h in advance. Coordinates consults, arranges home services, generates patient instructions in any language.</span></div></li>
+                        <li><div class="al-badge">Orch</div><div class="al-content"><strong>The Orchestrator</strong><span>Coordinates the entire agent swarm. Detects which agents to activate, resolves conflicts, determines consensus confidence. The intelligence behind the intelligence.</span></div></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <h3 style="font-size:1.1rem;font-weight:400;margin:3rem 0 1rem;">Why deep agents outperform every alternative</h3>
+        <div class="comp-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Capability</th>
+                        <th class="hl">DoctorAssist.AI</th>
+                        <th>General AI (GPT/Gemini)</th>
+                        <th>Legacy CDS Alerts</th>
+                        <th>Clinical Reference Tools</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="fn">Autonomous reasoning without prompting</td>
+                        <td class="hl"><span class="chk">&#10003;</span> Pattern-triggered</td>
+                        <td><span class="crs">&#10005;</span> Manual query only</td>
+                        <td><span class="prt">Rule-based only</span></td>
+                        <td><span class="crs">&#10005;</span> Passive reference</td>
+                    </tr>
+                    <tr>
+                        <td class="fn">Hallucination rate in clinical context</td>
+                        <td class="hl"><span class="chk">&#10003;</span> &lt;2%</td>
+                        <td><span class="crs">&#10005;</span> 17&ndash;45%</td>
+                        <td><span class="prt">N/A (rule-based)</span></td>
+                        <td><span class="prt">Literature-only</span></td>
+                    </tr>
+                    <tr>
+                        <td class="fn">Live EHR data integration</td>
+                        <td class="hl"><span class="chk">&#10003;</span> Real-time FHIR</td>
+                        <td><span class="crs">&#10005;</span> No EHR access</td>
+                        <td><span class="prt">Limited, siloed</span></td>
+                        <td><span class="crs">&#10005;</span> Manual lookup</td>
+                    </tr>
+                    <tr>
+                        <td class="fn">Multi-agent specialist consensus</td>
+                        <td class="hl"><span class="chk">&#10003;</span> 80+ parallel agents</td>
+                        <td><span class="crs">&#10005;</span> Single model</td>
+                        <td><span class="crs">&#10005;</span> Single rules</td>
+                        <td><span class="crs">&#10005;</span> Single source</td>
+                    </tr>
+                    <tr>
+                        <td class="fn">Clinical memory &amp; institutional learning</td>
+                        <td class="hl"><span class="chk">&#10003;</span> Hot/warm/cold tiers</td>
+                        <td><span class="crs">&#10005;</span> Stateless</td>
+                        <td><span class="crs">&#10005;</span> No memory</td>
+                        <td><span class="crs">&#10005;</span> No memory</td>
+                    </tr>
+                    <tr>
+                        <td class="fn">PHI safety architecture</td>
+                        <td class="hl"><span class="chk">&#10003;</span> Zero retention, tokenized</td>
+                        <td><span class="crs">&#10005;</span> Trains on inputs</td>
+                        <td><span class="prt">Varies</span></td>
+                        <td><span class="prt">Varies</span></td>
+                    </tr>
+                    <tr>
+                        <td class="fn">Documentation automation</td>
+                        <td class="hl"><span class="chk">&#10003;</span> Full MDM + ICD + billing</td>
+                        <td><span class="prt">Generic text only</span></td>
+                        <td><span class="crs">&#10005;</span></td>
+                        <td><span class="crs">&#10005;</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+<!-- WORKFLOW -->
+<section class="section" id="workflow">
+    <div class="container">
+        <p class="section-label">Clinical Intelligence in Action</p>
+        <h2 class="section-h2">Five phases. Every patient. Every shift.</h2>
+        <p class="section-sub">From the moment a patient registers to the moment they discharge, the agent swarm works continuously &mdash; watching every signal, cross-referencing every guideline, and surfacing the right insight at exactly the right moment. Click each phase to explore.</p>
+
+        <div class="workflow-visual">
+            <div class="wv-header">
+                <div class="wv-title">Inpatient Encounter &mdash; Agent Swarm Active</div>
+                <div class="wv-status"><div class="wv-dot"></div>80 agents active across 6 specialties</div>
+            </div>
+            <div class="phase-strip" id="phase-strip">
+                <div class="phase-step active" data-phase="0"><div class="ps-num">Phase 01</div><div class="ps-title">Admission &amp; Context</div><div class="ps-time">T+0 to T+5 min</div></div>
+                <div class="phase-step" data-phase="1"><div class="ps-num">Phase 02</div><div class="ps-title">Continuous Monitoring</div><div class="ps-time">T+5 min &rarr; Discharge</div></div>
+                <div class="phase-step" data-phase="2"><div class="ps-num">Phase 03</div><div class="ps-title">Pattern Detection</div><div class="ps-time">Autonomous, real-time</div></div>
+                <div class="phase-step" data-phase="3"><div class="ps-num">Phase 04</div><div class="ps-title">Decision Support</div><div class="ps-time">On demand + proactive</div></div>
+                <div class="phase-step" data-phase="4"><div class="ps-num">Phase 05</div><div class="ps-title">Discharge Planning</div><div class="ps-time">T-48h before target</div></div>
+            </div>
+            <div id="phase-detail-0" class="phase-detail active">
+                <div class="pd-agents"><span class="pd-agent">EHR Monitor</span><span class="pd-agent">Risk Agent</span><span class="pd-agent">Pharm Agent</span><span class="pd-agent">Dx Agent</span></div>
+                <div class="pd-text">On admission, the agent swarm initializes in under 200ms. It pulls the complete patient history &mdash; 18 months of records, prior lab trends, medication history, prior adverse events, and known allergies. It calculates a baseline risk profile, flags any prior near-misses in the clinical memory, and surfaces a pre-populated admission context that would take a junior resident 40 minutes to compile. The physician walks in already knowing the patient.</div>
+            </div>
+            <div id="phase-detail-1" class="phase-detail">
+                <div class="pd-agents"><span class="pd-agent">Vitals Monitor</span><span class="pd-agent">Lab Stream</span><span class="pd-agent">Sepsis Agent</span><span class="pd-agent">ECG Agent</span></div>
+                <div class="pd-text">Every vital, every lab, every nursing note is processed in real time. The agents don&rsquo;t look at single values &mdash; they track trajectories. A MAP trending down 12mmHg over 4 hours while the nursing chart reads &ldquo;stable&rdquo; is caught because the agent sees the pattern, not just the snapshot. This is the intelligence layer that prevents the 3am code that could have been an 11pm intervention.</div>
+            </div>
+            <div id="phase-detail-2" class="phase-detail">
+                <div class="pd-agents"><span class="pd-agent">Orchestrator</span><span class="pd-agent">Sepsis Agent</span><span class="pd-agent">ICU Agent</span><span class="pd-agent">Surgical Agent</span></div>
+                <div class="pd-text">When a concerning pattern forms, the Orchestrator activates specialist agents automatically &mdash; no physician prompting required. These agents reason in parallel, cross-reference evidence, and only surface a recommendation when consensus is reached. A HEART score of 5, new T-wave inversions, and a troponin delta of 0.16 are seen simultaneously. The ACS protocol activates before a single order is placed.</div>
+            </div>
+            <div id="phase-detail-3" class="phase-detail">
+                <div class="pd-agents"><span class="pd-agent">Dx Agent</span><span class="pd-agent">Evidence Agent</span><span class="pd-agent">Risk Agent</span><span class="pd-agent">Pharm Agent</span></div>
+                <div class="pd-text">When physicians need answers, they get them instantly with the evidence to back them up. Every recommendation links to the specific guideline, trial, or institutional protocol behind it. Drug orders are intercepted in under 400ms with alternative suggestions. Risk scores are calculated automatically. Differentials are ranked with confidence intervals. This is what attending rounds should feel like &mdash; available at 3am for your most junior resident.</div>
+            </div>
+            <div id="phase-detail-4" class="phase-detail">
+                <div class="pd-agents"><span class="pd-agent">Discharge Agent</span><span class="pd-agent">Care Gap Agent</span><span class="pd-agent">Coordination Agent</span></div>
+                <div class="pd-text">The Discharge Planning Agent begins work 48 hours before target discharge. It identifies pending barriers &mdash; specialist sign-offs, home health arrangements, unresolved quality measures &mdash; before they become day-of delays. It generates patient instructions in any language at the appropriate reading level and closes care gaps automatically. Average LOS reduction: 0.6 days per patient.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- TALENT -->
+<section class="section alt" id="talent">
+    <div class="container-narrow">
+        <p class="section-label">The Talent Imperative</p>
+        <h2 class="section-h2">The best doctors choose hospitals that invest in them.</h2>
+        <p class="section-sub">Physician recruitment and retention is the defining competitive differentiator in modern healthcare. The doctors you want &mdash; the ones who could go anywhere &mdash; are choosing employers based on clinical tools, not just compensation. DoctorAssist.AI is your talent edge.</p>
+
+        <div class="talent-split">
+            <div class="ts-side">
+                <div class="ts-badge dark">The Physician Perspective</div>
+                <h3>Doctors who use it never want to practice without it.</h3>
+                <p class="tagline">What your physicians actually experience.</p>
+                <div class="doc-quote">
+                    <p>"I&rsquo;ve been in medicine for 14 years. This is the first tool that actually thinks alongside me &mdash; not just surfacing facts but helping me see patterns I might have missed at the end of a 14-hour shift. I wouldn&rsquo;t take a position at a hospital that didn&rsquo;t have it."</p>
+                    <cite>&mdash; Emergency Medicine Attending, Academic Medical Center</cite>
+                </div>
+                <div class="doc-quote">
+                    <p>"The documentation alone changed my career. I was on the verge of leaving clinical medicine. Getting two hours a day back &mdash; spending it on patients instead of Epic &mdash; made me remember why I became a doctor."</p>
+                    <cite>&mdash; Internal Medicine Hospitalist, Community Hospital</cite>
+                </div>
+                <div class="doc-quote">
+                    <p>"Every senior resident who rotated here asked about this system. Three of our top fellowship candidates chose us specifically because of it. The recruitment ROI alone justifies the platform cost."</p>
+                    <cite>&mdash; Chief of Medicine, Regional Health System</cite>
+                </div>
+            </div>
+            <div class="ts-side">
+                <div class="ts-badge">The Hospital Outcomes</div>
+                <h3>What deploying DoctorAssist.AI does to your talent metrics.</h3>
+                <p class="tagline">Measurable changes within 6&ndash;12 months.</p>
+                <div class="outcome-row"><div class="or-num">34%</div><div>Reduction in physician-reported burnout scores within 6 months of deployment</div></div>
+                <div class="outcome-row"><div class="or-num">2.1h</div><div>Daily documentation time returned to clinical care, per physician</div></div>
+                <div class="outcome-row"><div class="or-num">91%</div><div>Of deployed physicians report it as a significant factor in their decision to stay</div></div>
+                <div class="outcome-row"><div class="or-num">3&times;</div><div>Increase in senior resident interview requests for AI-enabled training programs</div></div>
+                <div class="outcome-row"><div class="or-num">$4.8M</div><div>Average saving when even 2 physician vacancies are avoided annually</div></div>
+                <div class="outcome-row"><div class="or-num">Day 1</div><div>New hires are fully productive &mdash; AI context reduces ramp-up time by 60%</div></div>
+            </div>
+        </div>
+        <div class="plain-callout">
+            <strong>Recruitment positioning</strong>
+            <p>Top residents and fellows are graduating into a world where clinical AI is standard. They are not asking &ldquo;does your hospital use AI?&rdquo; &mdash; they are asking which AI. Hospitals with DoctorAssist.AI are the answer. You are no longer competing on call schedule and salary alone. You are competing on the quality of clinical practice.</p>
+        </div>
+    </div>
+</section>
+
+<!-- HOSPITAL TYPES -->
+<section class="section" id="deploy">
+    <div class="container">
+        <p class="section-label">Deploy Across Your System</p>
+        <h2 class="section-h2">Designed for every clinical environment.</h2>
+        <p class="section-sub">The deep agent architecture adapts to your clinical context &mdash; different agents activate, different tools engage, different workflows surface. One platform. Your entire health system.</p>
+
+        <div class="hosp-grid">
+            <div class="hosp-card">
+                <div class="hosp-type">Emergency Medicine</div>
+                <h3>High-volume EDs</h3>
+                <p>The ED is where cognitive load peaks and where errors are most consequential. DoctorAssist.AI was built here first. Every ACS workup, PE risk stratification, and sepsis screen happens automatically &mdash; before the physician formulates the order.</p>
+                <div class="hosp-metrics">
+                    <div class="hm-row"><span>Door-to-decision time</span><span class="hm-val">&darr; 22%</span></div>
+                    <div class="hm-row"><span>Missed NSTEMI rate</span><span class="hm-val">&darr; 67%</span></div>
+                    <div class="hm-row"><span>Left without being seen</span><span class="hm-val">&darr; 14%</span></div>
+                    <div class="hm-row"><span>Boarding time reduction</span><span class="hm-val">&darr; 18%</span></div>
+                </div>
+            </div>
+            <div class="hosp-card">
+                <div class="hosp-type">ICU / Critical Care</div>
+                <h3>Intensive care units</h3>
+                <p>The ICU demands continuous surveillance at a level no human team can sustain. The deep agent architecture monitors every parameter simultaneously, catches deterioration hours earlier, and calculates risk scores the moment data arrives.</p>
+                <div class="hosp-metrics">
+                    <div class="hm-row"><span>Sepsis detection lead time</span><span class="hm-val">+4.2h</span></div>
+                    <div class="hm-row"><span>ICU mortality risk reduction</span><span class="hm-val">&darr; 12%</span></div>
+                    <div class="hm-row"><span>Ventilator-associated events</span><span class="hm-val">&darr; 31%</span></div>
+                    <div class="hm-row"><span>Drug error interception</span><span class="hm-val">41% of orders</span></div>
+                </div>
+            </div>
+            <div class="hosp-card">
+                <div class="hosp-type">Inpatient Medicine</div>
+                <h3>Hospitalist programs</h3>
+                <p>Hospitalists cover the most patients with the least specialty support. The agent swarm is their specialist team &mdash; cardiologist, pulmonologist, nephrologist, pharmacist &mdash; always available, never on call, never burnt out.</p>
+                <div class="hosp-metrics">
+                    <div class="hm-row"><span>Average LOS reduction</span><span class="hm-val">0.6 days</span></div>
+                    <div class="hm-row"><span>30-day readmission rate</span><span class="hm-val">&darr; 19%</span></div>
+                    <div class="hm-row"><span>Documentation time saved</span><span class="hm-val">2.1h/day</span></div>
+                    <div class="hm-row"><span>Care gap closure rate</span><span class="hm-val">+38%</span></div>
+                </div>
+            </div>
+            <div class="hosp-card">
+                <div class="hosp-type">Ambulatory / Primary Care</div>
+                <h3>Outpatient practices</h3>
+                <p>Primary care is where population health is won or lost. The anticipatory intelligence layer prepares every chart 48 hours before each visit, closes HEDIS gaps automatically, and ensures nothing falls through between appointments.</p>
+                <div class="hosp-metrics">
+                    <div class="hm-row"><span>Patients seen per day</span><span class="hm-val">&uarr; 18%</span></div>
+                    <div class="hm-row"><span>HEDIS gap closure</span><span class="hm-val">+44%</span></div>
+                    <div class="hm-row"><span>Chronic disease control</span><span class="hm-val">+29%</span></div>
+                    <div class="hm-row"><span>Physician satisfaction</span><span class="hm-val">+51%</span></div>
+                </div>
+            </div>
+            <div class="hosp-card">
+                <div class="hosp-type">Specialty Departments</div>
+                <h3>Cardiology, Oncology, Neurology</h3>
+                <p>Specialty agents bring domain-specific depth to complex cases. The cardiology agent set covers ACS, AFib, heart failure, and structural disease with guideline precision. Oncology agents manage protocol complexity and toxicity monitoring.</p>
+                <div class="hosp-metrics">
+                    <div class="hm-row"><span>Protocol adherence</span><span class="hm-val">+37%</span></div>
+                    <div class="hm-row"><span>Drug toxicity interception</span><span class="hm-val">+52%</span></div>
+                    <div class="hm-row"><span>Guideline compliance rate</span><span class="hm-val">94%</span></div>
+                    <div class="hm-row"><span>Specialist time on admin</span><span class="hm-val">&darr; 45%</span></div>
+                </div>
+            </div>
+            <div class="hosp-card">
+                <div class="hosp-type">Health System Leadership</div>
+                <h3>CMOs, CIOs, CFOs</h3>
+                <p>Real-time institutional intelligence for leadership. Quality measure tracking, adverse event patterns, documentation compliance, and utilization metrics &mdash; all visible as the platform operates. The dashboard updates every shift.</p>
+                <div class="hosp-metrics">
+                    <div class="hm-row"><span>Quality measure visibility</span><span class="hm-val">Real-time</span></div>
+                    <div class="hm-row"><span>Adverse event detection</span><span class="hm-val">Automated</span></div>
+                    <div class="hm-row"><span>Compliance reporting</span><span class="hm-val">Auto-generated</span></div>
+                    <div class="hm-row"><span>Billing optimization</span><span class="hm-val">+$1.2M/100 phys.</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- IMPLEMENTATION -->
+<section class="section alt" id="implementation">
+    <div class="container-narrow">
+        <p class="section-label">Deployment</p>
+        <h2 class="section-h2">Live in 14 days. Not 14 months.</h2>
+        <p class="section-sub">Healthcare IT deployments are infamous for 18-month timelines and multi-million dollar implementation fees. DoctorAssist.AI was designed differently &mdash; it sits alongside your existing EHR as an intelligence layer, not a replacement. Your IT team has the most straightforward deployment in their history.</p>
+
+        <div class="impl-steps">
+            <div class="impl-step">
+                <div class="impl-num">01</div>
+                <div class="impl-content"><h4>FHIR Integration Setup</h4><p>Standard HL7 FHIR R4 connection to your EHR. Works natively with Epic, Cerner, athenahealth, Meditech, and CPSI. Our integration team handles all configuration. Your IT team reviews and approves. Typical setup: 48 hours.</p></div>
+                <div class="impl-time">Days 1&ndash;3</div>
+            </div>
+            <div class="impl-step">
+                <div class="impl-num">02</div>
+                <div class="impl-content"><h4>Institutional Configuration</h4><p>We encode your hospital&rsquo;s formulary, antibiogram, clinical protocols, paging trees, and quality measures. Every agent recommendation reflects your institutional standards &mdash; not generic guidelines that don&rsquo;t match your environment.</p></div>
+                <div class="impl-time">Days 4&ndash;8</div>
+            </div>
+            <div class="impl-step">
+                <div class="impl-num">03</div>
+                <div class="impl-content"><h4>Pilot Deployment (1 Department)</h4><p>Launch in a single department &mdash; typically ED or hospitalist service. Physicians access via embedded EHR panel or standalone interface. Real cases, real feedback, real improvement before system-wide rollout. Our Customer Success team is embedded with yours.</p></div>
+                <div class="impl-time">Days 9&ndash;14</div>
+            </div>
+            <div class="impl-step">
+                <div class="impl-num">04</div>
+                <div class="impl-content"><h4>System-Wide Expansion</h4><p>Based on pilot feedback, expand to additional departments. Each specialty receives a 2-hour orientation. Most physicians are fully proficient within 3 shifts &mdash; because the interface is designed to require zero training. It surfaces the right information at the right moment.</p></div>
+                <div class="impl-time">Weeks 3&ndash;6</div>
+            </div>
+            <div class="impl-step">
+                <div class="impl-num">05</div>
+                <div class="impl-content"><h4>Institutional Intelligence Activation</h4><p>As the platform accumulates clinical memory, institutional intelligence emerges. Your antibiogram encodes into recommendations. Your outcomes data shapes agent reasoning. The platform gets smarter as your institution uses it &mdash; compounding value over time.</p></div>
+                <div class="impl-time">Month 3+</div>
+            </div>
+        </div>
+
+        <div class="plain-callout">
+            <strong>What you don&rsquo;t need to do</strong>
+            <p>Replace your EHR. Retrain your IT infrastructure. Wait 18 months. Hire implementation consultants. Pay a $500K integration fee. DoctorAssist.AI is an intelligence layer, not an EHR replacement. Your existing workflows remain. The intelligence appears alongside them.</p>
+        </div>
+    </div>
+</section>
+
+<!-- SECURITY -->
+<section class="section" id="security">
+    <div class="container-narrow">
+        <p class="section-label">Compliance &amp; Security</p>
+        <h2 class="section-h2">Enterprise-grade. Architecture-enforced.</h2>
+        <p class="section-sub">Your Legal, Compliance, and IT Security teams will ask hard questions. We have harder answers. Every PHI protection is enforced at the architecture level &mdash; not by policy alone. Patient data is tokenized before it enters our system, processed in temporary memory, and deleted immediately. It never trains our models.</p>
+
+        <div class="sec-grid">
+            <div class="sec-card"><div class="sec-icon">HIPAA</div><h4>HIPAA BAA</h4><p>Business Associate Agreement provided with all deployments. PHI tokenized at ingestion. Identifiers never visible to the model layer.</p></div>
+            <div class="sec-card"><div class="sec-icon">SOC2</div><h4>SOC 2 Type II</h4><p>Full audit trail for every action. Continuous monitoring. Annual third-party attestation. Reports available on request.</p></div>
+            <div class="sec-card"><div class="sec-icon">AES</div><h4>AES-256 Encryption</h4><p>Data encrypted at rest and in transit. TLS 1.3 for all communications. Field-level PHI masking in all logs and analytics.</p></div>
+            <div class="sec-card"><div class="sec-icon">Zero</div><h4>Zero PHI Retention</h4><p>Patient data processed in ephemeral containers. Memory sanitized after each session. Your patients&rsquo; data never persists in our infrastructure.</p></div>
+        </div>
+
+        <div class="divider"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;">
+            <div>
+                <h4 style="font-weight:400;margin-bottom:0.75rem;font-size:0.95rem;">For your Legal team</h4>
+                <ul style="list-style:none;font-size:0.8rem;color:var(--text-secondary);line-height:2.1;">
+                    <li>&rarr; Standard HIPAA BAA provided on day one</li>
+                    <li>&rarr; Data processing agreement aligned with state privacy laws</li>
+                    <li>&rarr; AI transparency documentation for regulatory inquiry</li>
+                    <li>&rarr; Human-in-the-loop architecture documented for liability</li>
+                    <li>&rarr; Complete audit logs for every AI-assisted decision</li>
+                </ul>
+            </div>
+            <div>
+                <h4 style="font-weight:400;margin-bottom:0.75rem;font-size:0.95rem;">For your IT Security team</h4>
+                <ul style="list-style:none;font-size:0.8rem;color:var(--text-secondary);line-height:2.1;">
+                    <li>&rarr; SOC 2 Type II report available on request</li>
+                    <li>&rarr; Penetration test results shared under NDA</li>
+                    <li>&rarr; Private cloud deployment option available</li>
+                    <li>&rarr; SSO integration (SAML 2.0, OIDC)</li>
+                    <li>&rarr; RBAC controls aligned to your institutional policies</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- PRICING -->
+<section class="section alt" id="pricing">
+    <div class="container-narrow">
+        <p class="section-label">Enterprise Pricing</p>
+        <h2 class="section-h2">Priced for scale. Built for institutions.</h2>
+        <p class="section-sub">Hospital pricing is structured for institutional deployment &mdash; designed to clear procurement, deliver measurable ROI by month 3, and scale across departments without re-negotiation. No hidden implementation fees.</p>
+
+        <div class="pricing-row">
+            <div class="price-card">
+                <div class="price-name">Department Pilot</div>
+                <div class="price-val">Custom<span></span></div>
+                <div class="price-desc">Single department. Prove ROI before system-wide commitment.</div>
+                <ul class="price-features">
+                    <li>1 clinical department (ED, ICU, or Medicine)</li>
+                    <li>Up to 50 physicians</li>
+                    <li>Full agent suite + EHR integration</li>
+                    <li>14-day deployment</li>
+                    <li>Institutional protocol configuration</li>
+                    <li>Dedicated Customer Success Manager</li>
+                    <li>90-day ROI reporting</li>
+                </ul>
+                <a href="https://doctorassist.ai/login" class="price-cta">Request Pilot Pricing</a>
+            </div>
+            <div class="price-card featured">
+                <div class="price-name">Health System</div>
+                <div class="price-val">Custom<span></span></div>
+                <div class="price-desc">System-wide deployment across all departments and facilities.</div>
+                <ul class="price-features">
+                    <li>Unlimited departments and facilities</li>
+                    <li>Unlimited physicians</li>
+                    <li>Full deep agent suite + custom agents</li>
+                    <li>Epic/Cerner embedded UI</li>
+                    <li>Institutional memory + quality dashboard</li>
+                    <li>Custom agent training on your protocols</li>
+                    <li>Executive reporting dashboard (CMO/CFO)</li>
+                    <li>On-site implementation support</li>
+                    <li>Annual executive business review</li>
+                </ul>
+                <a href="https://doctorassist.ai/login" class="price-cta">Request Enterprise Pricing</a>
+            </div>
+            <div class="price-card">
+                <div class="price-name">Academic Medical Center</div>
+                <div class="price-val">Custom<span></span></div>
+                <div class="price-desc">Specialized for teaching hospitals, GME programs, and research institutions.</div>
+                <ul class="price-features">
+                    <li>Resident and fellow licensing included</li>
+                    <li>GME curriculum integration</li>
+                    <li>De-identified research dataset access</li>
+                    <li>Publication-grade analytics</li>
+                    <li>Co-development research partnership option</li>
+                    <li>Medical education platform integration</li>
+                    <li>IRB-compliant data governance</li>
+                </ul>
+                <a href="https://doctorassist.ai/login" class="price-cta">Request AMC Pricing</a>
+            </div>
+        </div>
+
+        <div class="plain-callout">
+            <strong>ROI guarantee framework</strong>
+            <p>We will work with your CFO team to define 3 measurable ROI metrics before deployment begins. If those metrics are not achieved within 90 days of full deployment, we extend your contract at no charge until they are. We have that confidence in what the platform delivers.</p>
+        </div>
+    </div>
+</section>
+
+<!-- FINAL CTA -->
+<section class="section" id="contact">
+    <div class="container-narrow">
+        <div class="cta-block">
+            <p class="section-label" style="text-align:center;">Take the Next Step</p>
+            <h2>The future of clinical practice is being decided now.</h2>
+            <p>The hospitals that will define the standard of care for the next decade are deploying deep agent clinical AI in 2025 and 2026. The physicians who will define the next generation of medicine are choosing employers who give them access to tools that make them exceptional. DoctorAssist.AI is how you become that hospital.</p>
+            <div class="cta-options">
+                <a href="https://doctorassist.ai/login" class="btn-primary">Schedule Enterprise Demo &rarr;</a>
+                <a href="https://doctorassist.ai/login" class="btn-secondary">Talk to Clinical Team</a>
+            </div>
+            <p class="cta-note">Typical enterprise demo: 45 minutes with live patient case walkthrough &middot; Available for CMO, CIO, CFO, and Department Chief audiences</p>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;margin-top:3rem;">
+            <div style="border:1px solid var(--border);padding:1.5rem;text-align:center;"><div style="font-size:2rem;font-weight:300;letter-spacing:-0.04em;margin-bottom:0.4rem;">14</div><div style="font-size:0.72rem;color:var(--text-secondary);">Days to deployment, not months</div></div>
+            <div style="border:1px solid var(--border);padding:1.5rem;text-align:center;"><div style="font-size:2rem;font-weight:300;letter-spacing:-0.04em;margin-bottom:0.4rem;">Day 90</div><div style="font-size:0.72rem;color:var(--text-secondary);">Typical ROI positive threshold</div></div>
+            <div style="border:1px solid var(--border);padding:1.5rem;text-align:center;"><div style="font-size:2rem;font-weight:300;letter-spacing:-0.04em;margin-bottom:0.4rem;">$0</div><div style="font-size:0.72rem;color:var(--text-secondary);">Implementation fee. Seriously.</div></div>
+        </div>
+    </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+    <div class="footer-tagline">The hospital that deploys best, wins.</div>
+    <a href="https://doctorassist.ai/login" class="footer-cta">Request Enterprise Demo &rarr;</a>
+    <div class="footer-links">
+        <a href="https://doctorassist.ai">DoctorAssist.AI</a>
+        <a href="#roi">ROI Calculator</a>
+        <a href="#technology">Deep Agent Tech</a>
+        <a href="#talent">Talent Strategy</a>
+        <a href="#implementation">Implementation</a>
+        <a href="#security">Security &amp; HIPAA</a>
+        <a href="#pricing">Enterprise Pricing</a>
+        <a href="https://doctorassist.ai/api-reference">API Reference</a>
+    </div>
+    <div style="margin-top:2rem;font-size:0.65rem;color:var(--text-muted);">
+        DoctorAssist.AI &middot; HIPAA-compliant &middot; SOC 2 Type II &middot; Zero PHI retention &middot; All recommendations require physician approval
+    </div>
+</footer>
+
+<script>
+(function(){
+
+    /* PHASE TABS */
+    document.querySelectorAll('.phase-step').forEach(function(el){
+        el.addEventListener('click', function(){
+            var idx = el.dataset.phase;
+            document.querySelectorAll('.phase-step').forEach(function(s){ s.classList.remove('active'); });
+            document.querySelectorAll('.phase-detail').forEach(function(d){ d.classList.remove('active'); });
+            el.classList.add('active');
+            var det = document.getElementById('phase-detail-'+idx);
+            if(det) det.classList.add('active');
+        });
+    });
+
+    /* DEEP AGENT CANVAS */
+    var canvas = document.getElementById('dav');
+    if(!canvas) return;
+    var dpr = window.devicePixelRatio || 1;
+
+    function initCanvas(){
+        var W = canvas.parentElement.clientWidth;
+        var H = 300;
+        canvas.width = W * dpr;
+        canvas.height = H * dpr;
+        canvas.style.height = H + 'px';
+        var ctx = canvas.getContext('2d');
+        ctx.scale(dpr, dpr);
+        return { ctx: ctx, W: W, H: H };
+    }
+
+    var state = initCanvas();
+    var ctx = state.ctx, W = state.W, H = state.H;
+    var cx = W/2, cy = H/2;
+    var t = 0;
+
+    var agents = [
+        { label:'Dx',     angle:0   },
+        { label:'ECG',    angle:45  },
+        { label:'Risk',   angle:90  },
+        { label:'Pharm',  angle:135 },
+        { label:'Doc',    angle:180 },
+        { label:'Sep',    angle:225 },
+        { label:'Ev',     angle:270 },
+        { label:'KG',     angle:315 },
+    ];
+    var tools = [
+        { label:'EHR',       angle:22  },
+        { label:'Labs',      angle:67  },
+        { label:'PACS',      angle:112 },
+        { label:'Vitals',    angle:157 },
+        { label:'Pharm DB',  angle:202 },
+        { label:'Memory',    angle:247 },
+        { label:'Evidence',  angle:292 },
+        { label:'Protocols', angle:337 },
+    ];
+
+    var AGENT_ORBIT = Math.min(W, H*2) * 0.22;
+    var TOOL_ORBIT = Math.min(W, H*2) * 0.37;
+
+    var pulses = [];
+    var activeAgent = 0, activeTool = -1;
+
+    function getPos(angle, orbit){
+        var a = (angle - 90) * Math.PI / 180;
+        return { x: cx + orbit * Math.cos(a), y: cy + orbit * Math.sin(a) };
+    }
+
+    setInterval(function(){
+        activeAgent = Math.floor(Math.random() * agents.length);
+        activeTool = Math.floor(Math.random() * tools.length);
+        var ap = getPos(agents[activeAgent].angle, AGENT_ORBIT);
+        pulses.push({ x: ap.x, y: ap.y, r: 4, alpha: 1 });
+        var tp = getPos(tools[activeTool].angle, TOOL_ORBIT);
+        pulses.push({ x: tp.x, y: tp.y, r: 3, alpha: 0.7 });
+    }, 700);
+
+    function draw(){
+        t += 0.004;
+        ctx.clearRect(0, 0, W, H);
+
+        /* orbit rings */
+        [AGENT_ORBIT, TOOL_ORBIT].forEach(function(r, i){
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI*2);
+            ctx.strokeStyle = 'rgba(0,0,0,0.07)';
+            ctx.lineWidth = 0.5;
+            ctx.setLineDash(i===1 ? [3,4] : []);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        });
+
+        /* orch → agent lines */
+        agents.forEach(function(ag, i){
+            var pos = getPos(ag.angle, AGENT_ORBIT);
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.lineTo(pos.x, pos.y);
+            ctx.strokeStyle = i === activeAgent ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.1)';
+            ctx.lineWidth = i === activeAgent ? 1 : 0.5;
+            ctx.stroke();
+        });
+
+        /* agent → tool lines */
+        tools.forEach(function(tl, i){
+            var tp = getPos(tl.angle, TOOL_ORBIT);
+            var closestJ = 0, closestD = Infinity;
+            agents.forEach(function(ag, j){
+                var ap = getPos(ag.angle, AGENT_ORBIT);
+                var d = Math.hypot(ap.x-tp.x, ap.y-tp.y);
+                if(d < closestD){ closestD = d; closestJ = j; }
+            });
+            var ap = getPos(agents[closestJ].angle, AGENT_ORBIT);
+            ctx.beginPath();
+            ctx.moveTo(ap.x, ap.y);
+            ctx.lineTo(tp.x, tp.y);
+            ctx.strokeStyle = i === activeTool ? 'rgba(0,0,0,0.28)' : 'rgba(0,0,0,0.05)';
+            ctx.lineWidth = 0.5;
+            ctx.setLineDash([2,4]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        });
+
+        /* tools */
+        tools.forEach(function(tl){
+            var pos = getPos(tl.angle, TOOL_ORBIT);
+            var tw = Math.min(42, W*0.06), th = 14;
+            ctx.beginPath();
+            if(ctx.roundRect) ctx.roundRect(pos.x-tw/2, pos.y-th/2, tw, th, 2);
+            else ctx.rect(pos.x-tw/2, pos.y-th/2, tw, th);
+            ctx.fillStyle = '#f5f5f5';
+            ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+            ctx.lineWidth = 0.5;
+            ctx.fill(); ctx.stroke();
+            ctx.fillStyle = '#888';
+            ctx.font = '7px Open Sans,sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(tl.label, pos.x, pos.y);
+        });
+
+        /* agents */
+        agents.forEach(function(ag, i){
+            var pos = getPos(ag.angle, AGENT_ORBIT);
+            var isAct = i === activeAgent;
+            var r = Math.min(20, W*0.028);
+            ctx.save();
+            ctx.translate(pos.x, pos.y);
+            ctx.scale(isAct ? 1.1 : 1, isAct ? 1.1 : 1);
+            ctx.beginPath();
+            ctx.arc(0, 0, r, 0, Math.PI*2);
+            ctx.fillStyle = isAct ? '#000' : '#fff';
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = isAct ? 0 : 1;
+            ctx.fill(); ctx.stroke();
+            ctx.fillStyle = isAct ? '#fff' : '#000';
+            ctx.font = (Math.min(8, W*0.011)) + 'px Open Sans,sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(ag.label, 0, 0);
+            ctx.restore();
+        });
+
+        /* orchestrator */
+        var r0 = Math.min(40, W*0.055);
+        var s = 1 + 0.018 * Math.sin(t*3);
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.scale(s, s);
+        ctx.beginPath();
+        ctx.arc(0, 0, r0, 0, Math.PI*2);
+        ctx.fillStyle = '#000'; ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.font = '500 ' + Math.min(9,W*0.012) + 'px Open Sans,sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('ORCHESTRATOR', 0, -4);
+        ctx.fillStyle = 'rgba(255,255,255,0.55)';
+        ctx.font = Math.min(7,W*0.01) + 'px Open Sans,sans-serif';
+        ctx.fillText('Agent Harness', 0, 7);
+        ctx.restore();
+
+        /* pulses */
+        pulses = pulses.filter(function(p){ return p.alpha > 0.02; });
+        pulses.forEach(function(p){
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+            ctx.strokeStyle = 'rgba(0,0,0,' + p.alpha + ')';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            p.r += 1.4;
+            p.alpha -= 0.035;
+        });
+
+        requestAnimationFrame(draw);
+    }
+    draw();
+
+    /* resize */
+    var resizeTimer;
+    window.addEventListener('resize', function(){
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(function(){
+            state = initCanvas();
+            ctx = state.ctx; W = state.W; H = state.H;
+            cx = W/2; cy = H/2;
+            AGENT_ORBIT = Math.min(W, H*2) * 0.22;
+            TOOL_ORBIT = Math.min(W, H*2) * 0.37;
+        }, 150);
+    });
+
+})();
+</script>
+
+<script type="text/javascript">
+    (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+    })(window, document, "clarity", "script", "w87p3up3xn");
+</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-DYTCKK7NJT"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-DYTCKK7NJT');
+</script>
+
+</body>
+</html>

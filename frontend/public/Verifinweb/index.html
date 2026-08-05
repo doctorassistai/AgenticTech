@@ -1,0 +1,1867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>VeriFinAI — The Agentic Audit Intelligence Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --navy: #0a1628;
+    --navy-mid: #112240;
+    --navy-light: #1a3a5c;
+    --teal: #00c8b4;
+    --teal-dark: #009e8e;
+    --teal-light: #e0faf7;
+    --blue: #0066cc;
+    --blue-light: #e8f4ff;
+    --orange: #ff6b35;
+    --orange-light: #fff3ee;
+    --slate: #64748b;
+    --slate-light: #f1f5f9;
+    --white: #ffffff;
+    --text: #1e293b;
+    --text-muted: #64748b;
+    --border: #e2e8f0;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --radius-lg: 20px;
+    --shadow: 0 4px 24px rgba(10,22,40,0.08);
+    --shadow-lg: 0 16px 48px rgba(10,22,40,0.15);
+    --font: 'Open Sans', system-ui, sans-serif;
+    --nav-h: 72px;
+  }
+
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: var(--font);
+    font-weight: 300;
+    color: var(--text);
+    background: var(--white);
+    font-size: 16px;
+    line-height: 1.7;
+    overflow-x: hidden;
+  }
+
+  /* ─── NAV ─── */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+    height: var(--nav-h);
+    background: rgba(255,255,255,0.96);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; padding: 0 5%;
+    gap: 2rem;
+  }
+  .nav-logo {
+    display: flex; align-items: center; gap: 10px;
+    text-decoration: none; flex-shrink: 0;
+  }
+  .nav-logo-mark {
+    width: 36px; height: 36px; background: linear-gradient(135deg, var(--teal), var(--blue));
+    border-radius: 8px; display: flex; align-items: center; justify-content: center;
+    font-size: 18px; font-weight: 700; color: white;
+  }
+  .nav-logo-text { font-size: 20px; font-weight: 600; color: var(--navy); }
+  .nav-logo-text span { color: var(--teal); }
+  .nav-links { display: flex; gap: 0; margin-left: auto; align-items: center; }
+  .nav-item {
+    position: relative;
+    display: flex; align-items: center; gap: 4px;
+    padding: 0 14px; height: var(--nav-h);
+    font-size: 14px; font-weight: 400; color: var(--text);
+    cursor: pointer; text-decoration: none;
+    transition: color 0.2s;
+  }
+  .nav-item:hover { color: var(--teal); }
+  .nav-item.has-dropdown::after {
+    content: '▾'; font-size: 10px; margin-top: 1px; transition: transform 0.2s;
+  }
+  .nav-item:hover.has-dropdown::after { transform: rotate(180deg); }
+  .nav-dropdown {
+    display: none; position: absolute; top: 100%; left: 0;
+    background: white; border: 1px solid var(--border);
+    border-radius: var(--radius); box-shadow: var(--shadow-lg);
+    padding: 1rem; min-width: 240px; z-index: 100;
+  }
+  .nav-item:hover .nav-dropdown { display: block; }
+  .nav-dropdown a {
+    display: block; padding: 8px 12px; font-size: 13.5px; font-weight: 300;
+    color: var(--text); text-decoration: none; border-radius: 6px;
+    transition: background 0.15s;
+  }
+  .nav-dropdown a:hover { background: var(--slate-light); color: var(--teal); }
+  .nav-dropdown-label {
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--text-muted);
+    padding: 8px 12px 4px; margin-top: 4px;
+  }
+  .nav-cta {
+    margin-left: 16px; padding: 9px 22px;
+    background: var(--teal); color: white; border: none;
+    border-radius: 6px; font-size: 13.5px; font-weight: 500;
+    cursor: pointer; text-decoration: none; transition: background 0.2s;
+    white-space: nowrap;
+  }
+  .nav-cta:hover { background: var(--teal-dark); }
+  .nav-cta-outline {
+    margin-left: 8px; padding: 9px 22px;
+    background: transparent; color: var(--navy); border: 1.5px solid var(--border);
+    border-radius: 6px; font-size: 13.5px; font-weight: 400;
+    cursor: pointer; text-decoration: none; transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .nav-cta-outline:hover { border-color: var(--teal); color: var(--teal); }
+
+  /* ─── SECTIONS ─── */
+  section { display: none; }
+  section.active { display: block; }
+  .page-wrap { padding-top: var(--nav-h); min-height: 100vh; }
+
+  /* ─── HERO ─── */
+  .hero {
+    min-height: calc(100vh - var(--nav-h));
+    background: var(--navy);
+    position: relative; overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  .hero-grid {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(0,200,180,0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,200,180,0.06) 1px, transparent 1px);
+    background-size: 60px 60px;
+  }
+  .hero-glow {
+    position: absolute; width: 800px; height: 800px;
+    background: radial-gradient(circle, rgba(0,200,180,0.12) 0%, transparent 70%);
+    top: -200px; right: -200px; pointer-events: none;
+  }
+  .hero-inner {
+    position: relative; z-index: 2;
+    max-width: 1200px; margin: 0 auto; padding: 80px 5% 60px;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center;
+  }
+  .hero-tag {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(0,200,180,0.15); border: 1px solid rgba(0,200,180,0.3);
+    border-radius: 100px; padding: 6px 16px; font-size: 12.5px;
+    color: var(--teal); font-weight: 400; letter-spacing: 0.03em;
+    margin-bottom: 28px;
+  }
+  .hero-tag-dot { width: 6px; height: 6px; background: var(--teal); border-radius: 50%; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  .hero h1 {
+    font-size: clamp(36px, 4.5vw, 58px); font-weight: 300;
+    line-height: 1.12; color: white; margin-bottom: 24px;
+    letter-spacing: -0.02em;
+  }
+  .hero h1 strong { font-weight: 600; color: var(--teal); }
+  .hero-sub {
+    font-size: 17px; font-weight: 300; color: rgba(255,255,255,0.65);
+    line-height: 1.7; margin-bottom: 40px; max-width: 520px;
+  }
+  .hero-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+  .btn-primary {
+    padding: 13px 28px; background: var(--teal); color: white;
+    border: none; border-radius: 7px; font-size: 14.5px; font-weight: 500;
+    cursor: pointer; font-family: var(--font); transition: all 0.2s; text-decoration: none; display: inline-block;
+  }
+  .btn-primary:hover { background: var(--teal-dark); transform: translateY(-1px); }
+  .btn-outline-white {
+    padding: 13px 28px; background: transparent; color: white;
+    border: 1.5px solid rgba(255,255,255,0.3); border-radius: 7px;
+    font-size: 14.5px; font-weight: 300; cursor: pointer; font-family: var(--font);
+    transition: all 0.2s; text-decoration: none; display: inline-block;
+  }
+  .btn-outline-white:hover { border-color: var(--teal); color: var(--teal); }
+
+  /* Hero stats */
+  .hero-stats {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px;
+    background: rgba(255,255,255,0.06); border-radius: 12px; overflow: hidden;
+    margin-top: 48px; border: 1px solid rgba(255,255,255,0.08);
+  }
+  .hero-stat {
+    padding: 24px; background: rgba(255,255,255,0.03);
+    text-align: center;
+  }
+  .hero-stat-num { font-size: 32px; font-weight: 300; color: var(--teal); }
+  .hero-stat-label { font-size: 12px; color: rgba(255,255,255,0.45); margin-top: 4px; font-weight: 300; }
+
+  /* Hero visual panel */
+  .hero-visual {
+    position: relative;
+  }
+  .hero-dashboard {
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 16px; padding: 20px; backdrop-filter: blur(10px);
+  }
+  .hero-dash-header {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 16px;
+  }
+  .hdot { width: 10px; height: 10px; border-radius: 50%; }
+  .hdot.r { background: #ff5f56; }
+  .hdot.y { background: #ffbd2e; }
+  .hdot.g { background: #27c93f; }
+  .hero-dash-title { font-size: 12px; color: rgba(255,255,255,0.4); margin-left: 8px; }
+  .hero-agent-row {
+    background: rgba(0,200,180,0.08); border: 1px solid rgba(0,200,180,0.2);
+    border-radius: 8px; padding: 10px 14px; margin-bottom: 8px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .agent-icon {
+    width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 15px;
+  }
+  .agent-info { flex: 1; }
+  .agent-name { font-size: 12px; font-weight: 500; color: rgba(255,255,255,0.9); }
+  .agent-status { font-size: 10.5px; color: rgba(255,255,255,0.4); font-weight: 300; }
+  .agent-badge {
+    font-size: 10px; padding: 3px 8px; border-radius: 100px; font-weight: 500;
+  }
+  .badge-active { background: rgba(0,200,180,0.2); color: var(--teal); }
+  .badge-analyzing { background: rgba(0,102,204,0.2); color: #5aabff; }
+  .badge-alert { background: rgba(255,107,53,0.2); color: #ff9f7a; }
+
+  /* ─── PARTNERSHIP OVERLAY ─── */
+  .partner-overlay-bg {
+    position: fixed; inset: 0; background: rgba(10,22,40,0.85); z-index: 2000;
+    display: flex; align-items: center; justify-content: center;
+    backdrop-filter: blur(8px);
+    animation: fadeIn 0.4s ease;
+  }
+  @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+  .partner-modal {
+    background: var(--navy-mid); border: 1px solid rgba(0,200,180,0.25);
+    border-radius: 20px; padding: 48px; max-width: 680px; width: 90%;
+    position: relative; animation: slideUp 0.45s ease;
+  }
+  @keyframes slideUp { from{transform:translateY(40px);opacity:0} to{transform:translateY(0);opacity:1} }
+  .partner-modal-close {
+    position: absolute; top: 20px; right: 20px;
+    width: 32px; height: 32px; border-radius: 50%;
+    background: rgba(255,255,255,0.08); border: none; color: rgba(255,255,255,0.6);
+    cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s;
+  }
+  .partner-modal-close:hover { background: rgba(255,255,255,0.15); color: white; }
+  .partner-logos { display: flex; align-items: center; gap: 20px; margin-bottom: 32px; }
+  .plogo {
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 10px; padding: 12px 20px; font-size: 16px; font-weight: 600; color: white;
+  }
+  .plogo span { color: var(--teal); }
+  .plus-icon { font-size: 24px; color: rgba(255,255,255,0.3); }
+  .partner-modal h2 { font-size: 26px; font-weight: 300; color: white; margin-bottom: 12px; }
+  .partner-modal h2 strong { font-weight: 600; color: var(--teal); }
+  .partner-modal p { color: rgba(255,255,255,0.55); font-size: 15px; font-weight: 300; line-height: 1.7; margin-bottom: 16px; }
+  .partner-features { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 24px 0; }
+  .partner-feat {
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px; padding: 14px 16px;
+  }
+  .partner-feat-title { font-size: 13px; font-weight: 500; color: white; margin-bottom: 4px; }
+  .partner-feat-desc { font-size: 12px; color: rgba(255,255,255,0.4); font-weight: 300; }
+  .partner-modal-actions { display: flex; gap: 12px; margin-top: 28px; }
+
+  /* ─── TICKER BAR ─── */
+  .ticker-bar {
+    background: var(--navy-mid); border-top: 1px solid rgba(255,255,255,0.06);
+    overflow: hidden; height: 44px; display: flex; align-items: center;
+  }
+  .ticker-inner { display: flex; gap: 0; animation: ticker 30s linear infinite; white-space: nowrap; }
+  @keyframes ticker { from{transform:translateX(0)} to{transform:translateX(-50%)} }
+  .ticker-item {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 0 32px; font-size: 12.5px; font-weight: 300;
+    color: rgba(255,255,255,0.4);
+  }
+  .ticker-item .dot { width: 4px; height: 4px; background: var(--teal); border-radius: 50%; }
+
+  /* ─── LOGO MARQUEE ─── */
+  .logo-strip {
+    padding: 48px 5%; border-bottom: 1px solid var(--border);
+    text-align: center;
+  }
+  .logo-strip-label {
+    font-size: 12px; font-weight: 400; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--text-muted); margin-bottom: 28px;
+  }
+  .logo-marquee { overflow: hidden; }
+  .logo-marquee-inner { display: flex; gap: 0; animation: ticker 25s linear infinite; }
+  .logo-pill {
+    display: inline-flex; align-items: center;
+    padding: 10px 28px; margin: 0 8px;
+    background: var(--slate-light); border-radius: 100px;
+    font-size: 13px; font-weight: 400; color: var(--text-muted);
+    white-space: nowrap;
+  }
+
+  /* ─── GENERIC LAYOUT ─── */
+  .container { max-width: 1200px; margin: 0 auto; padding: 0 5%; }
+  .section-pad { padding: 100px 0; }
+  .section-pad-sm { padding: 64px 0; }
+
+  .section-label {
+    font-size: 12px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--teal); margin-bottom: 16px;
+  }
+  .section-title { font-size: clamp(28px, 3.5vw, 44px); font-weight: 300; color: var(--navy); line-height: 1.2; margin-bottom: 16px; letter-spacing: -0.01em; }
+  .section-title strong { font-weight: 600; }
+  .section-sub { font-size: 17px; font-weight: 300; color: var(--text-muted); max-width: 620px; line-height: 1.7; }
+  .text-center { text-align: center; }
+  .text-center .section-sub { margin: 0 auto; }
+
+  /* Grid utilities */
+  .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 28px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+  .mt-8 { margin-top: 48px; }
+  .mt-6 { margin-top: 36px; }
+  .mt-4 { margin-top: 24px; }
+
+  /* Cards */
+  .card {
+    background: white; border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 28px;
+    transition: all 0.25s; position: relative; overflow: hidden;
+  }
+  .card:hover { box-shadow: var(--shadow); transform: translateY(-2px); border-color: var(--teal); }
+  .card-icon {
+    width: 48px; height: 48px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; margin-bottom: 18px;
+  }
+  .card-icon.teal { background: var(--teal-light); }
+  .card-icon.blue { background: var(--blue-light); }
+  .card-icon.orange { background: var(--orange-light); }
+  .card-icon.navy { background: rgba(10,22,40,0.06); }
+  .card h3 { font-size: 17px; font-weight: 500; color: var(--navy); margin-bottom: 10px; }
+  .card p { font-size: 14px; font-weight: 300; color: var(--text-muted); line-height: 1.7; }
+  .card-tag {
+    display: inline-block; margin-top: 14px; padding: 4px 10px;
+    background: var(--teal-light); color: var(--teal-dark);
+    border-radius: 100px; font-size: 11px; font-weight: 500;
+  }
+
+  /* Highlight box */
+  .highlight-box {
+    background: var(--navy); border-radius: var(--radius-lg);
+    padding: 60px; color: white; position: relative; overflow: hidden;
+  }
+  .highlight-box::before {
+    content: ''; position: absolute; top: -100px; right: -100px;
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(0,200,180,0.12) 0%, transparent 70%);
+  }
+  .highlight-box h2 { font-size: clamp(26px, 3vw, 38px); font-weight: 300; margin-bottom: 16px; color: white; }
+  .highlight-box h2 strong { font-weight: 600; color: var(--teal); }
+  .highlight-box p { color: rgba(255,255,255,0.55); font-weight: 300; max-width: 480px; line-height: 1.7; }
+
+  /* Tag chips */
+  .chip {
+    display: inline-block; padding: 5px 12px;
+    background: var(--slate-light); border: 1px solid var(--border);
+    border-radius: 100px; font-size: 12.5px; font-weight: 300;
+    color: var(--text-muted); margin: 4px;
+  }
+
+  /* Process steps */
+  .step-list { list-style: none; }
+  .step-item {
+    display: flex; gap: 20px; padding: 24px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .step-item:last-child { border-bottom: none; }
+  .step-num {
+    width: 40px; height: 40px; border-radius: 50%; background: var(--navy);
+    color: var(--teal); font-size: 14px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .step-content h4 { font-size: 16px; font-weight: 500; color: var(--navy); margin-bottom: 6px; }
+  .step-content p { font-size: 14px; font-weight: 300; color: var(--text-muted); }
+
+  /* Tab nav */
+  .tab-bar {
+    display: flex; gap: 4px; background: var(--slate-light);
+    border-radius: var(--radius-sm); padding: 4px; margin-bottom: 36px;
+    flex-wrap: wrap;
+  }
+  .tab-btn {
+    padding: 9px 18px; border: none; background: transparent;
+    border-radius: 6px; font-size: 13.5px; font-weight: 400;
+    color: var(--text-muted); cursor: pointer; font-family: var(--font);
+    transition: all 0.2s;
+  }
+  .tab-btn.active { background: white; color: var(--navy); font-weight: 500; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+
+  /* Feature split */
+  .feat-split { display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: center; }
+  .feat-list { list-style: none; }
+  .feat-list li {
+    display: flex; gap: 12px; padding: 14px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 14.5px; font-weight: 300; color: var(--text-muted);
+  }
+  .feat-list li .check { color: var(--teal); font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+  .feat-list li strong { color: var(--text); font-weight: 500; }
+
+  /* Visual panel */
+  .visual-panel {
+    background: var(--navy); border-radius: var(--radius-lg); padding: 28px;
+    position: relative; overflow: hidden;
+  }
+  .visual-panel::before {
+    content: ''; position: absolute; bottom: -60px; left: -60px;
+    width: 300px; height: 300px;
+    background: radial-gradient(circle, rgba(0,200,180,0.08) 0%, transparent 70%);
+  }
+  .vp-row {
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px; padding: 12px 16px; margin-bottom: 8px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .vp-label { font-size: 12.5px; font-weight: 300; color: rgba(255,255,255,0.5); flex: 1; }
+  .vp-value { font-size: 13px; font-weight: 500; color: white; }
+  .vp-bar { height: 4px; background: rgba(255,255,255,0.08); border-radius: 2px; margin-top: 10px; }
+  .vp-fill { height: 100%; border-radius: 2px; background: var(--teal); }
+  .risk-high { color: #ff7070 !important; }
+  .risk-med { color: #ffb347 !important; }
+  .risk-low { color: var(--teal) !important; }
+
+  /* ─── PRICING ─── */
+  .pricing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+  .pricing-card {
+    background: white; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 36px; position: relative;
+  }
+  .pricing-card.featured {
+    background: var(--navy); border-color: var(--teal);
+    box-shadow: 0 0 0 4px rgba(0,200,180,0.1);
+  }
+  .pricing-badge {
+    position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
+    background: var(--teal); color: white; font-size: 11px; font-weight: 600;
+    padding: 4px 16px; border-radius: 100px; letter-spacing: 0.05em; text-transform: uppercase;
+  }
+  .pricing-card h3 { font-size: 18px; font-weight: 500; margin-bottom: 8px; }
+  .pricing-card.featured h3 { color: white; }
+  .pricing-card p { font-size: 13.5px; font-weight: 300; color: var(--text-muted); margin-bottom: 24px; }
+  .pricing-card.featured p { color: rgba(255,255,255,0.45); }
+  .price { font-size: 13px; font-weight: 300; color: var(--text-muted); margin-bottom: 28px; }
+  .price strong { font-size: 38px; font-weight: 300; color: var(--navy); }
+  .pricing-card.featured .price strong { color: white; }
+  .pricing-card.featured .price { color: rgba(255,255,255,0.4); }
+  .pricing-feats { list-style: none; }
+  .pricing-feats li { font-size: 13.5px; font-weight: 300; color: var(--text-muted); padding: 7px 0; border-bottom: 1px solid var(--border); display: flex; gap: 8px; align-items: flex-start; }
+  .pricing-card.featured .pricing-feats li { color: rgba(255,255,255,0.55); border-color: rgba(255,255,255,0.08); }
+  .pricing-feats li::before { content: '✓'; color: var(--teal); font-weight: 600; font-size: 12px; flex-shrink: 0; margin-top: 2px; }
+
+  /* ─── TESTIMONIALS ─── */
+  .testimonial {
+    background: white; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 36px;
+  }
+  .testimonial blockquote { font-size: 15.5px; font-weight: 300; color: var(--text); line-height: 1.8; margin-bottom: 24px; font-style: italic; }
+  .testimonial-person { display: flex; align-items: center; gap: 14px; }
+  .avatar { width: 44px; height: 44px; border-radius: 50%; background: var(--navy); color: var(--teal); display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 600; flex-shrink: 0; }
+  .person-name { font-size: 14px; font-weight: 500; color: var(--navy); }
+  .person-role { font-size: 12.5px; font-weight: 300; color: var(--text-muted); }
+
+  /* ─── DARK SECTION ─── */
+  .dark-section { background: var(--navy); color: white; }
+  .dark-section .section-title { color: white; }
+  .dark-section .section-sub { color: rgba(255,255,255,0.5); }
+  .dark-section .card { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.08); }
+  .dark-section .card:hover { border-color: var(--teal); background: rgba(255,255,255,0.06); }
+  .dark-section .card h3 { color: white; }
+  .dark-section .card p { color: rgba(255,255,255,0.45); }
+
+  /* ─── FOOTER ─── */
+  footer {
+    background: var(--navy); color: white; padding: 64px 5% 36px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+  }
+  .footer-grid { display: grid; grid-template-columns: 2fr repeat(4, 1fr); gap: 48px; margin-bottom: 48px; }
+  .footer-brand-desc { font-size: 13.5px; font-weight: 300; color: rgba(255,255,255,0.4); margin-top: 14px; line-height: 1.7; max-width: 220px; }
+  .footer-col h4 { font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255,255,255,0.4); margin-bottom: 16px; }
+  .footer-col a { display: block; font-size: 13.5px; font-weight: 300; color: rgba(255,255,255,0.5); text-decoration: none; margin-bottom: 10px; transition: color 0.2s; }
+  .footer-col a:hover { color: var(--teal); }
+  .footer-bottom { border-top: 1px solid rgba(255,255,255,0.06); padding-top: 28px; display: flex; justify-content: space-between; align-items: center; font-size: 12.5px; font-weight: 300; color: rgba(255,255,255,0.3); }
+
+  /* ─── HERO BOTTOM OVERLAYS ─── */
+  .hero-collab-bar {
+    position: relative; z-index: 2; margin: 0;
+    background: rgba(0,200,180,0.05); border-top: 1px solid rgba(0,200,180,0.15);
+    padding: 20px 5%; display: flex; align-items: center; gap: 24px; flex-wrap: wrap;
+  }
+  .collab-label { font-size: 12px; font-weight: 300; color: rgba(255,255,255,0.35); flex-shrink: 0; }
+  .collab-badge {
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(0,200,180,0.2);
+    border-radius: 8px; padding: 8px 14px; cursor: pointer;
+    transition: all 0.2s;
+  }
+  .collab-badge:hover { background: rgba(0,200,180,0.1); border-color: var(--teal); }
+  .collab-badge-icon { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+  .collab-badge-text { font-size: 12.5px; font-weight: 400; color: rgba(255,255,255,0.7); }
+  .collab-badge-text strong { color: var(--teal); }
+  .collab-badge-tag { font-size: 10px; color: var(--teal); background: rgba(0,200,180,0.12); padding: 2px 7px; border-radius: 4px; font-weight: 500; }
+
+  /* Sector tags */
+  .sector-grid { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 28px; }
+  .sector-tag {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 18px; background: white; border: 1px solid var(--border);
+    border-radius: 8px; font-size: 13.5px; font-weight: 300; color: var(--text);
+    cursor: pointer; transition: all 0.2s;
+  }
+  .sector-tag:hover { border-color: var(--teal); color: var(--teal); }
+  .sector-tag .ico { font-size: 16px; }
+
+  /* Agent timeline */
+  .agent-timeline { position: relative; padding-left: 32px; }
+  .agent-timeline::before { content: ''; position: absolute; left: 11px; top: 0; bottom: 0; width: 1px; background: var(--border); }
+  .at-item { position: relative; padding: 0 0 28px; }
+  .at-dot { position: absolute; left: -32px; top: 2px; width: 22px; height: 22px; border-radius: 50%; background: var(--teal); display: flex; align-items: center; justify-content: center; font-size: 10px; color: white; }
+  .at-title { font-size: 15px; font-weight: 500; color: var(--navy); margin-bottom: 6px; }
+  .at-desc { font-size: 13.5px; font-weight: 300; color: var(--text-muted); line-height: 1.65; }
+
+  /* ─── SCROLLED PAGE NAV ─── */
+  .sub-nav {
+    background: white; border-bottom: 1px solid var(--border);
+    padding: 0 5%; display: flex; gap: 0; overflow-x: auto;
+    position: sticky; top: var(--nav-h); z-index: 100;
+  }
+  .sub-nav-item {
+    padding: 16px 20px; font-size: 13.5px; font-weight: 400; color: var(--text-muted);
+    cursor: pointer; white-space: nowrap; border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+  }
+  .sub-nav-item:hover, .sub-nav-item.active { color: var(--teal); border-bottom-color: var(--teal); }
+
+  /* ─── RESPONSIVE ─── */
+  @media (max-width: 900px) {
+    .hero-inner { grid-template-columns: 1fr; }
+    .hero-visual { display: none; }
+    .feat-split, .grid-2, .grid-3, .grid-4, .footer-grid { grid-template-columns: 1fr; }
+    .pricing-grid { grid-template-columns: 1fr; }
+    .footer-grid { grid-template-columns: 1fr 1fr; }
+  }
+
+  /* Scroll anim */
+  .fade-up { opacity: 0; transform: translateY(24px); transition: opacity 0.6s, transform 0.6s; }
+  .fade-up.visible { opacity: 1; transform: translateY(0); }
+
+  /* Metric badge */
+  .metric-badge {
+    display: inline-flex; gap: 6px; align-items: center;
+    padding: 6px 14px; border-radius: 100px; font-size: 12.5px; font-weight: 500;
+  }
+  .metric-badge.up { background: rgba(0,200,180,0.1); color: var(--teal-dark); }
+  .metric-badge.down { background: rgba(255,107,53,0.1); color: #cc4a1f; }
+
+  /* Integration grid */
+  .int-logo {
+    background: var(--slate-light); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 20px; text-align: center;
+    font-size: 13px; font-weight: 400; color: var(--text-muted);
+    transition: all 0.2s;
+  }
+  .int-logo:hover { background: white; box-shadow: var(--shadow); border-color: var(--teal); }
+  .int-logo-icon { font-size: 28px; display: block; margin-bottom: 8px; }
+
+  /* two-col split for pages */
+  .two-col { display: grid; grid-template-columns: 300px 1fr; gap: 48px; }
+  .sticky-sidebar { position: sticky; top: calc(var(--nav-h) + 48px); height: fit-content; }
+  .sidebar-menu { list-style: none; }
+  .sidebar-menu li { padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 14px; font-weight: 300; color: var(--text-muted); cursor: pointer; transition: color 0.2s; }
+  .sidebar-menu li:hover, .sidebar-menu li.active { color: var(--teal); }
+
+  /* Page hero */
+  .page-hero {
+    background: var(--navy); padding: 80px 5% 64px;
+    position: relative; overflow: hidden;
+  }
+  .page-hero::before {
+    content:''; position: absolute; bottom:-80px; right:-80px;
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(0,200,180,0.1) 0%, transparent 70%);
+  }
+  .page-hero h1 { font-size: clamp(32px, 4vw, 50px); font-weight: 300; color: white; line-height: 1.15; margin-bottom: 16px; letter-spacing: -0.02em; max-width: 700px; }
+  .page-hero h1 strong { font-weight: 600; color: var(--teal); }
+  .page-hero p { font-size: 17px; font-weight: 300; color: rgba(255,255,255,0.5); max-width: 580px; line-height: 1.7; margin-bottom: 28px; }
+  .page-hero .breadcrumb { font-size: 13px; font-weight: 300; color: rgba(255,255,255,0.35); margin-bottom: 16px; }
+  .page-hero .breadcrumb span { color: var(--teal); }
+</style>
+</head>
+<body>
+
+<!-- ══════════ NAVBAR ══════════ -->
+<nav>
+  <a class="nav-logo" href="#" onclick="showPage('home')">
+    <div class="nav-logo-mark">V</div>
+    <span class="nav-logo-text">VeriFin<span>AI</span></span>
+  </a>
+
+  <div class="nav-links">
+    <div class="nav-item has-dropdown">
+      Solutions
+      <div class="nav-dropdown">
+        <div class="nav-dropdown-label">By Industry</div>
+        <a href="#" onclick="showPage('banking')">🏦 Banking & NBFC</a>
+        <a href="#" onclick="showPage('insurance')">🛡️ Insurance & TPAs</a>
+        <a href="#" onclick="showPage('medical')">🏥 Medical Auditing</a>
+        <a href="#" onclick="showPage('fraud')">🔍 Fraud Detection</a>
+        <div class="nav-dropdown-label">Specialized</div>
+        <a href="#" onclick="showPage('employment')">👔 Employment Verification</a>
+        <a href="#" onclick="showPage('platform')">⚙️ Agentic Platform</a>
+      </div>
+    </div>
+    <a class="nav-item" href="#" onclick="showPage('platform')">Platform</a>
+    <a class="nav-item" href="#" onclick="showPage('pricing')">Pricing</a>
+    <a class="nav-item" href="#" onclick="showPage('resources')">Resources</a>
+    <a class="nav-item" href="#" onclick="showPage('compliance')">Compliance</a>
+    <a class="nav-cta-outline" href="#" onclick="showPage('pricing')">Book Demo</a>
+    <a class="nav-cta" href="#" onclick="showPage('platform')">Get Started →</a>
+  </div>
+</nav>
+
+<!-- ══════════ PARTNERSHIP MODAL ══════════ -->
+<!-- <div class="partner-overlay-bg" id="partnerModal">
+  <div class="partner-modal">
+    <button class="partner-modal-close" onclick="closeModal()">✕</button>
+   
+    <h2>VeriFinAI collaborates with <strong>DoctorAssist.AI</strong><br>Clinical Intelligence Platform</h2>
+    <p>Combining VeriFinAI's agentic auditing infrastructure with DoctorAssist.AI's clinical intelligence layer — enabling the deepest, most accurate clinical audit automation in the industry.</p>
+    <div class="partner-features">
+      <div class="partner-feat">
+        <div class="partner-feat-title">Clinical Coding Audit</div>
+        <div class="partner-feat-desc">ICD-10, CPT, DRG validation with 98.7% accuracy</div>
+      </div>
+      <div class="partner-feat">
+        <div class="partner-feat-title">Medical Necessity AI</div>
+        <div class="partner-feat-desc">AI agents validate clinical justification in real-time</div>
+      </div>
+      <div class="partner-feat">
+        <div class="partner-feat-title">Pre-Auth Automation</div>
+        <div class="partner-feat-desc">End-to-end prior auth with clinical protocol matching</div>
+      </div>
+      <div class="partner-feat">
+        <div class="partner-feat-title">Concurrent Review</div>
+        <div class="partner-feat-desc">Continuous inpatient monitoring with discharge planning</div>
+      </div>
+    </div>
+    <div class="partner-modal-actions">
+      <a class="btn-primary" href="#" onclick="closeModal();showPage('medical')">Explore Clinical Auditing →</a>
+      <a class="btn-outline-white" href="#" onclick="closeModal()">Close</a>
+    </div>
+  </div>
+</div> -->
+
+<!-- ══════════════════════════════════════
+     PAGE: HOME
+══════════════════════════════════════ -->
+<section id="page-home" class="active">
+  <div class="page-wrap">
+
+    <!-- Hero -->
+    <div class="hero">
+      <div class="hero-grid"></div>
+      <div class="hero-glow"></div>
+      <div class="hero-inner">
+        <div>
+          <div class="hero-tag">
+            <span class="hero-tag-dot"></span>
+            Agentic Audit Intelligence Platform
+          </div>
+          <h1>Every Transaction.<br>Every <strong>Claim.</strong><br>Every Record.</h1>
+
+
+          <p class="hero-sub">VeriFinAI deploys intelligent audit agents that validate data, detect anomalies, ensure compliance, and automate workflows 24×7.</p>
+          <div class="hero-actions">
+            <a class="btn-primary" href="#" onclick="showPage('platform')">Explore Platform →</a>
+            <a class="btn-outline-white" href="#" onclick="showPage('pricing')">Request Demo</a>
+          </div>
+          <div class="hero-stats">
+            <div class="hero-stat">
+              <div class="hero-stat-num">99.2%</div>
+              <div class="hero-stat-label">Audit Accuracy Rate</div>
+            </div>
+            <div class="hero-stat">
+              <div class="hero-stat-num">78%</div>
+              <div class="hero-stat-label">Reduction in Audit Cost</div>
+            </div>
+            <div class="hero-stat">
+              <div class="hero-stat-num">12M+</div>
+              <div class="hero-stat-label">Transactions Audited Daily</div>
+            </div>
+          </div>
+        </div>
+        <div class="hero-visual">
+          <div class="hero-dashboard">
+            <div class="hero-dash-header">
+              <div class="hdot r"></div><div class="hdot y"></div><div class="hdot g"></div>
+              <span class="hero-dash-title">VeriFinAI Agent Console — Live</span>
+            </div>
+            <div class="hero-agent-row">
+             
+              <div class="agent-info">
+                <div class="agent-name">Transaction Audit Agent</div>
+                <div class="agent-status">Scanning 48,312 transactions · HDFC Bank</div>
+              </div>
+              <span class="agent-badge badge-active">Active</span>
+            </div>
+            <div class="hero-agent-row">
+             
+              <div class="agent-info">
+                <div class="agent-name">Clinical Audit Agent</div>
+                <div class="agent-status">Validating 1,240 claims · United Health TPA</div>
+              </div>
+              <span class="agent-badge badge-analyzing">Analyzing</span>
+            </div>
+            <div class="hero-agent-row">
+              
+              <div class="agent-info">
+                <div class="agent-name">Fraud Detection Agent</div>
+                <div class="agent-status">7 anomalies flagged · Bajaj Allianz</div>
+              </div>
+              <span class="agent-badge badge-alert">Alert</span>
+            </div>
+            <div class="hero-agent-row">
+             
+              <div class="agent-info">
+                <div class="agent-name">Employment Verify Agent</div>
+                <div class="agent-status">Completed 320 verifications · ICICI Lombard</div>
+              </div>
+              <span class="agent-badge badge-active">Done</span>
+            </div>
+            <div class="hero-agent-row">
+             
+              <div class="agent-info">
+                <div class="agent-name">Loan Risk Audit Agent</div>
+                <div class="agent-status">Predicting defaults · Axis Bank SME Portfolio</div>
+              </div>
+              <span class="agent-badge badge-analyzing">Running</span>
+            </div>
+            <div style="margin-top:16px;padding:12px 16px;background:rgba(0,200,180,0.06);border-radius:8px;border:1px solid rgba(0,200,180,0.15);">
+              <div style="font-size:11px;color:rgba(255,255,255,0.35);margin-bottom:4px;">OVERALL AUDIT HEALTH</div>
+              <div style="font-size:22px;font-weight:300;color:var(--teal);">98.4% <span style="font-size:12px;color:rgba(255,255,255,0.3)">compliance score today</span></div>
+              <div class="vp-bar" style="margin-top:8px"><div class="vp-fill" style="width:98%"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Collaboration bar -->
+      <div class="hero-collab-bar">
+        <span class="collab-label">PARTNER ECOSYSTEM ·</span>
+        <div class="collab-badge" onclick="openModal()">
+          
+          <div>
+            <div class="collab-badge-text">Clinical Intelligence</div>
+          </div>
+          <span class="collab-badge-tag">NEW</span>
+        </div>
+        <div class="collab-badge">
+         
+          <div class="collab-badge-text"><strong>FinCore</strong> — Banking Data Bridge</div>
+        </div>
+        <div class="collab-badge">
+        
+          <div class="collab-badge-text"><strong>FraudShield</strong> — Behavioral Analytics</div>
+        </div>
+        <div class="collab-badge">
+   
+          <div class="collab-badge-text"><strong>CompliBot</strong> — Regulatory Engine</div>
+        </div>
+      </div>
+
+      <!-- Ticker -->
+      <div class="ticker-bar">
+        <div class="ticker-inner" id="ticker">
+          <span class="ticker-item"><span class="dot"></span>₹2.4B in fraud prevented this quarter</span>
+          <span class="ticker-item"><span class="dot"></span>48 banks onboarded in FY25</span>
+          <span class="ticker-item"><span class="dot"></span>New: IRDAI-compliant insurance audit module launched</span>
+          <span class="ticker-item"><span class="dot"></span>VeriFinAI rated #1 in RBI Audit Tech Survey 2025</span>
+          <span class="ticker-item"><span class="dot"></span>Clinical audit accuracy: 99.2% — DoctorAssist.AI partnership</span>
+          <span class="ticker-item"><span class="dot"></span>TPA audit turnaround: 4 hours → 18 minutes</span>
+          <span class="ticker-item"><span class="dot"></span>₹2.4B in fraud prevented this quarter</span>
+          <span class="ticker-item"><span class="dot"></span>48 banks onboarded in FY25</span>
+          <span class="ticker-item"><span class="dot"></span>New: IRDAI-compliant insurance audit module launched</span>
+          <span class="ticker-item"><span class="dot"></span>VeriFinAI rated #1 in RBI Audit Tech Survey 2025</span>
+          <span class="ticker-item"><span class="dot"></span>Clinical audit accuracy: 99.2% — DoctorAssist.AI partnership</span>
+          <span class="ticker-item"><span class="dot"></span>TPA audit turnaround: 4 hours → 18 minutes</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Logo strip -->
+    <div class="logo-strip">
+      <div class="logo-strip-label">Trusted by leading financial institutions and healthcare payers</div>
+      <div class="logo-marquee">
+        <div class="logo-marquee-inner" id="logoMarquee">
+          <span class="logo-pill">HDFC Bank</span>
+          <span class="logo-pill">Bajaj Allianz</span>
+          <span class="logo-pill">ICICI Lombard</span>
+          <span class="logo-pill">Axis Bank</span>
+          <span class="logo-pill">Star Health</span>
+          <span class="logo-pill">SBI General</span>
+          <span class="logo-pill">Medi Assist TPA</span>
+          <span class="logo-pill">Reliance Capital</span>
+          <span class="logo-pill">L&T Finance</span>
+          <span class="logo-pill">New India Assurance</span>
+          <span class="logo-pill">HDFC Bank</span>
+          <span class="logo-pill">Bajaj Allianz</span>
+          <span class="logo-pill">ICICI Lombard</span>
+          <span class="logo-pill">Axis Bank</span>
+          <span class="logo-pill">Star Health</span>
+          <span class="logo-pill">SBI General</span>
+          <span class="logo-pill">Medi Assist TPA</span>
+          <span class="logo-pill">Reliance Capital</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Audit domains -->
+    <div class="container section-pad">
+      <div class="text-center">
+        <div class="section-label">AUDIT INTELLIGENCE DOMAINS</div>
+        <h2 class="section-title">One Platform. <strong>Every Audit.</strong></h2>
+        <p class="section-sub">Deploy specialized agentic workflows across every category of auditing — from micro-transaction checks to enterprise-wide compliance orchestration.</p>
+      </div>
+      <div class="sector-grid mt-8" style="justify-content:center">
+        <div class="sector-tag" onclick="showPage('banking')">Banking & Loans</div>
+        <div class="sector-tag" onclick="showPage('insurance')">Insurance Claims</div>
+        <div class="sector-tag" onclick="showPage('medical')">Clinical / Medical</div>
+        <div class="sector-tag" onclick="showPage('fraud')">Fraud Detection</div>
+        <div class="sector-tag" onclick="showPage('insurance')">TPA Audit</div>
+        <div class="sector-tag" onclick="showPage('employment')">Employment Verification</div>
+        <div class="sector-tag" onclick="showPage('employment')">Background Checks</div>
+        <div class="sector-tag" onclick="showPage('banking')">NBFC / Micro-Finance</div>
+        <div class="sector-tag" onclick="showPage('compliance')">Regulatory Compliance</div>
+        <div class="sector-tag" onclick="showPage('fraud')">Corporate Forensics</div>
+      </div>
+
+      <div class="grid-3 mt-8">
+        <div class="card fade-up">
+         
+          <h3>Autonomous Audit Agents</h3>
+          <p>Purpose-built AI agents that ingest, analyze, cross-reference, and deliver audit outcomes — with zero human bottleneck. Agents communicate, escalate, and self-correct in real time.</p>
+          <span class="card-tag">Agentic AI</span>
+        </div>
+        <div class="card fade-up">
+         
+          <h3>Unified Data Ingestion</h3>
+          <p>Connect to CBS, HRMS, claims systems, EHRs, court databases, bureau APIs, and IoT feeds — structured or unstructured. Our data mesh normalizes everything for audit-ready analysis.</p>
+          <span class="card-tag">Data Mesh</span>
+        </div>
+        <div class="card fade-up">
+         
+          <h3>Predictive Risk Engine</h3>
+          <p>Gradient boosted models + LLM reasoning predict default risk, claim fraud, clinical upcoding, and employment misrepresentation before they manifest as losses.</p>
+          <span class="card-tag">ML + LLM</span>
+        </div>
+        <div class="card fade-up">
+         
+          <h3>Regulatory Intelligence</h3>
+          <p>Real-time mapping to RBI, IRDAI, SEBI, NABARD, and international standards (IFRS, Basel III). Automatic audit trail generation for regulatory submissions.</p>
+          <span class="card-tag">RegTech</span>
+        </div>
+        <div class="card fade-up">
+          
+          <h3>Explainable AI Verdicts</h3>
+          <p>Every audit finding backed by a transparent reasoning chain — evidence citations, risk scores, confidence intervals. No black-box decisions that can't survive regulatory scrutiny.</p>
+          <span class="card-tag">XAI</span>
+        </div>
+        <div class="card fade-up">
+         
+          <h3>Real-time Orchestration</h3>
+          <p>Multi-agent pipelines orchestrated via a central intelligence hub. Agents specialize, collaborate, and hand off — mimicking the best audit firm team, at machine speed.</p>
+          <span class="card-tag">Multi-Agent</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- CTA section -->
+    <div class="container" style="padding-bottom:100px">
+      <div class="highlight-box">
+        <div style="display:grid;grid-template-columns:1fr auto;gap:40px;align-items:center">
+          <div>
+            <div class="section-label" style="color:var(--teal)">READY TO TRANSFORM YOUR AUDIT</div>
+            <h2>From <strong>weeks of manual review</strong> to minutes of autonomous audit intelligence.</h2>
+            <p>Deploy VeriFinAI agents in your environment in under 72 hours. Compliance-first, data-sovereign, and built for Indian regulatory frameworks.</p>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:12px;flex-shrink:0">
+            <a class="btn-primary" href="#" onclick="showPage('pricing')">Request a Demo</a>
+            <a class="btn-outline-white" href="#" onclick="showPage('platform')">View Platform →</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+
+<!-- ══════════════════════════════════════
+     PAGE: BANKING
+══════════════════════════════════════ -->
+<section id="page-banking">
+  <div class="page-wrap">
+    <div class="page-hero">
+      <div class="breadcrumb">Solutions / <span>Banking & NBFC Audit</span></div>
+      <h1>Complete <strong>Banking Audit</strong><br>Intelligence — End to End</h1>
+      <p>Every transaction, every loan, every repayment, every risk signal — audited by autonomous agents that never sleep, never miss, and predict what comes next.</p>
+      <a class="btn-primary" href="#" onclick="showPage('pricing')">Start Banking Audit Trial →</a>
+    </div>
+
+    <div class="sub-nav">
+      <div class="sub-nav-item active">Transaction Audit</div>
+      <div class="sub-nav-item">Loan & Credit</div>
+      <div class="sub-nav-item">Default Prediction</div>
+      <div class="sub-nav-item">NBFC Compliance</div>
+      <div class="sub-nav-item">AML / KYC</div>
+    </div>
+
+    <div class="container section-pad">
+      <!-- Transaction Audit -->
+      <div class="feat-split">
+        <div>
+          <div class="section-label">TRANSACTION AUDIT AGENT</div>
+          <h2 class="section-title">Every Rupee.<br><strong>Every Movement.</strong></h2>
+          <p class="section-sub">Our Transaction Audit Agent monitors 100% of bank transactions in real-time — NEFT, RTGS, IMPS, UPI, SWIFT, internal transfers — flagging anomalies, circular flows, and regulatory breaches instantly.</p>
+          <ul class="feat-list mt-4">
+            <li><span class="check">✓</span><div><strong>Velocity Pattern Analysis</strong> — detects unusual frequency, size, or timing clusters</div></li>
+            <li><span class="check">✓</span><div><strong>Circular Transaction Detection</strong> — traces fund flows across layers and entities</div></li>
+            <li><span class="check">✓</span><div><strong>Correspondent Banking Audit</strong> — cross-border SWIFT message validation</div></li>
+            <li><span class="check">✓</span><div><strong>Intraday Liquidity Monitoring</strong> — real-time LCR and NSFR audit signals</div></li>
+            <li><span class="check">✓</span><div><strong>Reconciliation Agent</strong> — CBS vs. ledger vs. nostro auto-reconciliation</div></li>
+            <li><span class="check">✓</span><div><strong>Suspicious Activity Reports</strong> — auto-draft SARs for FIU-IND submission</div></li>
+          </ul>
+        </div>
+        <div class="visual-panel">
+          <div style="font-size:11px;color:rgba(255,255,255,0.3);margin-bottom:16px;letter-spacing:0.08em">TRANSACTION AUDIT LIVE FEED</div>
+          <div class="vp-row">
+            <div class="vp-label">IMPS · ₹84,500 · Rajesh Kumar → Shell Entity</div>
+            <div class="vp-value risk-high">⚠ HIGH RISK</div>
+          </div>
+          <div class="vp-row">
+            <div class="vp-label">UPI · ₹2,100 · Regular grocery payment</div>
+            <div class="vp-value risk-low">✓ CLEAR</div>
+          </div>
+          <div class="vp-row">
+            <div class="vp-label">NEFT · ₹5.2L · Round-trip detected (3 hops)</div>
+            <div class="vp-value risk-high">⚠ CIRCULAR</div>
+          </div>
+          <div class="vp-row">
+            <div class="vp-label">RTGS · ₹1.8Cr · Corporate bulk transfer</div>
+            <div class="vp-value risk-med">◉ REVIEW</div>
+          </div>
+          <div class="vp-row">
+            <div class="vp-label">SWIFT · USD 48,000 · Cross-border remittance</div>
+            <div class="vp-value risk-low">✓ CLEAR</div>
+          </div>
+          <div style="margin-top:20px;display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div style="background:rgba(0,200,180,0.08);border:1px solid rgba(0,200,180,0.15);border-radius:8px;padding:14px;text-align:center">
+              <div style="font-size:22px;font-weight:300;color:var(--teal)">48,312</div>
+              <div style="font-size:11px;color:rgba(255,255,255,0.3);margin-top:4px">Txns Audited Today</div>
+            </div>
+            <div style="background:rgba(255,107,53,0.08);border:1px solid rgba(255,107,53,0.15);border-radius:8px;padding:14px;text-align:center">
+              <div style="font-size:22px;font-weight:300;color:#ff9f7a">127</div>
+              <div style="font-size:11px;color:rgba(255,255,255,0.3);margin-top:4px">Alerts Flagged</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin:80px 0;border-top:1px solid var(--border)"></div>
+
+      <!-- Loan Audit -->
+      <div class="text-center">
+        <div class="section-label">LOAN & CREDIT AUDIT AGENTS</div>
+        <h2 class="section-title">From Origination to <strong>Closure</strong></h2>
+        <p class="section-sub">Continuous audit across the full loan lifecycle — KYC integrity, underwriting verification, disbursement validation, EMI tracking, and NPA classification.</p>
+      </div>
+
+      <div class="grid-4 mt-8">
+        <div class="card">
+          <div class="card-icon teal">📋</div>
+          <h3>Origination Audit</h3>
+          <p>Verifies income docs, ITRs, bank statements, CIBIL scores, property valuations, and guarantor credentials against live bureau and government APIs.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon blue">📦</div>
+          <h3>Disbursement Verification</h3>
+          <p>Confirms funds reach intended beneficiary, validates end-use covenants, detects diversion of loan proceeds to unauthorized parties.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon orange">📅</div>
+          <h3>Repayment Tracking</h3>
+          <p>Real-time EMI monitoring, bounce analysis, restructuring triggers, and predictive alert 90 days before an account slips to NPA.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon navy">🚨</div>
+          <h3>Default Prediction</h3>
+          <p>Gradient-boosted ML models analyze 140+ behavioral and financial signals — social graph, utility payments, GST filings — to predict default 6 months out.</p>
+        </div>
+      </div>
+
+      <div style="margin:60px 0"></div>
+
+      <!-- NBFC specific -->
+      <div class="feat-split">
+        <div class="visual-panel">
+          <div style="font-size:11px;color:rgba(255,255,255,0.3);margin-bottom:20px;letter-spacing:0.08em">NPA PREDICTION DASHBOARD</div>
+          <div style="margin-bottom:16px">
+            <div style="font-size:13px;font-weight:300;color:rgba(255,255,255,0.5);margin-bottom:8px">Portfolio NPA Risk Distribution</div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:12px;color:rgba(255,255,255,0.4);margin-bottom:4px"><span>SMA-0 (30 DPD)</span><span>12.4%</span></div>
+                <div class="vp-bar"><div class="vp-fill" style="width:12%;background:#ffb347"></div></div>
+              </div>
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:12px;color:rgba(255,255,255,0.4);margin-bottom:4px"><span>SMA-1 (60 DPD)</span><span>4.8%</span></div>
+                <div class="vp-bar"><div class="vp-fill" style="width:5%;background:#ff9f7a"></div></div>
+              </div>
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:12px;color:rgba(255,255,255,0.4);margin-bottom:4px"><span>NPA (90+ DPD)</span><span>2.1%</span></div>
+                <div class="vp-bar"><div class="vp-fill" style="width:2%;background:#ff7070"></div></div>
+              </div>
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:12px;color:rgba(255,255,255,0.4);margin-bottom:4px"><span>Standard / Performing</span><span>80.7%</span></div>
+                <div class="vp-bar"><div class="vp-fill" style="width:81%;"></div></div>
+              </div>
+            </div>
+          </div>
+          <div style="background:rgba(0,200,180,0.08);border:1px solid rgba(0,200,180,0.15);border-radius:8px;padding:14px;margin-top:16px">
+            <div style="font-size:11px;color:rgba(255,255,255,0.3);margin-bottom:6px">PREDICTED SLIPPAGE (Next 90 days)</div>
+            <div style="font-size:24px;font-weight:300;color:var(--teal)">₹ 3.2 Cr</div>
+            <div style="font-size:12px;color:rgba(255,255,255,0.35);margin-top:4px">Across 84 accounts — remediation alerts dispatched</div>
+          </div>
+        </div>
+        <div>
+          <div class="section-label">NBFC COMPLIANCE AUDIT</div>
+          <h2 class="section-title">NBFC Regulatory <strong>Radar</strong></h2>
+          <p class="section-sub">Automated compliance for NBFC-MFI, NBFC-P2P, NBFC-AA, HFCs, and Core Investment Companies — across all RBI master directions.</p>
+          <ul class="feat-list mt-4">
+            <li><span class="check">✓</span><div><strong>Fair Practice Code</strong> — auto-audit customer communication, fee disclosure, repayment terms</div></li>
+            <li><span class="check">✓</span><div><strong>FLDG Monitoring</strong> — validates co-lending exposure limits and first loss provisions</div></li>
+            <li><span class="check">✓</span><div><strong>PSL Tracking</strong> — priority sector lending allocation and utilization audit</div></li>
+            <li><span class="check">✓</span><div><strong>Capital Adequacy</strong> — continuous CRAR calculation and stress-testing signals</div></li>
+            <li><span class="check">✓</span><div><strong>Concentration Risk</strong> — geographic, sectoral, and single-party exposure monitoring</div></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="container" style="padding-bottom:80px">
+      <div class="highlight-box">
+        <h2><strong>Banking teams save 78%</strong> of audit man-hours</h2>
+        <p>Axis Bank's internal audit team went from 6-week quarterly cycles to continuous real-time audit with zero additional headcount. ₹12Cr in operational savings in Year 1.</p>
+        <a class="btn-primary" href="#" onclick="showPage('pricing')" style="margin-top:24px;display:inline-block">See Pricing →</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ══════════════════════════════════════
+     PAGE: INSURANCE / TPA
+══════════════════════════════════════ -->
+<section id="page-insurance">
+  <div class="page-wrap">
+    <div class="page-hero">
+      <div class="breadcrumb">Solutions / <span>Insurance & TPA Audit</span></div>
+      <h1><strong>Insurance Claims</strong><br>Audited at the Speed of AI</h1>
+      <p>End-to-end claims audit automation for insurers, Third Party Administrators, and reinsurers. From FNOL to final settlement — every touchpoint audited, every anomaly surfaced.</p>
+      <a class="btn-primary" href="#" onclick="showPage('pricing')">Request Insurance Demo →</a>
+    </div>
+    <div class="container section-pad">
+      <div class="grid-3">
+        <div class="card">
+          <div class="card-icon teal">📥</div>
+          <h3>FNOL Intelligence Agent</h3>
+          <p>First Notice of Loss automated triage — classifies claim type, verifies policy status, checks coverage limits, identifies exclusions, and flags immediate red flags at intake.</p>
+          <span class="card-tag">Claims Intake</span>
+        </div>
+        <div class="card">
+          <div class="card-icon blue">🔬</div>
+          <h3>Medical Bill Audit Agent</h3>
+          <p>Line-by-line hospital bill scrutiny — package rate adherence, implant pricing, surgeon fee benchmarking, NABH tariff compliance, and duplicate billing detection.</p>
+          <span class="card-tag">Bill Audit</span>
+        </div>
+        <div class="card">
+          <div class="card-icon orange">⚡</div>
+          <h3>Cashless Pre-Auth Agent</h3>
+          <p>Automated pre-authorization decisions with medical necessity scoring, procedure-diagnosis alignment, length-of-stay benchmarking, and policy clause matching — in under 4 minutes.</p>
+          <span class="card-tag">Pre-Auth</span>
+        </div>
+        <div class="card">
+          <div class="card-icon navy">🚗</div>
+          <h3>Motor Claims Audit</h3>
+          <p>Surveyor report validation, repair cost benchmarking via OEM parts database, garage network compliance, and total loss vs repair decision optimization.</p>
+          <span class="card-tag">Motor</span>
+        </div>
+        <div class="card">
+          <div class="card-icon teal">🏠</div>
+          <h3>Property Claims Audit</h3>
+          <p>Satellite imagery analysis, contractor estimate validation, catastrophe model cross-reference, and depreciation audit for fire, flood, and theft claims.</p>
+          <span class="card-tag">Property</span>
+        </div>
+        <div class="card">
+          <div class="card-icon blue">♻️</div>
+          <h3>Reinsurance Audit</h3>
+          <p>Treaty and facultative reinsurance bordereau validation, XOL attachment point verification, and cedant data integrity audit for reinsurance submissions.</p>
+          <span class="card-tag">Reinsurance</span>
+        </div>
+      </div>
+
+      <div style="margin:80px 0;border-top:1px solid var(--border)"></div>
+
+      <!-- TPA specific -->
+      <div class="feat-split">
+        <div>
+          <div class="section-label">TPA AUDIT INTELLIGENCE</div>
+          <h2 class="section-title">Complete TPA<br><strong>Oversight Engine</strong></h2>
+          <p class="section-sub">VeriFinAI gives insurance companies full, real-time auditability of every TPA decision — cashless approvals, reimbursement processing, network hospital transactions, and turnaround SLA compliance.</p>
+          <div class="agent-timeline mt-6">
+            <div class="at-item">
+              <div class="at-dot">1</div>
+              <div class="at-title">Claim Ingestion & Policy Match</div>
+              <div class="at-desc">Pulls claim from TPA portal, validates against policy master — insured identity, coverage, waiting period, PED exclusions, sub-limits.</div>
+            </div>
+            <div class="at-item">
+              <div class="at-dot">2</div>
+              <div class="at-title">Clinical Necessity Scoring</div>
+              <div class="at-desc">AI scores medical necessity using DRG, ICD-10, CPT codes against clinical guidelines (Milliman, MCG). Flags over-treatment and upcoding.</div>
+            </div>
+            <div class="at-item">
+              <div class="at-dot">3</div>
+              <div class="at-title">Cost Benchmark Audit</div>
+              <div class="at-desc">Every procedure, every room charge, every implant benchmarked against IRDAI-filed rates, PMJAY rates, and geo-specific hospital profiles.</div>
+            </div>
+            <div class="at-item">
+              <div class="at-dot">4</div>
+              <div class="at-title">Settlement Recommendation</div>
+              <div class="at-desc">Agent recommends approve/query/deny with full evidence chain. Auto-generates query letters with ICD references for challenged claims.</div>
+            </div>
+            <div class="at-item">
+              <div class="at-dot">5</div>
+              <div class="at-title">SLA & Compliance Audit</div>
+              <div class="at-desc">Monitors IRDAI TAT mandates — cashless decisions within 2 hours, reimbursements within 30 days — with escalation on breach.</div>
+            </div>
+          </div>
+        </div>
+        <div class="visual-panel">
+          <div style="font-size:11px;color:rgba(255,255,255,0.3);margin-bottom:20px;letter-spacing:0.08em">TPA AUDIT DASHBOARD — LIVE</div>
+          <div class="vp-row"><div class="vp-label">Claims Received Today</div><div class="vp-value">1,847</div></div>
+          <div class="vp-row"><div class="vp-label">Auto-Approved (AI)</div><div class="vp-value risk-low">1,204 (65%)</div></div>
+          <div class="vp-row"><div class="vp-label">Queried / Pending Docs</div><div class="vp-value risk-med">498 (27%)</div></div>
+          <div class="vp-row"><div class="vp-label">Denied (Non-covered)</div><div class="vp-value risk-high">145 (8%)</div></div>
+          <div class="vp-row"><div class="vp-label">Avg Decision Time</div><div class="vp-value risk-low">18 min ↓ from 4hr</div></div>
+          <div class="vp-row"><div class="vp-label">Amount Saved (Leakage)</div><div class="vp-value risk-low">₹ 1.2 Cr today</div></div>
+          <div style="margin-top:20px;padding:14px;background:rgba(0,200,180,0.06);border:1px solid rgba(0,200,180,0.15);border-radius:8px">
+            <div style="font-size:11px;color:rgba(255,255,255,0.3)">TOP FRAUD PATTERN TODAY</div>
+            <div style="font-size:13px;color:rgba(255,255,255,0.7);margin-top:6px;font-weight:300">Duplicate claim across 3 TPAs — same patient, same dates, different hospitals</div>
+            <div style="font-size:12px;color:var(--teal);margin-top:4px">7 cases linked · ₹ 14.8L exposure blocked</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ══════════════════════════════════════
+     PAGE: MEDICAL AUDITING
+══════════════════════════════════════ -->
+<section id="page-medical">
+  <div class="page-wrap">
+    <div class="page-hero">
+      <div class="breadcrumb">Solutions / <span>Medical & Clinical Audit</span></div>
+      <h1>Clinical Audit<br>Powered by <strong>AI Agents</strong><br>+ DoctorAssist.AI</h1>
+      <p>The most comprehensive clinical auditing stack available — combining VeriFinAI's audit intelligence with DoctorAssist.AI's clinical reasoning engine for unmatched accuracy and defensible outcomes.</p>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:28px">
+        <a class="btn-primary" href="#" onclick="openModal()">Explore Clinical Partnership →</a>
+        <a class="btn-outline-white" href="#" onclick="showPage('pricing')">Request Demo</a>
+      </div>
+    </div>
+
+    <!-- Partnership callout -->
+    <div style="background:rgba(0,200,180,0.06);border-bottom:1px solid rgba(0,200,180,0.15);padding:20px 5%;display:flex;align-items:center;gap:20px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="width:40px;height:40px;background:var(--navy);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px">🏥</div>
+        <div style="font-size:14px;font-weight:500;color:var(--navy)">VeriFinAI × DoctorAssist.AI Clinical Intelligence Platform</div>
+      </div>
+      <div style="font-size:13.5px;font-weight:300;color:var(--text-muted)">Industry-first integration of audit AI with clinical decision intelligence — covering 12,000+ clinical protocols, ICD-11, CPT 2025, and PMJAY health benefit packages.</div>
+      <div class="metric-badge up" style="flex-shrink:0">99.2% accuracy</div>
+    </div>
+
+    <div class="container section-pad">
+      <div class="grid-3">
+        <div class="card">
+          <div class="card-icon teal">🏥</div>
+          <h3>Hospital Bill Audit</h3>
+          <p>Every line item in hospital bills — room charges, surgeon fees, anesthesia, OT charges, medicines, implants, investigations — audited against NABH tariffs and package benchmarks. Detects unbundling, upcoding, and phantom charges.</p>
+          <span class="card-tag">Inpatient</span>
+        </div>
+        <div class="card">
+          <div class="card-icon blue">🔢</div>
+          <h3>Coding Accuracy Audit</h3>
+          <p>ICD-10/11 and CPT code validation against actual clinical notes, discharge summaries, and operative reports. DoctorAssist.AI reads clinical text and flags code-diagnosis mismatches with physician-level precision.</p>
+          <span class="card-tag">ICD / CPT</span>
+        </div>
+        <div class="card">
+          <div class="card-icon orange">🧬</div>
+          <h3>Medical Necessity Review</h3>
+          <p>AI matches treatment protocols against peer-reviewed clinical guidelines — Milliman Care Guidelines, MCG, InterQual — to assess appropriateness of every procedure, test, and medication.</p>
+          <span class="card-tag">Utilization Mgmt</span>
+        </div>
+        <div class="card">
+          <div class="card-icon navy">🕐</div>
+          <h3>Length of Stay Audit</h3>
+          <p>Benchmarks LOS against DRG-adjusted national medians. Detects both medically unnecessary prolonged stays and premature discharges that increase readmission risk.</p>
+          <span class="card-tag">LOS Analysis</span>
+        </div>
+        <div class="card">
+          <div class="card-icon teal">💊</div>
+          <h3>Pharmacy Audit Agent</h3>
+          <p>Drug-diagnosis appropriateness, formulary compliance, generic substitution opportunities, polypharmacy flags, and controlled substance audit across outpatient and inpatient prescriptions.</p>
+          <span class="card-tag">Pharmacy</span>
+        </div>
+        <div class="card">
+          <div class="card-icon blue">📋</div>
+          <h3>PMJAY / AB-PMJAY Audit</h3>
+          <p>Government scheme claim auditing — HBP code validation, beneficiary eligibility cross-check, empaneled hospital rate adherence, and anti-gaming detection for Ayushman Bharat claims.</p>
+          <span class="card-tag">Government Schemes</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ══════════════════════════════════════
+     PAGE: FRAUD DETECTION
+══════════════════════════════════════ -->
+<section id="page-fraud">
+  <div class="page-wrap">
+    <div class="page-hero">
+      <div class="breadcrumb">Solutions / <span>Fraud Detection & Prevention</span></div>
+      <h1>AI Agents That<br><strong>Think Like</strong> a Fraudster</h1>
+      <p>Graph neural networks, behavioral biometrics, and adversarial AI — our fraud detection agents anticipate schemes before they execute, not after they succeed.</p>
+      <a class="btn-primary" href="#" onclick="showPage('pricing')">Deploy Fraud Agents →</a>
+    </div>
+    <div class="container section-pad">
+      <div class="grid-3">
+        <div class="card">
+          <div class="card-icon orange">🕸️</div>
+          <h3>Network Fraud Graph Agent</h3>
+          <p>Graph neural network maps relationships between entities — applicants, addresses, phone numbers, devices, bank accounts, companies — and surfaces fraud rings invisible to rule-based systems.</p>
+          <span class="card-tag">Graph AI</span>
+        </div>
+        <div class="card">
+          <div class="card-icon teal">📱</div>
+          <h3>Behavioral Biometrics</h3>
+          <p>Analyzes typing cadence, device handling, geolocation patterns, and interaction timing to detect account takeover, synthetic identity fraud, and bot-driven applications in real time.</p>
+          <span class="card-tag">Behavioral AI</span>
+        </div>
+        <div class="card">
+          <div class="card-icon blue">📄</div>
+          <h3>Document Forgery Detection</h3>
+          <p>Computer vision models detect altered income slips, forged ITRs, manipulated bank statements, fake stamp papers, and cloned identity documents with 99.4% accuracy.</p>
+          <span class="card-tag">Computer Vision</span>
+        </div>
+        <div class="card">
+          <div class="card-icon navy">💳</div>
+          <h3>Payment Fraud Agent</h3>
+          <p>Real-time transaction scoring for card-not-present fraud, authorized push payment (APP) scams, merchant collusion, and first-party misuse — decisioned in under 80ms.</p>
+          <span class="card-tag">Real-time</span>
+        </div>
+        <div class="card">
+          <div class="card-icon teal">🏢</div>
+          <h3>Corporate Fraud Forensics</h3>
+          <p>Detects diversion of funds, related-party transactions, evergreening of loans, ghost employees, and procurement fraud through multi-ledger reconciliation and GST cross-matching.</div>
+          <span class="card-tag">Corporate</span>
+        </div>
+        <div class="card">
+          <div class="card-icon orange">🔄</div>
+          <h3>Insurance Fraud Ring Agent</h3>
+          <p>Links suspicious claims across policies, hospitals, garages, and claimants to surface organized fraud rings — staged accidents, ghost patients, and claim farming networks.</p>
+          <span class="card-tag">Cross-Domain</span>
+        </div>
+      </div>
+
+      <div style="margin:60px 0;border-top:1px solid var(--border)"></div>
+
+      <div class="text-center">
+        <div class="section-label">FRAUD SIGNAL TAXONOMY</div>
+        <h2 class="section-title">850+ Fraud Rules + <strong>Adaptive ML</strong></h2>
+        <p class="section-sub">Our fraud engine combines curated expert rules with self-learning models that adapt to new schemes — never becoming stale, never missing what's novel.</p>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:36px">
+        <span class="chip">Velocity Abuse</span>
+        <span class="chip">Identity Spoofing</span>
+        <span class="chip">Address Collision</span>
+        <span class="chip">Device Fingerprint Mismatch</span>
+        <span class="chip">Income Inflation</span>
+        <span class="chip">Synthetic Identity</span>
+        <span class="chip">Bust-Out Fraud</span>
+        <span class="chip">Loan Stacking</span>
+        <span class="chip">Ghost Patient</span>
+        <span class="chip">Staged Accidents</span>
+        <span class="chip">Claim Farming</span>
+        <span class="chip">Ponzi Indicators</span>
+        <span class="chip">Money Mule Networks</span>
+        <span class="chip">Trade-Based Money Laundering</span>
+        <span class="chip">Hawala Indicators</span>
+        <span class="chip">Round-Tripping</span>
+        <span class="chip">Related-Party Collusion</span>
+        <span class="chip">Evergreening</span>
+        <span class="chip">Ghost Employees</span>
+        <span class="chip">Procurement Fraud</span>
+        <span class="chip">Upcoding</span>
+        <span class="chip">Unbundling</span>
+        <span class="chip">Inflated Valuation</span>
+        <span class="chip">Phantom Inventory</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ══════════════════════════════════════
+     PAGE: EMPLOYMENT VERIFICATION
+══════════════════════════════════════ -->
+<section id="page-employment">
+  <div class="page-wrap">
+    <div class="page-hero">
+      <div class="breadcrumb">Solutions / <span>Employment Verification & Background Checks</span></div>
+      <h1>Autonomous <strong>Employment<br>& Background</strong> Verification</h1>
+      <p>AI agents that verify employment history, income, criminal records, education, and professional credentials — in minutes, not weeks. Built for lenders, insurers, and HR teams.</p>
+      <a class="btn-primary" href="#" onclick="showPage('pricing')">Start Verifying →</a>
+    </div>
+    <div class="container section-pad">
+      <div class="grid-3">
+        <div class="card">
+          <div class="card-icon teal">🏢</div>
+          <h3>Employment History Verification</h3>
+          <p>Cross-validates employer claimed by applicant against MCA21 company registry, EPF/ESIC records, LinkedIn data (consent-based), TDS traces, and payroll metadata for start/end date accuracy.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon blue">💰</div>
+          <h3>Income & Salary Audit</h3>
+          <p>Form 16, salary slips, bank statement credit patterns, TDS-26AS reconciliation, and GST filing history for self-employed — building a verified income picture across all sources.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon orange">🎓</div>
+          <h3>Education Credential Audit</h3>
+          <p>Degree and certification verification through DigiLocker, AICTE, UGC, university APIs, and global equivalency databases. Flags fake degrees from blacklisted institutions instantly.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon navy">⚖️</div>
+          <h3>Criminal & Court Record Check</h3>
+          <p>Searches across 2,500+ district court databases, high courts, SEBI debarment lists, CIBIL litigation records, Interpol notices, PMLA watchlists, and IBA willful defaulter lists.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon teal">🌐</div>
+          <h3>Global Background Verification</h3>
+          <p>Multi-country employment and credential verification across GCC, UK, US, Singapore, and EU — with local regulatory compliance and data localization built in.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon blue">📊</div>
+          <h3>Continuous Monitoring</h3>
+          <p>Post-onboarding perpetual monitoring — alerts on new court filings, employment changes, credit deterioration, regulatory actions, or adverse media mentions for employees and borrowers.</p>
+        </div>
+      </div>
+
+      <div style="margin:60px 0;border-top:1px solid var(--border)"></div>
+
+      <div class="feat-split">
+        <div>
+          <div class="section-label">AGENTIC VERIFICATION PIPELINE</div>
+          <h2 class="section-title">360° Verified in<br><strong>Under 20 Minutes</strong></h2>
+          <p class="section-sub">Our verification agent orchestrates 40+ data sources simultaneously — no sequential waiting, no manual follow-up. The agent resolves conflicts, flags discrepancies, and delivers a consolidated trust score.</p>
+          <div style="margin-top:28px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+              <div style="padding:16px;background:var(--teal-light);border-radius:var(--radius-sm)">
+                <div style="font-size:26px;font-weight:300;color:var(--teal-dark)">18 min</div>
+                <div style="font-size:13px;font-weight:300;color:var(--text-muted);margin-top:4px">Average verification time</div>
+              </div>
+              <div style="padding:16px;background:var(--blue-light);border-radius:var(--radius-sm)">
+                <div style="font-size:26px;font-weight:300;color:var(--blue)">40+</div>
+                <div style="font-size:13px;font-weight:300;color:var(--text-muted);margin-top:4px">Data sources queried</div>
+              </div>
+              <div style="padding:16px;background:var(--orange-light);border-radius:var(--radius-sm)">
+                <div style="font-size:26px;font-weight:300;color:var(--orange)">94.8%</div>
+                <div style="font-size:13px;font-weight:300;color:var(--text-muted);margin-top:4px">Straight-through processing</div>
+              </div>
+              <div style="padding:16px;background:rgba(10,22,40,0.05);border-radius:var(--radius-sm)">
+                <div style="font-size:26px;font-weight:300;color:var(--navy)">₹80</div>
+                <div style="font-size:13px;font-weight:300;color:var(--text-muted);margin-top:4px">Cost per verification</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <ul class="step-list">
+            <li class="step-item"><div class="step-num">1</div><div class="step-content"><h4>Identity Verification</h4><p>Aadhaar OTP, PAN linkage, face-match, liveness check, UIDAI API validation</p></div></li>
+            <li class="step-item"><div class="step-num">2</div><div class="step-content"><h4>Employment Cross-check</h4><p>EPF UAN trace, salary bank credit pattern, company MCA status validation</p></div></li>
+            <li class="step-item"><div class="step-num">3</div><div class="step-content"><h4>Income Triangulation</h4><p>Form 26AS, bank statements, ITR acknowledgment, GST returns reconciled</p></div></li>
+            <li class="step-item"><div class="step-num">4</div><div class="step-content"><h4>Credential & Education</h4><p>DigiLocker pull, university API or board records verification</p></div></li>
+            <li class="step-item"><div class="step-num">5</div><div class="step-content"><h4>Legal & Litigation</h4><p>Court databases, watchlists, adverse media NLP scan, SEBI/IRDAI actions</p></div></li>
+            <li class="step-item"><div class="step-num">6</div><div class="step-content"><h4>Trust Score & Report</h4><p>Composite verified trust score (0–100) with evidence trail, ready for underwriting</p></div></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ══════════════════════════════════════
+     PAGE: PLATFORM
+══════════════════════════════════════ -->
+<section id="page-platform">
+  <div class="page-wrap">
+    <div class="page-hero">
+      <div class="breadcrumb">Platform / <span>Agentic Audit Intelligence</span></div>
+      <h1>The <strong>VeriFinAI</strong><br>Agentic Platform</h1>
+      <p>A complete multi-agent orchestration infrastructure — from raw data ingestion to autonomous audit decisions. Deploy any combination of agents across your audit workflows.</p>
+    </div>
+    <div class="container section-pad">
+      <div class="text-center">
+        <div class="section-label">PLATFORM ARCHITECTURE</div>
+        <h2 class="section-title">Four-Layer <strong>Agent Intelligence Stack</strong></h2>
+      </div>
+
+      <div style="margin-top:48px">
+        <!-- Layer 4 -->
+        <div style="background:var(--navy);border-radius:12px 12px 0 0;padding:24px 32px;margin-bottom:2px">
+          <div style="font-size:11px;font-weight:600;letter-spacing:0.1em;color:rgba(255,255,255,0.3);margin-bottom:8px">LAYER 4 — ORCHESTRATION & DECISIONS</div>
+          <div style="display:flex;gap:12px;flex-wrap:wrap">
+            <span style="padding:8px 16px;background:rgba(0,200,180,0.15);border:1px solid rgba(0,200,180,0.25);border-radius:6px;font-size:13px;color:var(--teal)">Audit Orchestrator Agent</span>
+            <span style="padding:8px 16px;background:rgba(0,200,180,0.15);border:1px solid rgba(0,200,180,0.25);border-radius:6px;font-size:13px;color:var(--teal)">Decision Engine</span>
+            <span style="padding:8px 16px;background:rgba(0,200,180,0.15);border:1px solid rgba(0,200,180,0.25);border-radius:6px;font-size:13px;color:var(--teal)">Explainability Engine</span>
+            <span style="padding:8px 16px;background:rgba(0,200,180,0.15);border:1px solid rgba(0,200,180,0.25);border-radius:6px;font-size:13px;color:var(--teal)">Regulatory Report Generator</span>
+            <span style="padding:8px 16px;background:rgba(0,200,180,0.15);border:1px solid rgba(0,200,180,0.25);border-radius:6px;font-size:13px;color:var(--teal)">Human Escalation Router</span>
+          </div>
+        </div>
+        <!-- Layer 3 -->
+        <div style="background:var(--navy-light);padding:24px 32px;margin-bottom:2px">
+          <div style="font-size:11px;font-weight:600;letter-spacing:0.1em;color:rgba(255,255,255,0.3);margin-bottom:8px">LAYER 3 — SPECIALIST AUDIT AGENTS</div>
+          <div style="display:flex;gap:12px;flex-wrap:wrap">
+            <span style="padding:8px 16px;background:rgba(0,102,204,0.15);border:1px solid rgba(0,102,204,0.25);border-radius:6px;font-size:13px;color:#7ac8ff">Transaction Agent</span>
+            <span style="padding:8px 16px;background:rgba(0,102,204,0.15);border:1px solid rgba(0,102,204,0.25);border-radius:6px;font-size:13px;color:#7ac8ff">Claims Audit Agent</span>
+            <span style="padding:8px 16px;background:rgba(0,102,204,0.15);border:1px solid rgba(0,102,204,0.25);border-radius:6px;font-size:13px;color:#7ac8ff">Clinical Audit Agent</span>
+            <span style="padding:8px 16px;background:rgba(0,102,204,0.15);border:1px solid rgba(0,102,204,0.25);border-radius:6px;font-size:13px;color:#7ac8ff">Fraud Detection Agent</span>
+            <span style="padding:8px 16px;background:rgba(0,102,204,0.15);border:1px solid rgba(0,102,204,0.25);border-radius:6px;font-size:13px;color:#7ac8ff">Loan Audit Agent</span>
+            <span style="padding:8px 16px;background:rgba(0,102,204,0.15);border:1px solid rgba(0,102,204,0.25);border-radius:6px;font-size:13px;color:#7ac8ff">KYC Agent</span>
+            <span style="padding:8px 16px;background:rgba(0,102,204,0.15);border:1px solid rgba(0,102,204,0.25);border-radius:6px;font-size:13px;color:#7ac8ff">Employment Verifier</span>
+            <span style="padding:8px 16px;background:rgba(0,102,204,0.15);border:1px solid rgba(0,102,204,0.25);border-radius:6px;font-size:13px;color:#7ac8ff">Background Check Agent</span>
+            <span style="padding:8px 16px;background:rgba(0,102,204,0.15);border:1px solid rgba(0,102,204,0.25);border-radius:6px;font-size:13px;color:#7ac8ff">Compliance Agent</span>
+          </div>
+        </div>
+        <!-- Layer 2 -->
+        <div style="background:rgba(10,22,40,0.7);padding:24px 32px;margin-bottom:2px">
+          <div style="font-size:11px;font-weight:600;letter-spacing:0.1em;color:rgba(255,255,255,0.3);margin-bottom:8px">LAYER 2 — INTELLIGENCE & MODELS</div>
+          <div style="display:flex;gap:12px;flex-wrap:wrap">
+            <span style="padding:8px 16px;background:rgba(255,107,53,0.12);border:1px solid rgba(255,107,53,0.2);border-radius:6px;font-size:13px;color:#ff9f7a">LLM Reasoning (GPT-4 / Claude / Gemini)</span>
+            <span style="padding:8px 16px;background:rgba(255,107,53,0.12);border:1px solid rgba(255,107,53,0.2);border-radius:6px;font-size:13px;color:#ff9f7a">GNN Fraud Graphs</span>
+            <span style="padding:8px 16px;background:rgba(255,107,53,0.12);border:1px solid rgba(255,107,53,0.2);border-radius:6px;font-size:13px;color:#ff9f7a">XGBoost Risk Models</span>
+            <span style="padding:8px 16px;background:rgba(255,107,53,0.12);border:1px solid rgba(255,107,53,0.2);border-radius:6px;font-size:13px;color:#ff9f7a">Computer Vision (Docs)</span>
+            <span style="padding:8px 16px;background:rgba(255,107,53,0.12);border:1px solid rgba(255,107,53,0.2);border-radius:6px;font-size:13px;color:#ff9f7a">NLP Clinical Notes</span>
+            <span style="padding:8px 16px;background:rgba(255,107,53,0.12);border:1px solid rgba(255,107,53,0.2);border-radius:6px;font-size:13px;color:#ff9f7a">Time-Series Anomaly</span>
+          </div>
+        </div>
+        <!-- Layer 1 -->
+        <div style="background:rgba(10,22,40,0.4);border-radius:0 0 12px 12px;padding:24px 32px">
+          <div style="font-size:11px;font-weight:600;letter-spacing:0.1em;color:rgba(255,255,255,0.3);margin-bottom:8px">LAYER 1 — DATA INGESTION & MESH</div>
+          <div style="display:flex;gap:12px;flex-wrap:wrap">
+            <span style="padding:8px 16px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:6px;font-size:13px;color:rgba(255,255,255,0.4)">Core Banking (CBS)</span>
+            <span style="padding:8px 16px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:6px;font-size:13px;color:rgba(255,255,255,0.4)">Claims Systems</span>
+            <span style="padding:8px 16px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:6px;font-size:13px;color:rgba(255,255,255,0.4)">EHR / HIS</span>
+            <span style="padding:8px 16px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:6px;font-size:13px;color:rgba(255,255,255,0.4)">Government APIs</span>
+            <span style="padding:8px 16px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:6px;font-size:13px;color:rgba(255,255,255,0.4)">Bureau Data</span>
+            <span style="padding:8px 16px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:6px;font-size:13px;color:rgba(255,255,255,0.4)">MCA / SEBI / IRDAI</span>
+            <span style="padding:8px 16px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:6px;font-size:13px;color:rgba(255,255,255,0.4)">Court Records</span>
+            <span style="padding:8px 16px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:6px;font-size:13px;color:rgba(255,255,255,0.4)">NPCI / UPI</span>
+            <span style="padding:8px 16px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:6px;font-size:13px;color:rgba(255,255,255,0.4)">GST Portal</span>
+            <span style="padding:8px 16px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:6px;font-size:13px;color:rgba(255,255,255,0.4)">DigiLocker / UIDAI</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin:80px 0;border-top:1px solid var(--border)"></div>
+
+      <div class="text-center">
+        <div class="section-label">INTEGRATIONS</div>
+        <h2 class="section-title">Works with <strong>Your Stack</strong></h2>
+      </div>
+      <div class="grid-4 mt-8">
+        <div class="int-logo"><span class="int-logo-icon">🏛️</span>Finacle (Infosys)</div>
+        <div class="int-logo"><span class="int-logo-icon">💻</span>Temenos T24</div>
+        <div class="int-logo"><span class="int-logo-icon">🏦</span>Oracle FLEXCUBE</div>
+        <div class="int-logo"><span class="int-logo-icon">📊</span>SAP S/4HANA</div>
+        <div class="int-logo"><span class="int-logo-icon">🏥</span>Epic / Cerner EHR</div>
+        <div class="int-logo"><span class="int-logo-icon">🔗</span>Salesforce Health Cloud</div>
+        <div class="int-logo"><span class="int-logo-icon">📋</span>Ezyhealth TPA</div>
+        <div class="int-logo"><span class="int-logo-icon">⚡</span>NPCI APIs</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ══════════════════════════════════════
+     PAGE: COMPLIANCE
+══════════════════════════════════════ -->
+<section id="page-compliance">
+  <div class="page-wrap">
+    <div class="page-hero">
+      <div class="breadcrumb">Platform / <span>Regulatory Compliance</span></div>
+      <h1>Built for<br><strong>Indian Regulatory</strong><br>Frameworks</h1>
+      <p>VeriFinAI is architected from the ground up for RBI, IRDAI, SEBI, NABARD, and MoHFW compliance — with automatic updates as regulations evolve.</p>
+    </div>
+    <div class="container section-pad">
+      <div class="grid-3">
+        <div class="card">
+          <div class="card-icon teal">🏛️</div>
+          <h3>RBI Master Directions</h3>
+          <p>Continuous mapping to RBI guidelines on KYC, AML, loan classification (NPA/SMA), interest rate audit, FEMA compliance, Basel III capital norms, and digital lending regulations.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon blue">🛡️</div>
+          <h3>IRDAI Framework</h3>
+          <p>Insurance regulatory audit covering claims TAT mandates, product pricing compliance, distribution channel audit, reinsurance reporting, and solvency margin monitoring.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon orange">📈</div>
+          <h3>SEBI Compliance</h3>
+          <p>Market manipulation detection, insider trading pattern analysis, broker audit trails, mutual fund compliance, and algorithmic trading surveillance for capital markets entities.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon navy">🏥</div>
+          <h3>ABDM / NHA Standards</h3>
+          <p>Ayushman Bharat Digital Mission compliance — ABHA-linked audit trails, health data governance, NHA quality benchmarks, and accreditation audit for hospitals and TPAs.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon teal">🔐</div>
+          <h3>DPDP Act 2023</h3>
+          <p>Digital Personal Data Protection Act compliance — data minimization audit, consent management, data principal rights automation, and breach reporting workflows.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon blue">🌍</div>
+          <h3>International Standards</h3>
+          <p>IFRS 9 expected credit loss, Basel III/IV, FATF recommendations, PCI-DSS, SOC 2 Type II, and ISO 27001 audit readiness for globally operating institutions.</p>
+        </div>
+      </div>
+
+      <div style="margin:60px 0;border-top:1px solid var(--border)"></div>
+
+      <div class="highlight-box">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center">
+          <div>
+            <div class="section-label" style="color:var(--teal)">DATA SOVEREIGNTY</div>
+            <h2><strong>On-Premise or Private Cloud</strong> — Always Your Data</h2>
+            <p>Deploy VeriFinAI in your on-premise environment, private cloud, or as a dedicated tenant. All audit data, models, and findings remain within your regulatory boundary. No data leaves your perimeter.</p>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div style="background:rgba(0,200,180,0.1);border:1px solid rgba(0,200,180,0.2);border-radius:8px;padding:16px;text-align:center">
+              <div style="font-size:22px;margin-bottom:6px">🔐</div>
+              <div style="font-size:13px;font-weight:400;color:white">AES-256 Encryption</div>
+            </div>
+            <div style="background:rgba(0,200,180,0.1);border:1px solid rgba(0,200,180,0.2);border-radius:8px;padding:16px;text-align:center">
+              <div style="font-size:22px;margin-bottom:6px">🛡️</div>
+              <div style="font-size:13px;font-weight:400;color:white">Zero-Trust Architecture</div>
+            </div>
+            <div style="background:rgba(0,200,180,0.1);border:1px solid rgba(0,200,180,0.2);border-radius:8px;padding:16px;text-align:center">
+              <div style="font-size:22px;margin-bottom:6px">📋</div>
+              <div style="font-size:13px;font-weight:400;color:white">SOC 2 Type II</div>
+            </div>
+            <div style="background:rgba(0,200,180,0.1);border:1px solid rgba(0,200,180,0.2);border-radius:8px;padding:16px;text-align:center">
+              <div style="font-size:22px;margin-bottom:6px">🏅</div>
+              <div style="font-size:13px;font-weight:400;color:white">ISO 27001 Certified</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ══════════════════════════════════════
+     PAGE: PRICING
+══════════════════════════════════════ -->
+<section id="page-pricing">
+  <div class="page-wrap">
+    <div class="page-hero">
+      <div class="breadcrumb">Platform / <span>Pricing & Plans</span></div>
+      <h1>Pricing Built for<br><strong>Audit at Scale</strong></h1>
+      <p>Usage-based and enterprise plans that grow with your audit volumes. No hidden fees, no per-agent charges — transparent pricing for every tier.</p>
+    </div>
+    <div class="container section-pad">
+      <div class="pricing-grid">
+        <div class="pricing-card">
+          <h3>Starter</h3>
+          <p>For NBFCs, small insurers, and regional banks starting their audit automation journey</p>
+          <div class="price"><strong>₹2.4L</strong> / month</div>
+          <ul class="pricing-feats">
+            <li>Up to 50,000 transactions / month</li>
+            <li>3 Audit Agent modules</li>
+            <li>KYC & Employment Verification</li>
+            <li>Basic fraud rules (200+)</li>
+            <li>Standard regulatory reports</li>
+            <li>Email support, 48hr SLA</li>
+            <li>Cloud deployment</li>
+          </ul>
+          <a class="btn-primary" href="#" style="margin-top:28px;display:block;text-align:center">Get Started</a>
+        </div>
+        <div class="pricing-card featured">
+          <div class="pricing-badge">MOST POPULAR</div>
+          <h3>Professional</h3>
+          <p>For mid-sized banks, insurance companies, and TPAs with complex multi-domain audit needs</p>
+          <div class="price"><strong>₹8.5L</strong> / month</div>
+          <ul class="pricing-feats">
+            <li>Up to 500,000 transactions / month</li>
+            <li>All Audit Agent modules</li>
+            <li>Clinical Audit + DoctorAssist.AI</li>
+            <li>Full fraud graph engine (850+ rules)</li>
+            <li>Real-time dashboards & alerts</li>
+            <li>Priority support, 4hr SLA</li>
+            <li>Private cloud or on-premise</li>
+            <li>API access + webhooks</li>
+            <li>Custom rule builder</li>
+          </ul>
+          <a class="btn-primary" href="#" style="margin-top:28px;display:block;text-align:center">Start Free Trial →</a>
+        </div>
+        <div class="pricing-card">
+          <h3>Enterprise</h3>
+          <p>For large banks, conglomerates, and regulatory bodies needing unlimited scale and custom deployments</p>
+          <div class="price"><strong>Custom</strong> pricing</div>
+          <ul class="pricing-feats">
+            <li>Unlimited transaction volume</li>
+            <li>Dedicated agent infrastructure</li>
+            <li>On-premise deployment with RBI/IRDAI compliance</li>
+            <li>Custom ML model training on your data</li>
+            <li>White-label audit portal</li>
+            <li>Dedicated customer success team</li>
+            <li>24×7 support, 1hr SLA</li>
+            <li>Regulatory liaison support</li>
+            <li>Multi-subsidiary orchestration</li>
+          </ul>
+          <a class="btn-primary" href="#" style="margin-top:28px;display:block;text-align:center">Talk to Sales</a>
+        </div>
+      </div>
+
+      <div style="margin:80px 0;border-top:1px solid var(--border)"></div>
+
+      <!-- Testimonials -->
+      <div class="text-center">
+        <div class="section-label">CUSTOMER OUTCOMES</div>
+        <h2 class="section-title">Trusted by <strong>Risk Leaders</strong></h2>
+      </div>
+      <div class="grid-3 mt-8">
+        <div class="testimonial">
+          <blockquote>"VeriFinAI cut our claims audit cycle from 4 days to 22 minutes. The clinical coding accuracy has reduced our claims leakage by ₹3.2 crores per month."</blockquote>
+          <div class="testimonial-person">
+            <div class="avatar">AK</div>
+            <div>
+              <div class="person-name">Abhijit Kulkarni</div>
+              <div class="person-role">Chief Audit Officer, Bajaj Allianz General Insurance</div>
+            </div>
+          </div>
+        </div>
+        <div class="testimonial">
+          <blockquote>"The loan default prediction model gave us a 90-day early warning system. We reduced NPA slippage by 34% in the first quarter of deployment."</blockquote>
+          <div class="testimonial-person">
+            <div class="avatar">SM</div>
+            <div>
+              <div class="person-name">Sunita Mehta</div>
+              <div class="person-role">EVP - Risk & Compliance, Axis Bank</div>
+            </div>
+          </div>
+        </div>
+        <div class="testimonial">
+          <blockquote>"Employment verification that used to take 7 business days now completes in under 20 minutes. Our underwriting team operates at a completely different velocity."</blockquote>
+          <div class="testimonial-person">
+            <div class="avatar">RP</div>
+            <div>
+              <div class="person-name">Rajiv Patel</div>
+              <div class="person-role">Head of Underwriting, ICICI Lombard</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ══════════════════════════════════════
+     PAGE: RESOURCES
+══════════════════════════════════════ -->
+<section id="page-resources">
+  <div class="page-wrap">
+    <div class="page-hero">
+      <div class="breadcrumb">Company / <span>Resources & Insights</span></div>
+      <h1>Audit Intelligence<br><strong>Knowledge Hub</strong></h1>
+      <p>Research, guides, case studies, and regulatory updates — everything your team needs to stay ahead in AI-powered auditing.</p>
+    </div>
+    <div class="container section-pad">
+      <div class="tab-bar">
+        <button class="tab-btn active">All Resources</button>
+        <button class="tab-btn">Case Studies</button>
+        <button class="tab-btn">Whitepapers</button>
+        <button class="tab-btn">Regulatory Updates</button>
+        <button class="tab-btn">Webinars</button>
+      </div>
+
+      <div class="grid-3">
+        <div class="card">
+          <div style="background:var(--teal-light);border-radius:8px;padding:20px;margin-bottom:20px;font-size:28px">📊</div>
+          <div style="font-size:11px;font-weight:600;letter-spacing:0.08em;color:var(--teal);margin-bottom:8px">WHITEPAPER</div>
+          <h3>Agentic AI in Financial Auditing: A 2025 Practitioner's Guide</h3>
+          <p>How multi-agent LLM systems are replacing sampling-based audits with 100% coverage — methodology, architecture, and ROI frameworks.</p>
+          <div class="card-tag">48 pages</div>
+        </div>
+        <div class="card">
+          <div style="background:var(--blue-light);border-radius:8px;padding:20px;margin-bottom:20px;font-size:28px">🏦</div>
+          <div style="font-size:11px;font-weight:600;letter-spacing:0.08em;color:var(--blue);margin-bottom:8px">CASE STUDY</div>
+          <h3>How a Mid-Sized NBFC Reduced NPA by 34% Using Predictive Audit</h3>
+          <p>A deep-dive into the 6-month deployment journey — data integration, model calibration, regulatory navigation, and measurable outcomes.</p>
+          <div class="card-tag">NBFC</div>
+        </div>
+        <div class="card">
+          <div style="background:var(--orange-light);border-radius:8px;padding:20px;margin-bottom:20px;font-size:28px">🛡️</div>
+          <div style="font-size:11px;font-weight:600;letter-spacing:0.08em;color:var(--orange);margin-bottom:8px">REGULATORY UPDATE</div>
+          <h3>RBI's Updated Digital Lending Guidelines: Audit Implications 2025</h3>
+          <p>What the latest RBI master direction amendments mean for your audit framework — compliance gaps, required agent controls, and reporting changes.</p>
+          <div class="card-tag">RBI</div>
+        </div>
+        <div class="card">
+          <div style="background:rgba(10,22,40,0.05);border-radius:8px;padding:20px;margin-bottom:20px;font-size:28px">🏥</div>
+          <div style="font-size:11px;font-weight:600;letter-spacing:0.08em;color:var(--navy);margin-bottom:8px">WEBINAR</div>
+          <h3>Clinical Audit in the Age of AI: VeriFinAI × DoctorAssist.AI</h3>
+          <p>Live demonstration of the clinical audit integration — ICD coding validation, medical necessity scoring, and PMJAY claims auditing in real time.</p>
+          <div class="card-tag">On-Demand</div>
+        </div>
+        <div class="card">
+          <div style="background:var(--teal-light);border-radius:8px;padding:20px;margin-bottom:20px;font-size:28px">🔍</div>
+          <div style="font-size:11px;font-weight:600;letter-spacing:0.08em;color:var(--teal);margin-bottom:8px">RESEARCH</div>
+          <h3>Graph Neural Networks for Insurance Fraud Ring Detection</h3>
+          <p>Technical research paper on applying GNNs to detect multi-insurer fraud rings — methodology, dataset, precision/recall benchmarks, and production deployment learnings.</p>
+          <div class="card-tag">Technical</div>
+        </div>
+        <div class="card">
+          <div style="background:var(--blue-light);border-radius:8px;padding:20px;margin-bottom:20px;font-size:28px">⚖️</div>
+          <div style="font-size:11px;font-weight:600;letter-spacing:0.08em;color:var(--blue);margin-bottom:8px">GUIDE</div>
+          <h3>DPDP Act 2023 Compliance Checklist for Audit Platforms</h3>
+          <p>A step-by-step compliance guide for audit technology platforms — data minimization, consent logging, data principal rights, and breach notification workflows.</p>
+          <div class="card-tag">Legal</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ══════════════════════════════════════
+     FOOTER (shown on all pages)
+══════════════════════════════════════ -->
+<footer>
+  <div class="footer-grid">
+    <div>
+      <div class="nav-logo" style="margin-bottom:14px">
+       
+       
+      </div>
+      <p class="footer-brand-desc">The Agentic Audit Intelligence Platform. Built for banks, insurers, TPAs, NBFCs, and enterprises that demand complete audit coverage at machine speed.</p>
+    </div>
+    <div class="footer-col">
+      <h4>Solutions</h4>
+      <a href="#" onclick="showPage('banking')">Banking Audit</a>
+      <a href="#" onclick="showPage('insurance')">Insurance & TPA</a>
+      <a href="#" onclick="showPage('medical')">Clinical Audit</a>
+      <a href="#" onclick="showPage('fraud')">Fraud Detection</a>
+      <a href="#" onclick="showPage('employment')">Employment Verify</a>
+    </div>
+    <div class="footer-col">
+      <h4>Platform</h4>
+      <a href="#" onclick="showPage('platform')">Agentic Platform</a>
+      <a href="#" onclick="showPage('platform')">Integrations</a>
+      <a href="#" onclick="showPage('compliance')">Compliance</a>
+      <a href="#" onclick="showPage('compliance')">Security</a>
+      <a href="#">API Docs</a>
+    </div>
+    <div class="footer-col">
+      <h4>Resources</h4>
+      <a href="#" onclick="showPage('resources')">Case Studies</a>
+      <a href="#" onclick="showPage('resources')">Whitepapers</a>
+      <a href="#" onclick="showPage('resources')">Webinars</a>
+      <a href="#" onclick="showPage('resources')">Blog</a>
+      <a href="#">Regulatory Updates</a>
+    </div>
+    <div class="footer-col">
+      <h4>Company</h4>
+      <a href="#">About VeriFinAI</a>
+      <a href="#">Leadership Team</a>
+      <a href="#">Careers</a>
+      <a href="#">Partners</a>
+      <a href="#" onclick="showPage('pricing')">Pricing</a>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>© 2025 VeriFinAI Technologies Pvt. Ltd. · CIN: U74999MH2024PTC000000</span>
+    <span>Privacy Policy · Terms of Service · Cookie Policy</span>
+  </div>
+</footer>
+
+<script>
+  function showPage(id) {
+    document.querySelectorAll('section').forEach(s => s.classList.remove('active'));
+    const target = document.getElementById('page-' + id);
+    if (target) { target.classList.add('active'); window.scrollTo({top: 0, behavior: 'smooth'}); }
+  }
+
+  function openModal() { document.getElementById('partnerModal').style.display = 'flex'; }
+  function closeModal() { document.getElementById('partnerModal').style.display = 'none'; }
+
+  // Auto-show modal after 3s on home page load
+  setTimeout(() => {
+    if (document.getElementById('page-home').classList.contains('active')) openModal();
+  }, 3000);
+
+  // Scroll animations
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+  }, { threshold: 0.1 });
+  document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
+
+  // Sub nav active state
+  document.querySelectorAll('.sub-nav-item').forEach(item => {
+    item.addEventListener('click', () => {
+      item.closest('.sub-nav').querySelectorAll('.sub-nav-item').forEach(i => i.classList.remove('active'));
+      item.classList.add('active');
+    });
+  });
+
+  // Tab buttons
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      btn.closest('.tab-bar').querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+
+  // Close modal on backdrop click
+  document.getElementById('partnerModal').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+  });
+</script>
+</body>
+</html>

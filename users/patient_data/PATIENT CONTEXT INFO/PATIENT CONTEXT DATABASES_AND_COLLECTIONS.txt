@@ -1,0 +1,187 @@
+DATABASES & COLLECTIONS REFERENCE
+============================================================
+patientcontext.py  |  132 MongoDB collections opened at startup
+============================================================
+
+### MONGODB COLLECTIONS
+------------------------------------------------------------
+Format:  variable name in code  ->  actual MongoDB collection
+
+  OPD_Doctor_timings_collection                 -> OPD_Doctor_timings
+  admin_rule_agent_collection                   -> admin_rule_agent
+  administrative_collection                     -> administrative_reports
+  agentic_data_collection                       -> agentic_data
+  ambulance_dispatches_collection               -> ambulance_dispatches
+  anaesthesia_checklist_collection              -> anaesthesia_checklist
+  assertion_collections                         -> assertion-collections
+  audio_from_mobile                             -> mobile_from_audio
+  audit_collection                              -> audit_collections
+  biomarker_trend                               -> biomarker_trend
+  case_boundaries_collection                    -> case_boundaries
+  chemotherapy_records_collection               -> chemotherapy_records
+  clinical_collection                           -> clinical_notes
+  comorbidity_interaction                       -> comorbidity_interaction
+  completed_docs_cursor                         -> rt_record_details
+  condition_collection                          -> conditions
+  condition_context_collection                  -> conditions
+  consistency_check                             -> consistency_check
+  context_data_collection                       -> context_data
+  context_rule_collection                       -> context_admin_rules
+  context_rule_doctor_collection                -> context_admin_doctor_rules
+  conversation_from_mobile                      -> mobile_from_conversation
+  conversation_user_collection                  -> conversation_user
+  current_context_collection                    -> current_context
+  date_wise_collection                          -> date_wise_consultation_summary
+  delta_snapshots                               -> delta_snapshots
+  diagnosis_data_collection                     -> diagnosis_data
+  dictation_collection                          -> dictation
+  discharge_collection                          -> discharge_summaries
+  disease_identity_collection                   -> disease_identity
+  disease_trajectory_collection                 -> disease_trajectory
+  doctor                                        -> users
+  doctor_guidelines_collection                  -> doctor_guidelines
+  doctor_logs_collection                        -> doctor_logs
+  doctor_medical_current_rule_collection        -> doctor_medical_current_rules
+  doctor_rule_agent_collection                  -> doctor_rule_agent
+  doctor_screening_questions_collection         -> doctor_screening_questions
+  doctor_screening_results_collection           -> doctor_screening_results
+  doctor_user_c                                 -> doctor_users
+  doctor_user_collection                        -> doctor_users
+  doctor_voice_notes_collection_forprocessing   -> doctor_voice_notes
+  document_categories_collection                -> document_categories
+  document_collection                           -> patient_documents_collection
+  document_user_collection                      -> document_user
+  documentation_clinical_notes_collection       -> documentation-clinical-notes
+  documentation_investigation_notes_collection  -> documentation-investigation-notes
+  documentation_medication_analysis_collection  -> documentation-medication-analysis
+  documentation_treatment_plan_collection       -> documentation-treatment-plan
+  documentation_treatment_summary_collection    -> documentation-treatment-summary
+  emergency_collection                          -> emergency_reports
+  emergency_patients_collection                 -> patients
+  eventdb_collection                            -> eventdb
+  functional_collection                         -> functional_special_tests
+  functional_status_collection                  -> functional_status
+  hospital_report_rule_collection               -> hospital_report_rules
+  hospital_user_c                               -> hospital_users
+  hospital_user_collection                      -> hospital_users
+  hypothesis_layer_collection                   -> hypothesis_layer
+  image_document_collection                     -> patient_image_documents
+  image_reportnode_collection                   -> image_report_nodes
+  imaging_collection                            -> imaging_reports
+  imaging_progression                           -> imaging_progression
+  insurance_claims_collection                   -> insurance_claims
+  insurance_providers_collection                -> insurance_providers
+  insurance_verification_collection             -> insurance_verification
+  integrator_auth_collection                    -> integrator_auth
+  integrator_save_api_c                         -> integrator_save_api
+  lab_trend_analysis                            -> lab_trend_analysis
+  laboratory_collection                         -> laboratoryPathologyReports
+  longitudinal_context_collection               -> longitudinal_context
+  medical_context_collection                    -> medical_context
+  medical_current_rule_collection               -> medical_current_admin_rules
+  medication_safety                             -> medication_safety
+  nerve_block_assessments_collection            -> nerve_block_assessments
+  next_visit_brief_collection                   -> next_visit_brief
+  nurse_referral_letters_collection             -> nurse_referral_letters
+  nurse_task_collection                         -> nurse_task_collection
+  nurse_user_collection                         -> nurse_users
+  nursenote                                     -> nurse_voice
+  oncology_investigations_collection            -> oncology_investigations
+  pain_management_collection                    -> pain-management-collection
+  palliative_assessment_collection              -> palliative_assessment
+  patient_appointments_collection               -> patient_appointments
+  patient_consultation_collection               -> patient_consultations
+  patient_exists                                -> patients
+  patient_intake_collection                     -> patient_intake_assessments
+  patient_summary_collection                    -> patient_summary
+  patient_user_collec                           -> patient_users
+  patient_user_collection                       -> patient_users
+  patient_users_collection                      -> patient_users
+  patient_vitals_collection                     -> patient_vitals
+  pharmacy_collection                           -> pharmacy_reports
+  preventive_screening_collection               -> preventive_screening
+  processed_documents                           -> processed_documents
+  processing_tracker                            -> processing_tracker
+  prognosis_collection                          -> prognosis
+  prognosis_data_collection                     -> prognosis-data
+  protocol_master_collection                    -> protocol_master
+  protocol_master_prefills_collection           -> protocol_master_prefills
+  quality_checker_collection                    -> quality_checker
+  radi_collection                               -> radiation_oncology_summary
+  radiotherapy_records_collection               -> radiotherapy_records
+  referral_collection                           -> referral_reports
+  report_list_collection                        -> report_list
+  report_rule_collection                        -> report_rule
+  report_user_collection                        -> report_user
+  reportnode_collection                         -> report_nodes
+  risk_topology_collection                      -> risk_topology
+  rt_record_details_collection                  -> rt_record_details
+  skills_collection                             -> skill.md
+  specialty_collection                          -> specialty_reports
+  structured_note_collection                    -> structured_notes
+  structured_note_doctor_collection             -> structured_note_doctor_rules
+  structured_note_rule_collection               -> structured_note_admin_rules
+  summary_collection                            -> patient_summary
+  summary_tracker                               -> summary_tracker
+  surgical_collection                           -> surgical_reports
+  surgical_oncology_collection                  -> surgical_oncology
+  surgonc_collection                            -> surgical_oncology_summary
+  symptom_trajectory                            -> symptom_trajectory
+  synoptic_collection                           -> patient_synoptic_report
+  temp_data_collection                          -> temp_data
+  temp_documents_collection                     -> temp_documents
+  tracker                                       -> agent_pdf_tracker
+  transcription_formats_collection              -> transcription_formats
+  treatment_memory_collection                   -> treatment_memory
+  triage_assessment_collection                  -> triage_assessments
+  tumor_board_assignments_collection            -> tumor_board_assignments
+  tumor_board_plan_collection                   -> tumorBoardPlan
+  user_auth_collection                          -> user_auth
+  voice_dictations_collection                   -> voice_dictations
+  whatsapp_message_collection                   -> whatsapp_messages
+
+### DUPLICATE / OVERLAPPING COLLECTIONS
+------------------------------------------------------------
+Different variable names pointing at the same underlying collection —
+worth checking these are meant to be shared, not accidental duplicates:
+
+  doctor_users
+      - doctor_user_c
+      - doctor_user_collection
+
+  hospital_users
+      - hospital_user_c
+      - hospital_user_collection
+
+  patients
+      - emergency_patients_collection
+      - patient_exists
+
+  patient_users
+      - patient_user_collection
+      - patient_user_collec
+      - patient_users_collection
+
+  patient_summary
+      - summary_collection
+      - patient_summary_collection
+
+  rt_record_details
+      - rt_record_details_collection
+      - completed_docs_cursor
+
+  conditions
+      - condition_context_collection
+      - condition_collection
+
+### NEO4J
+------------------------------------------------------------
+  Connection : neo4j_driver (AsyncGraphDatabase)
+  Config     : NEO4J_URI / NEO4J_USER / NEO4J_PASSWORD env vars
+  Used by    : 1 endpoint(s)
+      - DELETE /delete/{patient_id}/{document_name}  (delete_document)
+
+### OTHER EXTERNAL SERVICES
+------------------------------------------------------------
+  Groq LLM API : used directly in 28 endpoint(s) (feature/context extraction, summarization)
+  Celery       : background task queue, used directly in 4 endpoint(s)

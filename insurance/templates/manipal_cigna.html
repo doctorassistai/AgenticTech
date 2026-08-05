@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Claim Investigation Report for Cashless Claim - ManipalCigna</title>
+  <style>
+    @page { size: A4; margin: 0; }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 11px;
+      color: #000;
+      background: #fff;
+    }
+
+    /* ── Page wrapper ── */
+    .page {
+      width: 210mm;
+      min-height: 297mm;
+      padding: 0 0 14mm 0;
+      background: #fff;
+      position: relative;
+      page-break-after: always;
+    }
+    .page:last-child { page-break-after: auto; }
+
+    /* ── Green top banner ── */
+    .top-banner {
+      width: 100%;
+      height: 12px;
+      background: #5ab031;
+      display: block;
+    }
+
+    /* ── Header area ── */
+    .header-area {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      padding: 10px 20px 8px 20px;
+      border-bottom: 1px solid #ccc;
+      margin-bottom: 2px;
+    }
+    .header-logo-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .header-logo {
+      height: 44px;
+      width: auto;
+      object-fit: contain;
+    }
+    .header-address {
+      font-size: 8.5px;
+      line-height: 1.55;
+      color: #222;
+      text-align: right;
+      max-width: 200px;
+    }
+
+    /* ── Report title block ── */
+    .title-block {
+      text-align: center;
+      padding: 14px 20px 8px 20px;
+    }
+    .title-main {
+      font-size: 17px;
+      font-weight: bold;
+      margin-bottom: 6px;
+    }
+    .title-on-behalf {
+      font-size: 13px;
+      font-weight: normal;
+      margin-bottom: 5px;
+    }
+    .title-insurer {
+      font-size: 14px;
+      font-weight: bold;
+      text-decoration: underline;
+      margin-bottom: 4px;
+    }
+
+    /* ── Green bottom banner ── */
+    .bottom-banner {
+      width: 100%;
+      height: 10px;
+      background: #5ab031;
+      position: absolute;
+      bottom: 0;
+      left: 0;
+    }
+
+    /* ── Content area ── */
+    .content {
+      padding: 0 20px;
+    }
+
+    /* ── Section header row (teal/green background) ── */
+    .sec-hdr-row td {
+      background: #e0f0e8;
+      font-weight: bold;
+      font-size: 11.5px;
+      text-align: center;
+      padding: 5px 6px;
+      border: 1px solid #999;
+      letter-spacing: 0.3px;
+    }
+
+    /* ── Tables ── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 10px;
+      table-layout: fixed;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+    }
+
+    td, th {
+      border: 1px solid #999;
+      padding: 5px 7px;
+      vertical-align: top;
+      font-size: 11px;
+      line-height: 1.55;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+    }
+
+    .lbl {
+      font-weight: bold;
+      background: #fff;
+      width: 42%;
+    }
+    .val {
+      background: #fff;
+      color: #555;   /* light placeholder style */
+    }
+    .val-data {
+      background: #fff;
+      color: #000;
+    }
+
+    /* Trigger table */
+    .trig-hdr {
+      background: #ffe98a;
+      font-weight: bold;
+      text-align: center;
+      font-size: 11px;
+    }
+
+    /* Observations bullet list */
+    .obs-list {
+      list-style: disc;
+      padding-left: 16px;
+      line-height: 1.8;
+    }
+    .obs-list li { font-size: 11px; }
+
+    /* Declaration page */
+    .declaration-body {
+      padding: 20px 20px 0 20px;
+      font-size: 11px;
+      line-height: 1.8;
+      text-align: justify;
+    }
+    .declaration-body p { margin-bottom: 12px; }
+    .declaration-bold { font-weight: bold; }
+
+    /* Stamp */
+    .sig-stamp {
+      width: 90px;
+      height: auto;
+      object-fit: contain;
+      display: block;
+      margin-top: 8px;
+    }
+
+    @media print {
+      body { background: #fff; }
+      .page { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!-- PAGE 1 — CLAIM DETAILS                                     -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="top-banner"></div>
+
+  <div class="header-area">
+    <div class="header-logo-wrap">
+      <img src="{{ header_image }}" class="header-logo" alt="Optimus / LetchEk Logo">
+    </div>
+    <div class="header-address">
+      #99, Second Floor, DD Milestone,<br>
+      Kadavanthra, Kochi, Kerala – 682 020<br>
+      Tel.: 755 990 4333, 0484-4069017<br>
+      E-mail: mail@letchek.in<br>
+      www.letchek.in
+    </div>
+  </div>
+
+  <div class="title-block">
+    <div class="title-main">Claim Investigation Report for Cashless Claim</div>
+    <div class="title-on-behalf">on behalf of</div>
+    <div class="title-insurer">MANIPALCIGNA HEALTH INSURANCE COMPANY LTD</div>
+  </div>
+
+  <div class="content">
+
+    <!-- CLAIM DETAILS -->
+    <table>
+      <tr class="sec-hdr-row"><td colspan="2">CLAIM DETAILS</td></tr>
+      <tr><td class="lbl">CLAIM NO</td><td class="val-data">{{ case.insurerRef or '' }}</td></tr>
+      <tr><td class="lbl">POLICY NUMBER</td><td class="val-data">{{ case.policyNumber or '' }}</td></tr>
+      <tr><td class="lbl">POLICY TYPE</td><td class="val">{{ case.policyType or 'Choose an item.' }}</td></tr>
+      <tr><td class="lbl">FIRST POLICY INCEPTION DATE</td><td class="val-data">{{ (case.get('policyDetails') or {}).get('inceptionDate') or (case.get('policyDetails') or {}).get('startDate') or '' }}</td></tr>
+      <tr><td class="lbl">PATIENT NAME</td><td class="val-data">{{ case.claimantName or '' }}</td></tr>
+      <tr><td class="lbl">RELATIONSHIP WITH INSURED</td><td class="val-data">{{ case.relationship or '' }}</td></tr>
+      <tr><td class="lbl">AGE/ SEX</td><td class="val-data">{{ case.claimantAge or '' }}{% if case.claimantGender %} / {{ case.claimantGender }}{% endif %}</td></tr>
+      <tr><td class="lbl">INSURED CITY</td><td class="val-data">{{ case.city or hospital.city or '' }}</td></tr>
+      <tr><td class="lbl">INSURED STATE</td><td class="val-data">{{ case.state or hospital.get('state','') if hospital.get else '' }}</td></tr>
+      <tr><td class="lbl">CLAIM AMOUNT</td><td class="val-data">{{ case.claimedAmount or '' }}</td></tr>
+      <tr><td class="lbl">DIAGNOSIS</td><td class="val-data">{{ critical.diagnosis or '' }}</td></tr>
+      <tr><td class="lbl">DOA</td><td class="val-data">{{ hospital.admissionDate or '' }}</td></tr>
+      <tr><td class="lbl">DOD</td><td class="val-data">{{ hospital.dischargeDate or '' }}</td></tr>
+      <tr><td class="lbl">HOSPITAL NAME</td><td class="val-data">{{ hospital.name or '' }}</td></tr>
+      <tr><td class="lbl">HOSPITAL CITY</td><td class="val-data">{{ hospital.city or '' }}</td></tr>
+      <tr><td class="lbl">HOSPITAL STATE</td><td class="val-data">{{ hospital.get('state','') if hospital.get else '' }}</td></tr>
+      <tr><td class="lbl">ALLOCATION DATE</td><td class="val">{{ (case.get('submissionDetails') or {}).get('caseAssignmentDateTime') or 'Click or tap to enter a date.' }}</td></tr>
+      <tr><td class="lbl">REPORT SUBMISSION DATE</td><td class="val">{{ case.reportDate or 'Click or tap to enter a date.' }}</td></tr>
+      <tr><td class="lbl">CLOSURE TAT (IN DAYS)</td><td class="val-data">{{ (case.get('submissionDetails') or {}).get('closureTat') or '' }}</td></tr>
+    </table>
+
+    <!-- TRIGGER TABLE -->
+    <table>
+      <tr>
+        <th class="trig-hdr" style="width:20%;">Trigger</th>
+        <th class="trig-hdr" style="width:55%;">Trigger Details</th>
+        <th class="trig-hdr" style="width:25%;">Outcome</th>
+      </tr>
+      <tr>
+        <td style="font-weight:bold; font-size:10.5px; text-align:center; vertical-align:middle;">
+          Claim<br>Specific<br>Triggers:
+        </td>
+        <td class="val-data" style="min-height:36px;">{{ case.claimTrigger or (case.get('triggerDetails') or {}).get('trigger') or '' }}</td>
+        <td class="val-data">{{ (case.get('triggerDetails') or {}).get('outcome') or '' }}</td>
+      </tr>
+    </table>
+
+    <!-- INSURED VERIFICATION (Brief of Statement only on page 1) -->
+    <table>
+      <tr class="sec-hdr-row"><td colspan="2">INSURED VERIFICATION</td></tr>
+      <tr>
+        <td class="lbl">BRIEF OF STATEMENT</td>
+        <td class="val-data" style="min-height:40px;">{{ (case.get('insuredVerification') or {}).get('briefOfStatement') or case.insuredStatement or '' }}</td>
+      </tr>
+    </table>
+
+  </div>
+  <div class="bottom-banner"></div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!-- PAGE 2 — INSURED VERIFICATION (cont.) + HOSPITAL + DOCTOR -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="top-banner"></div>
+
+  <div class="header-area">
+    <div class="header-logo-wrap">
+      <img src="{{ header_image }}" class="header-logo" alt="Optimus / LetchEk Logo">
+    </div>
+    <div class="header-address">
+      #99, Second Floor, DD Milestone,<br>
+      Kadavanthra, Kochi, Kerala – 682 020<br>
+      Tel.: 755 990 4333, 0484-4069017<br>
+      E-mail: mail@letchek.in<br>
+      www.letchek.in
+    </div>
+  </div>
+
+  <div class="title-block">
+    <div class="title-main">Claim Investigation Report for Cashless Claim</div>
+    <div class="title-on-behalf">on behalf of</div>
+    <div class="title-insurer">MANIPALCIGNA HEALTH INSURANCE COMPANY LTD</div>
+  </div>
+
+  <div class="content">
+
+    {% set iv = (case.get('insuredVerification') or {}) %}
+
+    <!-- INSURED VERIFICATION continued -->
+    <table>
+      <tr class="sec-hdr-row"><td colspan="2">INSURED VERIFICATION</td></tr>
+      <tr><td class="lbl">STATEMENT GIVEN BY</td><td class="val-data">{{ iv.get('statementGivenBy','') }}</td></tr>
+      <tr>
+        <td class="lbl">IF GIVEN BY OTHER THAN PATIENT BRIEF THE REASON</td>
+        <td class="val-data" style="min-height:32px;">{{ iv.get('ifGivenByOtherReason','') }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">PRE &amp; POST TREATMENT DOCUMENT COLLECTED</td>
+        <td class="val-data" style="min-height:32px;">{{ iv.get('prePostTreatmentDocs','') }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">REASON FOR PRE AND POST TREATMENT NOT DONE</td>
+        <td class="val-data" style="min-height:32px;">{{ iv.get('prePostNotDoneReason','') }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">PAST HISTORY &amp; SUPPORTING DOCUMENTS</td>
+        <td class="val-data" style="min-height:32px;">{{ iv.get('pastHistoryDocs') or additional.get('pastMedicalHistory','') if additional.get else iv.get('pastHistoryDocs','') }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">FAMILY DOCTOR DETAILS &amp; VISIT OUTCOME</td>
+        <td class="val-data" style="min-height:32px;">{{ iv.get('familyDoctorDetails') or case.familyDoctor or '' }}</td>
+      </tr>
+      <tr><td class="lbl">ANY GROSS DISCREPANCY</td><td class="val-data">{{ iv.get('grossDiscrepancy') or case.discrepancy or '' }}</td></tr>
+      <tr><td class="lbl">ANY DISCREPANCY</td><td class="val-data">{{ iv.get('anyDiscrepancy','') }}</td></tr>
+    </table>
+
+    <!-- HOSPITAL VERIFICATION -->
+    {% set hv = (case.get('mchiHospitalVerification') or {}) %}
+
+    <table>
+      <tr class="sec-hdr-row"><td colspan="2">HOSPITAL VERIFICATION</td></tr>
+      <tr><td class="lbl">IP REGISTER</td><td class="val">{{ hv.get('ipRegister') or case.ipRegister or 'Choose an item.' }}</td></tr>
+      <tr><td class="lbl">OP REGISTER</td><td class="val">{{ hv.get('opRegister','Choose an item.') }}</td></tr>
+      <tr><td class="lbl">HOSPITAL VISIT DATE</td><td class="val">{{ hv.get('hospitalVisitDate') or case.reportDate or 'Click or tap to enter a date.' }}</td></tr>
+      <tr><td class="lbl">TARIFF LIST</td><td class="val">{{ hv.get('tariffList','Choose an item.') }}</td></tr>
+      <tr><td class="lbl">ROOM TYPE</td><td class="val-data">{{ hv.get('roomType') or (case.get('billingDetails') or billing or {}).get('roomType','') }}</td></tr>
+      <tr>
+        <td class="lbl">INDOOR CASE PAPER BRIEF</td>
+        <td class="val-data" style="min-height:40px;">{{ hv.get('indoorCasePaperBrief') or additional.get('courseInHospital','') if additional.get else hv.get('indoorCasePaperBrief','') }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">INSURED PAST TREATMENT RECORD IN HOSPITAL</td>
+        <td class="val-data" style="min-height:32px;">{{ hv.get('insuredPastTreatmentRecord','') }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">MLC VERIFICATION IN CASE OF ACCIDENTAL CLAIM</td>
+        <td class="val">{{ hv.get('mlcVerification','Choose an item.') }}</td>
+      </tr>
+    </table>
+
+    <!-- DOCTOR VERIFICATION -->
+    {% set dv = (case.get('mchiDoctorVerification') or {}) %}
+
+    <table>
+      <tr class="sec-hdr-row"><td colspan="2">DOCTOR VERIFICATION</td></tr>
+      <tr><td class="lbl">DOCTOR'S NAME</td><td class="val-data">{{ dv.get('doctorName') or hospital.doctorName or '' }}</td></tr>
+      <tr><td class="lbl">QUALIFICATION</td><td class="val-data">{{ dv.get('qualification','') }}</td></tr>
+      <tr><td class="lbl">REGISTRATION NUMBER</td><td class="val-data">{{ dv.get('registrationNumber') or hospital.get('doctorRegNumber','') if hospital.get else dv.get('registrationNumber','') }}</td></tr>
+    </table>
+
+  </div>
+  <div class="bottom-banner"></div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!-- PAGE 3 — DOCTOR VERIFICATION (cont.) + CONCLUSION         -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="top-banner"></div>
+
+  <div class="header-area">
+    <div class="header-logo-wrap">
+      <img src="{{ header_image }}" class="header-logo" alt="Optimus / LetchEk Logo">
+    </div>
+    <div class="header-address">
+      #99, Second Floor, DD Milestone,<br>
+      Kadavanthra, Kochi, Kerala – 682 020<br>
+      Tel.: 755 990 4333, 0484-4069017<br>
+      E-mail: mail@letchek.in<br>
+      www.letchek.in
+    </div>
+  </div>
+
+  <div class="title-block">
+    <div class="title-main">Claim Investigation Report for Cashless Claim</div>
+    <div class="title-on-behalf">on behalf of</div>
+    <div class="title-insurer">MANIPALCIGNA HEALTH INSURANCE COMPANY LTD</div>
+  </div>
+
+  <div class="content">
+
+    {% set dv = (case.get('mchiDoctorVerification') or {}) %}
+
+    <!-- DOCTOR VERIFICATION continued -->
+    <table>
+      <tr class="sec-hdr-row"><td colspan="2">DOCTOR VERIFICATION</td></tr>
+      <tr>
+        <td class="lbl">REGISTRATION NUMBER VERIFIED ON MCI/PORTAL VERIFICATION</td>
+        <td class="val">{{ dv.get('registrationVerified','Choose an item.') }}</td>
+      </tr>
+    </table>
+
+    <!-- CONCLUSION -->
+    {% set conc = (case.get('mchiConclusion') or {}) %}
+
+    <table>
+      <tr class="sec-hdr-row"><td colspan="2">CONCLUSION</td></tr>
+
+      <!-- OBSERVATIONS -->
+      <tr>
+        <td class="lbl" style="vertical-align:top;">OBSERVATIONS</td>
+        <td class="val-data" style="vertical-align:top; padding: 7px 8px;">
+          {% if conclusion_html %}
+            <div style="font-size:11px; line-height:1.7;">{{ conclusion_html | safe }}</div>
+          {% else %}
+            <ul class="obs-list">
+              <li>Presenting complaints with duration – {{ additional.get('chiefComplaints','') if additional.get else '' }}</li>
+              <li>Provisional diagnosis - {{ critical.diagnosis or '' }}</li>
+              <li>Plan of treatment - {{ additional.get('courseInHospital','') if additional.get else critical.procedure or '' }}</li>
+              <li>Previous claim details – {{ (case.get('policyDetails') or {}).get('pastClaimHistory') or '' }}</li>
+              <li></li>
+            </ul>
+          {% endif %}
+        </td>
+      </tr>
+
+      <tr>
+        <td class="lbl">INVESTIGATOR NAME</td>
+        <td class="val-data">{{ investigation.investigatorName or conc.get('investigatorName','') }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">RECOMMENDATION</td>
+        <td class="val">{{ conc.get('recommendation') or additional.get('investigatorHospitalOpinion','Choose an item.') if additional.get else conc.get('recommendation','Choose an item.') }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">REMARKS</td>
+        <td class="val-data" style="min-height:50px; font-style:italic; text-decoration:underline;">
+          {{ conc.get('remarks') or additional.get('investigatorMemberOpinion','') if additional.get else conc.get('remarks','') }}
+        </td>
+      </tr>
+      <tr>
+        <td class="lbl">POLICY CANCELLATION</td>
+        <td class="val">{{ conc.get('policyCancellation','Choose an item.') }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">EVIDENCE</td>
+        <td class="val-data" style="min-height:32px;">{{ conc.get('evidence') or case.enclosures or '' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">INVESTIGATOR NAME WITH EMPLOYEE ID</td>
+        <td class="val-data" style="min-height:40px;">
+          {{ conc.get('investigatorNameWithId') or investigation.investigatorName or '' }}
+        </td>
+      </tr>
+    </table>
+
+  </div>
+  <div class="bottom-banner"></div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!-- PAGE 4 — DECLARATION                                       -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="top-banner"></div>
+
+  <div class="header-area">
+    <div class="header-logo-wrap">
+      <img src="{{ header_image }}" class="header-logo" alt="Optimus / LetchEk Logo">
+    </div>
+    <div class="header-address">
+      #99, Second Floor, DD Milestone,<br>
+      Kadavanthra, Kochi, Kerala – 682 020<br>
+      Tel.: 755 990 4333, 0484-4069017<br>
+      E-mail: mail@letchek.in<br>
+      www.letchek.in
+    </div>
+  </div>
+
+  <div class="title-block">
+    <div class="title-main">Claim Investigation Report for Cashless Claim</div>
+    <div class="title-on-behalf">on behalf of</div>
+    <div class="title-insurer">MANIPALCIGNA HEALTH INSURANCE COMPANY LTD</div>
+  </div>
+
+  <div class="declaration-body">
+
+    <p><strong>Declaration by Investigating Agency:</strong></p>
+
+    <p>Dear Sir / Madam,</p>
+
+    <p>Please find the detailed investigation report attached herewith. If any further information or clarification is required, please do not hesitate to contact us. A thorough investigation has been undertaken, which included verification, review of documents, field inquiries, and examination of all relevant details pertaining to this claim, followed by our conclusions.</p>
+
+    <p>We hereby confirm that the investigation was conducted independently, fairly, and without any prejudice, and the findings presented in the report accurately reflect the actual facts and circumstances observed on the ground during the course of the investigation.</p>
+
+    <p>The merit of this claim is to be assessed strictly in accordance with the terms, conditions and exclusions of the insurance policy.</p>
+
+    <p>Thanking you,</p>
+
+    <p style="margin-top:20px;">
+      Name of Investigating Agency: <strong>{{ case.vendorName or 'OPTIMUS MEDICAL SERVICES PVT LTD' }}</strong>
+    </p>
+
+    <p>(Sign and Seal of the Agency)</p>
+
+    {% if show_stamp != false %}
+    <img src="{{ stamp_image }}" class="sig-stamp" alt="Stamp">
+    {% endif %}
+
+  </div>
+
+  <div class="bottom-banner"></div>
+</div>
+
+</body>
+</html>

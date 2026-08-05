@@ -1,0 +1,333 @@
+API ENDPOINTS REFERENCE
+============================================================
+watsapp.py  |  router prefix: /whatsapp  |  42 total endpoints
+Grouped by feature area. [inferred] = no docstring existed; description
+guessed from the route name/function name and should be verified.
+Duplicate route paths (same path registered twice) are flagged inline.
+============================================================
+
+### BOT WEBHOOK / TESTING  (6 endpoints)
+------------------------------------------------------------
+  GET    /view/{filename}
+         function : view_file
+         does     : Serve/preview an uploaded file from UPLOAD_DIR  [inferred]
+         touches  : (no MongoDB collection)
+
+  POST   /elevenlabs-hms-id-webhook
+         function : handle_incoming_hms
+         does     : Endpoint for ElevenLabs integration matching their exact
+                    schema; saves doctor_id in appointment records
+         touches  : (no MongoDB collection directly - calls helper functions
+                    that use appointment_records_collection etc.)
+
+  GET    /test-hms-webhook
+         function : test_hms_webhook
+         does     : Test endpoint to verify webhook format
+         touches  : (no MongoDB collection)
+
+  POST   /test-elevenlabs-exact-flow
+         function : test_exact_elevenlabs_flow
+         does     : Test the exact flow that ElevenLabs will use
+         touches  : (no MongoDB collection)
+
+  POST   /webhook
+         function : handle_incoming_message
+         does     : Main webhook for incoming WhatsApp messages. Processes
+                    button clicks formatted as
+                    "yes-patient_id=XXX,followup_id=YYY" or
+                    "no-patient_id=XXX,followup_id=YYY"
+         touches  : whatsapp_followup_collection
+
+  POST   /test-template-custom
+         function : test_template_custom
+         does     : Test sending with a custom phone number using named
+                    Twilio template variables. WhatsApp send only, no DB ops
+         touches  : (no MongoDB collection)
+
+
+### MESSAGES / USER LOOKUPS  (4 endpoints)
+------------------------------------------------------------
+  GET    /messages
+         function : get_all_messages
+         does     : Retrieve all messages  [inferred]
+         touches  : whatsapp_message_collection
+
+  GET    /patient-users
+         function : get_all_patient_users
+         does     : Retrieve all patient users  [inferred]
+         touches  : patient_user_collection
+
+  GET    /patient-users_appointment
+         function : get_all_patient_appointments
+         does     : Retrieve all patient appointments  [inferred]
+         touches  : patient_appointments_collection
+
+  GET    /patient-users_doctors
+         function : get_all_patient_doctors
+         does     : Retrieve all doctor users  [inferred]
+         touches  : doctor_user_collection
+
+
+### OPD DOCTOR TIMINGS  (3 endpoints)
+------------------------------------------------------------
+  POST   /save-opd_timings
+         function : save_opd_timings
+         does     : Ultra minimal endpoint to save OPD timings
+         touches  : OPD_Doctor_timings_collection
+
+  GET    /get-opd_timings/{doctor_id}
+         function : get_opd_timings
+         does     : Fetch OPD timings for a specific doctor by doctor_id
+         touches  : OPD_Doctor_timings_collection
+
+  GET    /doctor-timings
+         function : get_all_doctor_timings
+         does     : Retrieve all doctor timings  [inferred]
+         touches  : OPD_Doctor_timings_collection
+
+
+### DOCTOR SCREENING  (6 endpoints)
+------------------------------------------------------------
+  POST   /doctor-screening-complete
+         function : doctor_screening_complete
+         does     : Handles both getting screening questions and submitting
+                    answers. Requires doctor_id, appointment_id, and hms_id
+                    for all requests. Creates or updates a single record
+                    per appointment
+         touches  : doctor_screening_questions_collection,
+                    doctor_screening_results_collection
+
+  GET    /raw-screening-data
+         function : get_raw_screening_data
+         does     : Get raw screening data (simplest possible endpoint)
+         touches  : doctor_screening_results_collection
+
+  POST   /delete-screening
+         function : delete_screening_by_post
+         does     : Delete a screening result via POST body
+                    (e.g. {"screening_id": "..."})
+         touches  : doctor_screening_results_collection
+
+  GET    /all-screening-questions
+         function : get_all_screening_questions
+         does     : Get all screening questions from the database
+         touches  : doctor_screening_questions_collection
+
+  DELETE /delete-all-screening-questions
+         function : delete_all_screening_questions
+         does     : Delete all screening questions from the database
+         touches  : doctor_screening_questions_collection
+
+  GET    /screening-questions/{doctor_id}
+         function : get_screening_questions
+         does     : Get screening questions for a specific doctor
+         touches  : doctor_screening_questions_collection
+
+
+### DOCTOR / HOSPITAL ADMIN  (3 endpoints)
+------------------------------------------------------------
+  DELETE /delete-doctors-by-hospital/{hospital_id}
+         function : delete_doctors_by_hospital
+         does     : Delete doctors by hospital  [inferred]
+         touches  : doctor_user_collection
+
+  DELETE /delete-hospital-by-sys-user/{sys_user_id}
+         function : delete_hospital_by_sys_user
+         does     : Delete hospital by sys user  [inferred]
+         touches  : hospital_user_collection
+
+  GET    /get_doctors_by_hospital/{hospital_id}
+         function : get_doctors_by_hospital
+         does     : Get doctors by hospital  [inferred]
+         touches  : doctor_user_collection
+
+
+### APPOINTMENTS  (5 endpoints)
+------------------------------------------------------------
+  GET    /appointment-records
+         function : get_appointment_records
+         does     : Get appointment records with optional filters -
+                    supports filtering by patient_id, hms_id, phone_number,
+                    source, doctor_id, appointment_id
+         touches  : appointment_records_collection
+
+  GET    /appointments/{hospital_id}
+         function : get_appointments_by_hospital
+         does     : Get appointments by hospital  [inferred]
+         touches  : appointment_records_collection
+
+  GET    /appointment-records_all
+         function : get_appointment_records   [duplicate function name -
+                    same name reused for a second, simpler route]
+         does     : Retrieve all appointment records  [inferred]
+         touches  : appointment_records_collection
+
+  GET    /appointments/doctor/{doctor_id}
+         function : get_appointments_by_doctor
+         does     : Get appointments by doctor  [inferred]
+         touches  : appointment_records_collection
+         note     : an earlier, commented-out duplicate of this exact
+                    route existed at "# @router.get(\"/appointments/doctor/
+                    {doctor_id}\")" (line ~8990) - dead code, not active
+
+  GET    /appointments
+         function : get_appointments
+         does     : Get appointments  [inferred]
+         touches  : appointment_records_collection
+
+
+### FOLLOW-UPS  (7 endpoints)
+------------------------------------------------------------
+  POST   /follow-up-date
+         function : get_followup_date
+         does     : Takes follow-up data, determines the follow-up date
+                    using the LLaMA model (via Groq) and the provided
+                    text_snippet, then saves to whatsapp_followup_collection
+         touches  : whatsapp_followup_collection
+
+  GET    /follow-ups
+         function : get_follow_up_data   [duplicate function name - see
+                    also GET /follow-up-data below, same function name
+                    reused]
+         does     : Retrieve follow-up data  [inferred]
+         touches  : whatsapp_followup_collection
+
+  POST   /receive-date
+         function : receive_date
+         does     : Takes a date and sends follow-up reminders to patients
+                    with follow-up appointments today, tomorrow, or day
+                    after tomorrow. Uses Twilio template
+                    HX0aef647da42a454a2be9d246319f2b48. Sends patient_id and
+                    followup_uuid as {{1}} and {{2}} without any prefixes
+         touches  : doctor_user_collection, patient_user_collection,
+                    whatsapp_followup_collection
+
+  DELETE /delete-followup/{id}
+         function : delete_followup
+         does     : Delete followup  [inferred]
+         touches  : whatsapp_followup_collection
+
+  DELETE /delete-whatsapp-followup
+         function : delete_whatsapp_followup_data
+         does     : Delete WhatsApp followup data  [inferred]
+         touches  : whatsapp_followup_collection
+
+  GET    /follow-up-data
+         function : get_follow_up_data   [duplicate function name - see
+                    also GET /follow-ups above]
+         does     : Retrieve follow-up data  [inferred]
+         touches  : whatsapp_followup_collection
+
+  GET    /doctor-followups/{doctor_id}
+         function : get_followups_by_doctor
+         does     : Get followups by doctor  [inferred]
+         touches  : whatsapp_followup_collection
+
+
+### PATIENT EDUCATION  (5 endpoints)
+------------------------------------------------------------
+  GET    /education-records
+         function : get_education_records
+         does     : Get all patient education Q&A records with optional
+                    filters
+         touches  : patient_education_collection
+
+  GET    /education-records/{education_id}
+         function : get_education_record_by_id
+         does     : Get a specific education record by its ID
+         touches  : patient_education_collection
+
+  GET    /patient-education/{patient_id}
+         function : get_patient_education_history
+         does     : Get all education records for a specific patient
+         touches  : patient_education_collection
+
+  DELETE /delete-patient-education
+         function : delete_patient_education
+         does     : Delete patient education  [inferred]
+         touches  : patient_education_collection
+
+  GET    /education-records   [DUPLICATE ROUTE - registered twice, once at
+                    ~line 8878 and again at ~line 9157; FastAPI will only
+                    ever reach the first-registered handler]
+         function : get_education_records   [same name as above, second
+                    definition]
+         does     : Get all patient education Q&A records with optional
+                    filters (near-identical docstring to the first one)
+         touches  : patient_education_collection
+
+
+### DOCTOR <-> PATIENT DIRECT MESSAGING  (3 endpoints)
+------------------------------------------------------------
+  POST   /doctor-send-message
+         function : doctor_send_message_to_patient
+         does     : Lets a doctor send a WhatsApp message to their patient.
+                    Expects JSON body {doctor_id, patient_id, message}.
+                    ALWAYS saves to the database regardless of WhatsApp
+                    send success/failure. Sends "Hi {patient_name}, Dr.
+                    {doctor_name} has sent you a message: {message}".
+                    Saves patient_id, doctor_id, patient_name, doctor_name,
+                    message, created_at
+         touches  : doctor_patient_messages_collection, doctor_user_collection,
+                    patient_user_collection
+
+  GET    /doctor-patient-messages
+         function : get_all_doctor_patient_messages
+         does     : Get all doctor-patient messages with optional filters.
+                    Returns messages sorted by most recent first
+         touches  : doctor_patient_messages_collection
+
+  GET    /get_messages_by_doctor/{doctor_id}
+         function : get_messages_by_doctor
+         does     : Fetch messages for a given doctor_id, raising 404 if
+                    none found
+         touches  : doctor_patient_messages_collection
+
+
+### SUPPORTING HELPER / BOT-LOGIC FUNCTIONS (not routes, 68 functions)
+------------------------------------------------------------
+Lines ~306-9432 also contain 68 non-endpoint helper functions that back
+the endpoints above - mostly the WhatsApp bot's conversational
+state-machine (booking, rescheduling, follow-up, and patient-education
+flows) plus formatting/DB-access utilities. They are not HTTP routes so
+they're summarized rather than itemized like the endpoints; grep
+"^def \|^async def " in watsapp.py for the full list if needed. Notable
+groups:
+
+  - Formatting utilities: sanitize_filename, format_doctor_for_display,
+    format_patient_for_response, format_doctor_for_response,
+    format_appointment_for_response, format_time_slot_page,
+    generate_date_selection_message(_reschedule), build_appointment_
+    confirmation, build_patient_verification_message_after_dob
+
+  - DB access / lookups: get_patient_by_hms_id, get_latest_appointment,
+    get_doctor_by_id, get_doctors_by_speciality, get_hospital_id_from_
+    patient, get_upcoming_appointments, get_doctor_opd_timings,
+    get_doctor_available_days, get_doctor_by_sys_user_id,
+    get_available_specialities_for_elevenlabs, get_doctors_for_
+    elevenlabs, update_appointment_in_database,
+    generate_time_slots_for_doctor, save_to_database, book_appointment_api,
+    get_patient_medical_context
+
+  - Messaging: send_bulk_whatsapp_messages, send_whatsapp_message,
+    extract_variables_from_message, send_followup_whatsapp_message,
+    book_followup_appointment
+
+  - Conversation-state handlers (handle_message_logic + ~30
+    handle_appointment_*/handle_reschedule_*/handle_followup_response/
+    handle_education_question functions): drive the multi-step WhatsApp
+    chat flow keyed off ConversationState (see WHATSAPP_MODELS.txt)
+
+
+### DUPLICATE ROUTES / NAMES SUMMARY
+------------------------------------------------------------
+Worth double-checking these aren't accidental collisions:
+
+  GET /education-records          - registered twice (functionally identical)
+  GET /follow-ups & GET /follow-up-data - different paths, same function
+                                     name (get_follow_up_data) reused
+  get_appointment_records          - function name reused for two different
+                                     routes (/appointment-records and
+                                     /appointment-records_all)
+  GET /appointments/doctor/{doctor_id} - one commented-out duplicate
+                                     definition left in the file (inactive)

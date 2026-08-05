@@ -1,0 +1,100 @@
+# ===============================
+# Web Framework
+# ===============================
+fastapi
+uvicorn[standard]
+jinja2
+python-multipart
+
+# ===============================
+# Database
+# ===============================
+pymongo
+motor
+
+# ===============================
+# Authentication & Security
+# ===============================
+fastapi-login
+bcrypt==4.0.1
+passlib[bcrypt]==1.7.4
+python-jose[cryptography]
+email-validator
+
+# ===============================
+# HTTP & Networking
+# ===============================
+requests
+httpx
+aiohttp
+
+# ===============================
+# Celery & Messaging
+# ===============================
+celery==5.3.6
+kombu==5.3.4
+billiard==4.2.0
+amqp
+pika
+
+# ===============================
+# File & Document Processing
+# ===============================
+PyPDF2
+python-docx
+pymupdf
+pytesseract
+pillow
+aiofiles
+
+# ===============================
+# Data Processing
+# ===============================
+pandas
+python-dateutil
+pytz
+python-dotenv
+
+# ===============================
+# LLM / AI Services
+# ===============================
+groq
+# assemblyai
+
+# ===============================
+# LangChain Ecosystem
+# ===============================
+langgraph>=0.0.60,<0.1.0
+langchain>=0.2.0,<0.3.0
+langchain-core>=0.2.0,<0.3.0
+typing-extensions>=4.14.0
+
+# ===============================
+# Data Validation
+# ===============================
+pydantic[email]
+
+# ===============================
+# Async Utilities
+# ===============================
+anyio
+
+# ===============================
+# Rate Limiting
+# ===============================
+slowapi
+llama_cloud==2.6.0
+
+neo4j==5.25.0
+
+loguru
+pdfplumber==0.11.4
+pypdf
+numpy==1.26.4
+tenacity
+rapidfuzz==3.9.6
+pdf2image
+
+
+
+chromadb==0.5.23

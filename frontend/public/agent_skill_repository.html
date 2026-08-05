@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Doctor Skill Intelligence – DoctorAssist.ai</title>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #ffffff; --sidebar-bg: #fafafa; --border: #e5e5e5;
+    --text-primary: #0a0a0a; --text-secondary: #555555; --text-muted: #888888;
+    --tag-bg: #f0f0f0; --code-bg: #f7f7f7; --code-border: #e0e0e0;
+    --active-bg: #efefef; --sidebar-width: 260px; --toc-width: 210px;
+  }
+  html { scroll-behavior: smooth; }
+  body { font-family: 'Open Sans', sans-serif; font-weight: 300; background: var(--bg); color: var(--text-primary); font-size: 14px; line-height: 1.7; }
+
+  /* ANNOUNCEMENT */
+  .announcement { position: fixed; top: 0; left: 0; right: 0; z-index: 200; background: var(--tag-bg); border-bottom: 1px solid var(--border); text-align: center; font-size: 12px; color: var(--text-secondary); padding: 7px 16px; height: 34px; }
+  .announcement a { color: var(--text-primary); font-weight: 600; text-decoration: none; }
+
+  /* TOP NAV */
+  .topnav { position: fixed; top: 34px; left: 0; right: 0; z-index: 100; height: 56px; background: var(--bg); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 24px; gap: 16px; }
+  .topnav-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--text-primary); font-weight: 600; font-size: 15px; letter-spacing: -0.3px; flex-shrink: 0; cursor: pointer; }
+  .logo-icon { width: 28px; height: 28px; background: var(--text-primary); border-radius: 6px; display: flex; align-items: center; justify-content: center; }
+  .topnav-search { flex: 1; max-width: 320px; margin-left: 32px; display: flex; align-items: center; gap: 8px; border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; color: var(--text-muted); font-size: 13px; font-family: inherit; font-weight: 300; cursor: pointer; background: var(--sidebar-bg); }
+  .topnav-search span { flex: 1; }
+  .topnav-search kbd { font-size: 11px; background: var(--border); padding: 1px 6px; border-radius: 4px; color: var(--text-muted); font-family: inherit; }
+  .topnav-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .topnav-btn { display: flex; align-items: center; gap: 6px; font-size: 12px; font-family: inherit; font-weight: 400; padding: 5px 12px; border-radius: 7px; border: 1px solid var(--border); background: transparent; cursor: pointer; color: var(--text-secondary); text-decoration: none; transition: background .15s, color .15s; }
+  .topnav-btn:hover { background: var(--active-bg); color: var(--text-primary); }
+  .topnav-btn.primary { background: var(--text-primary); color: #fff; border-color: var(--text-primary); }
+  .topnav-btn.primary:hover { background: #333; }
+
+  /* LAYOUT */
+  .layout { display: flex; margin-top: 90px; min-height: calc(100vh - 90px); }
+
+  /* SIDEBAR */
+  .sidebar { width: var(--sidebar-width); position: fixed; top: 90px; left: 0; bottom: 0; overflow-y: auto; background: var(--sidebar-bg); border-right: 1px solid var(--border); padding: 24px 0; }
+  .sidebar::-webkit-scrollbar { width: 4px; }
+  .sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .sidebar-section-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); padding: 12px 20px 4px; }
+  .sidebar-link { display: flex; align-items: center; gap: 8px; padding: 6px 20px; font-size: 13.5px; font-weight: 300; color: var(--text-secondary); text-decoration: none; border-left: 3px solid transparent; transition: color .15s, background .15s; cursor: pointer; user-select: none; }
+  .sidebar-link:hover { color: var(--text-primary); background: var(--active-bg); }
+  .sidebar-link.active { color: var(--text-primary); font-weight: 600; background: var(--active-bg); border-left-color: var(--text-primary); }
+  .sidebar-divider { height: 1px; background: var(--border); margin: 12px 20px; }
+
+  /* MAIN */
+  .main { margin-left: var(--sidebar-width); flex: 1; display: flex; justify-content: center; }
+  .content-wrap { max-width: 720px; width: 100%; padding: 48px 40px 80px; margin-right: var(--toc-width); }
+
+  /* CONTENT PAGES */
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* TYPOGRAPHY */
+  .breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); margin-bottom: 20px; }
+  .breadcrumb span { color: var(--border); }
+  .page-tag { display: inline-block; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; background: var(--tag-bg); color: var(--text-secondary); padding: 3px 10px; border-radius: 4px; margin-bottom: 16px; }
+  h1 { font-size: 32px; font-weight: 600; line-height: 1.2; letter-spacing: -0.6px; color: var(--text-primary); margin-bottom: 8px; }
+  .page-subtitle { font-size: 15px; font-weight: 300; color: var(--text-secondary); margin-bottom: 32px; line-height: 1.65; }
+  .copy-btn { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-family: inherit; font-weight: 400; color: var(--text-muted); background: transparent; border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; cursor: pointer; transition: color .15s, border-color .15s; margin-bottom: 32px; }
+  .copy-btn:hover { color: var(--text-primary); border-color: #999; }
+  .content-wrap h2 { font-size: 21px; font-weight: 600; letter-spacing: -0.3px; color: var(--text-primary); margin: 44px 0 12px; padding-top: 8px; display: flex; align-items: center; gap: 8px; }
+  .content-wrap h2 .anchor { font-size: 14px; color: var(--border); text-decoration: none; opacity: 0; transition: opacity .15s; }
+  .content-wrap h2:hover .anchor { opacity: 1; }
+  .content-wrap h3 { font-size: 15px; font-weight: 600; color: var(--text-primary); margin: 24px 0 8px; }
+  .content-wrap p { color: var(--text-secondary); margin-bottom: 14px; font-weight: 300; }
+  .section-divider { border: none; border-top: 1px solid var(--border); margin: 8px 0 4px; }
+
+  /* FEATURE GRID */
+  .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 20px 0; }
+  .feature-card { border: 1px solid var(--border); border-radius: 10px; padding: 20px; transition: border-color .2s, box-shadow .2s; }
+  .feature-card:hover { border-color: #aaa; box-shadow: 0 2px 12px rgba(0,0,0,.06); }
+  .feature-card-icon { width: 36px; height: 36px; background: var(--tag-bg); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-bottom: 12px; }
+  .feature-card h3 { font-size: 13.5px; margin: 0 0 6px; }
+  .feature-card p { font-size: 12.5px; color: var(--text-muted); margin: 0; }
+
+  /* STEP LIST */
+  .step-list { list-style: none; margin: 16px 0; }
+  .step-list li { display: flex; gap: 14px; padding: 16px 0; border-bottom: 1px solid var(--border); }
+  .step-list li:last-child { border-bottom: none; }
+  .step-num { flex-shrink: 0; width: 26px; height: 26px; border: 1.5px solid var(--border); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: var(--text-muted); margin-top: 1px; }
+  .step-content h3 { font-size: 13.5px; margin: 0 0 4px; }
+  .step-content p { font-size: 12.5px; color: var(--text-muted); margin: 0; }
+
+  /* TAGS */
+  .tag-list { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; }
+  .tag { font-size: 11.5px; font-weight: 400; background: var(--tag-bg); color: var(--text-secondary); padding: 3px 10px; border-radius: 4px; border: 1px solid var(--border); }
+
+  /* FLOW DIAGRAM */
+  .flow-diagram { display: flex; align-items: center; margin: 20px 0; overflow-x: auto; padding: 20px; background: var(--code-bg); border: 1px solid var(--code-border); border-radius: 10px; gap: 0; }
+  .flow-node { flex-shrink: 0; border: 1.5px solid var(--border); border-radius: 8px; padding: 12px 18px; background: #fff; text-align: center; min-width: 110px; }
+  .fn-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.6px; }
+  .fn-value { font-size: 12.5px; font-weight: 600; color: var(--text-primary); margin-top: 2px; }
+  .flow-arrow { flex-shrink: 0; color: #ccc; padding: 0 10px; font-size: 20px; line-height: 1; }
+
+  /* NODE GRID */
+  .node-grid { display: grid; grid-template-columns: repeat(5,1fr); gap: 10px; margin: 16px 0; }
+  .node-card { border: 1.5px solid var(--border); border-radius: 10px; padding: 14px 10px; text-align: center; }
+  .nc-icon { width: 32px; height: 32px; border-radius: 50%; background: var(--tag-bg); display: flex; align-items: center; justify-content: center; margin: 0 auto 8px; font-size: 14px; }
+  .nc-label { font-size: 11px; font-weight: 600; color: var(--text-primary); }
+  .nc-desc { font-size: 10.5px; color: var(--text-muted); margin-top: 3px; }
+
+  /* CALLOUT */
+  .callout { border: 1px solid var(--border); border-left: 3px solid var(--text-primary); border-radius: 0 8px 8px 0; padding: 14px 18px; margin: 16px 0; background: var(--code-bg); }
+  .callout p { margin: 0; font-size: 13px; color: var(--text-secondary); }
+  .callout strong { font-weight: 600; color: var(--text-primary); }
+
+  /* INFO ROW */
+  .info-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin: 20px 0; }
+  .info-card { border: 1px solid var(--border); border-radius: 10px; padding: 18px; }
+  .info-card .ic-num { font-size: 26px; font-weight: 700; color: var(--text-primary); letter-spacing: -1px; }
+  .info-card .ic-label { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+  /* GET STARTED CARDS */
+  .gs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 20px 0; }
+  .gs-card { border: 1px solid var(--border); border-radius: 10px; padding: 22px; text-decoration: none; color: inherit; transition: border-color .2s, box-shadow .2s; display: block; }
+  .gs-card:hover { border-color: #aaa; box-shadow: 0 2px 12px rgba(0,0,0,.07); }
+  .gs-card h3 { font-size: 14px; margin-bottom: 6px; font-weight: 600; }
+  .gs-card p { font-size: 12.5px; color: var(--text-muted); margin: 0; }
+  .gs-card .gs-arrow { margin-top: 14px; font-size: 18px; color: var(--text-muted); display: block; }
+
+  /* TOC */
+  .toc { position: fixed; top: 90px; right: 0; width: var(--toc-width); bottom: 0; overflow-y: auto; padding: 32px 20px; border-left: 1px solid var(--border); }
+  .toc-title { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); margin-bottom: 10px; }
+  .toc-link { display: block; font-size: 12.5px; font-weight: 300; color: var(--text-muted); text-decoration: none; padding: 4px 0 4px 12px; border-left: 2px solid transparent; transition: color .15s, border-color .15s; line-height: 1.45; }
+  .toc-link:hover, .toc-link.toc-active { color: var(--text-primary); border-left-color: var(--text-primary); }
+
+  /* PAGE FOOTER */
+  .page-footer { display: flex; align-items: center; justify-content: space-between; padding: 28px 0 0; margin-top: 48px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-muted); }
+  .page-footer a { color: var(--text-muted); text-decoration: none; cursor: pointer; }
+  .page-footer a:hover { color: var(--text-primary); }
+  .fb-btn { border: 1px solid var(--border); background: transparent; border-radius: 6px; padding: 4px 10px; cursor: pointer; font-family: inherit; font-size: 12px; transition: background .15s; }
+  .fb-btn:hover { background: var(--tag-bg); }
+
+  /* TABLE */
+  .data-table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px; }
+  .data-table th { text-align: left; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-muted); border-bottom: 1.5px solid var(--border); padding: 8px 12px; }
+  .data-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); color: var(--text-secondary); vertical-align: top; }
+  .data-table tr:last-child td { border-bottom: none; }
+  .data-table tr:hover td { background: var(--tag-bg); }
+  .badge { display: inline-block; font-size: 10.5px; font-weight: 600; padding: 2px 8px; border-radius: 4px; }
+  .badge-active { background: #e8f5e8; color: #2d7a2d; }
+  .badge-learning { background: #fff8e1; color: #8a6d00; }
+  .badge-weak { background: #fce8e8; color: #8a2d2d; }
+
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  @media (max-width: 1100px) { .toc { display: none; } .content-wrap { margin-right: 0; } .node-grid { grid-template-columns: repeat(3,1fr); } }
+  @media (max-width: 700px) { .sidebar { display: none; } .main { margin-left: 0; } .content-wrap { padding: 32px 20px 60px; } .feature-grid, .gs-grid, .info-row { grid-template-columns: 1fr; } .node-grid { grid-template-columns: repeat(2,1fr); } }
+</style>
+</head>
+<body>
+
+<div class="announcement">
+</div>
+
+<nav class="topnav">
+  <div class="topnav-logo" onclick="navigate('overview')">
+    DoctorAssist.ai
+  </div>
+  <div class="topnav-search">
+    <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    <span>Search documentation…</span>
+  </div>
+  <div class="topnav-right">
+    <a class="topnav-btn" href="https://github.com/dromlakhani/MD2SKILL" target="_blank">GitHub</a>
+    <a class="topnav-btn primary" href="#">Request Access</a>
+  </div>
+</nav>
+
+<div class="layout">
+
+<!-- ══════════════ SIDEBAR ══════════════ -->
+<aside class="sidebar">
+  <div>
+    <div class="sidebar-link active" data-page="overview">
+      <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      Overview
+    </div>
+    <div class="sidebar-link" data-page="specification">
+      <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      Specification
+    </div>
+    <div class="sidebar-link" data-page="architecture">
+      <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      System Architecture
+    </div>
+  </div>
+
+  <div class="sidebar-divider"></div>
+
+  <div>
+    <div class="sidebar-section-title">For Clinicians</div>
+    <div class="sidebar-link" data-page="quickstart">Quickstart Guide</div>
+    <div class="sidebar-link" data-page="skill-profile">Skill Profile Setup</div>
+    <div class="sidebar-link" data-page="decision-flow">Decision Flow Capture</div>
+    <div class="sidebar-link" data-page="reading-profile">Reading Your Profile</div>
+    <div class="sidebar-link" data-page="outcome-feedback">Outcome Feedback</div>
+  </div>
+
+  <div class="sidebar-divider"></div>
+
+  <div>
+    <div class="sidebar-section-title">For Administrators</div>
+    <div class="sidebar-link" data-page="dept-comparison">Department Comparison</div>
+    <div class="sidebar-link" data-page="protocol">Protocol Standardisation</div>
+    <div class="sidebar-link" data-page="skill-transfer">Skill Transfer</div>
+    <div class="sidebar-link" data-page="analytics">Analytics Dashboard</div>
+  </div>
+
+  <div class="sidebar-divider"></div>
+
+  <div>
+    <div class="sidebar-section-title">Technical Reference</div>
+    <div class="sidebar-link" data-page="graph-schema">Graph Schema</div>
+    <div class="sidebar-link" data-page="threshold">Threshold Computation</div>
+    <div class="sidebar-link" data-page="api">API Reference</div>
+    <div class="sidebar-link" data-page="data-models">Data Models</div>
+    <div class="sidebar-link" data-page="integrations">Integrations</div>
+  </div>
+
+  <div class="sidebar-divider"></div>
+
+  <div>
+    <div class="sidebar-section-title">Resources</div>
+    <div class="sidebar-link" data-page="case-studies">Clinical Case Studies</div>
+    <div class="sidebar-link" data-page="changelog">Changelog</div>
+    <div class="sidebar-link" data-page="faq">FAQ</div>
+  </div>
+</aside>
+
+<!-- ══════════════ MAIN ══════════════ -->
+<main class="main">
+<div class="content-wrap">
+
+<!-- ═══════════════════════════════════════ -->
+<!-- PAGE: OVERVIEW -->
+<!-- ═══════════════════════════════════════ -->
+<div class="page active" id="page-overview">
+  <div class="breadcrumb">DoctorAssist.ai <span>/</span> Overview</div>
+  <div class="page-tag">Clinical Intelligence</div>
+  <h1>Doctor Skill Intelligence System</h1>
+  <p class="page-subtitle">A structured framework for capturing, learning from, and operationalising each doctor's clinical decision-making — converting raw patient data into a living, physician-specific knowledge graph.</p>
+  <hr class="section-divider">
+  <h2>What problem are we solving?</h2>
+  <p>Most hospital systems store the <em>outputs</em> of clinical work — symptoms, diagnoses, prescriptions — but never capture <strong>how doctors reason</strong>. This gap creates systemic failures in care quality and continuity.</p>
+  <div class="feature-grid">
+    <div class="feature-card"><div class="feature-card-icon"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div><h3>No care standardisation</h3><p>Identical presentations receive different treatment paths with no structured basis for comparison.</p></div>
+    <div class="feature-card"><div class="feature-card-icon"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div><h3>Invisible expertise</h3><p>Senior physician decision patterns cannot be analysed, taught, or transferred to peers.</p></div>
+    <div class="feature-card"><div class="feature-card-icon"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div><h3>No predictive layer</h3><p>Decision support tools lack physician-specific context to generate meaningful suggestions.</p></div>
+    <div class="feature-card"><div class="feature-card-icon"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div><h3>Data without intelligence</h3><p>Existing records are archives — they record what happened but never why.</p></div>
+  </div>
+  <div class="callout"><p><strong>Our goal:</strong> Convert raw clinical data into a <strong>Doctor Skill Intelligence Layer</strong> — a structured, continuously-learning model of how each physician practices medicine.</p></div>
+  <hr class="section-divider">
+  <h2>Core idea</h2>
+  <p>Every patient consultation is decomposed into a structured decision flow. Repeated across hundreds of encounters, this produces a data-driven profile of clinical expertise.</p>
+  <div class="flow-diagram">
+    <div class="flow-node"><div class="fn-label">Input</div><div class="fn-value">Symptoms &amp; Vitals</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="fn-label">Decision</div><div class="fn-value">Diagnosis &amp; Treatment</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="fn-label">Outcome</div><div class="fn-value">Improvement / Change</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="fn-label">Feedback</div><div class="fn-value">Updates Skill Model</div></div>
+  </div>
+  <hr class="section-divider">
+  <h2>Get started</h2>
+  <div class="gs-grid">
+    <div class="gs-card" onclick="navigate('quickstart')"><h3> Quickstart Guide</h3><p>Set up your first doctor skill profile in under 15 minutes.</p><span class="gs-arrow">→</span></div>
+    <div class="gs-card" onclick="navigate('specification')"><h3>Specification</h3><p>Complete technical specification for the data model and graph schema.</p><span class="gs-arrow">→</span></div>
+    <div class="gs-card" onclick="navigate('dept-comparison')"><h3>For Administrators</h3><p>Department-level comparison, skill transfer and protocol derivation.</p><span class="gs-arrow">→</span></div>
+    <div class="gs-card" onclick="navigate('api')"><h3>API Reference</h3><p>Full REST API for reading the graph and generating ranked suggestions.</p><span class="gs-arrow">→</span></div>
+  </div>
+  <div class="page-footer">
+    <span style="opacity:.3">← Back</span>
+    
+    <span onclick="navigate('specification')" style="cursor:pointer">Specification →</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- PAGE: SPECIFICATION -->
+<!-- ═══════════════════════════════════════ -->
+<div class="page" id="page-specification">
+  <div class="breadcrumb">DoctorAssist.ai <span>/</span> Specification</div>
+  <div class="page-tag">Reference</div>
+  <h1>System Specification</h1>
+  <p class="page-subtitle">The complete format specification for the Doctor Skill Intelligence data model — covering node types, edge semantics, and the rules that govern how clinical knowledge is stored and retrieved.</p>
+  <button class="copy-btn"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy page link</button>
+  <hr class="section-divider">
+  <h2>What the specification defines</h2>
+  <p>At its core, the DoctorAssist.ai specification defines a structured way to represent clinical knowledge as a property graph. Every consultation, decision, and outcome is encoded as a set of typed nodes and semantically meaningful edges, rather than a flat row in a table. This makes the data traversable, aggregatable, and learnable.</p>
+  <p>The specification covers five things: how node types are defined and what properties each must carry, how edges encode clinical reasoning with typed relationships and weight attributes, how threshold statuses are assigned and updated over time, how physician profiles are aggregated from raw encounter data, and how skill bundles are exported and imported across physicians.</p>
+  <hr class="section-divider">
+  <h2>The five node types</h2>
+  <div class="node-grid">
+    <div class="node-card"><div class="nc-icon">🩺</div><div class="nc-label">Symptom</div><div class="nc-desc">Presenting complaints &amp; vitals</div></div>
+    <div class="node-card"><div class="nc-icon">🔬</div><div class="nc-label">Diagnosis</div><div class="nc-desc">ICD-coded clinical conclusions</div></div>
+    <div class="node-card"><div class="nc-icon">📋</div><div class="nc-label">Investigation</div><div class="nc-desc">Tests, labs &amp; imaging</div></div>
+    <div class="node-card"><div class="nc-icon">💊</div><div class="nc-label">Treatment</div><div class="nc-desc">Prescriptions &amp; procedures</div></div>
+    <div class="node-card"><div class="nc-icon">✅</div><div class="nc-label">Outcome</div><div class="nc-desc">Recovery &amp; complications</div></div>
+  </div>
+  <hr class="section-divider">
+  <h2>Edge semantics</h2>
+  <p>Edges are not generic connections — each relationship type carries a defined meaning. The <strong>HAS_SKILL</strong> edge links a Doctor to a Condition and carries an expertise weight between 0 and 1. The <strong>OBSERVED</strong> edge links a Condition to a specific Observation snapshot. The <strong>LEADS_TO</strong> edge connects an Observation to an Action and carries a confidence score — this is the edge that encodes the physician's actual decision. The <strong>PRODUCES</strong> edge links an Action to an Outcome. Finally, the <strong>UPDATES</strong> edge closes the loop, linking an Outcome back to an Action with a delta value that adjusts the action's composite score incrementally after each encounter.</p>
+  <div class="callout"><p><strong>Key principle:</strong> The specification requires that every edge carries typed, non-null attributes. Generic or unweighted edges are not permitted — they carry no learning signal.</p></div>
+  <hr class="section-divider">
+  <h2>Required node properties</h2>
+  <table class="data-table">
+    <tr><th>Node Type</th><th>Required Properties</th></tr>
+    <tr><td><strong>Doctor</strong></td><td>id, specialty, skill_score</td></tr>
+    <tr><td><strong>Condition</strong></td><td>icd_code, label, frequency_count</td></tr>
+    <tr><td><strong>Observation</strong></td><td>id, encounter_id, timestamp, vitals (object)</td></tr>
+    <tr><td><strong>Action</strong></td><td>id, type, drug_or_procedure, confidence, success_rate, sample_count, threshold_status</td></tr>
+    <tr><td><strong>Outcome</strong></td><td>id, result, recovery_days, feedback_score</td></tr>
+  </table>
+  <div class="page-footer">
+    <span onclick="navigate('overview')" style="cursor:pointer">← Overview</span>
+    <span onclick="navigate('architecture')" style="cursor:pointer">Architecture →</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- PAGE: SYSTEM ARCHITECTURE -->
+<!-- ═══════════════════════════════════════ -->
+<div class="page" id="page-architecture">
+  <div class="breadcrumb">DoctorAssist.ai <span>/</span> System Architecture</div>
+  <div class="page-tag">Technical</div>
+  <h1>System Architecture</h1>
+  <p class="page-subtitle">How the Doctor Skill Intelligence System is structured — from raw clinical data ingestion through to real-time suggestion delivery at the point of consultation.</p>
+  <button class="copy-btn"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy page link</button>
+  <hr class="section-divider">
+  <h2>Three-layer design</h2>
+  <p>The architecture is designed in three distinct layers that each serve a purpose: the ingestion layer collects and normalises raw clinical data, the intelligence layer converts that data into a structured knowledge graph, and the delivery layer makes the graph's insights available to clinicians and administrators in real time.</p>
+  <ul class="step-list">
+    <li><div class="step-num">1</div><div class="step-content"><h3>Ingestion layer</h3><p>Structured clinical data — symptoms, diagnoses, investigations, prescriptions, and outcomes — is continuously pulled from existing hospital information systems. The ingestion layer normalises this data, resolves ICD codes, and creates encounter objects ready for graph conversion.</p></div></li>
+    <li><div class="step-num">2</div><div class="step-content"><h3>Graph intelligence layer</h3><p>Each encounter object is parsed into nodes and edges and written to a graph database. Threshold computation runs after each new encounter write, updating confidence scores and reclassifying action nodes as ACTIVE, LEARNING, or WEAK. Physician skill profiles are derived continuously rather than on a batch schedule.</p></div></li>
+    <li><div class="step-num">3</div><div class="step-content"><h3>Delivery layer</h3><p>A REST API exposes graph traversal results as ranked suggestion lists, physician profiles, department comparison reports, and exportable skill bundles. The API is the single integration point for clinical interfaces, mobile apps, and administrative dashboards.</p></div></li>
+  </ul>
+  <hr class="section-divider">
+  <h2>Data flow</h2>
+  <div class="flow-diagram">
+    <div class="flow-node"><div class="fn-label">Source</div><div class="fn-value">HIS / EMR</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="fn-label">Ingest</div><div class="fn-value">Normalise &amp; Parse</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="fn-label">Graph DB</div><div class="fn-value">Neo4j</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="fn-label">Intelligence</div><div class="fn-value">Threshold Engine</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div class="fn-label">API</div><div class="fn-value">Ranked Suggestions</div></div>
+  </div>
+  <div class="callout"><p><strong>No workflow change required.</strong> The system reads from existing structured data sources. Physicians do not need to alter how they record consultations for the graph to learn from them.</p></div>
+  <div class="page-footer">
+    <span onclick="navigate('specification')" style="cursor:pointer">← Specification</span>
+    <span onclick="navigate('quickstart')" style="cursor:pointer">Quickstart →</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- PAGE: QUICKSTART -->
+<!-- ═══════════════════════════════════════ -->
+<div class="page" id="page-quickstart">
+  <div class="breadcrumb">DoctorAssist.ai <span>/</span> For Clinicians <span>/</span> Quickstart Guide</div>
+  <div class="page-tag">For Clinicians</div>
+  <h1>Quickstart Guide</h1>
+  <p class="page-subtitle">Get your Doctor Skill profile set up and your first decision flow captured. This guide walks you through the four steps needed to go from zero to a live skill profile.</p>
+  <button class="copy-btn"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy page link</button>
+  <hr class="section-divider">
+  <h2>Before you begin</h2>
+  <p>Your hospital information system must already be connected to DoctorAssist.ai by your administrator. You do not need to install anything or change how you record consultations — the system reads from your existing structured data. Contact your department administrator if the integration has not yet been configured.</p>
+  <hr class="section-divider">
+  <h2>Steps to get started</h2>
+  <ul class="step-list">
+    <li><div class="step-num">1</div><div class="step-content"><h3>Verify your physician profile exists</h3><p>Log in to the DoctorAssist.ai portal and confirm your Doctor node has been created. Your specialty, department, and physician ID should be pre-populated from the HIS. If anything is missing, update it in the Profile Settings screen.</p></div></li>
+    <li><div class="step-num">2</div><div class="step-content"><h3>Review your initial skill graph</h3><p>If you have six or more months of structured consultation data available in the system, your initial skill graph will already have been generated. Navigate to My Skill Profile to see the conditions, observations, and actions the system has learned from your history so far.</p></div></li>
+    <li><div class="step-num">3</div><div class="step-content"><h3>Understand your threshold statuses</h3><p>Each action in your profile carries a status — ACTIVE, LEARNING, or WEAK — based on how often you have applied it and how often it led to a positive outcome. Actions marked ACTIVE will be surfaced to you during consultations. Review your WEAK actions and consider whether they reflect accurate historical decisions.</p></div></li>
+    <li><div class="step-num">4</div><div class="step-content"><h3>Enable consultation suggestions</h3><p>In your account settings, enable the Live Suggestions toggle. From your next consultation onwards, DoctorAssist.ai will query your skill graph when a new patient is presented and return a ranked list of relevant actions based on the presenting condition and vitals.</p></div></li>
+  </ul>
+  <div class="callout"><p><strong>Your profile improves automatically.</strong> Every consultation you complete updates your graph. Threshold scores are recomputed in real time — no manual input is required.</p></div>
+  <div class="page-footer">
+    <span onclick="navigate('architecture')" style="cursor:pointer">← Architecture</span>
+    <span onclick="navigate('skill-profile')" style="cursor:pointer">Skill Profile Setup →</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- PAGE: SKILL PROFILE SETUP -->
+<!-- ═══════════════════════════════════════ -->
+<div class="page" id="page-skill-profile">
+  <div class="breadcrumb">DoctorAssist.ai <span>/</span> For Clinicians <span>/</span> Skill Profile Setup</div>
+  <div class="page-tag">For Clinicians</div>
+  <h1>Skill Profile Setup</h1>
+  <p class="page-subtitle">Your Skill Profile is the structured representation of how you practice medicine. This page explains what it contains, how it is built, and how to configure it correctly from the start.</p>
+  <button class="copy-btn"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy page link</button>
+  <hr class="section-divider">
+  <h2>What a skill profile contains</h2>
+  <p>A Skill Profile is a physician-specific subgraph within the DoctorAssist.ai knowledge graph. It contains every condition you have treated, every clinical observation pattern associated with those conditions, every action (prescription, investigation, procedure) you have taken in response, and the outcomes that resulted. Each element is weighted by frequency, success rate, and outcome quality, giving the system a ranked, probabilistic view of your clinical preferences.</p>
+  <hr class="section-divider">
+  <h2>Profile configuration options</h2>
+  <div class="feature-grid">
+    <div class="feature-card"><div class="feature-card-icon"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div><h3>Specialty scope</h3><p>Define which clinical domains your profile should cover. Multi-specialty physicians can configure separate skill graphs per domain.</p></div>
+    <div class="feature-card"><div class="feature-card-icon"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><h3>Historical data window</h3><p>Set how far back the system should look when building your initial profile — 3 months, 6 months, or all available history.</p></div>
+    <div class="feature-card"><div class="feature-card-icon"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div><h3>Threshold sensitivity</h3><p>Adjust the minimum case count required for ACTIVE classification. Default is 10 — increase for higher confidence requirements.</p></div>
+    <div class="feature-card"><div class="feature-card-icon"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg></div><h3>Suggestion visibility</h3><p>Control whether LEARNING-status actions are shown alongside ACTIVE ones, or suppressed until they reach full confidence.</p></div>
+  </div>
+  <div class="page-footer">
+    <span onclick="navigate('quickstart')" style="cursor:pointer">← Quickstart</span>
+    <span onclick="navigate('decision-flow')" style="cursor:pointer">Decision Flow Capture →</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- PAGE: DECISION FLOW CAPTURE -->
+<!-- ═══════════════════════════════════════ -->
+<div class="page" id="page-decision-flow">
+  <div class="breadcrumb">DoctorAssist.ai <span>/</span> For Clinicians <span>/</span> Decision Flow Capture</div>
+  <div class="page-tag">For Clinicians</div>
+  <h1>Decision Flow Capture</h1>
+  <p class="page-subtitle">How DoctorAssist.ai converts a clinical encounter into a structured decision flow — and what that means for your growing skill profile.</p>
+  <button class="copy-btn"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy page link</button>
+  <hr class="section-divider">
+  <h2>What gets captured</h2>
+  <p>Every patient consultation you complete is parsed into a structured decision flow automatically, without requiring any additional documentation on your part. The system reads the presenting complaint, the vitals recorded at triage, the diagnosis you assigned, every investigation you ordered, every prescription or intervention you applied, and the outcome recorded at discharge or follow-up.</p>
+  <p>These elements are linked together as a chain: presenting condition → observed vitals → diagnosis → investigations → treatment → outcome. This chain is then written to your skill graph as a series of weighted edges, each one carrying a confidence value derived from the specificity of the condition context under which the decision was made.</p>
+  <hr class="section-divider">
+  <h2>A worked example</h2>
+  <div class="callout"><p>A patient presents with <strong>chest pain</strong> and a blood pressure reading of <strong>150/90</strong>. You suspect angina, order an ECG and troponin, and prescribe aspirin 300mg. The patient is discharged after 48 hours with a recovered status and a feedback score of 0.91. The system writes five nodes — Condition, Observation, two Actions, and an Outcome — linked by four edges, each carrying the context under which that decision was made.</p></div>
+  <hr class="section-divider">
+  <h2>Why context matters</h2>
+  <p>The system does not simply record that you prescribed aspirin. It records that you prescribed aspirin <em>when</em> the patient presented with chest pain <em>and</em> their blood pressure was above 140. This conditional specificity is what separates a learning skill graph from a simple prescription log. Over time, patterns like this accumulate into decision rules — not because anyone programmed them, but because the graph learned them from your actual practice.</p>
+  <div class="tag-list">
+    <span class="tag">Chest pain → Angina</span>
+    <span class="tag">Angina + BP &gt;140 → ECG</span>
+    <span class="tag">ECG + Troponin elevated → Aspirin 300mg</span>
+    <span class="tag">Aspirin → Recovery in 48h</span>
+  </div>
+  <div class="page-footer">
+    <span onclick="navigate('skill-profile')" style="cursor:pointer">← Skill Profile Setup</span>
+    <span onclick="navigate('reading-profile')" style="cursor:pointer">Reading Your Profile →</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- PAGE: READING YOUR PROFILE -->
+<!-- ═══════════════════════════════════════ -->
+<div class="page" id="page-reading-profile">
+  <div class="breadcrumb">DoctorAssist.ai <span>/</span> For Clinicians <span>/</span> Reading Your Profile</div>
+  <div class="page-tag">For Clinicians</div>
+  <h1>Reading Your Profile</h1>
+  <p class="page-subtitle">How to interpret the data in your Skill Profile — what each metric means, and how to use your profile to understand your own clinical patterns.</p>
+  <button class="copy-btn"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy page link</button>
+  <hr class="section-divider">
+  <h2>Skill score</h2>
+  <p>Your overall skill score is a single number between 0 and 1 that reflects the weighted average of all ACTIVE action scores across your profile. It is not a measure of clinical ability — it is a measure of how consistently and successfully your recorded decisions have led to positive outcomes within this system. A score of 0.85 means that across all conditions where you have sufficient evidence, your decisions have a high and consistent rate of producing favourable outcomes.</p>
+  <hr class="section-divider">
+  <h2>Per-condition breakdown</h2>
+  <p>The profile view shows a ranked list of conditions you have treated, sorted by the number of encounters. For each condition, you can see your preferred actions — the decisions you make most frequently under that condition — along with their individual confidence scores and threshold statuses. This gives you a structured view of your clinical tendencies that would otherwise only exist as implicit memory.</p>
+  <hr class="section-divider">
+  <h2>Understanding threshold statuses</h2>
+  <table class="data-table">
+    <tr><th>Status</th><th>What it means</th><th>Shown in suggestions?</th></tr>
+    <tr><td><span class="badge badge-active">ACTIVE</span></td><td>≥75% success rate across ≥10 cases. High confidence decision.</td><td>Yes — top of ranked list</td></tr>
+    <tr><td><span class="badge badge-learning">LEARNING</span></td><td>50–74% success, or fewer than 10 cases recorded.</td><td>Optional — configurable</td></tr>
+    <tr><td><span class="badge badge-weak">WEAK</span></td><td>Below 50% success rate. Low confidence — excluded by default.</td><td>No — hidden from suggestions</td></tr>
+  </table>
+  <div class="page-footer">
+    <span onclick="navigate('decision-flow')" style="cursor:pointer">← Decision Flow Capture</span>
+    
+    <span onclick="navigate('outcome-feedback')" style="cursor:pointer">Outcome Feedback →</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- PAGE: OUTCOME FEEDBACK -->
+<!-- ═══════════════════════════════════════ -->
+<div class="page" id="page-outcome-feedback">
+  <div class="breadcrumb">DoctorAssist.ai <span>/</span> For Clinicians <span>/</span> Outcome Feedback</div>
+  <div class="page-tag">For Clinicians</div>
+  <h1>Outcome Feedback</h1>
+  <p class="page-subtitle">How outcomes from your consultations flow back into your skill graph — and why closing the loop is what makes the system learn.</p>
+  <button class="copy-btn"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy page link</button>
+  <hr class="section-divider">
+  <h2>How outcome data is used</h2>
+  <p>Every time a patient is discharged or a follow-up is completed, the outcome — whether the patient recovered, showed no change, or experienced a complication — is written to the graph as an Outcome node. This node is then connected back to every Action node from that consultation via an UPDATES edge. The delta carried on that edge adjusts the composite score of each action upward or downward depending on whether the outcome was favourable.</p>
+  <p>This feedback loop is what transforms the graph from a static record into a self-improving model. Actions that consistently produce positive outcomes see their confidence scores rise over time. Actions that correlate with poor outcomes see theirs fall — and if they fall below the threshold, they are reclassified from ACTIVE to LEARNING or WEAK, and removed from suggestions accordingly.</p>
+  <hr class="section-divider">
+  <h2>What counts as a positive outcome</h2>
+  <p>The system defines a positive outcome as a combination of two signals: a clinical result of recovered or significantly improved, and an outcome feedback score above 0.70. Both signals are weighted — clinical result accounts for 70% of the outcome score, and patient feedback accounts for 30%. This weighting reflects the primacy of clinical result while still incorporating patient-reported experience as a meaningful signal.</p>
+  <div class="info-row">
+    <div class="info-card"><div class="ic-num">70%</div><div class="ic-label">Weight given to clinical success rate</div></div>
+    <div class="info-card"><div class="ic-num">30%</div><div class="ic-label">Weight given to patient feedback score</div></div>
+    <div class="info-card"><div class="ic-num">0.75</div><div class="ic-label">Minimum composite score for ACTIVE status</div></div>
+  </div>
+  <div class="page-footer">
+    <span onclick="navigate('reading-profile')" style="cursor:pointer">← Reading Your Profile</span>
+    
+    <span onclick="navigate('dept-comparison')" style="cursor:pointer">Department Comparison →</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- PAGE: DEPARTMENT COMPARISON -->
+<!-- ═══════════════════════════════════════ -->
+<div class="page" id="page-dept-comparison">
+  <div class="breadcrumb">DoctorAssist.ai <span>/</span> For Administrators <span>/</span> Department Comparison</div>
+  <div class="page-tag">For Administrators</div>
+  <h1>Department Comparison</h1>
+  <p class="page-subtitle">Understand how decision patterns vary across physicians in your department — and use that insight to surface divergences, identify best practices, and inform training.</p>
+  <button class="copy-btn"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy page link</button>
+  <hr class="section-divider">
+  <h2>What the comparison view shows</h2>
+  <p>The Department Comparison view lets administrators query the skill graphs of all physicians in a department simultaneously, filtered by a specific condition or ICD code. For each condition, the view returns a ranked table of physicians alongside their preferred actions for that condition — showing the action, confidence score, success rate, and threshold status for each.</p>
+  <p>This makes it immediately visible when two physicians treat the same presentation in fundamentally different ways. It also surfaces which physician's approach has the highest outcome-validated success rate — not based on seniority or anecdote, but on data from their actual encounters.</p>
+  <hr class="section-divider">
+  <h2>What you can do with this data</h2>
+  <div class="feature-grid">
+    <div class="feature-card"><div class="feature-card-icon"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div><h3>Identify top performers</h3><p>See which physicians have the highest ACTIVE action success rates for specific conditions — grounded in outcome data, not perception.</p></div>
+    <div class="feature-card"><div class="feature-card-icon"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div><h3>Flag outlier decisions</h3><p>Automatically surface cases where a physician's preferred action for a condition deviates significantly from peers with comparable experience.</p></div>
+    <div class="feature-card"><div class="feature-card-icon"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div><h3>Inform training programmes</h3><p>Use comparison data to identify knowledge gaps and design targeted continuing education around conditions with low departmental success rates.</p></div>
+    <div class="feature-card"><div class="feature-card-icon"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div><h3>Validate new joiners</h3><p>Track whether new physicians' decision patterns converge toward departmental norms over time, or diverge in ways that warrant intervention.</p></div>
+  </div>
+  <div class="page-footer">
+    <span onclick="navigate('outcome-feedback')" style="cursor:pointer">← Outcome Feedback</span>
+    
+    <span onclick="navigate('protocol')" style="cursor:pointer">Protocol Standardisation →</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- PAGE: PROTOCOL STANDARDISATION -->
+<!-- ═══════════════════════════════════════ -->
+<div class="page" id="page-protocol">
+  <div class="breadcrumb">DoctorAssist.ai <span>/</span> For Administrators <span>/</span> Protocol Standardisation</div>
+  <div class="page-tag">For Administrators</div>
+  <h1>Protocol Standardisation</h1>
+  <p class="page-subtitle">Derive evidence-backed institutional treatment protocols from the aggregated ACTIVE decisions of your most experienced physicians — replacing assumption-driven guidelines with outcome-validated standards.</p>
+  <button class="copy-btn"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy page link</button>
+  <hr class="section-divider">
+  <h2>How protocols are derived</h2>
+  <p>A protocol is generated by querying the skill graphs of a selected group of physicians — typically your highest-scoring specialists for a given condition — and extracting the ACTIVE actions that appear consistently across all of them. An action qualifies for inclusion in a proposed protocol when it appears as ACTIVE in the profiles of at least 70% of the selected physicians and has a combined success rate above the institution-configured threshold.</p>
+  <p>The result is a ranked, condition-specific treatment pathway that reflects what your most effective physicians actually do — not what a textbook suggests they should do. These proposed protocols are surfaced to administrators for review before being ratified and pushed to the delivery layer.</p>
+  <hr class="section-divider">
+  <h2>Protocol lifecycle</h2>
+  <ul class="step-list">
+    <li><div class="step-num">1</div><div class="step-content"><h3>Protocol proposed</h3><p>The system generates a candidate protocol for a condition based on aggregated ACTIVE actions from selected physicians. The proposal includes the evidence base — which physicians, how many cases, and what success rates.</p></div></li>
+    <li><div class="step-num">2</div><div class="step-content"><h3>Clinical review</h3><p>The proposed protocol is reviewed by the department head or a designated clinical committee. Any actions that are clinically inappropriate despite high data confidence can be excluded at this stage.</p></div></li>
+    <li><div class="step-num">3</div><div class="step-content"><h3>Ratified and published</h3><p>Once approved, the protocol is marked as ratified and becomes available in the suggestion layer for all physicians in the department — not just those whose data contributed to it.</p></div></li>
+    <li><div class="step-num">4</div><div class="step-content"><h3>Continuous update</h3><p>As new outcome data comes in, the system monitors whether ratified protocol actions maintain their success rate thresholds. If an action's rate falls significantly, the administrator is alerted to consider a protocol revision.</p></div></li>
+  </ul>
+  <div class="page-footer">
+    <span onclick="navigate('dept-comparison')" style="cursor:pointer">← Department Comparison</span>
+    
+    <span onclick="navigate('skill-transfer')" style="cursor:pointer">Skill Transfer →</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- PAGE: SKILL TRANSFER -->
+<!-- ═══════════════════════════════════════ -->
+<div class="page" id="page-skill-transfer">
+  <div class="breadcrumb">DoctorAssist.ai <span>/</span> For Administrators <span>/</span> Skill Transfer</div>
+  <div class="page-tag">For Administrators</div>
+  <h1>Skill Transfer</h1>
+  <p class="page-subtitle">Export the validated clinical decision patterns of one physician and import them as a starting point into another physician's skill graph — with full provenance tracking.</p>
+  <button class="copy-btn"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy page link</button>
+  <hr class="section-divider">
+  <h2>What skill transfer does</h2>
+  <p>Skill transfer allows an administrator to export all ACTIVE-status action nodes from a source physician's graph as a serialised bundle. This bundle is then imported into a target physician's graph — typically a new joiner or a physician moving into a new specialty area — where the imported actions are tagged with a TRANSFERRED_FROM edge that marks their origin.</p>
+  <p>Crucially, transferred skills do not arrive as ACTIVE in the receiving physician's graph. They are imported at LEARNING status, meaning they appear in suggestions at lower priority until the receiving physician accumulates their own outcome evidence for those actions. Once sufficient encounters confirm similar decision patterns and outcomes, the actions are promoted to ACTIVE under the receiving physician's own evidence — at which point the transfer attribution remains but is no longer the sole basis for the status.</p>
+  <hr class="section-divider">
+  <h2>Transfer rules</h2>
+  <div class="callout"><p><strong>Borrowed skills never override local evidence.</strong> If a receiving physician's own encounter data produces a WEAK classification for a transferred action, that classification takes precedence over the transferred status — regardless of how strong the source physician's evidence was.</p></div>
+  <ul class="step-list">
+    <li><div class="step-num">1</div><div class="step-content"><h3>Select source physician</h3><p>Choose the physician whose ACTIVE skills you want to transfer. The export includes only ACTIVE actions — LEARNING and WEAK actions are excluded.</p></div></li>
+    <li><div class="step-num">2</div><div class="step-content"><h3>Select condition scope</h3><p>You may transfer the full graph or limit the transfer to specific conditions or ICD code ranges — useful when onboarding a specialist into a focused area.</p></div></li>
+    <li><div class="step-num">3</div><div class="step-content"><h3>Import into target physician</h3><p>The bundle is imported into the target physician's graph. All imported actions carry TRANSFERRED_FROM provenance and start at LEARNING status.</p></div></li>
+  </ul>
+  <div class="page-footer">
+    <span onclick="navigate('protocol')" style="cursor:pointer">← Protocol Standardisation</span>
+    
+    <span onclick="navigate('analytics')" style="cursor:pointer">Analytics Dashboard →</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- PAGE: ANALYTICS DASHBOARD -->
+<!-- ═══════════════════════════════════════ -->
+<div class="page" id="page-analytics">
+  <div class="breadcrumb">DoctorAssist.ai <span>/</span> For Administrators <span>/</span> Analytics Dashboard</div>
+  <div class="page-tag">For Administrators</div>
+  <h1>Analytics Dashboard</h1>
+  <p class="page-subtitle">A high-level view of clinical intelligence metrics across your institution — physician skill scores, department-level success rates, and condition coverage.</p>
+  <button class="copy-btn"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy page link</button>
+  <hr class="section-divider">
+  <h2>What the dashboard shows</h2>
+  <p>The Analytics Dashboard aggregates data from all physician skill graphs in your institution and presents it at three levels: institution-wide summary metrics, department-level breakdowns, and individual physician performance cards. Each level can be filtered by time period, condition category, or physician cohort.</p>
+  <div class="info-row">
+    <div class="info-card"><div class="ic-num">↑ Skill Score</div><div class="ic-label">Average ACTIVE composite score across all physicians</div></div>
+    <div class="info-card"><div class="ic-num">Coverage</div><div class="ic-label">% of treated conditions with ≥1 ACTIVE action mapped</div></div>
+    <div class="info-card"><div class="ic-num">Velocity</div><div class="ic-label">Rate of LEARNING → ACTIVE promotions per week</div></div>
+  </div>
+  <hr class="section-divider">
+  <h2>Key dashboard panels</h2>
+  <div class="feature-grid">
+    <div class="feature-card"><div class="feature-card-icon"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div><h3>Physician skill leaderboard</h3><p>Ranked list of all physicians by overall skill score, with drill-down into per-condition performance.</p></div>
+    <div class="feature-card"><div class="feature-card-icon"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div><h3>Condition heat map</h3><p>Visual map of conditions by treatment coverage — highlighting conditions where departmental ACTIVE action density is low.</p></div>
+    <div class="feature-card"><div class="feature-card-icon"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><h3>Threshold promotion timeline</h3><p>Trend chart showing how many actions have moved from LEARNING to ACTIVE over the selected period.</p></div>
+    <div class="feature-card"><div class="feature-card-icon"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div><h3>Outcome success rate trend</h3><p>Institution-wide average outcome success rate over time — the primary indicator of whether clinical intelligence is improving care.</p></div>
+  </div>
+  <div class="page-footer">
+    <span onclick="navigate('skill-transfer')" style="cursor:pointer">← Skill Transfer</span>
+    
+    <span onclick="navigate('graph-schema')" style="cursor:pointer">Graph Schema →</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- PAGE: GRAPH SCHEMA -->
+<!-- ═══════════════════════════════════════ -->
+<div class="page" id="page-graph-schema">
+  <div class="breadcrumb">DoctorAssist.ai <span>/</span> Technical Reference <span>/</span> Graph Schema</div>
+  <div class="page-tag">Technical Reference</div>
+  <h1>Graph Schema</h1>
+  <p class="page-subtitle">The underlying data model — how every clinical encounter is stored as a connected graph of typed nodes and semantically meaningful edges.</p>
+  <button class="copy-btn"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy page link</button>
+  <hr class="section-divider">
+  <h2>Node structure</h2>
+  <p>The underlying data model stores every clinical encounter as a connected graph rather than a flat record. Each physician is represented as a Doctor node carrying their specialty and an overall skill score. Conditions are stored as Condition nodes tagged with their ICD classification code and a frequency count that grows with each encounter. Observations — such as blood pressure readings, heart rate, and lab findings — are stored as Observation nodes linked directly to the condition they were captured under.</p>
+  <p>Each clinical action — a prescription, procedure, or investigation — becomes an Action node. This node holds not just the drug name and dosage, but also its computed confidence score, success rate, the number of times it has been applied, and its current threshold status. Outcomes are stored as separate Outcome nodes recording the result, recovery duration, and a patient feedback score.</p>
+  <hr class="section-divider">
+  <h2>Edge relationships</h2>
+  <p>The relationships between nodes carry the clinical reasoning. A Doctor is connected to a Condition via a <strong>HAS_SKILL</strong> edge weighted by expertise level. A Condition connects to an Observation via <strong>OBSERVED</strong>. An Observation connects to an Action via a <strong>LEADS_TO</strong> edge that carries the confidence value — this is the edge that encodes the clinical decision. An Action connects to an Outcome via <strong>PRODUCES</strong>, and crucially, the Outcome feeds back into the Action via an <strong>UPDATES</strong> edge that carries a delta value, incrementally adjusting the action's composite score with every new encounter.</p>
+  <div class="callout"><p><strong>This feedback loop is what makes the graph a living model.</strong> Every outcome — positive or negative — adjusts the weights of the edges it is connected to, continuously refining the accuracy of the physician's skill representation.</p></div>
+  <hr class="section-divider">
+  <h2>Relationship summary</h2>
+  <table class="data-table">
+    <tr><th>Relationship</th><th>From → To</th><th>Key attribute</th></tr>
+    <tr><td><strong>HAS_SKILL</strong></td><td>Doctor → Condition</td><td>weight (0–1 expertise level)</td></tr>
+    <tr><td><strong>OBSERVED</strong></td><td>Condition → Observation</td><td>encounter_id, timestamp</td></tr>
+    <tr><td><strong>LEADS_TO</strong></td><td>Observation → Action</td><td>confidence (0–1)</td></tr>
+    <tr><td><strong>PRODUCES</strong></td><td>Action → Outcome</td><td>encounter_id</td></tr>
+    <tr><td><strong>UPDATES</strong></td><td>Outcome → Action</td><td>delta (positive or negative float)</td></tr>
+    <tr><td><strong>TRANSFERRED_FROM</strong></td><td>Action → Doctor</td><td>source_physician_id, transfer_date</td></tr>
+  </table>
+  <div class="page-footer">
+    <span onclick="navigate('analytics')" style="cursor:pointer">← Analytics Dashboard</span>
+    
+    <span onclick="navigate('threshold')" style="cursor:pointer">Threshold Computation →</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- PAGE: THRESHOLD COMPUTATION -->
+<!-- ═══════════════════════════════════════ -->
+<div class="page" id="page-threshold">
+  <div class="breadcrumb">DoctorAssist.ai <span>/</span> Technical Reference <span>/</span> Threshold Computation</div>
+  <div class="page-tag">Technical Reference</div>
+  <h1>Threshold Computation</h1>
+  <p class="page-subtitle">How confidence scores are computed for every action node — and how those scores determine whether an action is surfaced to a physician during consultation.</p>
+  <button class="copy-btn"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy page link</button>
+  <hr class="section-divider">
+  <h2>The composite score</h2>
+  <p>Every action node in the graph carries a continuously-updated composite score that reflects how strongly a physician prefers a particular decision under a given set of conditions. This score is calculated by combining two signals: the clinical success rate of past decisions, weighted at 70%, and the average outcome feedback score from patients, weighted at 30%. Together, these produce a single number between 0 and 1 that represents the reliability and quality of a physician's decision pattern.</p>
+  <div class="info-row">
+    <div class="info-card"><div class="ic-num">70%</div><div class="ic-label">Weight — clinical success rate</div></div>
+    <div class="info-card"><div class="ic-num">30%</div><div class="ic-label">Weight — patient feedback score</div></div>
+    <div class="info-card"><div class="ic-num">≥10</div><div class="ic-label">Minimum cases for ACTIVE eligibility</div></div>
+  </div>
+  <hr class="section-divider">
+  <h2>Threshold classification</h2>
+  <p>Based on the composite score, each action is automatically classified into one of three threshold statuses. An action is marked <strong>ACTIVE</strong> when it has been applied in at least ten cases and has achieved a success rate of 75% or above — meaning the system is confident this is a strongly preferred and effective decision. It is marked <strong>LEARNING</strong> when evidence is still being gathered, either because fewer than ten cases have been recorded or the success rate sits between 50% and 74%. Actions that fall below 50% success are marked <strong>WEAK</strong> and are excluded from suggestions surfaced to the physician.</p>
+  <div class="tag-list">
+    <span class="tag">ACTIVE — ≥75% success + ≥10 cases</span>
+    <span class="tag">LEARNING — 50–74% or &lt;10 cases</span>
+    <span class="tag">WEAK — &lt;50% success rate</span>
+  </div>
+  <hr class="section-divider">
+  <h2>Continuous recomputation</h2>
+  <p>Threshold scores are not computed on a batch schedule. Every time a new outcome is written to the graph, the UPDATES edge triggers a recomputation of the composite score for every Action node that outcome is connected to. This means a physician's profile is always current — a run of poor outcomes can demote an ACTIVE action to LEARNING within the same day, and a run of strong outcomes can promote a LEARNING action to ACTIVE just as quickly.</p>
+  <div class="callout"><p><strong>Status changes are always surfaced.</strong> Physicians and administrators receive a notification when any action in their profile changes threshold status — promotion or demotion — so the change is never silent.</p></div>
+  <div class="page-footer">
+    <span onclick="navigate('graph-schema')" style="cursor:pointer">← Graph Schema</span>
+    
+    <span onclick="navigate('api')" style="cursor:pointer">API Reference →</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- PAGE: API REFERENCE -->
+<!-- ═══════════════════════════════════════ -->
+<div class="page" id="page-api">
+  <div class="breadcrumb">DoctorAssist.ai <span>/</span> Technical Reference <span>/</span> API Reference</div>
+  <div class="page-tag">Technical Reference</div>
+  <h1>API Reference</h1>
+  <p class="page-subtitle">The REST API is the single integration point for all clinical interfaces, dashboards, and external systems. It exposes graph traversal results as structured, ranked responses.</p>
+  <button class="copy-btn"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy page link</button>
+  <hr class="section-divider">
+  <h2>Core endpoints</h2>
+  <table class="data-table">
+    <tr><th>Endpoint</th><th>Purpose</th></tr>
+    <tr><td><strong>GET /suggestions</strong></td><td>Returns a ranked list of ACTIVE actions for a given physician, condition ICD code, and observation snapshot. The primary endpoint used at consultation start.</td></tr>
+    <tr><td><strong>GET /profile/{physician_id}</strong></td><td>Returns the full skill profile for a physician — all conditions, actions, scores, and threshold statuses.</td></tr>
+    <tr><td><strong>POST /outcome</strong></td><td>Writes a new outcome node to the graph and triggers threshold recomputation for all connected action nodes.</td></tr>
+    <tr><td><strong>GET /compare</strong></td><td>Returns a side-by-side comparison of skill profiles for a list of physicians, filtered by condition.</td></tr>
+    <tr><td><strong>POST /transfer</strong></td><td>Initiates a skill transfer from one physician to another. Accepts source physician ID, target physician ID, and optional condition scope filter.</td></tr>
+    <tr><td><strong>GET /protocol/{condition_icd}</strong></td><td>Returns the ratified protocol for a condition, if one exists, as an ordered list of actions with evidence metadata.</td></tr>
+  </table>
+  <hr class="section-divider">
+  <h2>Authentication</h2>
+  <p>All API requests require a Bearer token issued to your institution's DoctorAssist.ai integration. Tokens are scoped to a specific institution and cannot access data across institution boundaries. Physician-level tokens can only read their own profile — administrator tokens have read access across all physicians in their institution and write access to protocol management endpoints.</p>
+  <div class="page-footer">
+    <span onclick="navigate('threshold')" style="cursor:pointer">← Threshold Computation</span>
+    
+    <span onclick="navigate('data-models')" style="cursor:pointer">Data Models →</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- PAGE: DATA MODELS -->
+<!-- ═══════════════════════════════════════ -->
+<div class="page" id="page-data-models">
+  <div class="breadcrumb">DoctorAssist.ai <span>/</span> Technical Reference <span>/</span> Data Models</div>
+  <div class="page-tag">Technical Reference</div>
+  <h1>Data Models</h1>
+  <p class="page-subtitle">The typed data structures behind every node and edge in the Doctor Skill Intelligence graph — including field names, types, and validation rules.</p>
+  <button class="copy-btn"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy page link</button>
+  <hr class="section-divider">
+  <h2>Doctor node model</h2>
+  <p>The Doctor node is the root of each physician's skill graph. It carries a unique system-assigned identifier, the physician's registered specialty, and a continuously-computed overall skill score. The skill score is the weighted average of all ACTIVE action composite scores across the physician's full graph. It is updated whenever any action in the graph changes composite score.</p>
+  <table class="data-table">
+    <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+    <tr><td>id</td><td>string</td><td>Unique physician identifier, system-assigned at onboarding</td></tr>
+    <tr><td>specialty</td><td>string</td><td>Primary clinical specialty (e.g. cardiology, general medicine)</td></tr>
+    <tr><td>skill_score</td><td>float (0–1)</td><td>Weighted average of all ACTIVE action composite scores</td></tr>
+    <tr><td>created_at</td><td>timestamp</td><td>Date the physician's graph was initialised</td></tr>
+    <tr><td>last_updated</td><td>timestamp</td><td>Date of most recent skill score recomputation</td></tr>
+  </table>
+  <hr class="section-divider">
+  <h2>Action node model</h2>
+  <p>The Action node is the most data-rich node in the graph, because it is the node that carries the learning signal. Every prescription, investigation, or procedure you order becomes an Action node with the following structure.</p>
+  <table class="data-table">
+    <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+    <tr><td>id</td><td>string</td><td>Unique action identifier</td></tr>
+    <tr><td>type</td><td>enum</td><td>prescription | investigation | procedure</td></tr>
+    <tr><td>drug_or_procedure</td><td>string</td><td>Name of drug, test, or procedure</td></tr>
+    <tr><td>confidence</td><td>float (0–1)</td><td>Current computed confidence score</td></tr>
+    <tr><td>success_rate</td><td>float (0–1)</td><td>Proportion of cases with a positive outcome</td></tr>
+    <tr><td>sample_count</td><td>integer</td><td>Total number of times this action has been applied</td></tr>
+    <tr><td>threshold_status</td><td>enum</td><td>ACTIVE | LEARNING | WEAK</td></tr>
+  </table>
+  <div class="page-footer">
+    <span onclick="navigate('api')" style="cursor:pointer">← API Reference</span>
+    
+    <span onclick="navigate('integrations')" style="cursor:pointer">Integrations →</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- PAGE: INTEGRATIONS -->
+<!-- ═══════════════════════════════════════ -->
+<div class="page" id="page-integrations">
+  <div class="breadcrumb">DoctorAssist.ai <span>/</span> Technical Reference <span>/</span> Integrations</div>
+  <div class="page-tag">Technical Reference</div>
+  <h1>Integrations</h1>
+  <p class="page-subtitle">How DoctorAssist.ai connects to your existing hospital information systems, EMRs, and clinical interfaces to ingest data and surface suggestions without disrupting your workflows.</p>
+  <button class="copy-btn"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy page link</button>
+  <hr class="section-divider">
+  <h2>Supported integration methods</h2>
+  <div class="feature-grid">
+    <div class="feature-card"><div class="feature-card-icon"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></div><h3>HL7 FHIR R4</h3><p>Native support for FHIR R4 resource types — Patient, Observation, MedicationRequest, DiagnosticReport, and Condition — for standards-compliant data ingestion.</p></div>
+    <div class="feature-card"><div class="feature-card-icon"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div><h3>Direct HIS connector</h3><p>Pre-built connectors for major hospital information systems including Epic, Cerner, and Meditech — configured by your administrator at onboarding.</p></div>
+    <div class="feature-card"><div class="feature-card-icon"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div><h3>REST webhook</h3><p>Configure a webhook endpoint on your HIS to push encounter data to the DoctorAssist.ai ingestion API in real time on discharge or encounter closure.</p></div>
+    <div class="feature-card"><div class="feature-card-icon"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><h3>Batch CSV import</h3><p>For institutions without a live integration, historical data can be ingested as structured CSV exports from your existing systems using our batch import template.</p></div>
+  </div>
+  <hr class="section-divider">
+  <h2>Minimum data requirements</h2>
+  <p>For the graph to learn meaningfully, the integration must supply at minimum: a patient encounter identifier, a presenting condition or ICD code, at least one vital observation (blood pressure, heart rate, or temperature), at least one action (prescription, investigation, or procedure), and an outcome on discharge or follow-up. Encounters missing any of these five elements are ingested but flagged as incomplete and excluded from threshold computation until the missing element is supplied.</p>
+  <div class="page-footer">
+    <span onclick="navigate('data-models')" style="cursor:pointer">← Data Models</span>
+    
+    <span onclick="navigate('case-studies')" style="cursor:pointer">Case Studies →</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- PAGE: CASE STUDIES -->
+<!-- ═══════════════════════════════════════ -->
+<div class="page" id="page-case-studies">
+  <div class="breadcrumb">DoctorAssist.ai <span>/</span> Resources <span>/</span> Clinical Case Studies</div>
+  <div class="page-tag">Resources</div>
+  <h1>Clinical Case Studies</h1>
+  <p class="page-subtitle">Real-world examples of how the Doctor Skill Intelligence System captures, learns from, and applies clinical decision patterns — illustrated through documented encounters.</p>
+  <button class="copy-btn"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy page link</button>
+  <hr class="section-divider">
+  <h2>Case 1 — Chest pain with hypertension</h2>
+  <p>A 58-year-old male presents to a cardiology department with acute chest pain and a blood pressure reading of 150/90. The attending cardiologist suspects angina, orders an ECG and serum troponin, and on confirmation of ST elevation prescribes aspirin 300mg. The patient is discharged after 48 hours with a fully recovered status and a feedback score of 0.91.</p>
+  <p>The system writes this encounter as a chain: Condition node for chest pain linked to an Observation node carrying the BP and ECG findings, linked to two Action nodes — aspirin and the troponin investigation — each with a LEADS_TO edge carrying a confidence of 0.92. The Outcome node records the recovery and closes the loop via an UPDATES edge with a positive delta, incrementally increasing the composite scores of both action nodes.</p>
+  <div class="callout"><p>After 44 encounters with similar presentations, this cardiologist's aspirin action node reaches a composite score of 0.87 and is classified ACTIVE. It now appears at the top of the suggestion list for every subsequent chest pain encounter where BP exceeds 140.</p></div>
+  <hr class="section-divider">
+  <h2>Case 2 — Skill transfer on department onboarding</h2>
+  <p>A newly-joined general physician is assigned to a cardiology rotation. The department administrator exports the ACTIVE skill bundle of the department's most experienced cardiologist — covering 34 condition types and 112 action nodes — and imports it into the new physician's graph. All 112 action nodes arrive at LEARNING status with TRANSFERRED_FROM provenance. Over the following three months, as the new physician accumulates their own encounters, 78 of the transferred actions are confirmed by local evidence and promoted to ACTIVE. The remaining 34 remain at LEARNING until sufficient encounters are recorded.</p>
+  <div class="page-footer">
+    <span onclick="navigate('integrations')" style="cursor:pointer">← Integrations</span>
+    
+    <span onclick="navigate('changelog')" style="cursor:pointer">Changelog →</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- PAGE: CHANGELOG -->
+<!-- ═══════════════════════════════════════ -->
+<div class="page" id="page-changelog">
+  <div class="breadcrumb">DoctorAssist.ai <span>/</span> Resources <span>/</span> Changelog</div>
+  <div class="page-tag">Resources</div>
+  <h1>Changelog</h1>
+  <p class="page-subtitle">A record of significant updates to the Doctor Skill Intelligence System — new capabilities, model improvements, and API changes.</p>
+  <button class="copy-btn"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy page link</button>
+  <hr class="section-divider">
+  <ul class="step-list">
+    <li><div class="step-num" style="font-size:9px;width:32px;border-radius:6px;">v0.4</div><div class="step-content"><h3>Skill Transfer and Provenance Tracking</h3><p>Added the ability to export and import physician skill bundles. All transferred actions now carry a TRANSFERRED_FROM provenance edge and arrive at LEARNING status in the receiving graph. Administrator transfer UI available in the portal.</p></div></li>
+    <li><div class="step-num" style="font-size:9px;width:32px;border-radius:6px;">v0.3</div><div class="step-content"><h3>Department Comparison and Protocol Derivation</h3><p>Released the Department Comparison view and the protocol derivation engine. Administrators can now query cross-physician skill graphs by condition and generate candidate protocols from aggregated ACTIVE actions.</p></div></li>
+    <li><div class="step-num" style="font-size:9px;width:32px;border-radius:6px;">v0.2</div><div class="step-content"><h3>Live Suggestion Engine</h3><p>The API's /suggestions endpoint went live. Graph traversal now returns ranked action lists at consultation start, filtered to ACTIVE-status actions and ordered by composite score.</p></div></li>
+    <li><div class="step-num" style="font-size:9px;width:32px;border-radius:6px;">v0.1</div><div class="step-content"><h3>Graph Ingestion and Threshold Computation</h3><p>Initial release. Clinical encounter data ingested from HL7 FHIR R4 sources. Graph schema established with five node types and five edge relationship types. Threshold recomputation running on every outcome write.</p></div></li>
+  </ul>
+  <div class="page-footer">
+    <span onclick="navigate('case-studies')" style="cursor:pointer">← Case Studies</span>
+    
+    <span onclick="navigate('faq')" style="cursor:pointer">FAQ →</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- PAGE: FAQ -->
+<!-- ═══════════════════════════════════════ -->
+<div class="page" id="page-faq">
+  <div class="breadcrumb">DoctorAssist.ai <span>/</span> Resources <span>/</span> FAQ</div>
+  <div class="page-tag">Resources</div>
+  <h1>Frequently Asked Questions</h1>
+  <p class="page-subtitle">Answers to the most common questions about how the Doctor Skill Intelligence System works, what data it uses, and how it affects clinical workflows.</p>
+  <button class="copy-btn"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy page link</button>
+  <hr class="section-divider">
+  <ul class="step-list">
+    <li><div class="step-num">?</div><div class="step-content"><h3>Do I need to change how I document consultations?</h3><p>No. DoctorAssist.ai reads from your existing structured clinical data. As long as your HIS captures the consultation elements the system needs — presenting condition, vitals, actions, and outcomes — nothing in your workflow changes.</p></div></li>
+    <li><div class="step-num">?</div><div class="step-content"><h3>How much historical data does the system need to generate a useful profile?</h3><p>A minimum of 50 complete encounters across at least five conditions is recommended before the suggestion engine produces reliable results. With fewer encounters, profiles are generated but most actions will remain at LEARNING status with insufficient evidence to qualify as ACTIVE.</p></div></li>
+    <li><div class="step-num">?</div><div class="step-content"><h3>Can the suggestions override my clinical judgement?</h3><p>No. Suggestions are ranked recommendations derived from your own decision history, not prescriptive instructions. The physician retains full clinical authority. The suggestion list is an aid, not a directive.</p></div></li>
+    <li><div class="step-num">?</div><div class="step-content"><h3>Who can see my skill profile?</h3><p>By default, only you and your institution's designated administrators can view your profile. Administrators have read access for the purposes of department comparison and protocol derivation. Profile data is never shared outside your institution boundary.</p></div></li>
+    <li><div class="step-num">?</div><div class="step-content"><h3>What happens to my profile if I move to a different department?</h3><p>Your graph moves with you. If you transfer to a new specialty, a new scope can be configured by your administrator, and the system will begin building condition coverage in the new area while preserving your existing profile from your previous specialty.</p></div></li>
+    <li><div class="step-num">?</div><div class="step-content"><h3>Is the system certified for clinical use?</h3><p>DoctorAssist.ai is currently in private beta. Clinical certification and regulatory approval status varies by jurisdiction. Please contact your administrator or our team for the current certification status applicable to your region and institution type.</p></div></li>
+  </ul>
+  <div class="page-footer">
+    <span onclick="navigate('changelog')" style="cursor:pointer">← Changelog</span>
+    
+    <span style="opacity:.3">End →</span>
+  </div>
+</div>
+
+<!-- END CONTENT PAGES -->
+<p style="font-size:11px;color:var(--text-muted);text-align:center;margin-top:40px;">Powered by DoctorAssist.ai · Built on clinical intelligence infrastructure</p>
+</div><!-- /content-wrap -->
+</main>
+
+<!-- TOC -->
+<nav class="toc" id="toc-panel">
+  <div class="toc-title">On this page</div>
+  <div id="toc-links"></div>
+</nav>
+
+</div><!-- /layout -->
+
+<script>
+// ── PAGE DATA: toc entries per page ──────────────────────────────────
+const tocData = {
+  'overview':       ['The problem','Core idea','Get started'],
+  'specification':  ['What it defines','Five node types','Edge semantics','Required properties'],
+  'architecture':   ['Three-layer design','Data flow'],
+  'quickstart':     ['Before you begin','Steps to get started'],
+  'skill-profile':  ['What a profile contains','Configuration options'],
+  'decision-flow':  ['What gets captured','A worked example','Why context matters'],
+  'reading-profile':['Skill score','Per-condition breakdown','Threshold statuses'],
+  'outcome-feedback':['How outcome data is used','What counts as positive'],
+  'dept-comparison':['What the view shows','What you can do'],
+  'protocol':       ['How protocols are derived','Protocol lifecycle'],
+  'skill-transfer': ['What skill transfer does','Transfer rules'],
+  'analytics':      ['What the dashboard shows','Key dashboard panels'],
+  'graph-schema':   ['Node structure','Edge relationships','Relationship summary'],
+  'threshold':      ['The composite score','Threshold classification','Continuous recomputation'],
+  'api':            ['Core endpoints','Authentication'],
+  'data-models':    ['Doctor node model','Action node model'],
+  'integrations':   ['Integration methods','Minimum data requirements'],
+  'case-studies':   ['Case 1 — Chest pain','Case 2 — Skill transfer'],
+  'changelog':      ['v0.4 Skill Transfer','v0.3 Dept Comparison','v0.2 Suggestion Engine','v0.1 Initial Release'],
+  'faq':            ['Documentation changes','Historical data','Clinical judgement','Profile visibility','Department transfer','Certification'],
+};
+
+let currentPage = 'overview';
+
+function navigate(pageId) {
+  // Hide all pages
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  // Show target page
+  const target = document.getElementById('page-' + pageId);
+  if (!target) return;
+  target.classList.add('active');
+  currentPage = pageId;
+
+  // Update sidebar active state
+  document.querySelectorAll('.sidebar-link').forEach(l => {
+    l.classList.toggle('active', l.dataset.page === pageId);
+  });
+
+  // Scroll to top
+  document.querySelector('.content-wrap').scrollTop = 0;
+  window.scrollTo(0,0);
+
+  // Update TOC
+  renderToc(pageId);
+}
+
+function renderToc(pageId) {
+  const entries = tocData[pageId] || [];
+  const container = document.getElementById('toc-links');
+  container.innerHTML = entries.map((t,i) =>
+    `<a class="toc-link${i===0?' toc-active':''}" href="#">${t}</a>`
+  ).join('');
+  // Simple click handler to highlight
+  container.querySelectorAll('.toc-link').forEach(link => {
+    link.addEventListener('click', e => {
+      e.preventDefault();
+      container.querySelectorAll('.toc-link').forEach(l => l.classList.remove('toc-active'));
+      link.classList.add('toc-active');
+    });
+  });
+}
+
+// ── SIDEBAR CLICK ─────────────────────────────────────────────────────
+document.querySelectorAll('.sidebar-link[data-page]').forEach(link => {
+  link.addEventListener('click', () => navigate(link.dataset.page));
+});
+
+// ── LOGO CLICK ────────────────────────────────────────────────────────
+document.querySelector('.topnav-logo').addEventListener('click', () => navigate('overview'));
+
+// ── INIT ─────────────────────────────────────────────────────────────
+renderToc('overview');
+</script>
+</body>
+</html>

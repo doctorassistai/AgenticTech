@@ -1,0 +1,340 @@
+PALLIATIVE ASSESSMENT API REFERENCE
+============================================================
+palliative_assessment_api.py  |  router prefix: /context  |  1060 lines
+10 MongoDB collections used (all async, single client)  |  0 Pydantic models
+7 active endpoints (0 commented-out/dead endpoints)  |  7 helper functions
+============================================================
+
+This file already carries an unusually detailed module docstring
+(lines 1-122) written by whoever assembled it, laying out routes, inferred
+collection names, and 7 numbered ASSUMPTIONS made while writing it. This
+reference restates/organizes that content in the same shape as the other
+REFERENCE files rather than duplicating it verbatim - see the source
+docstring itself for the original wording.
+
+
+############################################################
+# 1. DATABASES & COLLECTIONS
+############################################################
+
+### MONGODB COLLECTIONS
+------------------------------------------------------------
+Format:  variable name in code  ->  actual MongoDB collection
+
+  diagnosis_data_collection                       -> diagnosis_data
+  tumor_board_collection                          -> tumor_board_cases
+  summary_collection                              -> patient_summary
+  documentation_investigation_notes_collection     -> documentation-investigation-notes
+  documentation_medication_analysis_collection     -> documentation-medication-analysis
+  palliative_assessment_collection                 -> palliative_assessment
+  documentation_treatment_plan_collection          -> documentation-treatment-plan
+  chemotherapy_records_collection                  -> chemotherapy_records
+  radiotherapy_records_collection                  -> radiotherapy_records
+  surgical_oncology_collection                     -> surgical_oncology
+
+Note: per the module's own ASSUMPTION #2, these names are inferred from
+docstrings/field references, not confirmed against a live schema dump. If
+any differ from the real collection names, every lookup in this file
+degrades silently to "" (all wrapped in try/except) rather than raising -
+worth a quick `db.<name>.findOne()` check before relying on this in prod.
+
+The last four (documentation_treatment_plan_collection,
+chemotherapy_records_collection, radiotherapy_records_collection,
+surgical_oncology_collection) are ONLY used as fallback data sources - see
+"FALLBACK SOURCE GROUP" in Section 4 - not as primary read/write targets
+the way the first six are.
+
+### KEY-FIELD INCONSISTENCY WORTH DOUBLE-CHECKING
+------------------------------------------------------------
+  Most collections in this file are queried on "patient_id" (snake_case):
+    diagnosis_data_collection, tumor_board_collection, summary_collection,
+    documentation_investigation_notes_collection,
+    documentation_medication_analysis_collection,
+    documentation_treatment_plan_collection, surgical_oncology_collection
+
+  But two are queried on "patientId" (camelCase) instead:
+    chemotherapy_records_collection, radiotherapy_records_collection
+
+  Per ASSUMPTION #6 in the module docstring, this camelCase choice was
+  copied from get_oncology_records in surgical_oncology_api.py (a file not
+  included in this review) and is NOT independently confirmed here - flag
+  for verification if chemotherapy/radiotherapy lookups ever silently
+  return nothing.
+
+### DATABASE CLIENT
+------------------------------------------------------------
+  Async only: AsyncIOMotorClient(MONGO_URI) -> database = mongodb_client[MONGO_DB]
+              used by all 10 collections above (no sync MongoClient in
+              this file, unlike data.py)
+  MONGO_DB = "doctorassistai"  (same database name/value as
+             protocol_master.py and data.py)
+
+  Note: client/collection initialization is wrapped in a bare try/except
+  that only logs the error (logger.error) and does not re-raise or exit -
+  same latent-risk pattern as protocol_master.py: if Mongo init fails, all
+  10 collection variables would be undefined and every route touching them
+  would raise a NameError at call time rather than at startup.
+
+### NEO4J
+------------------------------------------------------------
+  Not used in this file.
+
+### CELERY
+------------------------------------------------------------
+  Not used in this file.
+
+### OTHER EXTERNAL SERVICES
+------------------------------------------------------------
+  Groq LLM API : groq_client, built defensively (`Optional[Groq]`, only
+                 constructed if GROQ_API_KEY is set; a warning is logged
+                 and groq_client stays None otherwise - unlike
+                 protocol_master.py/data.py, this file checks for the key's
+                 presence before calling Groq()). Used in 4 places, all
+                 with model "llama-3.3-70b-versatile", forced JSON
+                 response_format, temperature=0:
+                   1. _llm_synthesize_treatment_history - synthesizes
+                      treatment_history from raw fallback sources
+                   2. get_palliative_latest_medications (primary path) -
+                      summarizes real documentation-medication-analysis
+                      prescriptions into 1-2 sentences
+                   3. _llm_fallback_ongoing_medications - same summarization
+                      goal, but over raw fallback sources instead
+                   4. extract_palliative_assessment_fields - extracts ESAS-r
+                      scores, ECOG/PPS, vitals, and free-text findings from
+                      a dictated clinical note
+  Storage service : a generic HTTP file-storage service reached via
+                 STORAGE_BASE_URL (env var), called with plain `requests`
+                 (SYNCHRONOUS, blocking) inside the async
+                 upload_referral_letter route - kept this way deliberately
+                 per ASSUMPTION #5 in the module docstring, to mirror an
+                 existing case_documents.py helper elsewhere in the
+                 codebase (not included in this review).
+  Twilio       : Not used in this file.
+
+### FILE STORAGE
+------------------------------------------------------------
+  One endpoint (POST /palliative-assessment/upload-referral-letter) uploads
+  referral letter files (PDF/JPG/JPEG/PNG, 20 MB limit) to the external
+  storage service above. No local/on-disk file storage in this file itself.
+
+### IN-MEMORY STATE
+------------------------------------------------------------
+  None (no in-memory caches/session dicts in this file).
+
+### ENVIRONMENT VARIABLES USED
+------------------------------------------------------------
+  MONGO_URI, GROQ_API_KEY, STORAGE_BASE_URL
+
+  Note: no SECRET_KEY / ALGORITHM / ACCESS_TOKEN_EXPIRE_DAYS boilerplate
+  here, unlike protocol_master.py and data.py - this file only reads the
+  env vars it actually uses.
+
+
+############################################################
+# 2. PYDANTIC MODELS
+############################################################
+------------------------------------------------------------
+  None. BaseModel is not even imported. All 3 POST endpoints
+  (extract-fields, upload-referral-letter, save) take either a raw
+  `payload: dict` or explicit `Form(...)` / `UploadFile` parameters instead
+  of a typed request model, and validate manually with
+  `if not X: raise HTTPException(400, ...)`. Consistent internally across
+  this file, but a bigger departure from typed-model validation than
+  protocol_master.py (which is fully typed) or data.py (which mixes typed
+  models with raw dicts).
+
+
+############################################################
+# 3. API ENDPOINTS
+############################################################
+
+Router prefix is "/context", matching patientcontext.py's own convention.
+Per ASSUMPTION #1 in the module docstring, an outer gateway/proxy already
+prepends "/api/hms/users/data" before requests reach this FastAPI app, so
+FastAPI itself only ever sees paths starting with "/context/...". An
+earlier version of this file used the FULL "/hms/users/data/context"
+prefix, which caused every route here to 404 - this is called out as the
+specific bug that was fixed to arrive at the current prefix.
+
+Full effective paths look like:
+  /context/palliative-assessment/patient-context/{patient_id}/{doctor_id}
+  /context/palliative-assessment/investigations-summary/{patient_id}/{doctor_id}
+  ...etc.
+
+### SECTION-1 AUTO-FILL (CONTEXT)  (3 endpoints)
+------------------------------------------------------------
+  GET  /palliative-assessment/patient-context/{patient_id}/{doctor_id}
+       function : get_palliative_patient_context
+       does     : Auto-fills 3 fields for Palliative Assessment section 1:
+                    - cancer_diagnosis   <- diagnosis_data (latest by
+                      created_at)
+                    - last_mdt_notes     <- tumor_board_cases.doctor_recommendation
+                      (latest across all specialties/doctors)
+                    - treatment_history  <- patient_summary.section_3_treatment_history,
+                      collapsed to a short human-readable line via
+                      _format_treatment_history
+                  If treatment_history comes back empty, falls back to
+                  gathering raw records (see FALLBACK SOURCE GROUP in
+                  Section 4) and asking the LLM to synthesize a
+                  treatment_history string instead of leaving it blank. No
+                  LLM call is made if the raw sources are also empty.
+                  Never raises - every individual lookup failure just
+                  leaves that field "".
+       touches  : diagnosis_data_collection, tumor_board_collection,
+                  summary_collection (+ fallback group when triggered)
+
+  GET  /palliative-assessment/investigations-summary/{patient_id}/{doctor_id}
+       function : get_palliative_investigations_summary
+       does     : Builds reference text for the Investigations field used
+                  in both section 1 and section 7. Primary source is
+                  patient_summary.section_2_investigations_summary
+                  (formatted via _format_investigations_summary - pending
+                  investigations, up to 3 recent labs/imaging/pathology
+                  entries each). Falls back to raw
+                  documentation-investigation-notes order list
+                  (finaloutput.investigation_orders, formatted via
+                  _format_investigation_orders, up to 8 orders) if no
+                  summary text exists yet
+       touches  : summary_collection, documentation_investigation_notes_collection
+
+  GET  /palliative-assessment/latest-medications/{patient_id}/{doctor_id}
+       function : get_palliative_latest_medications
+       does     : Fetches the latest documentation-medication-analysis
+                  record, filters its prescriptions down to ones with a
+                  real medication/generic_name/brand_name value, and asks
+                  the LLM to summarize them into a 1-2 sentence
+                  "ongoing_medications" string. If there's no record, or no
+                  real prescriptions in it, falls back to
+                  _llm_fallback_ongoing_medications (scans the same raw
+                  fallback source group for any medication mentions -
+                  chemo drugs/doses, meds named in a treatment plan or MDT
+                  note - before giving up and returning ""). Raises HTTP 500
+                  up front if GROQ_API_KEY isn't configured at all (unlike
+                  the two GET endpoints above, which degrade silently
+                  instead)
+       touches  : documentation_medication_analysis_collection (+ fallback
+                  group when triggered)
+       note     : response key is "currentMedicationsText" (not
+                  "ongoing_medications") specifically to match what
+                  PalliativeAssessmentForm.jsx reads, and to stay
+                  consistent with the sibling pain-management endpoint's
+                  response shape.
+
+### DICTATION EXTRACTION  (1 endpoint)
+------------------------------------------------------------
+  POST /palliative-assessment/extract-fields
+       function : extract_palliative_assessment_fields
+       does     : Sends a doctor's free-text dictation to the LLM and
+                  extracts, ALL independently and ALL optional (only
+                  included if clearly stated - never guessed):
+                    - ecog (one of "0".."4"), pps (one of "100%".."0%")
+                    - 12 ESAS-r symptom scores (0-10 ints) + matching
+                      "_details" free-text notes (kept only if the paired
+                      score was also extracted, so a note never appears
+                      without its symptom)
+                    - nursing vitals: bp_systolic/bp_diastolic (merged into
+                      one "bp" string), pulse, temperature, respiratoryRate,
+                      spo2 - each range-checked against VITAL_RANGES and
+                      DROPPED (not clamped) if outside a plausible range,
+                      to guard against likely transcription errors
+                    - stoma, woundPressureInjury (free text, only if
+                      specifically mentioned)
+                    - reasonForReferralOther, examinationFindings (free
+                      text, only if not already captured by a more specific
+                      structured key)
+                  Raises HTTP 500 up front if GROQ_API_KEY isn't configured,
+                  and HTTP 400 if dictation is empty
+       touches  : no MongoDB collections - LLM-only endpoint
+
+### FILE UPLOAD  (1 endpoint)
+------------------------------------------------------------
+  POST /palliative-assessment/upload-referral-letter
+       function : upload_referral_letter
+       does     : Uploads a referral letter (PDF/JPG/JPEG/PNG, <=20MB) to
+                  the external storage service via synchronous `requests`,
+                  mirroring case_documents.py's advanced_upload_document
+                  call shape (doc_type="referral_letter",
+                  category/subcategory left None). Generates its own
+                  `file_id` via uuid.uuid4() because the storage call
+                  itself doesn't return one but the frontend expects
+                  `referralLetterFile.file_id` - this generated ID does NOT
+                  correspond to anything on the storage side, it exists
+                  purely for frontend bookkeeping (see ASSUMPTION #3)
+       touches  : no MongoDB collections - external storage service only
+
+### SAVE / HISTORY  (2 endpoints)
+------------------------------------------------------------
+  POST /palliative-assessment/save
+       function : save_palliative_assessment
+       does     : Saves the full assessment (sections 1-7) as ONE unified
+                  document - unlike the sibling pain-management module,
+                  this form has no "New vs Follow-up" split into two
+                  separate document shapes; that distinction is just a
+                  single field inside the one document
+       touches  : palliative_assessment_collection
+
+  GET  /palliative-assessment/history/{patient_id}/{doctor_id}
+       function : get_palliative_assessment_history
+       does     : Lists all assessments for a (patient_id, doctor_id) pair,
+                  most recent first. Used by BOTH the entry form itself
+                  (to decide whether to default section 1A to "Follow up")
+                  and the separate read-only summary view
+       touches  : palliative_assessment_collection
+
+
+############################################################
+# 4. SUPPORTING HELPER FUNCTIONS (not routes, 7 functions)
+############################################################
+------------------------------------------------------------
+  _format_treatment_history(section_3)
+         Collapses patient_summary.section_3_treatment_history (current
+         active treatments, completed treatments this case, historical
+         treatments from past cases) into a single pipe-separated
+         human-readable string for the free-text treatment_history field.
+
+  _serialize_doc(doc)
+         Strips _id and converts any datetime-like fields to ISO strings so
+         a raw Mongo doc is safe to drop straight into an LLM prompt as
+         JSON. Used only by the fallback-source gathering below.
+
+  _gather_raw_treatment_sources(patient_id)  [FALLBACK SOURCE GROUP]
+         Shared fallback data-gathering function, reused by BOTH the
+         treatment_history fallback (get_palliative_patient_context) and
+         the ongoing-medications fallback (_llm_fallback_ongoing_medications).
+         Independently, non-fatally queries: documentation-treatment-plan
+         (patient_id), chemotherapy_records (patientId), radiotherapy_records
+         (patientId), surgical_oncology bookings (patient_id, up to 5 most
+         recent, only procedure/date/surgeon/status fields kept), and
+         tumor_board_cases.doctor_recommendation (patient_id, reusing the
+         same doc already fetched elsewhere for last_mdt_notes). A failure
+         on any one source just omits it from the result dict rather than
+         raising.
+
+  _llm_synthesize_treatment_history(sources)
+         Sends whatever raw sources _gather_raw_treatment_sources returned
+         to the LLM with TREATMENT_HISTORY_SYNTHESIS_PROMPT, asking for a
+         2-5 line clinical summary. Returns "" if sources is empty,
+         groq_client is None, or the LLM response isn't valid JSON - never
+         invents treatments/dates/drugs not present in the input.
+
+  _format_investigations_summary(section_2)
+         Formats patient_summary.section_2_investigations_summary (pending
+         investigations list, up to 3 each of recent labs/imaging/
+         pathology) into one pipe-separated reference string.
+
+  _format_investigation_orders(orders)
+         Formats a raw documentation-investigation-notes order list (up to
+         8 orders: investigation_name, priority, standard_indications) into
+         one pipe-separated reference string. Used as the fallback path in
+         get_palliative_investigations_summary when no pre-digested summary
+         exists yet.
+
+  _llm_fallback_ongoing_medications(patient_id)
+         Reuses _gather_raw_treatment_sources, then sends those sources to
+         the LLM with ONGOING_MEDICATIONS_FALLBACK_PROMPT to pull out any
+         medication mentions (chemo drug names/doses counted explicitly).
+         Returns "" if there are no raw sources, groq_client is None, or
+         the response isn't valid JSON - same "don't invent" rule as
+         everywhere else in this file.
+
+

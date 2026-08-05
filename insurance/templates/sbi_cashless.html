@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Optimus Medical Services - SBIG Review Report</title>
+  <style>
+    @page { size: A4; margin: 12mm 12mm; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; font-size: 10px; color: #000; background: #fff; }
+    .page { width: 186mm; margin: 0 auto; background: #fff; }
+
+    /* HEADER */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-top: 4px solid #4caf50;
+      border-bottom: 2px solid #4caf50;
+      padding: 8px 0;
+      margin-bottom: 10px;
+    }
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .header-logo { height: 40px; object-fit: contain; }
+    .header-company { font-weight: bold; font-size: 11px; color: #000; }
+    .header-addr {
+      font-size: 8px;
+      line-height: 1.6;
+      color: #333;
+      text-align: right;
+    }
+
+    /* REPORT TITLE */
+    .report-title {
+      text-align: center;
+      font-weight: bold;
+      font-size: 12px;
+      border: 1px solid #000;
+      padding: 5px;
+      background: #fff;
+      margin-bottom: 0;
+    }
+
+    /* MAIN TABLE */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      word-wrap: break-word;
+    }
+    td {
+      border: 1px solid #000;
+      padding: 5px 7px;
+      vertical-align: top;
+      font-size: 10px;
+      word-wrap: break-word;
+    }
+    .lbl { font-weight: bold; width: 40%; }
+    .val { width: 60%; min-height: 18px; }
+
+    .findings-box {
+      min-height: 80px;
+      line-height: 1.7;
+    }
+    .findings-section { margin-bottom: 6px; }
+    .findings-title { font-weight: bold; font-size: 10px; margin-bottom: 3px; }
+
+    .conclusion-content img {
+      max-width: 160mm;
+      height: auto;
+      display: block;
+      margin: 4px 0;
+    }
+
+    .stamp-area { margin-top: 16px; }
+    .stamp-img { width: 90px; height: 90px; object-fit: contain; }
+
+    .page-break { page-break-before: always; margin-top: 10px; }
+
+    @media print {
+      body { margin: 0; }
+      .page { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ══════════════════════════════════════════════
+       HEADER — PAGE 1
+  ══════════════════════════════════════════════ -->
+  <div class="header">
+    <div class="header-left">
+      {% if header_image %}
+        <img src="{{ header_image }}" class="header-logo" alt="Optimus Medical Services">
+      {% endif %}
+      <div class="header-company">Optimus Medical Services Pvt.Ltd.</div>
+    </div>
+    <div class="header-addr">
+      #99, Second Floor, DD Milestone,<br>
+      Kadavanthra, Kochi, Kerala<br>
+      Tel.: 755 990 4333, 0484-4069017<br>
+      E-mail: mail@letchek.in<br>
+      www.letchek.in
+    </div>
+  </div>
+
+  <div class="report-title">Review REPORT</div>
+
+  <table>
+
+    <!-- SBIG Claim Number -->
+    <tr>
+      <td class="lbl">SBIG Claim Number</td>
+      <td class="val">
+        {{ case.insurerRef or case.caseId or "" }}
+      </td>
+    </tr>
+
+    <!-- TPA Claim No -->
+    <tr>
+      <td class="lbl">TPA claim no.</td>
+      <td class="val">
+        {{ facts.ip_number or case.cashlessDetails.tpaName or "" }}
+      </td>
+    </tr>
+
+    <!-- Claim Type -->
+    <tr>
+      <td class="lbl">Claim Type -<br><span style="font-weight:normal;">(Cashless / Reimbursement)</span></td>
+      <td class="val">
+        <strong>{{ (case.claimMode or "CASHLESS") | upper }}</strong>
+      </td>
+    </tr>
+
+    <!-- Planned / Cashless Full -->
+    <tr>
+      <td class="lbl">Planned / Cashless Full</td>
+      <td class="val">
+        <strong>{{ (case.cashlessDetails.admissionType or case.claimSubtype or "CASHLESS") | upper }}</strong>
+      </td>
+    </tr>
+
+    <!-- Field Visit Date -->
+    <tr>
+      <td class="lbl">Field visit date<br><span style="font-weight:normal;">(Hospital and insured visit date)</span></td>
+      <td class="val">
+        {{ facts.admission_date or case.dateOfIncident or "" }}
+      </td>
+    </tr>
+
+    <!-- Management Plan / MLC -->
+    <tr>
+      <td class="lbl">Management plan (Medical or surgical) / MLC case (Yes / No)</td>
+      <td class="val">
+        {% set mgmt = facts.all_treatments or "" %}
+        {% set mlc  = facts.mlc_registered or "" %}
+        {% if mgmt %}{{ mgmt }}{% endif %}
+        {% if mgmt and mlc %} / {% endif %}
+        {% if mlc %}MLC: {{ mlc }}{% endif %}
+      </td>
+    </tr>
+
+    <!-- SBIG Policy No -->
+    <tr>
+      <td class="lbl">SBIG policy no.</td>
+      <td class="val">
+        {{ case.policyNumber or facts.policy_type or "" }}
+      </td>
+    </tr>
+
+    <!-- Policy Period -->
+    <tr>
+      <td class="lbl">Policy Period -<br><span style="font-weight:normal;">(Start Date to End Date)</span></td>
+      <td class="val">
+        {% set ps = facts.policy_start_date or case.policyDetails.startDate or "" %}
+        {% set pe = facts.policy_end_date   or case.policyDetails.endDate   or "" %}
+        {% if ps or pe %}
+          {{ ps }} {% if ps and pe %} to {% endif %} {{ pe }}
+        {% endif %}
+      </td>
+    </tr>
+
+    <!-- Policy Type -->
+    <tr>
+      <td class="lbl">Policy Type -<br><span style="font-weight:normal;">(Corporate / Retail)</span></td>
+      <td class="val">
+        {{ case.policyType or facts.policy_type or "" }}
+      </td>
+    </tr>
+
+    <!-- Primary Insured Name -->
+    <tr>
+      <td class="lbl">Primary Insured Name</td>
+      <td class="val">
+        {{ case.claimantName or facts.patient_name or "" }}
+      </td>
+    </tr>
+
+    <!-- Patient's Name -->
+    <tr>
+      <td class="lbl">Patient's Name</td>
+      <td class="val">
+        {{ facts.patient_name or case.claimantName or "" }}
+        {% if facts.patient_age_gender %}
+          &nbsp;({{ facts.patient_age_gender }})
+        {% endif %}
+      </td>
+    </tr>
+
+    <!-- Name of Hospital -->
+    <tr>
+      <td class="lbl">Name of Hospital</td>
+      <td class="val">
+        {{ facts.hospital_name or hospital.name or "" }}
+        {% if facts.hospital_address or hospital.address %}
+          <br><span style="font-weight:normal;">{{ facts.hospital_address or hospital.address }}</span>
+        {% endif %}
+      </td>
+    </tr>
+
+    <!-- Date of Admission -->
+    <tr>
+      <td class="lbl">Date of Admission</td>
+      <td class="val">
+        {{ facts.admission_date or hospital.admissionDate or "" }}
+        {% if facts.admission_time %}
+          &nbsp;{{ facts.admission_time }}
+        {% endif %}
+      </td>
+    </tr>
+
+    <!-- Date of Discharge -->
+    <tr>
+      <td class="lbl">Date of Discharge</td>
+      <td class="val">
+        {{ facts.discharge_date or hospital.dischargeDate or "" }}
+        {% if facts.discharge_time %}
+          &nbsp;{{ facts.discharge_time }}
+        {% endif %}
+      </td>
+    </tr>
+
+    <!-- Treating Doctor -->
+    <tr>
+      <td class="lbl">Treating doctor Name /<br>Registration verified or not /<br>Association verified or not</td>
+      <td class="val">
+        {% set doc_name = facts.treating_doctor or hospital.doctorName or "" %}
+        {% set doc_reg  = facts.doctor_reg_number or "" %}
+        {% set doc_qual = facts.doctor_qualification or "" %}
+        {{ doc_name }}
+        {% if doc_qual %} ({{ doc_qual }}){% endif %}
+        {% if doc_reg %}<br>Reg. No: {{ doc_reg }}{% endif %}
+        {% if facts.hospital_reg_valid_till %}<br>Valid till: {{ facts.hospital_reg_valid_till }}{% endif %}
+      </td>
+    </tr>
+
+    <!-- Pathologist -->
+    <tr>
+      <td class="lbl">Pathologist Name /<br>Registration verified or not /<br>Association verified or not</td>
+      <td class="val">
+        {% set path_name = facts.pathologist_name or "" %}
+        {% set path_desig = facts.pathologist_designation or "" %}
+        {{ path_name }}
+        {% if path_desig %} ({{ path_desig }}){% endif %}
+        {% if facts.inhouse_lab %}
+          <br>In-house lab: {{ facts.inhouse_lab }}
+        {% endif %}
+      </td>
+    </tr>
+
+    <!-- Claimed Amount -->
+    <tr>
+      <td class="lbl">Claimed Amount</td>
+      <td class="val">
+        {% set amt = facts.claimed_amount or facts.bill_amount or facts.gross_bill_amount or case.claimedAmount or "" %}
+        {% if amt %}&#8377; {{ amt }}{% endif %}
+      </td>
+    </tr>
+
+    <!-- Diagnosis -->
+    <tr>
+      <td class="lbl">Diagnosis</td>
+      <td class="val">
+        {% set diag = facts.final_diagnosis or facts.provisional_diagnosis or "" %}
+        {{ diag }}
+        {% if facts.chief_complaints and not diag %}
+          {{ facts.chief_complaints }}
+        {% endif %}
+      </td>
+    </tr>
+
+    <!-- Investigation Findings -->
+    <tr>
+      <td class="lbl" style="vertical-align:top;">Investigation findings</td>
+      <td class="val findings-box">
+
+        <div class="findings-section">
+          <div class="findings-title">HOSPITAL FINDINGS</div>
+          <div>
+            {% set hv_findings = facts.field_officer_hospital_opinion or "" %}
+            {% if hv_findings %}
+              {{ hv_findings }}
+            {% else %}
+              {# Build from available hospital facts #}
+              {% if facts.hospital_name %}Hospital: {{ facts.hospital_name }}<br>{% endif %}
+              {% if facts.hospital_registration_number %}Reg No: {{ facts.hospital_registration_number }}<br>{% endif %}
+              {% if facts.hospital_bed_strength %}Bed strength: {{ facts.hospital_bed_strength }}<br>{% endif %}
+              {% if facts.hospital_nabh %}NABH: {{ facts.hospital_nabh }}<br>{% endif %}
+              {% if facts.hospital_registration_validity %}Reg validity: {{ facts.hospital_registration_validity }}<br>{% endif %}
+              {% if facts.ip_register_collected %}IP register collected: {{ facts.ip_register_collected }}<br>{% endif %}
+              {% if facts.ot_register_attached %}OT register: {{ facts.ot_register_attached }}<br>{% endif %}
+              {% if facts.lab_register_collected %}Lab register: {{ facts.lab_register_collected }}<br>{% endif %}
+              {% if facts.inhouse_lab_present %}In-house lab: {{ facts.inhouse_lab_present }}<br>{% endif %}
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="findings-section">
+          <div class="findings-title">MEMBER FINDINGS</div>
+          <div>
+            {% set mv_findings = facts.field_officer_member_opinion or "" %}
+            {% if mv_findings %}
+              {{ mv_findings }}
+            {% else %}
+              {% if facts.patient_name %}Patient: {{ facts.patient_name }}<br>{% endif %}
+              {% if facts.patient_age_gender %}Age/Gender: {{ facts.patient_age_gender }}<br>{% endif %}
+              {% if facts.chief_complaints %}Complaints: {{ facts.chief_complaints }}<br>{% endif %}
+              {% if facts.vitals_on_admission %}Vitals on admission: {{ facts.vitals_on_admission }}<br>{% endif %}
+              {% if facts.accident_place %}Accident place: {{ facts.accident_place }}<br>{% endif %}
+              {% if facts.accident_narration %}Narration: {{ facts.accident_narration }}<br>{% endif %}
+              {% if facts.mlc_registered %}MLC registered: {{ facts.mlc_registered }}<br>{% endif %}
+              {% if facts.mlc_number %}MLC No: {{ facts.mlc_number }}<br>{% endif %}
+              {% if facts.fir_number %}FIR No: {{ facts.fir_number }}<br>{% endif %}
+              {% if facts.police_station %}Police Station: {{ facts.police_station }}<br>{% endif %}
+              {% if facts.helmet_worn %}Helmet worn: {{ facts.helmet_worn }}<br>{% endif %}
+              {% if facts.alcohol_test_done %}Alcohol test: {{ facts.alcohol_test_done }}{% if facts.alcohol_test_result %} — {{ facts.alcohol_test_result }}{% endif %}<br>{% endif %}
+              {% if facts.physical_visit_confirmed %}Physical visit confirmed: {{ facts.physical_visit_confirmed }}<br>{% endif %}
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="findings-section">
+          <div class="findings-title">CONCLUSION</div>
+          <div class="conclusion-content">
+            {% if conclusion_html %}
+              {{ conclusion_html | safe }}
+            {% elif facts.final_verdict_verbatim %}
+              {{ facts.final_verdict_verbatim }}
+            {% elif facts.discrepancies_verbatim %}
+              {{ facts.discrepancies_verbatim }}
+            {% elif case.description %}
+              {{ case.description }}
+            {% endif %}
+          </div>
+        </div>
+
+      </td>
+    </tr>
+
+    <!-- Recommendation -->
+    <tr>
+      <td class="lbl">Recommendation</td>
+      <td class="val">
+        {{ facts.final_verdict_verbatim or "" }}
+      </td>
+    </tr>
+
+    <!-- Rejection Grounds -->
+    <tr>
+      <td class="lbl">Rejection grounds -<br><span style="font-weight:normal;">(In case of rejection)</span></td>
+      <td class="val">
+        {{ facts.discrepancies_verbatim or facts.contradictions_found or "" }}
+      </td>
+    </tr>
+
+    <!-- Policy Cancellation -->
+    <tr>
+      <td class="lbl">Policy Cancellation</td>
+      <td class="val">NA</td>
+    </tr>
+
+    <!-- Evidences -->
+    <tr>
+      <td class="lbl">Evidences</td>
+      <td class="val">
+        {% set ev_parts = [] %}
+        {% if facts.ip_register_attached      %}{% set _ = ev_parts.append("IP Register") %}{% endif %}
+        {% if facts.ot_register_attached      %}{% set _ = ev_parts.append("OT Register") %}{% endif %}
+        {% if facts.lab_register_attached     %}{% set _ = ev_parts.append("Lab Register") %}{% endif %}
+        {% if facts.reg_certificate_attached  %}{% set _ = ev_parts.append("Reg. Certificate") %}{% endif %}
+        {% if facts.tariff_attached           %}{% set _ = ev_parts.append("Tariff") %}{% endif %}
+        {% if facts.mlc_collected             %}{% set _ = ev_parts.append("MLC") %}{% endif %}
+        {% if facts.lab_photos_attached       %}{% set _ = ev_parts.append("Lab Photos") %}{% endif %}
+        {% if facts.operation_record_attached %}{% set _ = ev_parts.append("Operation Record") %}{% endif %}
+        {{ ev_parts | join(", ") }}
+      </td>
+    </tr>
+
+    <!-- Field Officer Name -->
+    <tr>
+      <td class="lbl">Field Officer Name</td>
+      <td class="val">
+        {{ facts.field_officer_name or "" }}
+        {% if facts.data_collected_from_name and facts.data_collected_from_name != facts.field_officer_name %}
+          {% if facts.field_officer_name %}<br>{% endif %}
+          Data collected from: {{ facts.data_collected_from_name }}
+          {% if facts.data_collected_from_designation %} ({{ facts.data_collected_from_designation }}){% endif %}
+        {% endif %}
+      </td>
+    </tr>
+
+    <!-- Contact Number -->
+    <tr>
+      <td class="lbl">Contact Number</td>
+      <td class="val">
+        {{ facts.data_collected_from_phone or case.claimantMobile or "9895045038" }}
+      </td>
+    </tr>
+
+  </table>
+
+  <!-- ══════════════════════════════════════════════
+       PAGE 2 — STAMP
+  ══════════════════════════════════════════════ -->
+  <div class="page-break"></div>
+
+  <div class="header">
+    <div class="header-left">
+      {% if header_image %}
+        <img src="{{ header_image }}" class="header-logo" alt="Optimus Medical Services">
+      {% endif %}
+      <div class="header-company">Optimus Medical Services Pvt.Ltd.</div>
+    </div>
+    <div class="header-addr">
+      #99, Second Floor, DD Milestone,<br>
+      Kadavanthra, Kochi, Kerala<br>
+      Tel.: 755 990 4333, 0484-4069017<br>
+      E-mail: mail@letchek.in<br>
+      www.letchek.in
+    </div>
+  </div>
+
+  {% if show_stamp and stamp_image %}
+  <div class="stamp-area">
+    <img src="{{ stamp_image }}" class="stamp-img" alt="Optimus Stamp">
+  </div>
+  {% endif %}
+
+</div>
+</body>
+</html>

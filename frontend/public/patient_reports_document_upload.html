@@ -1,0 +1,4076 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="utf-8">
+    <title>Doctor Assist AI :: Enhanced Reports Upload</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- App favicon -->
+    <link rel="shortcut icon" href="/static/HMS_assets/images/logo.png">
+
+    <!-- App css -->
+    <link rel="stylesheet" href="/static/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/static/css/icons.min.css">
+    <link rel="stylesheet" href="./static/css/app.min.css">
+    <script src="config.js"></script>
+</head>
+
+<style>
+        .test-value-high { color: #dc3545; font-weight: bold; }
+        .test-value-low { color: #fd7e14; font-weight: bold; }
+        .test-value-normal { color: #198754; }
+        .badge-critical { background-color: #dc3545 !important; }
+        .badge-high { background-color: #fd7e14 !important; }
+        .badge-normal { background-color: #198754 !important; }
+        .table-hover tbody tr:hover { background-color: #f8f9fa; }
+    </style>
+
+<body>
+
+<div class="row">
+    <div class="col-sm-12">
+        <div class="page-title-box">
+            <h4 class="page-title">Enhanced Patient Documents Management</h4>
+            <p class="text-muted">Upload and analyze comprehensive medical documents with AI-powered insights</p>
+        </div>
+    </div>
+</div>
+
+<!-- Patient Info -->
+
+
+<!-- Patient Condition Summary Card -->
+<div class="row">
+    <div class="col-12">
+        <div class="card" id="conditionSummaryCard" style="display: none;">
+            <div class="card-header bg-info text-white">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="ti ti-medical-cross me-2"></i>AI Medical Summary</h5>
+                    <button class="btn btn-light btn-sm" onclick="refreshConditionSummary()">
+                        <i class="ti ti-refresh" style="width: 16px; height: 16px;"></i> Refresh
+                    </button>
+                </div>
+            </div>
+            <div class="card-body" id="conditionSummaryContent">
+                <!-- AI summary will be loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Document Management -->
+<div class="row">
+    <!-- Left Section - Existing Documents -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header document-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h4 class="card-title mb-0">Uploaded Documents</h4>
+                    <div class="document-filter-buttons">
+                        <button class="filter-btn active" data-filter="all" onclick="filterDocuments('all')">All</button>
+                        <button class="filter-btn" data-filter="clinical" onclick="filterDocuments('clinical')">
+                            <i class="ti ti-notes-medical me-1"></i>Clinical
+                        </button>
+                        <button class="filter-btn" data-filter="imaging" onclick="filterDocuments('imaging')">
+                            <i class="ti ti-photo me-1"></i>Imaging
+                        </button>
+                        <button class="filter-btn" data-filter="histopathology" onclick="filterDocuments('histopathology')">
+                            <i class="ti ti-microscope me-1"></i>Pathology
+                        </button>
+                        <button class="filter-btn" data-filter="specialty" onclick="filterDocuments('specialty')">
+                            <i class="ti ti-stethoscope me-1"></i>Specialty
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card-body p-0">
+                <div class="list-group list-group-flush" id="documentsList">
+                    <!-- Documents will be loaded here dynamically -->
+                    <div class="text-center p-4 text-muted">
+                        <i data-feather="file" style="width: 48px; height: 48px;"></i>
+                        <p class="mt-2">No documents found</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Section - Upload New Document -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-light">
+                <h4 class="card-title mb-0">Upload New Document</h4>
+                <p class="text-muted mb-0 small">AI will automatically analyze and extract medical insights</p>
+            </div>
+            <div class="card-body">
+                <form id="uploadForm" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label class="form-label">Document Type <span class="text-danger">*</span></label>
+                        <select class="form-select" name="doc_type" required id="docTypeSelect">
+                            <option value="">Select Document Type</option>
+                            
+                            <optgroup label="Clinical Documents">
+                                <option value="prescription">Prescription</option>
+                                <option value="lab_report">Lab Report</option>
+                                <option value="discharge_summary">Discharge Summary</option>
+                                <option value="clinical_note">Clinical Notes</option>
+                                <option value="vital_chart">Vitals Chart</option>
+                                <option value="referral_letter">Referral Letter</option>
+                                <option value="bio_marker">Bio Markers</option>
+                            </optgroup>
+                            
+                            <optgroup label="Imaging Reports">
+                                <option value="xray">X-Ray</option>
+                                <option value="foot_xray">foot xray</option>
+                                <option value="ultrasound">Ultrasound</option>
+                                <option value="ct_scan">CT Scan</option>
+                                <option value="mri">MRI</option>
+                                <option value="pet_scan">PET Scan</option>
+                                <option value="echo">Echocardiogram</option>
+                                <option value="angiography">Angiography</option>
+                                <option value="endoscopy">Endoscopy Report</option>
+                                <option value="ecg">ECG Report</option>
+                                <option value="biopsy">Biopsy Report</option>
+                                <option value="histopathology">Histopathology Report</option>
+                                <option value="cytology">Cytology Report</option>
+                            </optgroup>
+                            
+                            <optgroup label="Specialty Reports">
+                                <option value="cardiology">Cardiology Report (ECG, TMT)</option>
+                                <option value="neurology">Neurology Report (EEG, NCV)</option>
+                                <option value="oncology">Oncology Reports (Tumor Markers, PET)</option>
+                                <option value="orthopedics">Orthopedic Reports (DEXA, X-Ray)</option>
+                                <option value="gynecology">Obstetric/Gynecology Report</option>
+                                <option value="pediatrics">Pediatric Reports</option>
+                                <option value="psychiatry">Psychiatric Assessments</option>
+                                <option value="dental">Dental Imaging Reports (OPG)</option>
+                                <option value="pulmonology">Pulmonology Reports (PFT)</option>
+                                <option value="diabetic Foot">Foot Thermal Image</option>
+                            </optgroup>
+                            
+                            <optgroup label="Other">
+                                <option value="other">Other Medical Document</option>
+                            </optgroup>
+                        </select>
+                        <div class="form-text">
+                            <small id="docTypeHint" class="text-muted">Select the appropriate document type for better AI analysis</small>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <input type="text" class="form-control" name="description" placeholder="Brief description of the document" id="descriptionInput">
+                        <div class="form-text">
+                            <small class="text-muted">Optional: Add context like "Follow-up report", "Pre-surgery assessment", etc.</small>
+                        </div>
+                    </div>
+
+                <div id="imagingFields" style="display: none;">
+                    <div class="mb-3">
+                        <label class="form-label">Region of Interest</label>
+                        <input type="text" class="form-control optional-field" name="region_of_interest" placeholder="e.g. Chest, Abdomen, Brain">
+                        <div class="form-text">
+                            <small class="text-muted">Optional: Specify area to be examined</small>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Clinical Indication</label>
+                        <input type="text" class="form-control optional-field" name="clinical_indication" placeholder="e.g. Persistent cough, trauma, etc.">
+                        <div class="form-text">
+                            <small class="text-muted">Optional: Mention reason for imaging</small>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Focus of Imaging</label>
+                        <input type="text" class="form-control optional-field" name="focus_of_imaging" placeholder="e.g. Tumor detection, fracture evaluation">
+                        <div class="form-text">
+                            <small class="text-muted">Optional: Describe what the imaging should focus on</small>
+                        </div>
+                    </div>
+                </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Document Date <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" name="doc_date" required id="docDateInput">
+                        <div class="form-text">
+                            <small class="text-muted">Date when the document was created/issued</small>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+    <label class="form-label">Upload Files <span class="text-danger">*</span></label>
+    
+    <!-- Medical Images Upload -->
+    <div class="mb-3" id="medicalImagesSection">
+        <label class="form-label small text-primary">
+            <i data-feather="image" class="icon-xs me-1"></i> Medical Images (DICOM, JPEG, PNG, etc.)
+        </label>
+        <div class="drop-zone medical-images-dropzone" id="medicalImagesDropZone">
+            <span class="drop-zone__prompt">Drop medical images here or click to upload</span>
+            <input type="file" name="medical_images" class="drop-zone__input" id="medicalImagesInput" 
+                   accept=".jpg,.jpeg,.png,.tiff,.bmp,.dcm,.dicom,.nii,.gz,.mha,.mhd,.nrrd" multiple>
+        </div>
+        <div id="medicalImagesPreview" class="mt-2"></div>
+    </div>
+
+    <!-- PDF Report Upload -->
+    <div class="mb-3" id="pdfReportSection">
+        <label class="form-label small text-info">
+            <i data-feather="file-text" class="icon-xs me-1"></i> PDF Report (Optional)
+        </label>
+        <div class="drop-zone pdf-dropzone" id="pdfDropZone">
+            <span class="drop-zone__prompt">Drop PDF report here or click to upload</span>
+            <input type="file" name="pdf_report" class="drop-zone__input" id="pdfInput" accept=".pdf">
+        </div>
+        <div id="pdfPreview" class="mt-2"></div>
+    </div>
+
+    <!-- Single File Upload for Non-Imaging Documents -->
+    <div class="mb-3" id="singleFileSection">
+        <div class="drop-zone" id="dropZone">
+            <span class="drop-zone__prompt">Drop file here or click to upload</span>
+            <input type="file" name="document" class="drop-zone__input" id="fileInput" 
+                   accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.tiff,.bmp,.dcm,.dicom,.nii,.gz,.mha,.mhd,.nrrd" required>
+        </div>
+        <div id="preview" class="mt-2"></div>
+    </div>
+
+    <div class="form-text text-muted" id="fileFormatInfo">
+        <strong>Supported formats:</strong> PDF, DOC/DOCX, JPG, PNG. <strong>Maximum size:</strong> 10MB.
+        <br><small>AI will extract text and analyze medical content automatically</small>
+    </div>
+</div>
+
+                    <!-- AI Processing Options -->
+                    <div class="mb-3">
+                        <div class="card bg-light">
+                            <div class="card-body py-2">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="enableAIAnalysis" checked>
+                                    <label class="form-check-label" for="enableAIAnalysis">
+                                        <strong>Enable AI Analysis</strong>
+                                        <small class="d-block text-muted">Extract medical conditions, values, and insights automatically</small>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i data-feather="upload-cloud" class="icon-sm me-1"></i> Upload & Analyze Document
+                        </button>
+                    </div>
+
+
+                    
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Enhanced Document Preview Modal -->
+<div class="modal fade" id="previewModal" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Enhanced Document Analysis</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Alerts Container -->
+                <div id="alertsContainer"></div>
+
+                <!-- Enhanced Tabs -->
+                <ul class="nav nav-tabs mb-3" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="preview-tab" data-bs-toggle="tab" 
+                                data-bs-target="#preview-pane" type="button" role="tab">
+                            <i data-feather="file-text" class="icon-sm me-1"></i>Document Preview
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="structured-tab" data-bs-toggle="tab" 
+                                data-bs-target="#structured-pane" type="button" role="tab">
+                            <i data-feather="database" class="icon-sm me-1"></i>Structured Data
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="medical-tab" data-bs-toggle="tab" 
+                                data-bs-target="#medical-pane" type="button" role="tab">
+                            <i data-feather="activity" class="icon-sm me-1"></i>Medical Insights
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="conditions-tab" data-bs-toggle="tab" 
+                                data-bs-target="#conditions-pane" type="button" role="tab">
+                            <i data-feather="alert-circle" class="icon-sm me-1"></i>Conditions & Alerts
+                        </button>
+                    </li>
+
+                    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="imaging-analysis-tab" data-bs-toggle="tab" 
+                data-bs-target="#imaging-analysis-pane" type="button" role="tab">
+            <i data-feather="image" class="icon-sm me-1"></i>AI Imaging Analysis
+        </button>
+    </li>
+                </ul>
+
+                <!-- Enhanced Tab Content -->
+                <div class="tab-content">
+                    <!-- Document Preview Tab -->
+                    <div class="tab-pane fade show active" id="preview-pane" role="tabpanel">
+                        <div id="previewContent">
+                            <!-- Preview content will be loaded here -->
+                            <div class="text-center p-5">
+                                <div class="spinner-border text-primary"></div>
+                                <p class="mt-2">Loading preview...</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Structured Data Tab -->
+                    <div class="tab-pane fade" id="structured-pane" role="tabpanel">
+                        <div id="structuredDataContainer">
+                            <!-- Structured data will be loaded here -->
+                            <div class="text-center p-5">
+                                <div class="spinner-border text-primary"></div>
+                                <p class="mt-2">Loading structured data...</p>
+                            </div>
+                        </div>
+                    </div>
+
+
+
+
+                    <!-- Medical Insights Tab -->
+                    <div class="tab-pane fade" id="medical-pane" role="tabpanel">
+                        <div id="medicalInsightsContainer">
+                            <!-- Medical insights will be loaded here -->
+                            <div class="text-center p-5">
+                                <div class="spinner-border text-primary"></div>
+                                <p class="mt-2">Analyzing medical content...</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Conditions & Alerts Tab -->
+                    <div class="tab-pane fade" id="conditions-pane" role="tabpanel">
+                        <div id="conditionsContainer">
+                            <!-- Conditions and alerts will be loaded here -->
+                            <div class="text-center p-5">
+                                <div class="spinner-border text-primary"></div>
+                                <p class="mt-2">Identifying medical conditions...</p>
+                            </div>
+                        </div>
+                    </div>
+
+                     <div class="tab-pane fade" id="imaging-analysis-pane" role="tabpanel">
+        <div id="imagingAnalysisContainer">
+            <!-- Imaging analysis will be loaded here -->
+            <div class="text-center p-5">
+                <div class="spinner-border text-primary"></div>
+                <p class="mt-2">Analyzing imaging report...</p>
+            </div>
+        </div>
+    </div>
+
+
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-info" onclick="generateMedicalSummary(currentDocId)">
+                    <i data-feather="cpu" class="icon-sm me-1"></i> Generate AI Summary
+                </button>
+                <button type="button" class="btn btn-primary" onclick="downloadDocument(currentDocId)">
+                    <i data-feather="download" class="icon-sm me-1"></i> Download
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Scripts -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const uploadForm = document.getElementById("uploadForm");
+  uploadForm.addEventListener("submit", function(event) {
+    const optionalFields = document.querySelectorAll(".optional-field");
+    optionalFields.forEach(field => {
+      if (!field.value.trim()) {
+        field.removeAttribute("name"); // Prevent empty field from being sent
+      }
+    });
+  });
+});
+</script>
+
+<script>
+// Global variables
+let currentDocId = null;
+let isEditMode = false;
+const API_BASE = window.APP_CONFIG.API_BASE_URL;
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize feather icons
+    if (typeof feather !== 'undefined') {
+        feather.replace();
+    }
+    
+    // Setup Drop Zone functionality
+    initializeDropZone();
+    
+    // Setup form submission
+    initializeUploadForm();
+    
+    // Setup document filtering
+    initializeDocumentFiltering();
+    
+    // Load initial document list
+    loadDocumentsList();
+setupDynamicFileInput();
+    // Setup document type hints
+    setupDocumentTypeHints();
+
+    // Load condition summary if documents exist
+    loadConditionSummary();
+});
+
+// Setup document type hints
+function setupDocumentTypeHints() {
+    const docTypeSelect = document.getElementById('docTypeSelect');
+    const docTypeHint = document.getElementById('docTypeHint');
+    
+    if (!docTypeSelect || !docTypeHint) return;
+    
+    const hints = {
+        'prescription': 'AI will extract medications, dosages, and treatment plans',
+        'lab_report': 'AI will analyze test values, flag abnormal results, and suggest conditions',
+        'bio_marker': 'AI will extract biomarker names, values, reference ranges, and flag abnormalities',
+        'ct_scan': 'AI will extract radiologist findings and assess anatomical conditions',
+        'mri': 'AI will analyze imaging findings and identify potential pathology',
+        'ultrasound': 'AI will extract sonographic findings and measurements',
+        'biopsy': 'AI will analyze pathology findings and identify cellular abnormalities',
+        'cardiology': 'AI will extract cardiac parameters and identify rhythm abnormalities',
+        'discharge_summary': 'AI will extract admission details, treatments, and follow-up plans'
+    };
+    
+    docTypeSelect.addEventListener('change', function() {
+        const selectedType = this.value;
+        if (hints[selectedType]) {
+            docTypeHint.textContent = hints[selectedType];
+            docTypeHint.className = 'text-info';
+        } else {
+            docTypeHint.textContent = 'Select the appropriate document type for better AI analysis';
+            docTypeHint.className = 'text-muted';
+        }
+    });
+}
+
+// Initialize drop zone functionality (keeping your existing implementation)
+let dropZoneInitialized = false;
+
+function initializeDropZone() {
+    // Prevent duplicate initialization
+    if (dropZoneInitialized) return;
+    dropZoneInitialized = true;
+
+    const dropZone = document.getElementById("dropZone");
+    const dropZoneInput = dropZone?.querySelector(".drop-zone__input");
+    
+    if (!dropZone || !dropZoneInput) return;
+    
+    // Remove any existing event listeners first
+    ['dragenter', 'dragover', 'dragleave', 'drop', 'click'].forEach(eventName => {
+        dropZone.removeEventListener(eventName, preventDefaults);
+    });
+    dropZoneInput.removeEventListener('change', handleFileSelect);
+    
+    // Prevent default drag behaviors
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, preventDefaults, false);
+    });
+    
+    // Highlight drop zone when item is dragged over
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropZone.addEventListener(eventName, highlight, false);
+    });
+    
+    // Remove highlight when item is dragged away
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, unhighlight, false);
+    });
+    
+    // Handle dropped files
+    dropZone.addEventListener('drop', handleDrop, false);
+    
+    // Handle click to select files - modified to prevent bubbling
+    dropZone.addEventListener('click', handleDropZoneClick);
+    
+    // Handle file selection via input
+    dropZoneInput.addEventListener('change', handleFileSelect);
+    
+    // Helper functions
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    
+    function highlight() {
+        dropZone.classList.add('drop-zone--over');
+    }
+    
+    function unhighlight() {
+        dropZone.classList.remove('drop-zone--over');
+    }
+    
+    function handleDrop(e) {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        
+        if (files.length) {
+            dropZoneInput.files = files;
+            updateThumbnail(dropZone, files[0]);
+            updateFilePreview(files[0]);
+        }
+    }
+    
+    function handleDropZoneClick(e) {
+        // Only trigger if clicking directly on the drop zone (not a child element)
+        if (e.target === dropZone) {
+            dropZoneInput.click();
+        }
+    }
+    
+    function handleFileSelect(e) {
+        if (this.files.length) {
+            updateThumbnail(dropZone, this.files[0]);
+            updateFilePreview(this.files[0]);
+        }
+    }
+    
+    function updateThumbnail(dropZone, file) {
+        let thumbnailElement = dropZone.querySelector('.drop-zone__thumb');
+        
+        // First time - remove the prompt
+        if (dropZone.querySelector('.drop-zone__prompt')) {
+            dropZone.querySelector('.drop-zone__prompt').remove();
+        }
+        
+        // First time - create thumbnail element
+        if (!thumbnailElement) {
+            thumbnailElement = document.createElement('div');
+            thumbnailElement.classList.add('drop-zone__thumb');
+            dropZone.appendChild(thumbnailElement);
+        }
+        
+        thumbnailElement.dataset.label = file.name;
+        
+        // Show file info
+        thumbnailElement.innerHTML = `
+            <div class="text-center p-3">
+                <i data-feather="${getFileIcon(file.name)}" class="text-primary mb-2" style="width: 48px; height: 48px;"></i>
+                <div class="font-weight-bold text-truncate">${file.name}</div>
+                <div class="text-muted small">${formatFileSize(file.size)}</div>
+            </div>
+        `;
+        
+        // Update feather icons
+        if (typeof feather !== 'undefined') {
+            feather.replace();
+        }
+    }
+
+
+    // function getFileIcon(filename) {
+    //     const extension = filename.split('.').pop().toLowerCase();
+        
+    //     if (['pdf'].includes(extension)) {
+    //         return 'file-text';
+    //     } else if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff'].includes(extension)) {
+    //         return 'image';
+    //     } else if (['doc', 'docx', 'odt'].includes(extension)) {
+    //         return 'file-text';
+    //     } else {
+    //         return 'file';
+    //     }
+    // }
+
+    function getFileIcon(filename) {
+        const extension = filename.split('.').pop().toLowerCase();
+        const medicalImageFormats = ['dcm', 'dicom', 'nii', 'gz', 'mha', 'mhd', 'nrrd'];
+    
+        if (['pdf'].includes(extension)) {
+            return 'file-text';
+        } else if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff', 'tif'].includes(extension)) {
+            return 'image';
+        } else if (['doc', 'docx', 'odt'].includes(extension)) {
+            return 'file-text';
+        } else if (medicalImageFormats.includes(extension)) {
+            return 'image';  // or use 'box' for medical images if you prefer
+        } else {
+            return 'file';
+        }
+    }
+    
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+}
+
+// Add this at the top of your script
+const MEDICAL_IMAGE_EXTENSIONS = {
+    'dcm': 'DICOM',
+    'dicom': 'DICOM',
+    'nii': 'NIfTI',
+    'gz': 'NIfTI (compressed)',
+    'mha': 'MetaImage',
+    'mhd': 'MetaImage',
+    'nrrd': 'NRRD'
+};
+
+// Update file preview with more detailed preview based on file type
+function updateFilePreview(file) {
+    const previewElement = document.getElementById('preview');
+    if (!previewElement) return;
+    
+    // Clear existing preview
+    previewElement.innerHTML = '';
+    
+    const previewCard = document.createElement('div');
+    previewCard.className = 'card bg-light border';
+    
+    const reader = new FileReader();
+    // const medicalImageFormats = ['dcm', 'dicom', 'nii', 'gz', 'mha', 'mhd', 'nrrd'];
+    // const imagingAndPathologyTypes = ["xray", "ultrasound", "ct_scan", "mri", "pet_scan", "angiography", "biopsy", "histopathology", "cytology"];
+    const fileExtension = file.name.split('.').pop().toLowerCase();
+    const isMedicalImage = Object.keys(MEDICAL_IMAGE_EXTENSIONS).includes(fileExtension);
+    const docType = document.getElementById('docTypeSelect').value;
+    const imagingTypes = ['xray', 'foot_xray','ct_scan', 'mri', 'ultrasound', 'pet_scan', 'angiography','biopsy', 'histopathology', 'cytology','ecg'];
+
+
+    reader.onload = function(e) {
+        const fileType = file.type;
+        const fileName = file.name;
+        //const fileExtension = fileName.split('.').pop().toLowerCase();
+        // const medicalImageFormats = ['dcm', 'dicom', 'nii', 'gz', 'mha', 'mhd', 'nrrd'];
+        
+        if (file.type.startsWith('image/') || ['tiff', 'tif'].includes(fileExtension)) {
+            // Standard image preview
+            previewCard.innerHTML = `
+                <div class="card-body p-2 text-center">
+                    <img src="${e.target.result}" class="img-fluid" style="max-height: 150px;" alt="Preview">
+                </div>
+                <div class="card-footer p-2 d-flex justify-content-center bg-white">
+                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="resetFileUpload()">
+                        <i data-feather="trash-2" class="icon-sm"></i> Remove
+                    </button>
+                </div>
+            `;
+        } else if (fileType === 'application/pdf' || fileExtension === 'pdf') {
+            // PDF preview
+            previewCard.innerHTML = `
+                <div class="card-body p-3 text-center">
+                    <i data-feather="file-text" style="width: 48px; height: 48px;" class="text-danger"></i>
+                    <p class="mb-0 mt-2">${file.name}</p>
+                    <span class="badge bg-danger text-white mt-1">PDF</span>
+                    <small class="d-block text-muted mt-1">AI will extract and analyze content</small>
+                </div>
+                <div class="card-footer p-2 d-flex justify-content-center bg-white">
+                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="resetFileUpload()">
+                        <i data-feather="trash-2" class="icon-sm"></i> Remove
+                    </button>
+                </div>
+            `;
+        } if (isMedicalImage) {
+            // Special handling for medical images
+            const formatName = MEDICAL_IMAGE_EXTENSIONS[fileExtension] || 'Medical Image';
+            previewCard.innerHTML = `
+                <div class="card-body p-3 text-center">
+                    <i data-feather="image" style="width: 48px; height: 48px;" class="text-info"></i>
+                    <p class="mb-0 mt-2">${file.name}</p>
+                    <span class="badge bg-info text-white mt-1">${formatName}</span>
+                    <small class="d-block text-muted mt-1">
+                        ${imagingTypes.includes(docType) 
+                            ? `Will be processed as ${docType.replace('_', ' ').toUpperCase()}` 
+                            : 'Medical imaging file - specialized processing will be applied'}
+                    </small>
+                    ${fileExtension === 'dcm' || fileExtension === 'dicom' ? 
+                        '<small class="d-block text-info mt-1"><i class="ti ti-info-circle"></i> DICOM metadata will be extracted</small>' : ''}
+                </div>
+                <div class="card-footer p-2 d-flex justify-content-center bg-white">
+                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="resetFileUpload()">
+                        <i data-feather="trash-2" class="icon-sm"></i> Remove
+                    </button>
+                </div>
+            `;
+        }  else  {
+            // Other file types
+            previewCard.innerHTML = `
+                <div class="card-body p-3 text-center">
+                    <i data-feather="file" style="width: 48px; height: 48px;"></i>
+                    <p class="mb-0 mt-2">${file.name}</p>
+                    <span class="badge bg-secondary text-white mt-1">${fileExtension.toUpperCase()}</span>
+                </div>
+                <div class="card-footer p-2 d-flex justify-content-center bg-white">
+                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="resetFileUpload()">
+                        <i data-feather="trash-2" class="icon-sm"></i> Remove
+                    </button>
+                </div>
+            `;
+        }
+        
+        // Update feather icons
+        if (typeof feather !== 'undefined') {
+            feather.replace();
+        }
+    };
+    
+    if (file.type.startsWith('text/') || file.name.endsWith('.txt')) {
+        reader.readAsText(file);
+    } else {
+        reader.readAsDataURL(file);
+    }
+    
+    previewElement.appendChild(previewCard);
+}
+
+// Reset file upload
+window.resetFileUpload = function() {
+    const dropZone = document.getElementById('dropZone');
+    const previewElement = document.getElementById('preview');
+    const fileInput = dropZone.querySelector('.drop-zone__input');
+    
+    // Clear file input
+    fileInput.value = '';
+    
+    // Remove thumbnail
+    const thumbnailElement = dropZone.querySelector('.drop-zone__thumb');
+    if (thumbnailElement) {
+        thumbnailElement.remove();
+    }
+    
+    // Add prompt back
+    if (!dropZone.querySelector('.drop-zone__prompt')) {
+        const prompt = document.createElement('span');
+        prompt.className = 'drop-zone__prompt';
+        prompt.textContent = 'Drop file here or click to upload';
+        dropZone.appendChild(prompt);
+    }
+    
+    // Clear preview
+    if (previewElement) {
+        previewElement.innerHTML = '';
+    }
+};
+
+
+
+let isUploading = false;
+let uploadFormInitialized = false;
+//Save the upload file and process it 
+
+// Initialize upload form
+function initializeUploadForm() {
+    const uploadForm = document.getElementById('uploadForm');
+    
+    if (!uploadForm) return;
+    
+    uploadForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        // Add patient_id from the URL or page context
+        const patientId = getPatientIdFromUrl() || '{{ patient.id }}';
+        const urlParams = new URLSearchParams(window.location.search);
+        doctorId=urlParams.get('id');
+
+        formData.append('patient_id', patientId);
+        formData.append('doctor_id', doctorId);
+        // Add AI analysis flag
+        const enableAI = document.getElementById('enableAIAnalysis').checked;
+        formData.append('enable_ai_analysis', enableAI);
+
+        // Check if this is a bio-marker document
+        const docType = formData.get('doc_type');
+        const isBioMarkerDoc = docType === 'bio_marker';
+        
+        // Show loading state
+        const submitButton = uploadForm.querySelector('button[type="submit"]');
+        const originalButtonText = submitButton.innerHTML;
+        submitButton.disabled = true;
+        submitButton.innerHTML = `
+            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            ${enableAI ? 'Uploading & Analyzing...' : 'Uploading...'}
+        `;
+        
+        try {
+            const response = await fetch('http://68.183.82.95:8001/hms/users/doctors/documents/upload2', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok) {
+                // Show success message
+                showAlert('success', 'Document uploaded and analyzed successfully!');
+                
+                // Reset form
+                uploadForm.reset();
+                resetFileUpload();
+                
+                // Reload document list
+                loadDocumentsList();
+                
+                // Refresh condition summary
+                loadConditionSummary();
+                
+                // Show analysis modal if AI was enabled
+                if (enableAI && result.document_id) {
+                    setTimeout(() => {
+                        previewDocument(result.document_id);
+                        // For bio-marker docs, go to structured data tab
+                        if (isBioMarkerDoc) {
+                            setTimeout(() => {
+                                const structuredTab = document.getElementById('structured-tab');
+                                if (structuredTab) structuredTab.click();
+                            }, 1000);
+                        }
+                    }, 1000);
+                }
+            } else {
+                // Show error message
+                showAlert('danger', `Error: ${result.detail || 'Failed to upload document'}`);
+            }
+        } catch (error) {
+            showAlert('danger', `Error: ${error.message || 'Failed to upload document'}`);
+        } finally {
+            // Reset button state
+            submitButton.disabled = false;
+            submitButton.innerHTML = originalButtonText;
+        }
+    });
+}
+// Dynamic file input handling for imaging reports
+// Dynamic file input handling for imaging vs non-imaging documents
+// Dynamic file input handling for imaging reports
+// Dynamic file input handling for imaging vs non-imaging documents
+function setupDynamicFileInput() {
+    const docTypeSelect = document.getElementById('docTypeSelect');
+    const medicalImagesSection = document.getElementById('medicalImagesSection');
+    const pdfReportSection = document.getElementById('pdfReportSection');
+    const singleFileSection = document.getElementById('singleFileSection');
+    const fileFormatInfo = document.getElementById('fileFormatInfo');
+    
+    if (!docTypeSelect) return;
+    
+    // Initially hide all sections and show only single file upload
+    medicalImagesSection.style.display = 'none';
+    pdfReportSection.style.display = 'none';
+    singleFileSection.style.display = 'block';
+    
+    docTypeSelect.addEventListener('change', function() {
+        const selectedType = this.value;
+        const imagingTypes = ['xray', 'foot_xray','ultrasound', 'ct_scan', 'mri', 'pet_scan', 'echo', 'angiography', 'endoscopy','biopsy','cytology','histopathology','ecg'];
+        
+        // Get file inputs
+        const singleFileInput = document.getElementById('fileInput');
+        const medicalImagesInput = document.getElementById('medicalImagesInput');
+        const pdfInput = document.getElementById('pdfInput');
+        
+        if (imagingTypes.includes(selectedType)) {
+            // Show dual upload for imaging reports
+            medicalImagesSection.style.display = 'block';
+            pdfReportSection.style.display = 'block';
+            singleFileSection.style.display = 'none';
+            
+            // Remove required attribute from single file input
+            if (singleFileInput) {
+                singleFileInput.removeAttribute('required');
+                singleFileInput.value = ''; // Clear the input
+            }
+            
+            // Update form text
+            if (fileFormatInfo) {
+                fileFormatInfo.innerHTML = `
+                    <strong>Medical Images:</strong> DICOM, JPEG, PNG, TIFF, BMP<br>
+                    <strong>PDF Reports:</strong> Radiology reports, findings summaries<br>
+                    <strong>Maximum size:</strong> 10MB per file<br>
+                    <small class="text-info">Upload medical images for AI analysis and/or PDF reports for documentation</small>
+                `;
+            }
+            
+            // Initialize drop zones for imaging
+            initializeMedicalImagesDropZone();
+            initializePdfDropZone();
+            
+        } else {
+            // Show single upload for non-imaging documents
+            medicalImagesSection.style.display = 'none';
+            pdfReportSection.style.display = 'none';
+            singleFileSection.style.display = 'block';
+            
+            // Add required attribute back to single file input
+            if (singleFileInput) {
+                singleFileInput.setAttribute('required', 'required');
+            }
+            
+            // Clear imaging file inputs
+            if (medicalImagesInput) medicalImagesInput.value = '';
+            if (pdfInput) pdfInput.value = '';
+            
+            // Reset form text
+            if (fileFormatInfo) {
+                fileFormatInfo.innerHTML = `
+                    <strong>Supported formats:</strong> PDF, DOC/DOCX, JPG, PNG. <strong>Maximum size:</strong> 10MB.
+                    <br><small>AI will extract text and analyze medical content automatically</small>
+                `;
+            }
+            
+            // Re-initialize single drop zone
+            initializeDropZone();
+        }
+        
+        // Clear any existing previews when document type changes
+        clearAllPreviews();
+    });
+}
+
+// Initialize medical images drop zone
+function initializeMedicalImagesDropZone() {
+    const dropZone = document.getElementById('medicalImagesDropZone');
+    const dropZoneInput = dropZone?.querySelector('.drop-zone__input');
+    
+    if (!dropZone || !dropZoneInput) return;
+    
+    // Remove existing event listeners
+    ['dragenter', 'dragover', 'dragleave', 'drop', 'click'].forEach(eventName => {
+        dropZone.removeEventListener(eventName, preventDefaults);
+    });
+    
+    // Add new event listeners
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, preventDefaults, false);
+    });
+    
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropZone.addEventListener(eventName, highlightMedical, false);
+    });
+    
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, unhighlightMedical, false);
+    });
+    
+    dropZone.addEventListener('drop', handleMedicalDrop, false);
+    dropZone.addEventListener('click', handleMedicalDropZoneClick);
+    dropZoneInput.addEventListener('change', handleMedicalFileSelect);
+    
+    function highlightMedical() {
+        dropZone.classList.add('drop-zone--over');
+        dropZone.style.borderColor = '#0d6efd';
+        dropZone.style.backgroundColor = '#e7f1ff';
+    }
+    
+    function unhighlightMedical() {
+        dropZone.classList.remove('drop-zone--over');
+        dropZone.style.borderColor = '#0d6efd';
+        dropZone.style.backgroundColor = '#f8f9ff';
+    }
+    
+    function handleMedicalDrop(e) {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        
+        if (files.length) {
+            // Handle multiple files for medical images
+            handleMedicalFiles(files);
+        }
+    }
+    
+    function handleMedicalDropZoneClick(e) {
+        if (e.target === dropZone) {
+            dropZoneInput.click();
+        }
+    }
+    
+    function handleMedicalFileSelect(e) {
+        if (this.files.length) {
+            handleMedicalFiles(this.files);
+        }
+    }
+}
+
+// Initialize PDF drop zone
+function initializePdfDropZone() {
+    const dropZone = document.getElementById('pdfDropZone');
+    const dropZoneInput = dropZone?.querySelector('.drop-zone__input');
+    
+    if (!dropZone || !dropZoneInput) return;
+    
+    // Remove existing event listeners
+    ['dragenter', 'dragover', 'dragleave', 'drop', 'click'].forEach(eventName => {
+        dropZone.removeEventListener(eventName, preventDefaults);
+    });
+    
+    // Add new event listeners
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, preventDefaults, false);
+    });
+    
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropZone.addEventListener(eventName, highlightPdf, false);
+    });
+    
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, unhighlightPdf, false);
+    });
+    
+    dropZone.addEventListener('drop', handlePdfDrop, false);
+    dropZone.addEventListener('click', handlePdfDropZoneClick);
+    dropZoneInput.addEventListener('change', handlePdfFileSelect);
+    
+    function highlightPdf() {
+        dropZone.classList.add('drop-zone--over');
+        dropZone.style.borderColor = '#198754';
+        dropZone.style.backgroundColor = '#e8f5e8';
+    }
+    
+    function unhighlightPdf() {
+        dropZone.classList.remove('drop-zone--over');
+        dropZone.style.borderColor = '#198754';
+        dropZone.style.backgroundColor = '#f8fff9';
+    }
+    
+    function handlePdfDrop(e) {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        
+        if (files.length) {
+            // Only allow one PDF file
+            if (files.length > 1) {
+                showAlert('warning', 'Please upload only one PDF file for the report');
+                return;
+            }
+            updatePdfPreview(files[0]);
+        }
+    }
+    
+    function handlePdfDropZoneClick(e) {
+        if (e.target === dropZone) {
+            dropZoneInput.click();
+        }
+    }
+    
+    function handlePdfFileSelect(e) {
+        if (this.files.length) {
+            if (this.files.length > 1) {
+                showAlert('warning', 'Please upload only one PDF file for the report');
+                this.value = '';
+                return;
+            }
+            updatePdfPreview(this.files[0]);
+        }
+    }
+}
+
+// Handle multiple medical image files
+function handleMedicalFiles(files) {
+    const previewContainer = document.getElementById('medicalImagesPreview');
+    
+    // Clear existing preview
+    previewContainer.innerHTML = '';
+    
+    // Create preview for each file
+    Array.from(files).forEach((file, index) => {
+        const fileExtension = file.name.split('.').pop().toLowerCase();
+        const allowedImageTypes = ['jpg', 'jpeg', 'png', 'tiff', 'bmp', 'tif'];
+        const allowedMedicalTypes = ['dcm', 'dicom', 'nii', 'gz', 'mha', 'mhd', 'nrrd'];
+        
+        if (!allowedImageTypes.includes(fileExtension) && !allowedMedicalTypes.includes(fileExtension)) {
+            showAlert('warning', `File type not supported: ${file.name}. Please upload medical images only.`);
+            return;
+        }
+        
+        const previewItem = document.createElement('div');
+        previewItem.className = 'file-preview-item';
+        previewItem.innerHTML = `
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center">
+                    <i data-feather="${getFileIcon(file.name)}" class="text-primary me-2"></i>
+                    <div>
+                        <div class="fw-bold small">${file.name}</div>
+                        <div class="text-muted extra-small">${formatFileSize(file.size)}</div>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeMedicalImage(${index})">
+                    <i data-feather="x" class="icon-xs"></i>
+                </button>
+            </div>
+        `;
+        
+        previewContainer.appendChild(previewItem);
+    });
+    
+    // Update feather icons
+    if (typeof feather !== 'undefined') {
+        feather.replace();
+    }
+}
+
+// Update PDF preview
+function updatePdfPreview(file) {
+    const previewContainer = document.getElementById('pdfPreview');
+    
+    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+        showAlert('warning', 'Please upload a PDF file for the report');
+        return;
+    }
+    
+    previewContainer.innerHTML = `
+        <div class="file-preview-item">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center">
+                    <i data-feather="file-text" class="text-success me-2"></i>
+                    <div>
+                        <div class="fw-bold small">${file.name}</div>
+                        <div class="text-muted extra-small">${formatFileSize(file.size)}</div>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removePdfReport()">
+                    <i data-feather="x" class="icon-xs"></i>
+                </button>
+            </div>
+        </div>
+    `;
+    
+    // Update feather icons
+    if (typeof feather !== 'undefined') {
+        feather.replace();
+    }
+}
+
+// Remove medical image
+window.removeMedicalImage = function(index) {
+    const input = document.getElementById('medicalImagesInput');
+    const previewContainer = document.getElementById('medicalImagesPreview');
+    
+    // Create new FileList without the removed file
+    const dt = new DataTransfer();
+    Array.from(input.files).forEach((file, i) => {
+        if (i !== index) {
+            dt.items.add(file);
+        }
+    });
+    
+    input.files = dt.files;
+    
+    // Update preview
+    handleMedicalFiles(input.files);
+};
+
+// Remove PDF report
+window.removePdfReport = function() {
+    const input = document.getElementById('pdfInput');
+    const previewContainer = document.getElementById('pdfPreview');
+    
+    input.value = '';
+    previewContainer.innerHTML = '';
+};
+
+// Clear all previews
+function clearAllPreviews() {
+    const previews = ['medicalImagesPreview', 'pdfPreview', 'preview'];
+    previews.forEach(previewId => {
+        const container = document.getElementById(previewId);
+        if (container) container.innerHTML = '';
+    });
+    
+    // Clear file inputs
+    const inputs = ['medicalImagesInput', 'pdfInput', 'fileInput'];
+    inputs.forEach(inputId => {
+        const input = document.getElementById(inputId);
+        if (input) input.value = '';
+    });
+}
+
+// Helper function to format file size
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+// Helper function to get file icon
+function getFileIcon(filename) {
+    const extension = filename.split('.').pop().toLowerCase();
+    const medicalImageFormats = ['dcm', 'dicom', 'nii', 'gz', 'mha', 'mhd', 'nrrd'];
+
+    if (['pdf'].includes(extension)) {
+        return 'file-text';
+    } else if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff', 'tif'].includes(extension)) {
+        return 'image';
+    } else if (medicalImageFormats.includes(extension)) {
+        return 'box';
+    } else {
+        return 'file';
+    }
+}
+// Enhanced document filtering
+function initializeDocumentFiltering() {
+    window.filterDocuments = function(type) {
+        const items = document.querySelectorAll('.document-item');
+        const filterButtons = document.querySelectorAll('.filter-btn');
+        
+        // Update button active states
+        filterButtons.forEach(button => {
+            if (button.dataset.filter === type) {
+                button.classList.add('active');
+            } else {
+                button.classList.remove('active');
+            }
+        });
+        
+        // Define document type categories
+        const categories = {
+            'clinical': ['prescription', 'lab_report', 'bio_marker', 'discharge_summary', 'clinical_note', 'vital_chart', 'referral_letter'],
+            'imaging': ['xray','foot_xray', 'ultrasound', 'ct_scan', 'mri', 'pet_scan', 'echo', 'angiography', 'endoscopy','biopsy', 'histopathology', 'cytology','ecg'],
+            
+            'specialty': ['cardiology', 'neurology', 'oncology', 'orthopedics', 'gynecology', 'pediatrics', 'psychiatry', 'dental', 'pulmonology','diabetic Foot']
+        };
+        
+        // Show/hide documents based on filter
+        items.forEach(item => {
+            const itemType = item.dataset.type;
+            let shouldShow = false;
+            
+            if (type === 'all') {
+                shouldShow = true;
+            } else if (categories[type] && categories[type].includes(itemType)) {
+                shouldShow = true;
+            } else if (type === itemType) {
+                shouldShow = true;
+            }
+            
+            if (shouldShow) {
+                item.style.display = '';
+                item.style.opacity = '0';
+                setTimeout(() => {
+                    item.style.transition = 'opacity 0.3s ease-in-out';
+                    item.style.opacity = '1';
+                }, 10);
+            } else {
+                item.style.transition = 'opacity 0.3s ease-in-out';
+                item.style.opacity = '0';
+                setTimeout(() => {
+                    item.style.display = 'none';
+                }, 300);
+            }
+        });
+    };
+}
+
+// Load documents list with enhanced categorization
+async function loadDocumentsList() {
+    const documentsList = document.getElementById('documentsList');
+    
+    if (!documentsList) return;
+    
+    const patientId = getPatientIdFromUrl() || '{{ patient.id }}';
+    
+    try {
+        documentsList.innerHTML = `
+            <div class="text-center p-4">
+                <div class="spinner-border text-primary"></div>
+                <p class="mt-2">Loading documents...</p>
+            </div>
+        `;
+        
+        const response = await fetch(`http://68.183.82.95:8001/hms/users/doctors/documents/list1/${patientId}`);
+        const result = await response.json();
+        
+        if (!response.ok) {
+            documentsList.innerHTML = `
+                <div class="text-center p-4 text-danger">
+                    <i data-feather="alert-circle" style="width: 48px; height: 48px;"></i>
+                    <p class="mt-2">Failed to load documents</p>
+                </div>
+            `;
+            return;
+        }
+        
+        if (result.documents.length === 0) {
+            documentsList.innerHTML = `
+                <div class="text-center p-4 text-muted">
+                    <i data-feather="file" style="width: 48px; height: 48px;"></i>
+                    <p class="mt-2">No documents found</p>
+                    <small>Upload medical documents to get AI-powered insights</small>
+                </div>
+            `;
+        } else {
+            documentsList.innerHTML = '';
+            
+            result.documents.forEach(doc => {
+                const docElement = document.createElement('div');
+                docElement.className = 'list-group-item document-item';
+                docElement.dataset.type = doc.type;
+                
+                const conditionBadge = doc.has_conditions ? 
+                    '<span class="badge bg-warning text-dark ms-1">Conditions Identified</span>' : '';
+                
+                const aiAnalyzedBadge = doc.ai_analyzed ? 
+                    '<span class="badge bg-success ms-1">AI Analyzed</span>' : '';
+                
+                docElement.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                            <div class="d-flex align-items-center mb-1">
+                                <h6 class="mb-0 me-2">${doc.name}</h6>
+                                ${getDocumentTypeIcon(doc.type)}
+                            </div>
+                            <p class="mb-1 text-muted small">${doc.description || 'No description'}</p>
+                            <div class="d-flex align-items-center flex-wrap">
+                                <span class="badge bg-info me-2">${formatDocType(doc.type)}</span>
+                                <small class="text-muted me-2">${formatDate(doc.upload_date)}</small>
+                                ${conditionBadge}
+                                ${aiAnalyzedBadge}
+                            </div>
+                        </div>
+                        <div class="btn-group-vertical btn-group-sm">
+                            <button class="btn btn-outline-primary btn-sm" onclick="previewDocument('${doc.id}')" title="View & Analyze">
+                                <i data-feather="eye"></i>
+                            </button>
+                            <button class="btn btn-outline-secondary btn-sm" onclick="downloadDocument('${doc.id}')" title="Download">
+                                <i data-feather="download"></i>
+                            </button>
+                            <button class="btn btn-outline-danger btn-sm" onclick="deleteDocument('${doc.id}', this)" title="Delete">
+                                <i data-feather="trash-2"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                documentsList.appendChild(docElement);
+            });
+            
+            const conditionCard = document.getElementById('conditionSummaryCard');
+            if (conditionCard) {
+                conditionCard.style.display = 'block';
+            }
+        }
+        
+        if (typeof feather !== 'undefined') {
+            feather.replace();
+        }
+    } catch (error) {
+        documentsList.innerHTML = `
+            <div class="text-center p-4 text-danger">
+                <i data-feather="alert-circle" style="width: 48px; height: 48px;"></i>
+                <p class="mt-2">Error: ${error.message || 'Failed to load documents'}</p>
+            </div>
+        `;
+    }
+}
+async function deleteDocument(documentId, buttonElement) {
+    if (!confirm("Are you sure you want to delete this document? This action cannot be undone.")) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`http://68.183.82.95:8001/hms/users/doctors/documents/delete/${documentId}`, {
+            method: 'DELETE'
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(result.detail || "Failed to delete document");
+        }
+
+        // 🧹 Instantly remove the document from UI
+        const docItem = buttonElement.closest('.document-item');
+        if (docItem) docItem.remove();
+
+        showToast("Document deleted successfully", "success");
+
+        // If no more documents left, show placeholder
+        const documentsList = document.getElementById('documentsList');
+        if (documentsList && documentsList.children.length === 0) {
+            documentsList.innerHTML = `
+                <div class="text-center p-4 text-muted">
+                    <i data-feather="file" style="width: 48px; height: 48px;"></i>
+                    <p class="mt-2">No documents found</p>
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error("Error deleting document:", error);
+        showToast("Error deleting document: " + error.message, "danger");
+    }
+}
+
+
+// Get document type icon
+function getDocumentTypeIcon(type) {
+    const icons = {
+        'prescription': '<i data-feather="clipboard" class="icon-xs text-primary"></i>',
+        'lab_report': '<i data-feather="activity" class="icon-xs text-success"></i>',
+        'bio_marker': '<i data-feather="bar-chart-2" class="icon-xs text-success"></i>',
+        'ct_scan': '<i data-feather="camera" class="icon-xs text-info"></i>',
+        'mri': '<i data-feather="camera" class="icon-xs text-info"></i>',
+        'ultrasound': '<i data-feather="radio" class="icon-xs text-info"></i>',
+        'biopsy': '<i data-feather="search" class="icon-xs text-warning"></i>',
+        'cardiology': '<i data-feather="heart" class="icon-xs text-danger"></i>',
+        'neurology': '<i data-feather="zap" class="icon-xs text-purple"></i>',
+        'default': '<i data-feather="file-text" class="icon-xs text-muted"></i>'
+    };
+    
+    return icons[type] || icons['default'];
+}
+
+// Format document type for display
+function formatDocType(type) {
+    const typeMappings = {
+        'prescription': 'Prescription',
+        'lab_report': 'Lab Report',
+        'bio_marker': 'Bio-Marker Report',
+        'discharge_summary': 'Discharge Summary',
+        'clinical_note': 'Clinical Notes',
+        'vital_chart': 'Vitals Chart',
+        'referral_letter': 'Referral Letter',
+        'xray': 'X-Ray',
+        'foot_xray':'foot_xray',
+        'ecg':'ECG',
+        'ultrasound': 'Ultrasound',
+        'ct_scan': 'CT Scan',
+        'mri': 'MRI',
+        'pet_scan': 'PET Scan',
+        'echo': 'Echocardiogram',
+        'angiography': 'Angiography',
+        'endoscopy': 'Endoscopy',
+        'biopsy': 'Biopsy Report',
+        'histopathology': 'Histopathology',
+        'cytology': 'Cytology',
+        'cardiology': 'Cardiology',
+        'neurology': 'Neurology',
+        'oncology': 'Oncology',
+        'orthopedics': 'Orthopedics',
+        'gynecology': 'Gynecology',
+        'pediatrics': 'Pediatrics',
+        'psychiatry': 'Psychiatry',
+        'dental': 'Dental',
+        'pulmonology': 'Pulmonology',
+        'diabetic Foot': 'Diabetic Foot',
+        'other': 'Other'
+    };
+    
+    return typeMappings[type] || type;
+}
+
+// Format date for display
+function formatDate(dateString) {
+    const date = new Date(dateString);
+    return date.toLocaleDateString();
+}
+
+// Enhanced preview document function
+window.previewDocument = async function(docId) {
+    console.log('Opening enhanced document preview for ID:', docId);
+    currentDocId = docId;
+    
+    // Get modal elements
+    const previewModal = document.getElementById('previewModal');
+    const previewContent = document.getElementById('previewContent');
+    const structuredDataContainer = document.getElementById('structuredDataContainer');
+    const medicalInsightsContainer = document.getElementById('medicalInsightsContainer');
+    const conditionsContainer = document.getElementById('conditionsContainer');
+    
+    if (!previewModal) {
+        console.error('Preview modal not found');
+        alert('Error: Preview modal not found in the document');
+        return;
+    }
+    
+    try {
+        // Show modal
+        const modalInstance = new bootstrap.Modal(previewModal);
+        modalInstance.show();
+        
+        // Reset all containers with loading indicators
+        const containers = [
+            { element: previewContent, message: 'Loading preview...' },
+            { element: structuredDataContainer, message: 'Loading structured data...' },
+            { element: medicalInsightsContainer, message: 'Analyzing medical content...' },
+            { element: conditionsContainer, message: 'Identifying conditions...' }
+        ];
+        
+        containers.forEach(container => {
+            if (container.element) {
+                container.element.innerHTML = `
+                    <div class="text-center p-5">
+                        <div class="spinner-border text-primary"></div>
+                        <p class="mt-2">${container.message}</p>
+                    </div>
+                `;
+            }
+        });
+        
+        // Fetch enhanced document data
+        const response = await fetch(`http://68.183.82.95:8001/hms/users/doctors/documents/enhanced-preview1/${docId}`);
+        
+        if (!response.ok) {
+            throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        console.log('Enhanced document data:', data);
+        const doc_type = data.document?.type || 'unknown';
+        console.log('Document type:', doc_type);
+        // Populate all tabs with data
+        populatePreviewTab(data.document, previewContent);
+        populateStructuredDataTab(data.structured_data, structuredDataContainer, doc_type);
+        populateMedicalInsightsTab(data.medical_insights, medicalInsightsContainer);
+        populateConditionsTab(data.conditions, conditionsContainer);
+        
+        // Update feather icons
+        if (typeof feather !== 'undefined') {
+            feather.replace();
+        }
+        
+    } catch (error) {
+        console.error('Error in enhanced preview document:', error);
+        
+        // Show error in all containers
+        const errorHtml = `
+            <div class="alert alert-warning">
+                <h5 class="alert-heading">Data Unavailable</h5>
+                <p>Could not load this section: ${error.message}</p>
+            </div>
+        `;
+        
+        [previewContent, structuredDataContainer, medicalInsightsContainer, conditionsContainer].forEach(container => {
+            if (container) {
+                container.innerHTML = errorHtml;
+            }
+        });
+    }
+};
+
+// Populate preview tab
+function populatePreviewTab(documentData, container) {
+    if (!container || !documentData) return;
+    const medicalImageFormats = ['dcm', 'dicom', 'nii', 'gz', 'mha', 'mhd', 'nrrd'];
+    const fileExtension = documentData.name ? documentData.name.split('.').pop().toLowerCase() : '';
+    // Update preview content based on file type
+    if (documentData.mime_type && documentData.mime_type.startsWith('image/')) {
+        container.innerHTML = `
+            <div class="text-center">
+                <div class="alert alert-info mb-3">
+                    <p>Medical image preview. AI analysis available in other tabs.</p>
+                </div>
+                <img src="http://68.183.82.95:8001/hms/users/doctors/documents/download/${currentDocId}" class="img-fluid border rounded" alt="Document preview">
+            </div>
+        `;
+    } else if (documentData.mime_type === 'application/pdf') {
+        container.innerHTML = `
+            <div class="card">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">Document Content</h6>
+                    <a href="http://68.183.82.95:8001/hms/users/doctors/documents/download/${currentDocId}" target="_blank" class="btn btn-sm btn-outline-primary">
+                        <i data-feather="external-link" class="icon-xs me-1"></i>Open PDF
+                    </a>
+                </div>
+                <div class="card-body">
+                    <div class="extracted-text-container" style="max-height: 400px; overflow-y: auto;">
+                        <pre class="text-wrap small">${documentData.extracted_text || 'No extracted text available'}</pre>
+                    </div>
+                </div>
+            </div>
+        `;
+    } else if (medicalImageFormats.includes(fileExtension)) {
+        container.innerHTML = `
+            <div class="text-center">
+                <div class="alert alert-info mb-3">
+                    <p>Medical imaging file detected. AI will analyze this specialized format.</p>
+                    <button class="btn btn-primary btn-sm" onclick="analyzeMedicalImage('${currentDocId}')">
+                        <i data-feather="cpu" class="icon-xs me-1"></i> Analyze Medical Image
+                    </button>
+                </div>
+                <div class="bg-light p-4 rounded">
+                    <i data-feather="image" style="width: 64px; height: 64px;" class="text-info"></i>
+                    <p class="mt-2">${documentData.name}</p>
+                    <span class="badge bg-info">${fileExtension.toUpperCase()}</span>
+                </div>
+            </div>
+        `;
+    } else {
+        container.innerHTML = `
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0">Document Content</h6>
+                </div>
+                <div class="card-body">
+                    <div class="extracted-text-container" style="max-height: 400px; overflow-y: auto;">
+                        <pre class="text-wrap small">${documentData.extracted_text || 'No text content extracted'}</pre>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+}
+
+// Populate structured data tab
+function populateStructuredDataTab(structuredData, container, doc_type) {
+    if (!container) return;
+    
+    console.log('Structured Data:', structuredData); // Debug log
+        console.log('Document type in structured tab:', doc_type); // Debug log
+
+    if (!structuredData || structuredData.length === 0) {
+        container.innerHTML = `
+            <div class="alert alert-info">
+                <h5 class="alert-heading">No Structured Data</h5>
+                <p>No structured data was extracted from this document.</p>
+                <button class="btn btn-primary btn-sm" onclick="reprocessDocument(currentDocId)">
+                    <i data-feather="refresh-cw" class="icon-xs me-1"></i>Reprocess Document
+                </button>
+            </div>
+        `;
+        return;
+    }
+    
+    // Check if this is lab report data (has test_name, value, unit structure)
+    const isLabReport = doc_type === 'lab_report';
+    const isBioMarker = doc_type === 'bio_marker';
+    
+    console.log('Is Bio-Marker:', isBioMarker, 'Is Lab Report:', isLabReport);
+    
+    if (isBioMarker) {
+        renderEnhancedBiomarkerTable(structuredData, container);
+    } else if (isLabReport) {
+        renderEnhancedLabReportTable(structuredData, container);
+    } else {
+        // Check if we have the old field_name structure and convert it
+        const hasFieldNameStructure = structuredData.some(item => 
+            item && typeof item === 'object' && item.hasOwnProperty('field_name')
+        );
+        
+        if (hasFieldNameStructure) {
+            // Convert old structure to new structure
+            const convertedData = convertToBiomarkerStructure(structuredData);
+            if (convertedData.length > 0) {
+                renderEnhancedBiomarkerTable(convertedData, container);
+            } else {
+                renderEnhancedGenericDataTable(structuredData, container);
+            }
+        } else {
+            renderEnhancedGenericDataTable(structuredData, container);
+        }
+    }
+    
+    // Update feather icons
+    if (typeof feather !== 'undefined') {
+        feather.replace();
+    }
+}
+
+// NEW: Convert old field_name structure to biomarker structure
+function convertToBiomarkerStructure(oldData) {
+    const biomarkerData = [];
+    const biomarkerKeywords = [
+        'her2', 'psa', 'cancer', 'genetic', 'troponin', 'crp', 'ki-67', 'brca',
+        'biomarker', 'marker', 'er ', 'pr ', 'egfr', 'alk', 'kras', 'braf',
+        'ca-125', 'cea', 'afp', 'hcg', 'ldh', 'calcitonin', 'chromogranin',
+        'bnp', 'nt-probnp', 'ck-mb', 'myoglobin', 'homocysteine', 'crp',
+        'il-6', 'tnf', 'esr', 'ferritin', 'transferrin', 'vitamin d',
+        'testosterone', 'estrogen', 'progesterone', 'cortisol', 'tsh', 't3', 't4'
+    ];
+    
+    oldData.forEach(item => {
+        if (item && typeof item === 'object' && item.field_name) {
+            const fieldName = item.field_name.toLowerCase();
+            const fieldValue = item.field_value || '';
+            
+            // Check if this field contains biomarker-related data
+            const isBiomarker = biomarkerKeywords.some(keyword => 
+                fieldName.includes(keyword) || 
+                (item.field_label && item.field_label.toLowerCase().includes(keyword))
+            );
+            
+            if (isBiomarker) {
+                biomarkerData.push({
+                    test_name: item.field_label || item.field_name,
+                    value: fieldValue,
+                    unit: extractUnit(fieldValue),
+                    reference_range: '',
+                    flag: determineFlag(fieldValue)
+                });
+            }
+        }
+    });
+    
+    return biomarkerData;
+}
+
+// Helper function to extract unit from value
+function extractUnit(value) {
+    if (typeof value !== 'string') return '';
+    
+    const unitPatterns = [
+        /\d+\s*(ng\/mL|pg\/mL|U\/mL|IU\/mL|mg\/dL|g\/dL|mmol\/L|pmol\/L|%|ratio)/i,
+        /\d+\s*(positive|negative|reactive|non-reactive)/i
+    ];
+    
+    for (const pattern of unitPatterns) {
+        const match = value.match(pattern);
+        if (match) return match[1];
+    }
+    
+    return '';
+}
+
+// Helper function to determine flag based on value
+function determineFlag(value) {
+    if (typeof value !== 'string') return 'Normal';
+    
+    const valueStr = value.toLowerCase();
+    
+    if (valueStr.includes('high') || valueStr.includes('elevated') || valueStr.includes('positive')) {
+        return 'High';
+    } else if (valueStr.includes('low') || valueStr.includes('decreased') || valueStr.includes('negative')) {
+        return 'Low';
+    } else if (valueStr.includes('critical') || valueStr.includes('abnormal')) {
+        return 'Critical';
+    }
+    
+    return 'Normal';
+}
+
+// NEW: Enhanced Bio-Marker Table
+function renderEnhancedBiomarkerTable(data, container) {
+    // Filter out any invalid entries and ensure required fields
+    const validBiomarkers = data.filter(biomarker => 
+        biomarker && typeof biomarker === 'object' &&
+        (biomarker.test_name || biomarker.biomarker_name)
+    ).map(biomarker => ({
+        test_name: biomarker.test_name || biomarker.biomarker_name,
+        value: biomarker.value || '',
+        unit: biomarker.unit || '',
+        reference_range: biomarker.reference_range || '',
+        flag: biomarker.flag || 'Normal',
+        biomarker_type: biomarker.biomarker_type || ''
+    }));
+    
+    if (validBiomarkers.length === 0) {
+        container.innerHTML = `
+            <div class="alert alert-warning">
+                <h5 class="alert-heading">No Valid Biomarker Data</h5>
+                <p>Biomarker data was detected but could not be properly parsed.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = `
+    <div class="card">
+        <div class="card-header bg-success text-white">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i data-feather="bar-chart-2" class="icon-sm me-2"></i>
+                    Biomarker Analysis
+                </h5>
+                <span class="badge bg-light text-dark">${validBiomarkers.length} Biomarkers</span>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover table-striped mb-0">
+                    <thead class="table-success">
+                        <tr>
+                            <th width="25%">Biomarker Name</th>
+                            <th width="15%" class="text-center">Value</th>
+                            <th width="10%" class="text-center">Unit</th>
+                            <th width="20%">Reference Range</th>
+                            <th width="15%" class="text-center">Clinical Significance</th>
+                            <th width="15%" class="text-center">Trend</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+    `;
+    
+    validBiomarkers.forEach((biomarker, index) => {
+        // Analyze the biomarker value
+        const analysis = analyzeBiomarkerValue(biomarker);
+        
+        html += `
+            <tr class="${analysis.rowClass}">
+                <td>
+                    <div class="d-flex align-items-center">
+                        <strong>${biomarker.biomarker_name || biomarker.test_name}</strong>
+                        ${analysis.isCritical ? '<i data-feather="alert-triangle" class="icon-xs text-danger ms-2" title="Critical Value"></i>' : ''}
+                        ${biomarker.biomarker_type ? `<span class="badge bg-info ms-2">${biomarker.biomarker_type}</span>` : ''}
+                    </div>
+                </td>
+                <td class="text-center">
+                    <span class="fw-bold ${analysis.valueClass}">${biomarker.value}</span>
+                </td>
+                <td class="text-center">
+                    <small class="text-muted">${biomarker.unit || ''}</small>
+                </td>
+                <td>
+                    <small class="text-muted">${biomarker.reference_range || 'Not specified'}</small>
+                </td>
+                <td class="text-center">
+                    <span class="badge ${analysis.badgeClass}">${analysis.significance}</span>
+                </td>
+                <td class="text-center">
+                    ${analysis.trendIcon}
+                </td>
+            </tr>
+        `;
+    });
+    
+    html += `
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="card-footer bg-light">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <small class="text-muted">
+                        <i data-feather="info" class="icon-xs me-1"></i>
+                        Biomarker analysis based on clinical significance and predictive value
+                    </small>
+                </div>
+                <div class="col-md-4 text-end">
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-sm btn-outline-success" onclick="exportBiomarkerData()">
+                            <i data-feather="download" class="icon-xs me-1"></i>Export
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="generateBiomarkerInsights()">
+                            <i data-feather="cpu" class="icon-xs me-1"></i>AI Analysis
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Biomarker Summary Statistics Card -->
+    <div class="card mt-3">
+        <div class="card-header bg-light">
+            <h6 class="mb-0">Biomarker Summary</h6>
+        </div>
+        <div class="card-body">
+            ${generateBiomarkerSummary(validBiomarkers)}
+        </div>
+    </div>
+    `;
+    
+    container.innerHTML = html;
+}
+
+// NEW: Analyze biomarker value
+function analyzeBiomarkerValue(biomarker) {
+    let significance = 'Normal';
+    let valueClass = 'test-value-normal';
+    let badgeClass = 'badge-normal';
+    let rowClass = '';
+    let isCritical = false;
+    let trendIcon = '<i data-feather="minus" class="text-secondary" title="Stable"></i>';
+    
+    // Convert value to number for analysis
+    const numericValue = parseFloat(String(biomarker.value).replace(/[^0-9.-]/g, ''));
+    const referenceRange = biomarker.reference_range || '';
+    
+    // Common biomarkers and their critical ranges
+    const criticalBiomarkers = {
+        'troponin': { critical_high: 0.04, unit: 'ng/mL' },
+        'crp': { critical_high: 10, unit: 'mg/L' },
+        'psa': { critical_high: 4, unit: 'ng/mL' },
+        'ca125': { critical_high: 35, unit: 'U/mL' },
+        'cea': { critical_high: 5, unit: 'ng/mL' },
+        'afp': { critical_high: 10, unit: 'ng/mL' }
+    };
+    
+    if (!isNaN(numericValue) && referenceRange) {
+        // Parse reference range
+        if (referenceRange.includes('-')) {
+            const rangeParts = referenceRange.split('-').map(part => 
+                parseFloat(part.replace(/[^0-9.-]/g, ''))
+            );
+            
+            if (rangeParts.length === 2 && !isNaN(rangeParts[0]) && !isNaN(rangeParts[1])) {
+                const [minVal, maxVal] = rangeParts;
+                
+                if (numericValue < minVal) {
+                    significance = 'Low';
+                    valueClass = 'test-value-low';
+                    badgeClass = 'bg-warning';
+                    trendIcon = '<i data-feather="trending-down" class="text-warning" title="Decreasing trend"></i>';
+                    
+                    // Check for critically low values
+                    if (numericValue < minVal * 0.5) {
+                        significance = 'Critical Low';
+                        valueClass = 'test-value-high';
+                        badgeClass = 'badge-critical';
+                        rowClass = 'table-danger';
+                        isCritical = true;
+                        trendIcon = '<i data-feather="alert-triangle" class="text-danger" title="Critically low"></i>';
+                    }
+                } else if (numericValue > maxVal) {
+                    significance = 'Elevated';
+                    valueClass = 'test-value-low';
+                    badgeClass = 'bg-warning';
+                    trendIcon = '<i data-feather="trending-up" class="text-warning" title="Increasing trend"></i>';
+                    
+                    // Check for critically high values
+                    const biomarkerName = (biomarker.biomarker_name || biomarker.test_name).toLowerCase();
+                    if (criticalBiomarkers[biomarkerName] && numericValue > criticalBiomarkers[biomarkerName].critical_high) {
+                        significance = 'Critical High';
+                        valueClass = 'test-value-high';
+                        badgeClass = 'badge-critical';
+                        rowClass = 'table-danger';
+                        isCritical = true;
+                        trendIcon = '<i data-feather="alert-octagon" class="text-danger" title="Critically high"></i>';
+                    } else if (numericValue > maxVal * 2) {
+                        significance = 'Significantly Elevated';
+                        valueClass = 'test-value-high';
+                        badgeClass = 'badge-critical';
+                        rowClass = 'table-danger';
+                        isCritical = true;
+                        trendIcon = '<i data-feather="alert-triangle" class="text-danger" title="Significantly elevated"></i>';
+                    }
+                }
+            }
+        }
+    }
+    
+    // Handle flag field if present
+    if (biomarker.flag) {
+        const flag = biomarker.flag.toLowerCase();
+        if (flag.includes('high') || flag.includes('elevated') || flag.includes('abnormal')) {
+            significance = 'Elevated';
+            valueClass = 'test-value-low';
+            badgeClass = 'bg-warning';
+            trendIcon = '<i data-feather="trending-up" class="text-warning" title="Elevated"></i>';
+        } else if (flag.includes('low')) {
+            significance = 'Low';
+            valueClass = 'test-value-low';
+            badgeClass = 'bg-warning';
+            trendIcon = '<i data-feather="trending-down" class="text-warning" title="Low"></i>';
+        }
+    }
+    
+    return {
+        significance,
+        valueClass,
+        badgeClass,
+        rowClass,
+        isCritical,
+        trendIcon
+    };
+}
+
+// NEW: Generate biomarker summary
+function generateBiomarkerSummary(biomarkers) {
+    const total = biomarkers.length;
+    let normal = 0;
+    let elevated = 0;
+    let critical = 0;
+    
+    biomarkers.forEach(biomarker => {
+        const analysis = analyzeBiomarkerValue(biomarker);
+        if (analysis.isCritical) {
+            critical++;
+        } else if (analysis.significance !== 'Normal') {
+            elevated++;
+        } else {
+            normal++;
+        }
+    });
+    
+    return `
+        <div class="row text-center">
+            <div class="col-md-3">
+                <div class="border rounded p-3">
+                    <h4 class="text-primary mb-1">${total}</h4>
+                    <small class="text-muted">Total Biomarkers</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="border rounded p-3">
+                    <h4 class="text-success mb-1">${normal}</h4>
+                    <small class="text-muted">Normal</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="border rounded p-3">
+                    <h4 class="text-warning mb-1">${elevated}</h4>
+                    <small class="text-muted">Elevated</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="border rounded p-3">
+                    <h4 class="text-danger mb-1">${critical}</h4>
+                    <small class="text-muted">Critical</small>
+                </div>
+            </div>
+        </div>
+        <div class="mt-3">
+            <small class="text-muted">
+                <i data-feather="info" class="icon-xs me-1"></i>
+                Biomarkers provide predictive insights into disease progression and treatment response
+            </small>
+        </div>
+    `;
+}
+
+// NEW: Export biomarker data
+window.exportBiomarkerData = function() {
+    alert('Export biomarker data functionality');
+};
+
+// NEW: Generate biomarker insights
+window.generateBiomarkerInsights = function() {
+    alert('Generate biomarker insights functionality');
+};
+
+function renderEnhancedGenericDataTable(data, container) {
+    let html = `
+    <div class="card">
+        <div class="card-header bg-info text-white">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i data-feather="database" class="icon-sm me-2"></i>
+                    Document Data Structure
+                </h5>
+                <span class="badge bg-light text-dark">${data.length} Items</span>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th width="25%">Test Name</th>
+                            <th width="15%" class="text-center">Value</th>
+                            <th width="10%" class="text-center">Unit</th>
+                            <th width="25%">Reference Range</th>
+                            <th width="15%" class="text-center">Status</th>
+                            <th width="10%" class="text-center">Alert</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+    `;
+    
+    data.forEach((item, index) => {
+    // Determine the display properties based on available data
+    let fieldName = '';
+    let fieldValue = '';
+    let fieldType = 'text';
+    
+    if (typeof item === 'object') {
+        // Handle different object structures
+        if (item.test_name) {
+            fieldName = item.test_name;
+            fieldValue = `${item.value || ''} ${item.unit || ''}`.trim();
+            fieldType = 'lab_test';
+        } else if (item.field_name) {
+            fieldName = item.field_name;
+            fieldValue = item.field_value || item.value || '';
+            fieldType = item.field_type || 'text';
+        } else {
+            // Generic object handling
+            const keys = Object.keys(item);
+            fieldName = keys[0] || 'Unknown';
+            fieldValue = item[keys[0]] || JSON.stringify(item);
+            fieldType = 'object';
+        }
+    } else {
+        fieldName = `Item ${index + 1}`;
+        fieldValue = String(item);
+        fieldType = typeof item;
+    }
+    
+    // Clean the field value by removing unwanted words, JSON symbols, colons, triple single quotes, backticks, and trimming it
+    let cleanedFieldValue = fieldValue.replace(/\b(json|findings)\b/gi, '') // Remove 'json' and 'findings'
+                                      .replace(/"[^"]*"(?=\s*:)/g, '') // Remove key names and their values in JSON-like format
+                                      .replace(/[\{\}\[\]\\"]/g, '') // Remove curly braces, square brackets, and quotes
+                                      .replace(/:/g, '') // Remove colons
+                                      .replace(/'''/g, '') // Remove triple single quotes
+                                      .replace(/```/g, '') // Remove triple backticks
+                                      .replace(/\n/g, '<br>'); // Replace newlines with <br> for HTML line breaks
+
+    // Truncate long values
+    const displayValue = cleanedFieldValue.length > 100 ? 
+        cleanedFieldValue.substring(0, 100) + '...' : cleanedFieldValue;
+    
+    // Determine type badge class
+    const typeBadgeClass = getTypeBadgeClass(fieldType);
+    
+    html += `
+        <tr>
+            <td class="text-muted">${index + 1}</td>
+            <td>
+                <strong class="text-primary">${fieldName}</strong>
+            </td>
+            <td>
+                <span class="text-break" title="${cleanedFieldValue}">${displayValue || '—'}</span>
+            </td>
+            <td>
+                <span class="badge ${typeBadgeClass}">${fieldType}</span>
+            </td>
+            <td class="text-center">
+                <i data-feather="check-circle" class="icon-xs text-success" title="Extracted"></i>
+            </td>
+        </tr>
+    `;
+});
+
+    
+    html += `
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="card-footer bg-light">
+            <small class="text-muted">
+                <i data-feather="layers" class="icon-xs me-1"></i>
+                Structured data extracted from document using AI processing
+            </small>
+        </div>
+    </div>
+    `;
+    
+    container.innerHTML = html;
+}
+
+
+function renderEnhancedLabReportTable(data, container) {
+    // Filter out any invalid entries
+    const validTests = data.filter(test => test.test_name && test.value);
+    
+    let html = `
+    <div class="card">
+        <div class="card-header bg-primary text-white">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i data-feather="activity" class="icon-sm me-2"></i>
+                    Laboratory Test Results
+                </h5>
+                <span class="badge bg-light text-dark">${validTests.length} Tests</span>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover table-striped mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th width="25%">Test Name</th>
+                            <th width="15%" class="text-center">Value</th>
+                            <th width="10%" class="text-center">Unit</th>
+                            <th width="25%">Reference Range</th>
+                            <th width="15%" class="text-center">Status</th>
+                            <th width="10%" class="text-center">Alert</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+    `;
+    
+    validTests.forEach((test, index) => {
+        // Analyze the test value
+        const analysis = analyzeTestValue(test);
+        
+        html += `
+            <tr class="${analysis.rowClass}">
+                <td>
+                    <div class="d-flex align-items-center">
+                        <strong>${test.test_name}</strong>
+                        ${analysis.isCritical ? '<i data-feather="alert-triangle" class="icon-xs text-danger ms-2" title="Critical Value"></i>' : ''}
+                    </div>
+                </td>
+                <td class="text-center">
+                    <span class="fw-bold ${analysis.valueClass}">${test.value}</span>
+                </td>
+                <td class="text-center">
+                    <small class="text-muted">${test.unit || ''}</small>
+                </td>
+                <td>
+                    <small class="text-muted">${test.reference_range || 'Not specified'}</small>
+                </td>
+                <td class="text-center">
+                    <span class="badge ${analysis.badgeClass}">${analysis.status}</span>
+                </td>
+                <td class="text-center">
+                    ${analysis.alertIcon}
+                </td>
+            </tr>
+        `;
+    });
+    
+    html += `
+    <!-- Summary Statistics Card -->
+    <div class="card mt-3">
+        <div class="card-header bg-light">
+            <h6 class="mb-0">Test Summary</h6>
+        </div>
+        <div class="card-body">
+            ${generateTestSummary(validTests)}
+        </div>
+    </div>
+
+    <!-- Main Content Card -->
+    <div class="card mt-3">
+        <div class="card-header bg-light">
+            <h6 class="mb-0">Lab Results</h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Test Name</th>
+                            <th>Value</th>
+                            <th>Reference Range</th>
+                            <th>Flag</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Data rows here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="card-footer bg-light">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <small class="text-muted">
+                        <i data-feather="info" class="icon-xs me-1"></i>
+                        Values flagged based on reference ranges and clinical guidelines
+                    </small>
+                </div>
+                <div class="col-md-4 text-end">
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-sm btn-outline-info" onclick="exportLabData()">
+                            <i data-feather="download" class="icon-xs me-1"></i>Export
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="generateLabInsights()">
+                            <i data-feather="cpu" class="icon-xs me-1"></i>AI Analysis
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+`;
+
+    
+    container.innerHTML = html;
+}
+
+
+function analyzeTestValue(test) {
+    let status = 'Normal';
+    let valueClass = 'test-value-normal';
+    let badgeClass = 'badge-normal';
+    let rowClass = '';
+    let isCritical = false;
+    let alertIcon = '<i data-feather="check-circle" class="text-success" title="Normal range"></i>';
+    
+    // Convert value to number for analysis
+    const numericValue = parseFloat(String(test.value).replace(/[^0-9.-]/g, ''));
+    const referenceRange = test.reference_range || '';
+    
+    if (!isNaN(numericValue) && referenceRange) {
+        // Parse reference range
+        if (referenceRange.includes('-')) {
+            const rangeParts = referenceRange.split('-').map(part => 
+                parseFloat(part.replace(/[^0-9.-]/g, ''))
+            );
+            
+            if (rangeParts.length === 2 && !isNaN(rangeParts[0]) && !isNaN(rangeParts[1])) {
+                const [minVal, maxVal] = rangeParts;
+                
+                if (numericValue < minVal) {
+                    status = 'Low';
+                    valueClass = 'test-value-low';
+                    badgeClass = 'bg-warning';
+                    alertIcon = '<i data-feather="arrow-down" class="text-warning" title="Below normal range"></i>';
+                    
+                    // Check for critically low values
+                    if (numericValue < minVal * 0.7) {
+                        status = 'Critical Low';
+                        valueClass = 'test-value-high';
+                        badgeClass = 'badge-critical';
+                        rowClass = 'table-danger';
+                        isCritical = true;
+                        alertIcon = '<i data-feather="alert-triangle" class="text-danger" title="Critically low"></i>';
+                    }
+                } else if (numericValue > maxVal) {
+                    status = 'High';
+                    valueClass = 'test-value-low';
+                    badgeClass = 'bg-warning';
+                    alertIcon = '<i data-feather="arrow-up" class="text-warning" title="Above normal range"></i>';
+                    
+                    // Check for critically high values
+                    if (numericValue > maxVal * 1.5) {
+                        status = 'Critical High';
+                        valueClass = 'test-value-high';
+                        badgeClass = 'badge-critical';
+                        rowClass = 'table-danger';
+                        isCritical = true;
+                        alertIcon = '<i data-feather="alert-octagon" class="text-danger" title="Critically high"></i>';
+                    }
+                }
+            }
+        } else if (referenceRange.includes('<')) {
+            const maxValue = parseFloat(referenceRange.replace(/[^0-9.-]/g, ''));
+            if (!isNaN(maxValue) && numericValue > maxValue) {
+                status = 'High';
+                valueClass = 'test-value-low';
+                badgeClass = 'bg-warning';
+                alertIcon = '<i data-feather="arrow-up" class="text-warning" title="Above normal range"></i>';
+            }
+        } else if (referenceRange.includes('>')) {
+            const minValue = parseFloat(referenceRange.replace(/[^0-9.-]/g, ''));
+            if (!isNaN(minValue) && numericValue < minValue) {
+                status = 'Low';
+                valueClass = 'test-value-low';
+                badgeClass = 'bg-warning';
+                alertIcon = '<i data-feather="arrow-down" class="text-warning" title="Below normal range"></i>';
+            }
+        }
+    }
+    
+    // Handle flag field if present
+    if (test.flag) {
+        const flag = test.flag.toLowerCase();
+        if (flag.includes('high') || flag.includes('abnormal')) {
+            status = 'High';
+            valueClass = 'test-value-low';
+            badgeClass = 'bg-warning';
+            alertIcon = '<i data-feather="arrow-up" class="text-warning" title="Flagged as high"></i>';
+        } else if (flag.includes('low')) {
+            status = 'Low';
+            valueClass = 'test-value-low';
+            badgeClass = 'bg-warning';
+            alertIcon = '<i data-feather="arrow-down" class="text-warning" title="Flagged as low"></i>';
+        }
+    }
+    
+    return {
+        status,
+        valueClass,
+        badgeClass,
+        rowClass,
+        isCritical,
+        alertIcon
+    };
+}
+
+// Generate test summary
+function generateTestSummary(tests) {
+    const total = tests.length;
+    let normal = 0;
+    let abnormal = 0;
+    let critical = 0;
+    
+    tests.forEach(test => {
+        const analysis = analyzeTestValue(test);
+        if (analysis.isCritical) {
+            critical++;
+        } else if (analysis.status !== 'Normal') {
+            abnormal++;
+        } else {
+            normal++;
+        }
+    });
+    
+    return `
+        <div class="row text-center">
+            <div class="col-md-3">
+                <div class="border rounded p-3">
+                    <h4 class="text-primary mb-1">${total}</h4>
+                    <small class="text-muted">Total Tests</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="border rounded p-3">
+                    <h4 class="text-success mb-1">${normal}</h4>
+                    <small class="text-muted">Normal</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="border rounded p-3">
+                    <h4 class="text-warning mb-1">${abnormal}</h4>
+                    <small class="text-muted">Abnormal</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="border rounded p-3">
+                    <h4 class="text-danger mb-1">${critical}</h4>
+                    <small class="text-muted">Critical</small>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Get type badge class
+function getTypeBadgeClass(type) {
+    const typeClasses = {
+        'lab_test': 'bg-success',
+        'measurement': 'bg-info',
+        'text': 'bg-secondary',
+        'number': 'bg-primary',
+        'date': 'bg-warning',
+        'object': 'bg-dark'
+    };
+    
+    return typeClasses[type] || 'bg-secondary';
+}
+
+// Demo data for testing
+const sampleStructuredData = [
+    {
+        "test_name": "Cholesterol",
+        "value": "103",
+        "unit": "mg/dL",
+        "reference_range": "Optimal: <160",
+        "flag": "Normal"
+    },
+    {
+        "test_name": "Triglycerides",
+        "value": "73",
+        "unit": "mg/dL", 
+        "reference_range": "Optimal: <150",
+        "flag": "Normal"
+    },
+    {
+        "test_name": "HDL Cholesterol",
+        "value": "43.1",
+        "unit": "mg/dL",
+        "reference_range": "Optimal: ≥60",
+        "flag": "Normal"
+    },
+    {
+        "test_name": "Urea",
+        "value": "65",
+        "unit": "mg/dL",
+        "reference_range": "15-39 mg/dl",
+        "flag": "High"
+    },
+    {
+        "test_name": "Creatinine", 
+        "value": "1.86",
+        "unit": "mg/dL",
+        "reference_range": "0.70-1.30",
+        "flag": "High"
+    }
+];
+
+// Initialize with sample data
+document.addEventListener('DOMContentLoaded', function() {
+    const container = document.getElementById('structuredDataContainer');
+    populateStructuredDataTab(sampleStructuredData, container);
+    
+    // Initialize feather icons
+    if (typeof feather !== 'undefined') {
+        feather.replace();
+    }
+});
+
+// Placeholder functions for buttons
+function reprocessDocument(docId) {
+    alert('Reprocess document functionality - Document ID: ' + docId);
+}
+
+function exportLabData() {
+    alert('Export lab data functionality');
+}
+
+function generateLabInsights() {
+    alert('Generate lab insights functionality');
+}
+
+
+
+
+// Populate medical insights tab
+// 1. Modify the populateMedicalInsightsTab function to show imaging analysis
+// Populate medical insights tab with proper array handling
+function populateMedicalInsightsTab(medicalInsights, container) {
+    if (!container) return;
+    
+    if (!medicalInsights) {
+        container.innerHTML = `
+            <div class="alert alert-info">
+                <h5 class="alert-heading">No Medical Insights</h5>
+                <p>AI analysis is not available for this document.</p>
+                <button class="btn btn-primary btn-sm" onclick="generateMedicalInsights(currentDocId)">
+                    <i data-feather="cpu" class="icon-xs me-1"></i>Generate AI Insights
+                </button>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = `
+        <div class="medical-insights">
+            <div class="row">
+    `;
+    
+    // Summary section
+    if (medicalInsights.summary) {
+        html += `
+            <div class="col-12 mb-4">
+                <div class="card border-primary">
+                    <div class="card-header bg-primary text-white">
+                        <h6 class="mb-0"><i data-feather="file-text" class="icon-sm me-2"></i>Medical Summary</h6>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text">${medicalInsights.summary}</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    // NEW: Imaging Analysis section (if available)
+    if (medicalInsights.imaging_analysis) {
+    // Clean the analysis text by stripping unwanted symbols and words
+    let cleanedAnalysis = medicalInsights.imaging_analysis.replace(/\b(json|findings)\b/gi, '') // Remove 'json' and 'findings'
+                                      .replace(/"[^"]*"(?=\s*:)/g, '') // Remove key names and their values in JSON-like format
+                                      .replace(/[\{\}\[\]\\"]/g, '') // Remove curly braces, square brackets, and quotes
+                                      .replace(/:/g, '') // Remove colons
+                                      .replace(/'''/g, '') // Remove triple single quotes
+                                      .replace(/```/g, '') // Remove triple backticks
+                                      .replace(/\n/g, '<br>'); // Replace newlines with <br> for HTML line breaks
+    html += `
+        <div class="col-12 mb-4">
+            <div class="card border-info">
+                <div class="card-header bg-info text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0"><i data-feather="image" class="icon-sm me-2"></i>AI Imaging Analysis</h6>
+                        <span class="badge bg-light text-dark">Confidence: ${medicalInsights.imaging_confidence || 85}%</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="analysis-content">
+                        ${cleanedAnalysis}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+    
+    // Key findings - with proper array handling
+    const keyFindings = safeStringToArray(medicalInsights.key_findings || medicalInsights.findings);
+
+        if (keyFindings.length > 0) {
+            html += `
+                <div class="col-md-6 mb-3">
+                    <div class="card">
+                        <div class="card-header bg-info text-white">
+                            <h6 class="mb-0"><i data-feather="search" class="icon-sm me-2"></i>Key Findings</h6>
+                        </div>
+                        <div class="card-body">
+                            <ul class="list-unstyled mb-0">
+            `;
+            
+            keyFindings.forEach(finding => {
+                // Clean the finding by removing unwanted characters
+                let cleanedFinding = finding.replace(/\b(json|findings)\b/gi, '')  // Remove 'json' and 'findings'
+                                            .replace(/"[^"]*"(?=\s*:)/g, '') // Remove key names and their values in JSON-like format
+                                            .replace(/[\{\}\[\]\\"]/g, '') // Remove curly braces, square brackets, and quotes
+                                            .replace(/:/g, '') // Remove colons
+                                            .replace(/'''/g, '') // Remove triple single quotes
+                                            .replace(/```/g, '') // Remove triple backticks
+                                            .replace(/\n/g, '') // Replace newlines with <br> for HTML line breaks
+                                            .replace(/,/g,''); // Replace newlines with <br> for HTML line breaks
+
+                html += `<li class="mb-2"><i data-feather="chevron-right" class="icon-xs text-info me-1"></i>${cleanedFinding}</li>`;
+            });
+            
+            html += `
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Recommendations - with proper array handling
+        const recommendations = safeStringToArray(medicalInsights.recommendations_list || medicalInsights.recommendations);
+
+        if (recommendations.length > 0) {
+            html += `
+                <div class="col-md-6 mb-3">
+                    <div class="card">
+                        <div class="card-header bg-success text-white">
+                            <h6 class="mb-0"><i data-feather="check-circle" class="icon-sm me-2"></i>Recommendations</h6>
+                        </div>
+                        <div class="card-body">
+                            <ul class="list-unstyled mb-0">
+            `;
+            
+            recommendations.forEach(rec => {
+                // Clean the recommendation by removing unwanted characters
+                let cleanedRecommendation = rec.replace(/\b(json|findings)\b/gi, '')  // Remove 'json' and 'findings'
+                                                .replace(/"[^"]*"(?=\s*:)/g, '') // Remove key names and their values in JSON-like format
+                                                .replace(/[\{\}\[\]\\"]/g, '') // Remove curly braces, square brackets, and quotes
+                                                .replace(/:/g, '') // Remove colons
+                                                .replace(/'''/g, '') // Remove triple single quotes
+                                                .replace(/```/g, '') // Remove triple backticks
+                                                .replace(/\n/g, '<br>') // Replace newlines with <br> for HTML line breaks
+                                                .replace(/,/g,''); // Replace newlines with <br> for HTML line breaks
+
+                html += `<li class="mb-2"><i data-feather="arrow-right" class="icon-xs text-success me-1"></i>${cleanedRecommendation}</li>`;
+            });
+            
+            html += `
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+    
+    // Abnormalities - with proper array handling
+    const abnormalities = safeStringToArray(medicalInsights.abnormalities_list || medicalInsights.abnormalities);
+    
+    if (abnormalities.length > 0) {
+        html += `
+            <div class="col-12 mb-3">
+                <div class="card border-warning">
+                    <div class="card-header bg-warning text-dark">
+                        <h6 class="mb-0"><i data-feather="alert-triangle" class="icon-sm me-2"></i>Abnormalities Detected</h6>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-unstyled mb-0">
+        `;
+        
+        abnormalities.forEach(abnormality => {
+            html += `<li class="mb-2"><i data-feather="alert-circle" class="icon-xs text-warning me-1"></i>${abnormality}</li>`;
+        });
+        
+        html += `
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Additional medical insights
+    if (medicalInsights.diagnosis) {
+        html += `
+            <div class="col-12 mb-3">
+                <div class="card border-primary">
+                    <div class="card-header bg-primary text-white">
+                        <h6 class="mb-0"><i data-feather="clipboard" class="icon-sm me-2"></i>Diagnosis</h6>
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-0">${medicalInsights.diagnosis}</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    if (medicalInsights.urgency_level && medicalInsights.urgency_level !== "routine") {
+        const urgencyClass = medicalInsights.urgency_level === "critical" ? "danger" : "warning";
+        html += `
+            <div class="col-12 mb-3">
+                <div class="alert alert-${urgencyClass}">
+                    <h6 class="alert-heading"><i data-feather="alert-octagon" class="icon-sm me-2"></i>${medicalInsights.urgency_level.toUpperCase()} Priority</h6>
+                    <p class="mb-0">This report requires ${medicalInsights.urgency_level} attention and follow-up.</p>
+                </div>
+            </div>
+        `;
+    }
+    
+    html += `
+            </div>
+        </div>
+    `;
+    
+    container.innerHTML = html;
+    
+    // Update feather icons
+    if (typeof feather !== 'undefined') {
+        feather.replace();
+    }
+}
+
+// Add this helper function to safely convert strings to arrays
+function safeStringToArray(data) {
+    if (!data) return [];
+    
+    if (Array.isArray(data)) {
+        return data;
+    }
+    
+    if (typeof data === 'string') {
+        // Try to split by common separators
+        if (data.includes(', ')) {
+            return data.split(', ').filter(item => item.trim());
+        } else if (data.includes('.')) {
+            return data.split('.').filter(item => item.trim());
+        } else if (data.toLowerCase().includes('none') || data.toLowerCase().includes('no ')) {
+            return [];
+        } else {
+            return [data];
+        }
+    }
+    
+    return [String(data)];
+}
+
+// 2. Modify the upload form to show appropriate loading message for imaging
+function initializeUploadForm() {
+    const uploadForm = document.getElementById('uploadForm');
+    
+    if (!uploadForm) return;
+    
+    uploadForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        const patientId = getPatientIdFromUrl() || '{{ patient.id }}';
+        const urlParams = new URLSearchParams(window.location.search);
+        doctorId=urlParams.get('id');
+
+        formData.append('patient_id', patientId);
+        formData.append('doctor_id', doctorId);        
+        const enableAI = document.getElementById('enableAIAnalysis').checked;
+        formData.append('enable_ai_analysis', enableAI);
+        
+        // Check if this is an imaging document
+        const docType = formData.get('doc_type');
+        const isImagingDoc = ['xray','foot_xray', 'ultrasound', 'ct_scan', 'mri', 'pet_scan', 'angiography','biopsy', 'histopathology', 'cytology','ecg'].includes(docType);
+        
+        const submitButton = uploadForm.querySelector('button[type="submit"]');
+        const originalButtonText = submitButton.innerHTML;
+        submitButton.disabled = true;
+        
+        if (isImagingDoc && enableAI) {
+            submitButton.innerHTML = `
+                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                Uploading & AI Imaging Analysis...
+            `;
+        } else {
+            submitButton.innerHTML = `
+                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                ${enableAI ? 'Uploading & Analyzing...' : 'Uploading...'}
+            `;
+        }
+        
+        try {
+            const response = await fetch('http://68.183.82.95:8001/hms/users/doctors/documents/upload2', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok) {
+                showAlert('success', 'Document uploaded and analyzed successfully!');
+                uploadForm.reset();
+                resetFileUpload();
+                loadDocumentsList();
+                loadConditionSummary();
+                
+                // Show analysis modal - for imaging docs, go to medical insights tab
+                if (enableAI && result.document_id) {
+                    setTimeout(() => {
+                        previewDocument(result.document_id);
+                        if (isImagingDoc) {
+                            // Switch to medical insights tab to show imaging analysis
+                            setTimeout(() => {
+                                const medicalTab = document.getElementById('medical-tab');
+                                if (medicalTab) medicalTab.click();
+                            }, 1000);
+                        }
+                    }, 1000);
+                }
+            } else {
+                showAlert('danger', `Error: ${result.detail || 'Failed to upload document'}`);
+            }
+        } catch (error) {
+            showAlert('danger', `Error: ${error.message || 'Failed to upload document'}`);
+        } finally {
+            submitButton.disabled = false;
+            submitButton.innerHTML = originalButtonText;
+        }
+    });
+}
+
+// 3. Update document list to show imaging analysis status
+function getDocumentTypeIcon(type) {
+    const icons = {
+        'prescription': '<i data-feather="clipboard" class="icon-xs text-primary"></i>',
+        'lab_report': '<i data-feather="activity" class="icon-xs text-success"></i>',
+        'bio_marker': '<i data-feather="activity" class="icon-xs text-success"></i>',
+        'ct_scan': '<i data-feather="camera" class="icon-xs text-info"></i>',
+        'mri': '<i data-feather="camera" class="icon-xs text-info"></i>',
+        'ultrasound': '<i data-feather="radio" class="icon-xs text-info"></i>',
+        'xray': '<i data-feather="image" class="icon-xs text-info"></i>', // NEW: X-ray specific icon
+        'biopsy': '<i data-feather="search" class="icon-xs text-warning"></i>',
+        'cardiology': '<i data-feather="heart" class="icon-xs text-danger"></i>',
+        'neurology': '<i data-feather="zap" class="icon-xs text-purple"></i>',
+        'default': '<i data-feather="file-text" class="icon-xs text-muted"></i>'
+    };
+    
+    return icons[type] || icons['default'];
+}
+
+// Populate conditions tab
+function populateConditionsTab(conditions, container) {
+    if (!container) return;
+    
+    if (!conditions || conditions.length === 0) {
+        container.innerHTML = `
+            <div class="alert alert-success">
+                <h5 class="alert-heading">No Conditions Identified</h5>
+                <p>AI analysis did not identify any specific medical conditions requiring immediate attention.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = `
+        <div class="conditions-analysis">
+            <div class="alert alert-info mb-4">
+                <h6 class="alert-heading">AI-Identified Medical Conditions</h6>
+                <p class="mb-0">The following conditions were identified based on document analysis. Please verify with clinical judgment.</p>
+            </div>
+    `;
+    
+    conditions.forEach((condition, index) => {
+        const severityClass = getSeverityClass(condition.severity || 'medium');
+        const whoCodeBadge = condition.who_code ? `<span class="badge bg-secondary ms-2">WHO: ${condition.who_code}</span>` : '';
+        
+        html += `
+            <div class="card mb-3 border-${severityClass}">
+                <div class="card-header bg-${severityClass} text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0">${condition.condition_name || 'Unnamed Condition'}</h6>
+                        <div>
+                            <span class="badge bg-light text-dark">${condition.confidence || 'N/A'}% Confidence</span>
+                            ${whoCodeBadge}
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-muted">Description</h6>
+                            <p>${condition.description || 'No description available'}</p>
+                            
+                            ${condition.indicators ? `
+                                <h6 class="text-muted">Indicators</h6>
+                                <ul class="list-unstyled">
+                                    ${condition.indicators.map(indicator => `<li><i data-feather="alert-circle" class="icon-xs text-warning me-1"></i>${indicator}</li>`).join('')}
+                                </ul>
+                            ` : ''}
+                        </div>
+                        <div class="col-md-6">
+                            ${condition.severity ? `
+                                <div class="mb-3">
+                                    <h6 class="text-muted">Severity</h6>
+                                    <span class="badge bg-${severityClass}">${condition.severity.toUpperCase()}</span>
+                                </div>
+                            ` : ''}
+                            
+                            ${condition.values_supporting ? `
+                                <div class="mb-3">
+                                    <h6 class="text-muted">Supporting Values</h6>
+                                    <ul class="list-unstyled small">
+                                        ${condition.values_supporting.map(value => `<li>${value}</li>`).join('')}
+                                    </ul>
+                                </div>
+                            ` : ''}
+                            
+                            ${condition.recommendation ? `
+                                <div class="mb-3">
+                                    <h6 class="text-muted">Recommendation</h6>
+                                    <p class="small">${condition.recommendation}</p>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                    
+                    ${condition.progression_notes ? `
+                        <div class="mt-3 pt-3 border-top">
+                            <h6 class="text-muted">Progression Notes</h6>
+                            <p class="small">${condition.progression_notes}</p>
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+    });
+    
+    html += `</div>`;
+    
+    container.innerHTML = html;
+}
+
+// Get severity CSS class
+function getSeverityClass(severity) {
+    const severityMap = {
+        'low': 'success',
+        'medium': 'warning',
+        'high': 'danger',
+        'critical': 'danger'
+    };
+    
+    return severityMap[severity.toLowerCase()] || 'info';
+}
+
+// Load condition summary for the patient
+async function loadConditionSummary() {
+    const conditionSummaryContent = document.getElementById('conditionSummaryContent');
+    const conditionSummaryCard = document.getElementById('conditionSummaryCard');
+    
+    if (!conditionSummaryContent) return;
+    
+    const patientId = getPatientIdFromUrl() || '{{ patient.id }}';
+    
+    try {
+        const response = await fetch(`http://68.183.82.95:8001/hms/users/doctors/documents/patient-condition-summary1/${patientId}`);
+        
+        if (!response.ok) {
+            // Hide the card if no data
+            if (conditionSummaryCard) {
+                conditionSummaryCard.style.display = 'none';
+            }
+            return;
+        }
+        
+        const summary = await response.json();
+        
+        if (summary && Object.keys(summary).length > 0) {
+            // Show the card and populate content
+            if (conditionSummaryCard) {
+                conditionSummaryCard.style.display = 'block';
+            }
+            
+            renderConditionSummary(summary, conditionSummaryContent);
+        } else {
+            // Hide the card if no meaningful data
+            if (conditionSummaryCard) {
+                conditionSummaryCard.style.display = 'none';
+            }
+        }
+        
+    } catch (error) {
+        console.error('Error loading condition summary:', error);
+        if (conditionSummaryCard) {
+            conditionSummaryCard.style.display = 'none';
+        }
+    }
+}
+
+// Render condition summary
+function renderConditionSummary(summary, container) {
+    if (!container || !summary) return;
+    
+    let html = `
+        <div class="condition-summary">
+            <div class="row">
+    `;
+    
+    // Overall assessment
+    if (summary.overall_assessment) {
+        html += `
+            <div class="col-12 mb-3">
+                <div class="alert alert-primary mb-0">
+                    <h6 class="alert-heading">Overall Assessment</h6>
+                    <p class="mb-0">${summary.overall_assessment}</p>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Active conditions
+    if (summary.active_conditions && summary.active_conditions.length > 0) {
+        html += `
+            <div class="col-md-6 mb-3">
+                <div class="card border-warning">
+                    <div class="card-header bg-warning text-dark">
+                        <h6 class="mb-0"><i data-feather="alert-triangle" class="icon-sm me-2"></i>Active Conditions (${summary.active_conditions.length})</h6>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-unstyled mb-0">
+        `;
+        
+        summary.active_conditions.forEach(condition => {
+            html += `
+                <li class="mb-2 d-flex justify-content-between align-items-center">
+                    <span>${condition.name}</span>
+                    <span class="badge bg-${getSeverityClass(condition.severity || 'medium')}">${condition.severity || 'Medium'}</span>
+                </li>
+            `;
+        });
+        
+        html += `
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Latest reports summary
+    if (summary.latest_reports && summary.latest_reports.length > 0) {
+        html += `
+            <div class="col-md-6 mb-3">
+                <div class="card border-info">
+                    <div class="card-header bg-info text-white">
+                        <h6 class="mb-0"><i data-feather="file-text" class="icon-sm me-2"></i>Recent Reports (${summary.latest_reports.length})</h6>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-unstyled mb-0">
+        `;
+        
+        summary.latest_reports.forEach(report => {
+            html += `
+                <li class="mb-2">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="small">${report.type}</span>
+                        <span class="text-muted small">${formatDate(report.date)}</span>
+                    </div>
+                    ${report.key_finding ? `<small class="text-muted">${report.key_finding}</small>` : ''}
+                </li>
+            `;
+        });
+        
+        html += `
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Critical alerts
+    if (summary.critical_alerts && summary.critical_alerts.length > 0) {
+        html += `
+            <div class="col-12 mb-3">
+                <div class="alert alert-danger">
+                    <h6 class="alert-heading"><i data-feather="alert-octagon" class="icon-sm me-2"></i>Critical Alerts</h6>
+                    <ul class="mb-0">
+        `;
+        
+        summary.critical_alerts.forEach(alert => {
+            html += `<li>${alert}</li>`;
+        });
+        
+        html += `
+                    </ul>
+                </div>
+            </div>
+        `;
+    }
+    
+    html += `
+            </div>
+        </div>
+    `;
+    
+    container.innerHTML = html;
+    
+    // Update feather icons
+    if (typeof feather !== 'undefined') {
+        feather.replace();
+    }
+}
+
+// Refresh condition summary
+window.refreshConditionSummary = function() {
+    loadConditionSummary();
+};
+
+// Generate medical insights for a document
+window.generateMedicalInsights = async function(docId) {
+    const medicalInsightsContainer = document.getElementById('medicalInsightsContainer');
+    
+    if (!medicalInsightsContainer) return;
+    
+    try {
+        medicalInsightsContainer.innerHTML = `
+            <div class="text-center p-5">
+                <div class="spinner-border text-primary"></div>
+                <p class="mt-2">Generating AI medical insights...</p>
+            </div>
+        `;
+        
+        const response = await fetch(`http://68.183.82.95:8001/hms/users/doctors/documents/generate-medical-insights1/${docId}`, {
+            method: 'POST'
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            populateMedicalInsightsTab(result.medical_insights, medicalInsightsContainer);
+            showAlert('success', 'Medical insights generated successfully!');
+        } else {
+            throw new Error(result.detail || 'Failed to generate insights');
+        }
+        
+    } catch (error) {
+        medicalInsightsContainer.innerHTML = `
+            <div class="alert alert-danger">
+                <h5 class="alert-heading">Error</h5>
+                <p>${error.message}</p>
+            </div>
+        `;
+    }
+};
+
+
+// Utility function to get patient ID from URL
+function getPatientIdFromUrl() {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get('patient_id') || urlParams.get('doctor_id');
+}
+
+
+// Show alert function
+function showAlert(type, message, autoDismiss = true) {
+    const alertsContainer = document.getElementById('alertsContainer') || document.body;
+    
+    // Create alert element
+    const alertElement = document.createElement('div');
+    alertElement.className = `alert alert-${type} alert-dismissible fade show`;
+    alertElement.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    `;
+    
+    alertsContainer.appendChild(alertElement);
+    
+    // Auto dismiss after 5 seconds if enabled
+    if (autoDismiss) {
+        setTimeout(() => {
+            alertElement.classList.remove('show');
+            setTimeout(() => alertElement.remove(), 150);
+        }, 5000);
+    }
+    
+    return alertElement;
+}
+
+
+
+// Render lab report table (enhanced version)
+function renderLabReportTable(data, container) {
+    // Extract lab values data
+    const labTests = [];
+    const labMetadata = {};
+    
+    // Find lab test data
+    data.forEach(item => {
+        if (item.field_name && item.field_name.startsWith('lab_values_')) {
+            // Extract test number and property
+            const matches = item.field_name.match(/lab_values_(\d+)_(.+)/);
+            if (matches) {
+                const testNum = parseInt(matches[1]);
+                const property = matches[2];
+                
+                // Initialize test object if it doesn't exist
+                if (!labTests[testNum-1]) {
+                    labTests[testNum-1] = {};
+                }
+                
+                // Add property to test
+                labTests[testNum-1][property] = item.field_value;
+                labTests[testNum-1]['id'] = testNum;
+            }
+        } else {
+            // Store other metadata
+            labMetadata[item.field_name] = {
+                label: item.field_label,
+                value: item.field_value,
+                type: item.field_type
+            };
+        }
+    });
+    
+    // Create enhanced lab report
+    let html = `
+    <div class="mb-4">
+        <div class="card">
+            <div class="card-header bg-gradient-primary text-white">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i data-feather="activity" class="icon-sm me-2"></i>Laboratory Analysis</h5>
+                    <span class="badge bg-light text-dark">${labTests.length} Tests</span>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover table-bordered mb-0" id="labValuesTable">
+                        <thead class="table-primary">
+                            <tr>
+                                <th>Test Name</th>
+                                <th class="text-center">Value</th>
+                                <th class="text-center">Unit</th>
+                                <th>Reference Range</th>
+                                <th class="text-center">Status</th>
+                                <th class="text-center">Alert</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+    `;
+    
+    // Add each lab test to the table with enhanced analysis
+    labTests.forEach(test => {
+        // Determine if value is within reference range and set alerts
+        let status = 'Normal';
+        let statusClass = 'text-success';
+        let alertLevel = '';
+        let valueDisplay = test.value || '';
+        
+        // Enhanced value analysis
+        const value = parseFloat(test.value ? test.value.replace(/,/g, '') : '0');
+        const range = test.reference_range || '';
+        
+        if (!isNaN(value) && range) {
+            const analysis = analyzeLabValue(value, range, test.test_name);
+            status = analysis.status;
+            statusClass = analysis.statusClass;
+            alertLevel = analysis.alertLevel;
+        }
+        
+        // Add test row with enhanced styling
+        html += `
+            <tr class="field-row ${statusClass === 'text-danger' ? 'table-danger' : statusClass === 'text-warning' ? 'table-warning' : ''}" data-test-id="${test.id}">
+                <td>
+                    <div class="d-flex align-items-center">
+                        <strong>${test.test_name || ''}</strong>
+                        ${alertLevel === 'critical' ? '<i data-feather="alert-triangle" class="icon-xs text-danger ms-2" title="Critical Value"></i>' : ''}
+                    </div>
+                </td>
+                <td class="text-center">
+                    <span class="fw-bold ${statusClass}">${valueDisplay}</span>
+                </td>
+                <td class="text-center">
+                    <small class="text-muted">${test.unit || ''}</small>
+                </td>
+                <td>
+                    <small>${test.reference_range || ''}</small>
+                </td>
+                <td class="text-center">
+                    <span class="badge bg-${statusClass === 'text-success' ? 'success' : statusClass === 'text-warning' ? 'warning' : 'danger'}">${status}</span>
+                </td>
+                <td class="text-center">
+                    ${alertLevel === 'critical' ? '<i data-feather="alert-octagon" class="text-danger" title="Requires immediate attention"></i>' : 
+                      alertLevel === 'high' ? '<i data-feather="alert-triangle" class="text-warning" title="Monitor closely"></i>' : 
+                      '<i data-feather="check-circle" class="text-success" title="Normal range"></i>'}
+                </td>
+            </tr>
+        `;
+    });
+    
+    html += `
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card-footer bg-light">
+                <div class="row">
+                    <div class="col-md-8">
+                        <small class="text-muted">
+                            <i data-feather="info" class="icon-xs me-1"></i>
+                            AI analysis based on standard reference ranges and clinical guidelines
+                        </small>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="generateLabInsights(currentDocId)">
+                            <i data-feather="cpu" class="icon-xs me-1"></i>AI Insights
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    `;
+    
+    // Add summary and other metadata if available
+    if (Object.keys(labMetadata).length > 0) {
+        html += `
+        <div class="card">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Additional Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+        `;
+        
+        // Add each metadata item in a grid layout
+        for (const [key, meta] of Object.entries(labMetadata)) {
+            html += `
+                <div class="col-md-6 mb-3">
+                    <div class="border rounded p-3 h-100">
+                        <h6 class="text-primary mb-2">${meta.label}</h6>
+                        <p class="mb-0 ${meta.type === 'textarea' ? 'small' : ''}">${meta.value || '—'}</p>
+                    </div>
+                </div>
+            `;
+        }
+        
+        html += `
+                </div>
+            </div>
+        </div>
+        `;
+    }
+    
+    container.innerHTML = html;
+    
+    // Update feather icons
+    if (typeof feather !== 'undefined') {
+        feather.replace();
+    }
+}
+
+// Enhanced lab value analysis
+function analyzeLabValue(value, range, testName) {
+    let status = 'Normal';
+    let statusClass = 'text-success';
+    let alertLevel = '';
+    
+    // Critical values that require immediate attention
+    const criticalTests = {
+        'glucose': { critical_high: 400, critical_low: 50 },
+        'potassium': { critical_high: 6.0, critical_low: 2.5 },
+        'sodium': { critical_high: 160, critical_low: 120 },
+        'hemoglobin': { critical_high: 20, critical_low: 7 },
+        'platelet': { critical_high: 1000000, critical_low: 50000 },
+        'creatinine': { critical_high: 5.0, critical_low: 0 }
+    };
+    
+    // Parse reference range
+    if (range.includes('-')) {
+        const rangeValues = range.split('-').map(v => parseFloat(v.trim()));
+        if (rangeValues.length === 2 && !isNaN(rangeValues[0]) && !isNaN(rangeValues[1])) {
+            const [minVal, maxVal] = rangeValues;
+            
+            if (value < minVal) {
+                status = 'Low';
+                statusClass = 'text-warning';
+                alertLevel = 'medium';
+                
+                // Check for critical low values
+                const testKey = testName.toLowerCase();
+                if (criticalTests[testKey] && value <= criticalTests[testKey].critical_low) {
+                    status = 'Critical Low';
+                    statusClass = 'text-danger';
+                    alertLevel = 'critical';
+                }
+            } else if (value > maxVal) {
+                status = 'High';
+                statusClass = 'text-warning';
+                alertLevel = 'medium';
+                
+                // Check for critical high values
+                const testKey = testName.toLowerCase();
+                if (criticalTests[testKey] && value >= criticalTests[testKey].critical_high) {
+                    status = 'Critical High';
+                    statusClass = 'text-danger';
+                    alertLevel = 'critical';
+                }
+                
+                // Significantly elevated (>2x upper limit)
+                if (value > maxVal * 2) {
+                    status = 'Significantly High';
+                    statusClass = 'text-danger';
+                    alertLevel = 'high';
+                }
+            }
+        }
+    } else if (range.includes('<')) {
+        const maxValue = parseFloat(range.replace(/[^0-9.]/g, ''));
+        if (!isNaN(maxValue) && value > maxValue) {
+            status = 'High';
+            statusClass = 'text-warning';
+            alertLevel = 'medium';
+            
+            if (value > maxValue * 2) {
+                status = 'Significantly High';
+                statusClass = 'text-danger';
+                alertLevel = 'high';
+            }
+        }
+    } else if (range.includes('>')) {
+        const minValue = parseFloat(range.replace(/[^0-9.]/g, ''));
+        if (!isNaN(minValue) && value < minValue) {
+            status = 'Low';
+            statusClass = 'text-warning';
+            alertLevel = 'medium';
+        }
+    }
+    
+    return { status, statusClass, alertLevel };
+}
+
+// Render generic data table (enhanced version)
+function renderGenericDataTable(data, container) {
+    let html = `
+    <div class="card">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">Extracted Document Data</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th width="30%">Field</th>
+                            <th>Value</th>
+                            <th width="20%">Type</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+    `;
+    
+    // Add data rows
+    data.forEach(item => {
+        const fieldType = item.field_type || 'text';
+        const typeClass = fieldType === 'critical' ? 'text-danger' : fieldType === 'abnormal' ? 'text-warning' : 'text-muted';
+        
+        html += `
+        <tr>
+            <td>
+                <strong>${item.field_label}</strong>
+            </td>
+            <td>
+                ${item.field_type === 'textarea' || (item.field_value && item.field_value.length > 100) ? 
+                    `<div class="text-truncate" style="max-width: 300px;" title="${item.field_value}">${item.field_value || '—'}</div>` :
+                    `<span>${item.field_value || '—'}</span>`
+                }
+            </td>
+            <td>
+                <span class="badge bg-secondary">${fieldType}</span>
+            </td>
+        </tr>
+        `;
+    });
+    
+    html += `
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    `;
+    
+    container.innerHTML = html;
+    
+    // Update feather icons
+    if (typeof feather !== 'undefined') {
+        feather.replace();
+    }
+}
+
+// Generate lab insights (placeholder function)
+window.generateLabInsights = async function(docId) {
+    try {
+        showAlert('info', 'Generating AI lab insights...', false);
+        
+        const response = await fetch(`http://68.183.82.95:8001/hms/users/doctors/documents/generate-lab-insights1/${docId}`, {
+            method: 'POST'
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            // Show insights in a modal or tab
+            showLabInsightsModal(result.insights);
+            showAlert('success', 'Lab insights generated successfully!');
+        } else {
+            throw new Error(result.detail || 'Failed to generate lab insights');
+        }
+        
+    } catch (error) {
+        showAlert('danger', `Error: ${error.message}`);
+    }
+};
+
+// Show lab insights modal
+function showLabInsightsModal(insights) {
+    // Create or update lab insights modal
+    let modal = document.getElementById('labInsightsModal');
+    
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.className = 'modal fade';
+        modal.id = 'labInsightsModal';
+        modal.innerHTML = `
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title"><i data-feather="activity" class="icon-sm me-2"></i>AI Lab Insights</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body" id="labInsightsContent">
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+    
+    const content = modal.querySelector('#labInsightsContent');
+    content.innerHTML = generateLabInsightsHTML(insights);
+    
+    const modalInstance = new bootstrap.Modal(modal);
+    modalInstance.show();
+    
+    if (typeof feather !== 'undefined') {
+        feather.replace();
+    }
+}
+
+// Generate lab insights HTML
+function generateLabInsightsHTML(insights) {
+    let html = '';
+    
+    if (insights.summary) {
+        html += `
+            <div class="alert alert-info">
+                <h6 class="alert-heading">Summary</h6>
+                <p class="mb-0">${insights.summary}</p>
+            </div>
+        `;
+    }
+    
+    if (insights.abnormal_values && insights.abnormal_values.length > 0) {
+        html += `
+            <div class="card mb-3">
+                <div class="card-header bg-warning text-dark">
+                    <h6 class="mb-0">Abnormal Values Requiring Attention</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Test</th>
+                                    <th>Value</th>
+                                    <th>Status</th>
+                                    <th>Clinical Significance</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+        `;
+        
+        insights.abnormal_values.forEach(value => {
+            html += `
+                <tr>
+                    <td><strong>${value.test}</strong></td>
+                    <td>${value.value}</td>
+                    <td><span class="badge bg-${value.severity === 'critical' ? 'danger' : 'warning'}">${value.status}</span></td>
+                    <td><small>${value.significance}</small></td>
+                </tr>
+            `;
+        });
+        
+        html += `
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    if (insights.recommendations && insights.recommendations.length > 0) {
+        html += `
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h6 class="mb-0">Clinical Recommendations</h6>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled mb-0">
+        `;
+        
+        insights.recommendations.forEach(rec => {
+            html += `<li class="mb-2"><i data-feather="check-circle" class="icon-xs text-success me-2"></i>${rec}</li>`;
+        });
+        
+        html += `
+                    </ul>
+                </div>
+            </div>
+        `;
+    }
+    
+    return html;
+}
+
+
+// Generate medical summary
+window.generateMedicalSummary = async function(docId) {
+    try {
+        showAlert('info', 'Generating comprehensive medical summary...', false);
+        
+        const response = await fetch(`http://68.183.82.95:8001/hms/users/doctors/documents/generate-medical-summary1/${docId}`, {
+            method: 'POST'
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            // Refresh all tabs with new data
+            previewDocument(docId);
+            showAlert('success', 'Medical summary generated successfully!');
+            } else {
+            throw new Error(result.detail || 'Failed to generate medical summary');
+        }
+        
+    } catch (error) {
+        showAlert('danger', `Error: ${error.message}`);
+    }
+};
+
+</script>
+
+
+
+
+
+
+
+
+
+<!-- Medcial CT MRI -- start-->
+
+
+                    
+
+
+<script>
+// Add this to the existing JavaScript section
+
+// Enhanced upload form initialization - modify the existing function
+function initializeUploadForm() {
+    const uploadForm = document.getElementById('uploadForm');
+    
+    if (!uploadForm) return;
+    
+    uploadForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        const patientId = getPatientIdFromUrl() || '{{ patient.id }}';
+        const urlParams = new URLSearchParams(window.location.search);
+        doctorId=urlParams.get('id');
+
+        formData.append('patient_id', patientId);
+        formData.append('doctor_id', doctorId);
+        
+        const enableAI = document.getElementById('enableAIAnalysis').checked;
+        formData.append('enable_ai_analysis', enableAI);
+        
+        // Check document type and file requirements
+        const docType = formData.get('doc_type');
+        const imagingTypes = ['xray','foot_xray', 'ultrasound', 'ct_scan', 'mri', 'pet_scan', 'echo', 'angiography', 'endoscopy','biopsy', 'histopathology', 'cytology','ecg'];
+        const isImagingDoc = imagingTypes.includes(docType);
+        
+        // Validate file uploads based on document type
+        if (isImagingDoc) {
+            const medicalImagesInput = document.getElementById('medicalImagesInput');
+            const pdfInput = document.getElementById('pdfInput');
+            
+            // Check if at least one file is uploaded
+            if (medicalImagesInput.files.length === 0 && pdfInput.files.length === 0) {
+                showAlert('warning', 'Please upload at least one medical image or PDF report for imaging documents');
+                return;
+            }
+            
+            // Add medical images to form data
+            if (medicalImagesInput.files.length > 0) {
+                Array.from(medicalImagesInput.files).forEach(file => {
+                    formData.append('medical_images', file);
+                });
+            }
+            
+            // Add PDF report to form data
+            if (pdfInput.files.length > 0) {
+                formData.append('pdf_report', pdfInput.files[0]);
+            }
+            
+            // Remove the single document field for imaging docs
+            formData.delete('document');
+        } else {
+            // For non-imaging docs, use the single file upload
+            const singleFileInput = document.getElementById('fileInput');
+            if (singleFileInput.files.length === 0) {
+                showAlert('warning', 'Please upload a document');
+                return;
+            }
+            
+            // Remove imaging-specific fields
+            formData.delete('medical_images');
+            formData.delete('pdf_report');
+        }
+        
+        const submitButton = uploadForm.querySelector('button[type="submit"]');
+        const originalButtonText = submitButton.innerHTML;
+        submitButton.disabled = true;
+        
+        if (isImagingDoc && enableAI) {
+            submitButton.innerHTML = `
+                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                Uploading & AI Imaging Analysis...
+            `;
+        } else {
+            submitButton.innerHTML = `
+                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                ${enableAI ? 'Uploading & Analyzing...' : 'Uploading...'}
+            `;
+        }
+        
+        try {
+            const response = await fetch('http://68.183.82.95:8001/hms/users/doctors/documents/upload2', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok) {
+                showAlert('success', 'Document uploaded and analyzed successfully!');
+                uploadForm.reset();
+                clearAllPreviews();
+                loadDocumentsList();
+                loadConditionSummary();
+                
+                // Show analysis modal with appropriate tab
+                if (enableAI && result.document_id) {
+                    setTimeout(() => {
+                        previewDocument(result.document_id);
+                        if (isImagingDoc) {
+                            setTimeout(() => {
+                                const imagingTab = document.getElementById('imaging-analysis-tab');
+                                if (imagingTab) imagingTab.click();
+                            }, 1000);
+                        }
+                    }, 1000);
+                }
+            } else {
+                showAlert('danger', `Error: ${result.detail || 'Failed to upload document'}`);
+            }
+        } catch (error) {
+            showAlert('danger', `Error: ${error.message || 'Failed to upload document'}`);
+        } finally {
+            submitButton.disabled = false;
+            submitButton.innerHTML = originalButtonText;
+        }
+    });
+}
+
+// Add this new function for imaging analysis
+window.analyzeImagingReport = async function(docId) {
+    const imagingAnalysisContainer = document.getElementById('imagingAnalysisContainer');
+    
+    if (!imagingAnalysisContainer) return;
+    
+    try {
+        imagingAnalysisContainer.innerHTML = `
+            <div class="text-center p-5">
+                <div class="spinner-border text-primary"></div>
+                <p class="mt-2">Analyzing imaging report with AI...</p>
+                <small class="text-muted">This may take 30-60 seconds</small>
+            </div>
+        `;
+        
+        const response = await fetch(`http://68.183.82.95:8001/hms/users/doctors/documents/analyze-imaging/${docId}`, {
+            method: 'POST'
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            populateImagingAnalysisTab(result, imagingAnalysisContainer);
+            showAlert('success', 'Imaging analysis completed successfully!');
+        } else {
+            throw new Error(result.detail || 'Failed to analyze imaging');
+        }
+        
+    } catch (error) {
+        imagingAnalysisContainer.innerHTML = `
+            <div class="alert alert-danger">
+                <h5 class="alert-heading">Analysis Failed</h5>
+                <p>${error.message}</p>
+                <button class="btn btn-primary btn-sm" onclick="analyzeImagingReport('${docId}')">
+                    <i data-feather="refresh-cw" class="icon-xs me-1"></i>Retry Analysis
+                </button>
+            </div>
+        `;
+    }
+};
+
+// Add this new function to populate imaging analysis
+function populateImagingAnalysisTab(analysisData, container) {
+    if (!container || !analysisData) {
+        container.innerHTML = `
+            <div class="alert alert-info">
+                <h5 class="alert-heading">No Imaging Analysis</h5>
+                <p>AI imaging analysis is not available for this document.</p>
+                <button class="btn btn-primary btn-sm" onclick="analyzeImagingReport(currentDocId)">
+                    <i data-feather="image" class="icon-xs me-1"></i>Start AI Analysis
+                </button>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = `
+        <div class="imaging-analysis">
+            <div class="row">
+    `;
+    
+    // AI Analysis Summary
+    if (analysisData.analysis) {
+        html += `
+            <div class="col-12 mb-4">
+                <div class="card border-primary">
+                    <div class="card-header bg-primary text-white">
+                        <h6 class="mb-0"><i data-feather="cpu" class="icon-sm me-2"></i>AI Radiological Analysis</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="analysis-content">
+                            ${analysisData.analysis.replace(/\n/g, '<br>')}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Key Findings
+    if (analysisData.key_findings && analysisData.key_findings.length > 0) {
+        html += `
+            <div class="col-md-6 mb-3">
+                <div class="card border-warning">
+                    <div class="card-header bg-warning text-dark">
+                        <h6 class="mb-0"><i data-feather="search" class="icon-sm me-2"></i>Key Findings</h6>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-unstyled mb-0">
+        `;
+        
+        analysisData.key_findings.forEach(finding => {
+            html += `<li class="mb-2"><i data-feather="chevron-right" class="icon-xs text-warning me-1"></i>${finding}</li>`;
+        });
+        
+        html += `
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Abnormalities
+    if (analysisData.abnormalities && analysisData.abnormalities.length > 0) {
+        html += `
+            <div class="col-md-6 mb-3">
+                <div class="card border-danger">
+                    <div class="card-header bg-danger text-white">
+                        <h6 class="mb-0"><i data-feather="alert-triangle" class="icon-sm me-2"></i>Abnormalities Detected</h6>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-unstyled mb-0">
+        `;
+        
+        analysisData.abnormalities.forEach(abnormality => {
+            html += `<li class="mb-2"><i data-feather="alert-circle" class="icon-xs text-danger me-1"></i>${abnormality}</li>`;
+        });
+        
+        html += `
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Clinical Recommendations
+    if (analysisData.recommendations && analysisData.recommendations.length > 0) {
+        html += `
+            <div class="col-12 mb-3">
+                <div class="card border-success">
+                    <div class="card-header bg-success text-white">
+                        <h6 class="mb-0"><i data-feather="check-circle" class="icon-sm me-2"></i>Clinical Recommendations</h6>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-unstyled mb-0">
+        `;
+        
+        analysisData.recommendations.forEach(rec => {
+            html += `<li class="mb-2"><i data-feather="arrow-right" class="icon-xs text-success me-1"></i>${rec}</li>`;
+        });
+        
+        html += `
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Analysis Metadata
+    if (analysisData.confidence_score || analysisData.analysis_timestamp) {
+        html += `
+            <div class="col-12">
+                <div class="card bg-light">
+                    <div class="card-body py-2">
+                        <div class="row text-center">
+        `;
+        
+        if (analysisData.confidence_score) {
+            html += `
+                <div class="col-md-6">
+                    <small class="text-muted">Confidence Score</small>
+                    <div class="fw-bold text-primary">${analysisData.confidence_score}%</div>
+                </div>
+            `;
+        }
+        
+        if (analysisData.analysis_timestamp) {
+            html += `
+                <div class="col-md-6">
+                    <small class="text-muted">Analysis Date</small>
+                    <div class="fw-bold text-secondary">${new Date(analysisData.analysis_timestamp).toLocaleString()}</div>
+                </div>
+            `;
+        }
+        
+        html += `
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    html += `
+            </div>
+        </div>
+    `;
+    
+    container.innerHTML = html;
+    
+    // Update feather icons
+    if (typeof feather !== 'undefined') {
+        feather.replace();
+    }
+}
+
+// Modify the existing previewDocument function to include imaging analysis
+const originalPreviewDocument = window.previewDocument;
+window.previewDocument = async function(docId) {
+    // Call original function
+    await originalPreviewDocument(docId);
+    
+    // Check if this is an imaging document and load imaging analysis
+    try {
+        const response = await fetch(`http://68.183.82.95:8001/hms/users/doctors/documents/enhanced-preview1/${docId}`);
+        const data = await response.json();
+        
+        if (data.document && ['xray','foot_xray', 'ultrasound', 'ct_scan', 'mri', 'pet_scan', 'angiography','biopsy', 'histopathology', 'cytology','ecg'].includes(data.document.type)) {
+            // This is an imaging document, try to load imaging analysis
+            const imagingContainer = document.getElementById('imagingAnalysisContainer');
+            if (imagingContainer) {
+                // Check if analysis already exists
+                const analysisResponse = await fetch(`http://68.183.82.95:8001/hms/users/doctors/documents/get-imaging-analysis/${docId}`);
+                if (analysisResponse.ok) {
+                    const analysisData = await analysisResponse.json();
+                    populateImagingAnalysisTab(analysisData, imagingContainer);
+                } else {
+                    // No analysis exists, show option to start analysis
+                    imagingContainer.innerHTML = `
+                        <div class="alert alert-info text-center">
+                            <h5 class="alert-heading">AI Imaging Analysis Available</h5>
+                            <p>Get detailed AI-powered analysis of this imaging report.</p>
+                            <button class="btn btn-primary" onclick="analyzeImagingReport('${docId}')">
+                                <i data-feather="image" class="icon-sm me-1"></i>Start AI Analysis
+                            </button>
+                        </div>
+                    `;
+                }
+            }
+        } else {
+            // Hide imaging tab for non-imaging documents
+            const imagingTab = document.getElementById('imaging-analysis-tab');
+            if (imagingTab) {
+                imagingTab.style.display = 'none';
+            }
+        }
+    } catch (error) {
+        console.error('Error checking imaging analysis:', error);
+    }
+};
+</script>
+
+<script>
+   const imagingAndPathologyTypes = [
+    "xray", "foot_xray","ultrasound", "ct_scan", "mri", "pet_scan", "echo", "angiography", "endoscopy",
+    "biopsy", "histopathology", "cytology",'ecg'
+];
+
+const docTypeSelect = document.getElementById("docTypeSelect");
+const imagingFields = document.getElementById("imagingFields");
+
+docTypeSelect.addEventListener("change", function () {
+    const selectedType = this.value;
+    if (imagingAndPathologyTypes.includes(selectedType)) {
+        imagingFields.style.display = "block";
+        const hintElement = document.getElementById('imagingFieldsHint');
+        if (hintElement) {
+            hintElement.textContent = 
+                `For ${selectedType.replace('_', ' ')} uploads, you can use: PDF reports or medical images (DICOM, JPEG, PNG)`;
+        }
+
+    } else {
+        imagingFields.style.display = "none";
+        // Optionally clear values
+        imagingFields.querySelectorAll("input").forEach(input => input.value = "");
+    }
+});
+</script>
+
+
+
+
+
+
+<!-- Mdeical CT MRI ends -->
+

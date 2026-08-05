@@ -1,0 +1,1869 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Workflow Engine — DoctorAssist.AI</title>
+  <link rel="shortcut icon" href="../../../static/HMS_assets/images/logo.png">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300;0,400;0,600;1,300&display=swap" rel="stylesheet">
+  <script src="config.js"></script>
+
+  <style>
+    /* ─── RESET & BASE ─── */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #ffffff;
+      --bg-alt: #fafafa;
+      --bg-tert: #f5f5f5;
+      --text: #000000;
+      --text-sec: #444444;
+      --text-muted: #888888;
+      --border: #e0e0e0;
+      --border-str: #000000;
+      --accent: #000000;
+      --sidebar-w: 248px;
+      --topbar-h: 56px;
+    }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Open Sans', sans-serif;
+      font-weight: 300;
+      background: var(--bg);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+    ::selection { background: var(--accent); color: var(--bg); }
+
+    /* ─── TOP BAR ─── */
+    .topbar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: var(--topbar-h);
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 1.5rem;
+      z-index: 300;
+    }
+    .topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .topbar-brand {
+      font-weight: 400;
+      font-size: 0.9rem;
+      letter-spacing: -0.01em;
+      color: var(--text);
+      text-decoration: none;
+    }
+    .topbar-divider {
+      width: 1px;
+      height: 18px;
+      background: var(--border);
+    }
+    .topbar-title {
+      font-size: 0.78rem;
+      font-weight: 300;
+      color: var(--text-muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .active-badge {
+      padding: 0.3rem 0.875rem;
+      border: 1px solid var(--border);
+      background: var(--bg-alt);
+      font-size: 0.65rem;
+      font-weight: 400;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-sec);
+      transition: all 0.15s;
+    }
+    .active-badge.has-active {
+      background: var(--accent);
+      color: var(--bg);
+      border-color: var(--accent);
+    }
+    .topbar-icon-btn {
+      width: 32px; height: 32px;
+      display: flex; align-items: center; justify-content: center;
+      background: none; border: 1px solid var(--border);
+      cursor: pointer; color: var(--text-sec);
+      transition: all 0.15s;
+    }
+    .topbar-icon-btn:hover {
+      border-color: var(--text);
+      color: var(--text);
+    }
+
+    /* ─── LEFT SIDEBAR ─── */
+    .sidebar-left {
+      position: fixed;
+      left: 0; top: 0;
+      width: var(--sidebar-w);
+      height: 100vh;
+      background: var(--bg);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      z-index: 200;
+      overflow-y: auto;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+    .sidebar-left::-webkit-scrollbar { display: none; }
+
+    .sidebar-header {
+      padding: 1.25rem 1.25rem 1rem;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .brand-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 1.25rem;
+    }
+    .logo-box {
+      width: 28px; height: 28px;
+      background: var(--text);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      font-size: 0.65rem;
+      color: var(--bg);
+    }
+    .brand-name {
+      font-weight: 400;
+      font-size: 0.88rem;
+      letter-spacing: -0.01em;
+      color: var(--text);
+    }
+    .sidebar-meta-label {
+      font-size: 0.58rem;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: var(--text-muted);
+      font-weight: 400;
+      display: block;
+      margin-bottom: 0.2rem;
+    }
+    .sidebar-meta-value {
+      font-size: 0.82rem;
+      font-weight: 400;
+      color: var(--text);
+    }
+
+    /* nav */
+    .sidebar-nav {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0.5rem 0;
+      scrollbar-width: none;
+    }
+    .sidebar-nav::-webkit-scrollbar { display: none; }
+    .nav-group-label {
+      font-size: 0.58rem;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: var(--text-muted);
+      font-weight: 400;
+      padding: 0.5rem 1.25rem 0.2rem;
+      display: block;
+    }
+    .nav-btn {
+      width: 100%;
+      background: transparent;
+      border: none;
+      border-left: 2px solid transparent;
+      text-align: left;
+      padding: 0.52rem 1.25rem;
+      font-size: 0.76rem;
+      font-weight: 300;
+      color: var(--text-sec);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      transition: all 0.15s;
+      font-family: 'Open Sans', sans-serif;
+    }
+    .nav-btn:hover {
+      background: var(--bg-alt);
+      color: var(--text);
+    }
+    .nav-btn.active {
+      background: var(--bg-alt);
+      color: var(--text);
+      font-weight: 400;
+      border-left-color: var(--accent);
+    }
+
+    /* sidebar footer */
+    .sidebar-footer {
+      padding: 1rem 1.25rem;
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .logout-btn {
+      width: 100%;
+      background: transparent;
+      border: 1px solid var(--border);
+      padding: 0.55rem 1rem;
+      font-size: 0.72rem;
+      font-weight: 400;
+      color: var(--text-sec);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-family: 'Open Sans', sans-serif;
+      transition: all 0.2s;
+      letter-spacing: 0.04em;
+    }
+    .logout-btn:hover {
+      border-color: var(--text);
+      color: var(--text);
+    }
+
+    /* ─── RIGHT SIDEBAR (node categories) ─── */
+    .sidebar-right {
+      position: fixed;
+      right: 0; top: var(--topbar-h);
+      width: 300px;
+      height: calc(100vh - var(--topbar-h));
+      background: var(--bg);
+      border-left: 1px solid var(--border);
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) var(--bg-alt);
+      z-index: 100;
+      transform: translateX(100%);
+      transition: transform 0.3s ease;
+    }
+    .sidebar-right.open {
+      transform: translateX(0);
+    }
+    .sidebar-right::-webkit-scrollbar { width: 4px; }
+    .sidebar-right::-webkit-scrollbar-track { background: var(--bg-alt); }
+    .sidebar-right::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .right-sidebar-header {
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-alt);
+      position: sticky; top: 0; z-index: 10;
+    }
+    .right-sidebar-title {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      font-weight: 400;
+      color: var(--text-muted);
+    }
+
+    /* ─── MAIN CONTENT ─── */
+    .main-content {
+      margin-left: var(--sidebar-w);
+      padding-top: var(--topbar-h);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      transition: margin-right 0.3s ease;
+    }
+    .main-content.sidebar-open {
+      margin-right: 300px;
+    }
+    .content-body {
+      flex: 1;
+      padding: 2rem;
+      overflow-y: auto;
+    }
+
+    /* ─── EMPTY STATE ─── */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: calc(100vh - var(--topbar-h) - 4rem);
+      text-align: center;
+    }
+    .empty-icon-box {
+      width: 80px; height: 80px;
+      border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 2rem;
+    }
+    .empty-title {
+      font-size: 1.6rem;
+      font-weight: 300;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.75rem;
+    }
+    .empty-sub {
+      font-size: 0.82rem;
+      color: var(--text-sec);
+      max-width: 380px;
+      line-height: 1.7;
+      margin-bottom: 2rem;
+    }
+    .pulse-dots {
+      display: flex; gap: 6px;
+    }
+    .pulse-dot {
+      width: 6px; height: 6px;
+      border: 1px solid var(--border);
+      border-radius: 50%;
+      animation: dotPulse 2s infinite;
+    }
+    .pulse-dot:nth-child(2) { animation-delay: 0.3s; }
+    .pulse-dot:nth-child(3) { animation-delay: 0.6s; }
+    @keyframes dotPulse {
+      0%, 100% { opacity: 0.3; background: transparent; }
+      50% { opacity: 1; background: var(--text); border-color: var(--text); }
+    }
+
+    /* ─── CONFIG PANEL ─── */
+    #config-panel { max-width: 800px; }
+
+    /* category card */
+    .category-card {
+      border: 1px solid var(--border);
+      margin-bottom: -1px;
+      transition: border-color 0.15s;
+    }
+    .category-card:hover { border-color: var(--text-sec); z-index: 1; position: relative; }
+    .category-header {
+      padding: 0.875rem 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      background: var(--bg);
+      transition: background 0.15s;
+    }
+    .category-header:hover { background: var(--bg-alt); }
+    .category-header.expanded { background: var(--bg-alt); }
+    .cat-left {
+      display: flex; align-items: center; gap: 10px;
+    }
+    .cat-chevron {
+      font-size: 0.55rem;
+      color: var(--text-muted);
+      transition: transform 0.2s;
+    }
+    .cat-chevron.open { transform: rotate(90deg); }
+    .cat-icon { font-size: 0.75rem; color: var(--text-sec); width: 14px; }
+    .cat-name {
+      font-size: 0.78rem;
+      font-weight: 400;
+      color: var(--text);
+    }
+    .cat-badge {
+      font-size: 0.58rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 0.18rem 0.5rem;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+    .cat-badge.has-enabled {
+      background: var(--accent);
+      color: var(--bg);
+      border-color: var(--accent);
+    }
+
+    /* feature row */
+    .features-container {
+      border-top: 1px solid var(--border);
+    }
+    .feature-row {
+      padding: 0.75rem 1.25rem 0.75rem 2.75rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      transition: background 0.15s;
+    }
+    .feature-row:last-child { border-bottom: none; }
+    .feature-row:hover { background: var(--bg-alt); }
+    .feature-row.enabled-row { background: var(--bg-alt); }
+    .feature-left { display: flex; align-items: center; gap: 9px; }
+    .feature-icon { font-size: 0.7rem; color: var(--text-muted); width: 13px; }
+    .feature-name {
+      font-size: 0.74rem;
+      font-weight: 300;
+      color: var(--text-sec);
+    }
+    .feature-configured {
+      font-size: 0.6rem;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-top: 2px;
+      font-weight: 400;
+      letter-spacing: 0.04em;
+    }
+    .feature-right { display: flex; align-items: center; gap: 10px; }
+    .edit-icon {
+      font-size: 0.65rem;
+      color: var(--border);
+      cursor: pointer;
+      transition: color 0.15s;
+    }
+    .edit-icon:hover { color: var(--text); }
+
+    /* toggle */
+    .toggle-wrap { position: relative; cursor: pointer; }
+    .toggle-track {
+      width: 36px; height: 20px;
+      border-radius: 10px;
+      background: var(--border);
+      transition: background 0.2s;
+      position: relative;
+    }
+    .toggle-track.on {
+      background: var(--accent);
+    }
+    .toggle-thumb {
+      position: absolute;
+      top: 3px; left: 3px;
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      background: var(--bg);
+      transition: transform 0.2s;
+    }
+    .toggle-track.on .toggle-thumb {
+      transform: translateX(16px);
+    }
+
+    /* ─── CONFIG FORM ─── */
+    .config-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      animation: fadeSlideIn 0.25s ease;
+    }
+    @keyframes fadeSlideIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .config-card-header {
+      padding: 1.25rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-alt);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .config-card-header-left { display: flex; align-items: center; gap: 12px; }
+    .config-icon-box {
+      width: 36px; height: 36px;
+      background: var(--text);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--bg);
+      font-size: 0.75rem;
+      flex-shrink: 0;
+    }
+    .config-title {
+      font-size: 1rem;
+      font-weight: 400;
+      letter-spacing: -0.01em;
+    }
+    .config-category {
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-top: 2px;
+    }
+    .config-loaded-tag {
+      font-size: 0.6rem;
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      padding: 0.15rem 0.45rem;
+      letter-spacing: 0.06em;
+      margin-top: 4px;
+    }
+    .close-btn {
+      width: 28px; height: 28px;
+      background: none; border: 1px solid var(--border);
+      cursor: pointer; color: var(--text-muted);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.7rem;
+      transition: all 0.15s;
+    }
+    .close-btn:hover { border-color: var(--text); color: var(--text); }
+
+    .config-body { padding: 1.5rem; }
+
+    .form-group { margin-bottom: 1.5rem; }
+    .form-label {
+      display: block;
+      font-size: 0.62rem;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--text-muted);
+      font-weight: 400;
+      margin-bottom: 0.5rem;
+    }
+    .form-input, .form-select {
+      width: 100%;
+      max-width: 380px;
+      padding: 0.6rem 0.875rem;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      font-family: 'Open Sans', sans-serif;
+      font-size: 0.78rem;
+      font-weight: 300;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .form-input:focus, .form-select:focus {
+      border-color: var(--text);
+    }
+    .form-hint {
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      margin-top: 0.35rem;
+    }
+
+    /* template buttons */
+    .templates-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      margin-bottom: 1.5rem;
+    }
+    .template-btn {
+      background: var(--bg);
+      border: none;
+      padding: 1rem 1.25rem;
+      text-align: left;
+      cursor: pointer;
+      font-family: 'Open Sans', sans-serif;
+      transition: background 0.15s;
+      border-left: 2px solid transparent;
+    }
+    .template-btn:hover { background: var(--bg-alt); }
+    .template-btn.selected {
+      background: var(--bg-alt);
+      border-left-color: var(--accent);
+    }
+    .template-btn-name {
+      font-size: 0.78rem;
+      font-weight: 400;
+      color: var(--text);
+      margin-bottom: 0.2rem;
+    }
+    .template-btn-sub {
+      font-size: 0.65rem;
+      color: var(--text-muted);
+    }
+
+    /* rules textarea */
+    .rules-wrap { position: relative; }
+    .rules-textarea {
+      width: 100%;
+      padding: 0.875rem;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      font-family: 'Open Sans', sans-serif;
+      font-size: 0.78rem;
+      font-weight: 300;
+      color: var(--text);
+      resize: none;
+      outline: none;
+      transition: border-color 0.15s;
+      line-height: 1.6;
+    }
+    .rules-textarea:focus { border-color: var(--text); }
+    .rules-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.5rem;
+    }
+    .voice-btn {
+      width: 30px; height: 30px;
+      background: var(--text);
+      color: var(--bg);
+      border: none;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.65rem;
+      transition: opacity 0.15s;
+    }
+    .voice-btn:hover { opacity: 0.7; }
+    .voice-btn.recording { background: #444; }
+    .clear-btn {
+      width: 30px; height: 30px;
+      background: none;
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.65rem;
+      transition: all 0.15s;
+    }
+    .clear-btn:hover { border-color: var(--text); color: var(--text); }
+
+    /* checkboxes */
+    .checkbox-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+      gap: 0.5rem;
+    }
+    .checkbox-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0.55rem 0.75rem;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .checkbox-item:hover { border-color: var(--text-sec); }
+    .checkbox-item input[type="checkbox"] {
+      width: 13px; height: 13px;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+    .checkbox-label {
+      font-size: 0.72rem;
+      font-weight: 300;
+      color: var(--text-sec);
+    }
+
+    /* config footer */
+    .config-footer {
+      padding: 1.25rem 1.5rem;
+      border-top: 1px solid var(--border);
+      background: var(--bg-alt);
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+    .btn-cancel {
+      padding: 0.55rem 1.25rem;
+      background: var(--bg);
+      color: var(--text-sec);
+      border: 1px solid var(--border);
+      font-size: 0.72rem;
+      font-weight: 400;
+      cursor: pointer;
+      font-family: 'Open Sans', sans-serif;
+      transition: all 0.15s;
+      letter-spacing: 0.04em;
+    }
+    .btn-cancel:hover { border-color: var(--text); color: var(--text); }
+    .btn-test {
+      padding: 0.55rem 1.25rem;
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--text);
+      font-size: 0.72rem;
+      font-weight: 400;
+      cursor: pointer;
+      font-family: 'Open Sans', sans-serif;
+      transition: all 0.15s;
+      letter-spacing: 0.04em;
+    }
+    .btn-test:hover { background: var(--text); color: var(--bg); }
+    .btn-save {
+      padding: 0.55rem 1.25rem;
+      background: var(--text);
+      color: var(--bg);
+      border: 1px solid var(--text);
+      font-size: 0.72rem;
+      font-weight: 400;
+      cursor: pointer;
+      font-family: 'Open Sans', sans-serif;
+      transition: all 0.15s;
+      letter-spacing: 0.04em;
+    }
+    .btn-save:hover { background: transparent; color: var(--text); }
+
+    /* ─── TOAST ─── */
+    .toast {
+      position: fixed;
+      top: calc(var(--topbar-h) + 12px);
+      right: 1.5rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      padding: 0.875rem 1.25rem;
+      z-index: 9999;
+      font-size: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      animation: toastIn 0.25s ease;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+    }
+    .toast.success { border-left-color: var(--accent); }
+    .toast.test { border-left-color: var(--text-sec); }
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateX(12px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    .toast-icon { font-size: 0.7rem; color: var(--text-muted); }
+    .toast-title { font-weight: 400; color: var(--text); }
+    .toast-sub { font-size: 0.65rem; color: var(--text-muted); margin-top: 1px; }
+
+    /* ─── SCROLLBAR ─── */
+    .content-body::-webkit-scrollbar { width: 4px; }
+    .content-body::-webkit-scrollbar-track { background: var(--bg-alt); }
+    .content-body::-webkit-scrollbar-thumb { background: var(--border); }
+
+    /* ─── HIDDEN ─── */
+    .hidden { display: none !important; }
+
+    /* ─── output cats ─── */
+    .output-cats-section {
+      margin-bottom: 1.5rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border);
+    }
+  </style>
+</head>
+
+<body>
+
+<!-- ════════════════ TOP BAR ════════════════ -->
+<nav class="topbar">
+  <div class="topbar-left">
+    <a href="#" class="topbar-brand">DoctorAssist.AI</a>
+    <div class="topbar-divider"></div>
+    <span class="topbar-title">Workflow Engine</span>
+  </div>
+  <div class="topbar-right">
+    <div id="active-badge" class="active-badge">
+      <span id="active-count">0</span> active
+    </div>
+    <button id="sidebar-toggle" class="topbar-icon-btn" title="Node categories">
+      <i class="fas fa-sliders-h" style="font-size:0.7rem;"></i>
+    </button>
+  </div>
+</nav>
+
+<!-- ════════════════ LEFT SIDEBAR ════════════════ -->
+<aside class="sidebar-left">
+  <div class="sidebar-header">
+    <div class="brand-row">
+      <div class="logo-box">
+        <i class="fas fa-stethoscope" style="font-size:0.65rem;"></i>
+      </div>
+      <span class="brand-name">DoctorAssist.AI</span>
+    </div>
+    <span class="sidebar-meta-label">Workflow Engine</span>
+    <span class="sidebar-meta-value">Node Configuration</span>
+  </div>
+
+  <div class="sidebar-nav">
+    <span class="nav-group-label">Navigation</span>
+
+    <button class="nav-btn" onclick="window.location.href = `/doctor-dashboard?doctor_id=${new URLSearchParams(window.location.search).get('doctor_id')}`">
+      <i class="fas fa-home" style="font-size:0.7rem;width:13px;"></i>
+      <span>Dashboard</span>
+    </button>
+
+    <button class="nav-btn" onclick="window.location.href = `/appointments?doctor_id=${new URLSearchParams(window.location.search).get('doctor_id')}`">
+      <i class="fas fa-calendar-check" style="font-size:0.7rem;width:13px;"></i>
+      <span>Appointment</span>
+    </button>
+
+    <!-- <button class="nav-btn">
+      <i class="fas fa-procedures" style="font-size:0.7rem;width:13px;"></i>
+      <span>IPD/Ward Patients</span>
+    </button>
+
+    <button class="nav-btn">
+      <i class="fas fa-share-alt" style="font-size:0.7rem;width:13px;"></i>
+      <span>Referrals</span>
+    </button> -->
+
+    <!-- <button class="nav-btn" onclick="window.location.href = `/opd-time-schedule?doctor_id=${new URLSearchParams(window.location.search).get('doctor_id')}`">
+      <i class="fas fa-clock" style="font-size:0.7rem;width:13px;"></i>
+      <span>OPD Time Schedule</span>
+    </button> -->
+
+    <span class="nav-group-label" style="margin-top:0.5rem;">Configuration</span>
+
+    <!-- <button class="nav-btn" onclick="window.location.href = `/medical-clinical-context-rule-settings?doctor_id=${new URLSearchParams(window.location.search).get('doctor_id')}`">
+      <i class="fas fa-sliders-h" style="font-size:0.7rem;width:13px;"></i>
+      <span>Clinical Context Rules</span>
+    </button> -->
+
+    <button class="nav-btn active">
+      <i class="fas fa-stream" style="font-size:0.7rem;width:13px;"></i>
+      <span>Node Settings</span>
+    </button>
+  </div>
+
+  <div class="sidebar-footer">
+    <button class="logout-btn" onclick="handleLogout()">
+      <i class="fas fa-sign-out-alt" style="font-size:0.7rem;"></i>
+      <span>Logout</span>
+    </button>
+  </div>
+</aside>
+
+<!-- ════════════════ RIGHT SIDEBAR (categories) ════════════════ -->
+<aside id="right-sidebar" class="sidebar-right">
+  <div class="right-sidebar-header">
+    <span class="right-sidebar-title">Node Categories</span>
+  </div>
+  <div style="padding: 1rem;">
+    <div id="categories-container"></div>
+  </div>
+</aside>
+
+<!-- ════════════════ MAIN CONTENT ════════════════ -->
+<div id="main-content" class="main-content">
+  <div class="content-body">
+
+    <!-- Empty state -->
+    <div id="empty-state" class="empty-state">
+      <div class="empty-icon-box">
+        <i class="fas fa-sliders-h" style="font-size:1.6rem;color:var(--border);"></i>
+      </div>
+      <h2 class="empty-title">Select a Node</h2>
+      <p class="empty-sub">
+        Enable and select a workflow node from the categories panel to configure its behavior and properties.
+      </p>
+      <div class="pulse-dots">
+        <div class="pulse-dot"></div>
+        <div class="pulse-dot"></div>
+        <div class="pulse-dot"></div>
+      </div>
+    </div>
+
+    <!-- Config panel -->
+    <div id="config-panel" class="hidden"></div>
+
+  </div>
+</div>
+
+
+<!-- ════════════════ JAVASCRIPT ════════════════ -->
+<script>
+const API_BASE = "https://doctorassist.ai/api";
+
+// ── STATE ──
+const state = {
+  sidebarOpen: false,
+  activeCategory: null,
+  configuredFeature: null,
+  activeFeatures: new Set([]),
+  featureTemplates: [],
+  doctorSpeciality: null,
+  categories: [
+    { id:'screening-data', name:'Screening Data Nodes', icon:'fas fa-user-alt', enabledCount:0, expanded:false,
+      features:[{ id:'screening-section', name:'Screening Data Form', icon:'fas fa-id-card', configured:false, enabled:false }] },
+    { id:'pre-screening-data', name:'Pre-Screening Questions', icon:'fas fa-clipboard-list', enabledCount:0, expanded:false,
+      features:[{ id:'pre-screening-section', name:'Pre-Screening Questions Form', icon:'fas fa-question-circle', configured:false, enabled:false }] },
+    { id:'patient-data', name:'Patient Data Nodes', icon:'fas fa-user-injured', enabledCount:0, expanded:false,
+      features:[{ id:'patient-profile', name:'Patient Profile Retriever', icon:'fas fa-id-card', configured:false, enabled:false }] },
+    { id:'screening-context', name:'Screening Context Nodes', icon:'fas fa-clipboard-check', enabledCount:0, expanded:false,
+      features:[{ id:'current-screening-context', name:'Current Screening Context Retriever', icon:'fas fa-search', configured:false, enabled:false }] },
+    { id:'vitals-context', name:'Vitals Context Nodes', icon:'fas fa-heartbeat', enabledCount:0, expanded:false,
+      features:[{ id:'current-vitals-context', name:'Current Vitals Context Retriever', icon:'fas fa-stethoscope', configured:false, enabled:false }] },
+    { id:'current-context', name:'Current Context Nodes', icon:'fas fa-notes-medical', enabledCount:0, expanded:false,
+      features:[{ id:'current-clinical-context', name:'Current Clinical Context Retriever', icon:'fas fa-clipboard-list', configured:false, enabled:false }] },
+    { id:'medical-context', name:'Medical Context Nodes', icon:'fas fa-notes-medical', enabledCount:0, expanded:false,
+      features:[{ id:'medical-clinical-context', name:'Medical Clinical Context Retriever', icon:'fas fa-clipboard-list', configured:false, enabled:false }] },
+    { id:'documentation', name:'Documentation Nodes', icon:'fas fa-file-medical', enabledCount:0, expanded:false,
+      features:[
+        { id:'documentation-treatment-plan', name:'Treatment Plan Generator', icon:'fas fa-clipboard-list', configured:false, enabled:false },
+        { id:'documentation-treatment-summary', name:'Treatment Summary Generator', icon:'fas fa-file-alt', configured:false, enabled:false },
+        { id:'documentation-medication-analysis', name:'Medication Analysis', icon:'fas fa-pills', configured:false, enabled:false },
+        { id:'documentation-investigation-notes', name:'Investigation Orders Generator', icon:'fas fa-microscope', configured:false, enabled:false },
+        { id:'documentation-clinical-notes', name:'Clinical Notes Generator', icon:'fas fa-stethoscope', configured:false, enabled:false }
+      ]},
+    { id:'prognosis-analysis', name:'Prognosis Analysis Nodes', icon:'fas fa-chart-line', enabledCount:0, expanded:false,
+      features:[{ id:'prognosis-clinical-analysis', name:'Clinical Prognosis Analysis Engine', icon:'fas fa-stethoscope', configured:false, enabled:false }] },
+    { id:'multidisciplinary-analysis', name:'Multidisciplinary Analysis Nodes', icon:'fas fa-users-cog', enabledCount:0, expanded:false,
+      features:[{ id:'multidisciplinary-clinical-analyser', name:'Multidisciplinary Clinical Analysis Engine', icon:'fas fa-people-arrows', configured:false, enabled:false }] },
+    { id:'treatment-response-analysis', name:'Treatment Response Analysis', icon:'fas fa-heartbeat', enabledCount:0, expanded:false,
+      features:[{ id:'treatment-response-clinical-analyser', name:'Clinical Treatment Response Analysis Engine', icon:'fas fa-chart-area', configured:false, enabled:false }] },
+    { id:'quality-checklist', name:'Quality Checklist Nodes', icon:'fas fa-clipboard-check', enabledCount:0, expanded:false,
+      features:[
+        { id:'quality-treatment-sufficiency', name:'Treatment Sufficiency Analyzer', icon:'fas fa-balance-scale', configured:false, enabled:false },
+        { id:'quality-survivorship-management', name:'Survivorship Management Evaluator', icon:'fas fa-user-shield', configured:false, enabled:false },
+        { id:'quality-value-based-care', name:'Value-Based Care Assessment', icon:'fas fa-hand-holding-heart', configured:false, enabled:false }
+      ]},
+    { id:'lab-report', name:'Lab Report Nodes', icon:'fas fa-flask', enabledCount:0, expanded:false,
+      features:[{ id:'lab-report-retriever', name:'Lab Report Retriever', icon:'fas fa-vials', configured:false, enabled:false }] },
+    { id:'radiology', name:'Radiology Nodes', icon:'fas fa-microscope', enabledCount:0, expanded:false,
+      features:[
+        { id:'xray-report-retriever', name:'X-ray Report Retriever', icon:'fas fa-radiation', configured:false, enabled:false },
+        { id:'ct-report-retriever', name:'CT Scan Report Retriever', icon:'fas fa-file-medical-alt', configured:false, enabled:false },
+        { id:'mri-report-retriever', name:'MRI Report Retriever', icon:'fas fa-file-medical', configured:false, enabled:false },
+        { id:'ultrasound-report-retriever', name:'Ultrasound Report Retriever', icon:'fas fa-file-medical', configured:false, enabled:false },
+        { id:'pet-scan-report-retriever', name:'PET Scan Report Retriever', icon:'fas fa-file-medical-alt', configured:false, enabled:false },
+        { id:'ecg-report-retriever', name:'ECG Report Retriever', icon:'fas fa-file-medical-alt', configured:false, enabled:false }
+      ]},
+    { id:'clinical-decision', name:'Clinical Decision Nodes', icon:'fas fa-stethoscope', enabledCount:0, expanded:false,
+      features:[
+        { id:'treatment-planning-and-protocol', name:'Treatment Planning and Protocol', icon:'fas fa-exclamation-triangle', configured:false, enabled:false },
+        { id:'treatment-response-assessment', name:'Treatment Response Assessment', icon:'fas fa-exclamation-circle', configured:false, enabled:false },
+        { id:'comprehensive-tumor-profiling', name:'NGS — Comprehensive Tumor Profiling', icon:'fas fa-dna', configured:false, enabled:false },
+        { id:'targeted-gene-panel', name:'NGS — Targeted Gene Panel', icon:'fas fa-project-diagram', configured:false, enabled:false },
+        { id:'liquid-biopsy-analysis', name:'NGS — Liquid Biopsy Analysis', icon:'fas fa-tint', configured:false, enabled:false },
+        { id:'immunotherapy-biomarkers', name:'NGS — Immunotherapy Biomarkers', icon:'fas fa-shield-virus', configured:false, enabled:false },
+        { id:'hereditary-cancer-panel', name:'NGS — Hereditary Cancer Panel', icon:'fas fa-people-arrows', configured:false, enabled:false },
+        { id:'kdigo-care-compliance-checker', name:'KDIGO Care Compliance Checker', icon:'fas fa-clipboard-check', configured:false, enabled:false }
+      ]},
+    { id:'ai-intelligence', name:'AI & Intelligence Nodes', icon:'fas fa-brain', enabledCount:0, expanded:false,
+      features:[
+        { id:'decision-analytics', name:'CDSS Engine', icon:'fas fa-chart-line', configured:false, enabled:false },
+        { id:'pattern-detector', name:'Pattern Detector', icon:'fas fa-project-diagram', configured:false, enabled:false },
+        { id:'revascularization-strategy', name:'Revascularization Strategy Prediction', icon:'fas fa-heartbeat', configured:false, enabled:false },
+        { id:'corelation-analysis', name:'Correlation Analysis', icon:'fas fa-id-card', configured:false, enabled:false },
+        { id:'patient-data-summary', name:'Patient Clinical Summary', icon:'fas fa-file-lines', configured:false, enabled:false }
+      ]},
+    { id:'Clinical-Summary-Nodes', name:'Clinical Summary Nodes', icon:'fas fa-notes-medical', enabledCount:0, expanded:false,
+      features:[
+        { id:'Baseline-Diagnostics', name:'Baseline Diagnostics', icon:'fas fa-notes-medical', configured:false, enabled:false },
+        { id:'Histopathology-Incisional-Excisional-Biopsy', name:'Histopathology — Incisional/Excisional Biopsy', icon:'fas fa-notes-medical', configured:false, enabled:false },
+        { id:'Immunohistochemistry-IHC-Analysis', name:'Immunohistochemistry (IHC) Analysis', icon:'fas fa-notes-medical', configured:false, enabled:false },
+        { id:'Molecular-Diagnostics-Summary-Report', name:'Molecular Diagnostics — Summary Report', icon:'fas fa-notes-medical', configured:false, enabled:false },
+        { id:'Baseline-Radiology-RECIST-Evaluation', name:'Baseline Radiology & RECIST Evaluation', icon:'fas fa-notes-medical', configured:false, enabled:false },
+        { id:'Cytology-Biopsy', name:'Cytology Biopsy', icon:'fas fa-notes-medical', configured:false, enabled:false },
+        { id:'Response-Assessment-Follow-up', name:'Response Assessment & Follow-up', icon:'fas fa-notes-medical', configured:false, enabled:false },
+        { id:'Toxicity-Safety-Monitoring', name:'Toxicity & Safety Monitoring', icon:'fas fa-notes-medical', configured:false, enabled:false },
+        { id:'Molecular-Diagnostics-Targeted-Gene-Panels', name:'Molecular Diagnostics — Targeted Gene Panels', icon:'fas fa-notes-medical', configured:false, enabled:false }
+      ]},
+  ],
+  dataSources: { selected:[], all:['Vitals','Lab Report','Radiology','Biopsy','Medications','Treatment Plan'] },
+  patientProfileFields: {
+    selected:[],
+    all:[
+      { id:'name', label:'Patient Name' }, { id:'date_of_birth', label:'Date of Birth' },
+      { id:'phone_number', label:'Phone Number' }, { id:'address', label:'Address' },
+      { id:'gender', label:'Gender' }, { id:'marital_status', label:'Marital Status' },
+      { id:'hms_id', label:'Medical Record Number' }, { id:'blood_group', label:'Blood Group' }
+    ]
+  },
+};
+
+const FEATURE_SPECIALITY_RULES = {
+  "revascularization-strategy": ["cardiology"],
+  "comprehensive-tumor-profiling": ["oncology"], "targeted-gene-panel": ["oncology"],
+  "liquid-biopsy-analysis": ["oncology"], "immunotherapy-biomarkers": ["oncology"],
+  "hereditary-cancer-panel": ["oncology"],
+  "Baseline-Diagnostics": ["oncology"], "Histopathology-Incisional-Excisional-Biopsy": ["oncology"],
+  "Immunohistochemistry-IHC-Analysis": ["oncology"], "Molecular-Diagnostics-Summary-Report": ["oncology"],
+  "Baseline-Radiology-RECIST-Evaluation": ["oncology"], "Cytology-Biopsy": ["oncology"],
+  "Response-Assessment-Follow-up": ["oncology"], "Toxicity-Safety-Monitoring": ["oncology"],
+  "Molecular-Diagnostics-Targeted-Gene-Panels": ["oncology"],
+  "kdigo-care-compliance-checker": ["nephrology"],
+};
+
+const FEATURES_WITHOUT_TEST_BUTTON = new Set(["medical-clinical-context","current-clinical-context","documentation-treatment-plan"]);
+
+function isFeatureAllowed(featureId) {
+  const rules = FEATURE_SPECIALITY_RULES[featureId];
+  if (!rules) return true;
+  if (rules.includes("all")) return true;
+  if (!state.doctorSpeciality) return false;
+  return rules.includes(state.doctorSpeciality);
+}
+
+// ── DOM REFS ──
+const rightSidebar = document.getElementById('right-sidebar');
+const mainContent = document.getElementById('main-content');
+const emptyState = document.getElementById('empty-state');
+const configPanel = document.getElementById('config-panel');
+const categoriesContainer = document.getElementById('categories-container');
+const activeBadge = document.getElementById('active-badge');
+const activeCountEl = document.getElementById('active-count');
+
+// ── SIDEBAR TOGGLE ──
+document.getElementById('sidebar-toggle').addEventListener('click', () => {
+  state.sidebarOpen = !state.sidebarOpen;
+  rightSidebar.classList.toggle('open', state.sidebarOpen);
+  mainContent.classList.toggle('sidebar-open', state.sidebarOpen);
+});
+
+// ── ACTIVE COUNT ──
+function updateActiveCount() {
+  const count = state.activeFeatures.size;
+  activeCountEl.textContent = count;
+  activeBadge.classList.toggle('has-active', count > 0);
+}
+
+// ── RENDER CATEGORIES ──
+function renderCategories() {
+  categoriesContainer.innerHTML = '';
+  state.categories.forEach(category => {
+    const card = document.createElement('div');
+    card.className = 'category-card';
+
+    const header = document.createElement('div');
+    header.className = `category-header ${category.expanded ? 'expanded' : ''}`;
+    header.innerHTML = `
+      <div class="cat-left">
+        <i class="fas fa-chevron-right cat-chevron ${category.expanded ? 'open' : ''}"></i>
+        <i class="${category.icon} cat-icon"></i>
+        <span class="cat-name">${category.name}</span>
+      </div>
+      <span class="cat-badge ${category.enabledCount > 0 ? 'has-enabled' : ''}">${category.enabledCount} on</span>
+    `;
+    header.addEventListener('click', () => toggleCategory(category.id));
+    card.appendChild(header);
+
+    if (category.expanded) {
+      const featuresDiv = document.createElement('div');
+      featuresDiv.className = 'features-container';
+
+      category.features.filter(f => isFeatureAllowed(f.id)).forEach(feature => {
+        const row = document.createElement('div');
+        row.className = `feature-row ${feature.enabled ? 'enabled-row' : ''} ${state.configuredFeature === feature.id ? 'enabled-row' : ''}`;
+
+        row.innerHTML = `
+          <div class="feature-left">
+            <i class="${feature.icon} feature-icon"></i>
+            <div>
+              <div class="feature-name">${feature.name}</div>
+              ${feature.configured ? `<div class="feature-configured"><i class="fas fa-check" style="font-size:0.55rem;"></i> configured</div>` : ''}
+            </div>
+          </div>
+          <div class="feature-right">
+            ${feature.configured ? '<i class="fas fa-pencil-alt edit-icon"></i>' : ''}
+            <div class="toggle-wrap">
+              <div class="toggle-track ${feature.enabled ? 'on' : ''}">
+                <div class="toggle-thumb"></div>
+              </div>
+            </div>
+          </div>
+        `;
+
+        const toggleEl = row.querySelector('.toggle-track');
+        toggleEl.addEventListener('click', (e) => {
+          e.stopPropagation();
+          toggleFeature(feature.id, category.id);
+        });
+
+        if (feature.enabled) {
+          row.style.cursor = 'pointer';
+          row.addEventListener('click', (e) => {
+            if (e.target.closest('.toggle-wrap')) return;
+            openConfig(feature.id, category.id);
+          });
+        }
+
+        featuresDiv.appendChild(row);
+      });
+      card.appendChild(featuresDiv);
+    }
+
+    categoriesContainer.appendChild(card);
+  });
+}
+
+function toggleCategory(categoryId) {
+  const cat = state.categories.find(c => c.id === categoryId);
+  if (cat) { cat.expanded = !cat.expanded; renderCategories(); }
+}
+
+function toggleFeature(featureId, categoryId) {
+  const cat = state.categories.find(c => c.id === categoryId);
+  const feature = cat.features.find(f => f.id === featureId);
+  if (!feature) return;
+
+  feature.enabled = !feature.enabled;
+
+  if (feature.id === 'patient-profile') {
+    feature.enabled ? persistPatientEnable(feature) : persistPatientDisable(feature);
+  } else {
+    feature.enabled ? persistEnable(feature, cat) : persistDisable(feature, cat);
+  }
+
+  if (feature.enabled) {
+    state.activeFeatures.add(feature.id);
+    openConfig(featureId, categoryId);
+  } else {
+    state.activeFeatures.delete(feature.id);
+  }
+
+  cat.enabledCount = cat.features.filter(f => f.enabled).length;
+  updateActiveCount();
+  renderCategories();
+}
+
+// ── OPEN CONFIG ──
+async function openConfig(featureId, categoryId) {
+  const cat = state.categories.find(c => c.id === categoryId);
+  const feature = cat.features.find(f => f.id === featureId);
+  if (!feature || !feature.enabled) return;
+
+  state.configuredFeature = featureId;
+  emptyState.classList.add('hidden');
+  configPanel.classList.remove('hidden');
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const doctorId = urlParams.get('doctor_id');
+  let featureConfig = null;
+
+  if (doctorId) {
+    if (featureId === 'screening-section') featureConfig = await getSavedScreeningFeature(doctorId);
+    else if (featureId === 'patient-profile') featureConfig = await loadPatientProfileConfig(doctorId);
+    else if (featureId !== 'pre-screening-section') featureConfig = await getFeatureConfiguration(doctorId, featureId);
+  }
+
+  await renderConfigForm(feature, cat, featureConfig);
+  renderCategories();
+}
+
+function closeConfig() {
+  state.configuredFeature = null;
+  emptyState.classList.remove('hidden');
+  configPanel.classList.add('hidden');
+  renderCategories();
+}
+
+// ── RENDER CONFIG FORM ──
+async function renderConfigForm(feature, category, featureConfig = null) {
+  const urlParams = new URLSearchParams(window.location.search);
+  const doctorId = urlParams.get('doctor_id');
+
+  let html = '';
+  if (feature.id === 'screening-section') {
+    html = renderScreeningForm(feature, category);
+  } else if (feature.id === 'patient-profile') {
+    html = renderPatientProfileForm(feature, category, featureConfig);
+  } else if (feature.id === 'pre-screening-section') {
+    html = renderPreScreeningForm(feature, category);
+    setTimeout(() => initPreScreeningForm(feature, category), 100);
+  } else {
+    const templates = await fetchFeatureTemplates({ doctorId, feature, category });
+    state.featureTemplates = templates?.analysis_templates?.templates || [];
+    html = renderStandardForm(feature, category, state.featureTemplates, featureConfig);
+  }
+
+  configPanel.innerHTML = html;
+  setupConfigListeners(feature, category, featureConfig);
+  setTimeout(setupRulesVoice, 0);
+  if (feature.id !== 'screening-section') attachTemplateHandlers();
+}
+
+// ── STANDARD FORM ──
+function renderStandardForm(feature, category, templates = [], featureConfig = null) {
+  const displayName = featureConfig?.feature_name || feature.name;
+  const triggerType = featureConfig?.trigger?.type || 'page-reload';
+  const buttonLabel = featureConfig?.trigger?.button_label || '';
+  const rules = featureConfig?.rules || '';
+  const displayMethod = featureConfig?.display_method || 'table';
+  const selectedOutputCats = ['current-clinical-context','medical-clinical-context'].includes(feature.id)
+    ? [] : (featureConfig?.selected_output_categories || []);
+
+  return `
+    <div class="config-card">
+      <div class="config-card-header">
+        <div class="config-card-header-left">
+          <div class="config-icon-box"><i class="${feature.icon}"></i></div>
+          <div>
+            <div class="config-title">${displayName}</div>
+            <div class="config-category">${category.name}</div>
+            ${featureConfig ? '<div class="config-loaded-tag">pre-configured data loaded</div>' : ''}
+          </div>
+        </div>
+        <button id="close-config" class="close-btn"><i class="fas fa-times"></i></button>
+      </div>
+
+      <div class="config-body">
+        <div class="form-group">
+          <label class="form-label">Display Name</label>
+          <input type="text" id="display-name" class="form-input" value="${displayName}">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Trigger Method</label>
+          <select id="trigger-method" class="form-select">
+            <option value="page-reload" ${triggerType==='page-reload'?'selected':''}>On Page Reload</option>
+            <option value="button-click" ${triggerType==='button-click'?'selected':''}>By Button Click</option>
+          </select>
+        </div>
+
+        <div id="button-label-container" class="form-group ${triggerType==='button-click'?'':'hidden'}">
+          <label class="form-label">Button Label</label>
+          <input type="text" id="button-label" class="form-input" placeholder="e.g. Generate Report" value="${buttonLabel}">
+        </div>
+
+        ${templates.length > 0 ? `
+        <div class="form-group">
+          <label class="form-label">Analysis Templates</label>
+          <div class="templates-grid">
+            ${templates.map(t => `
+              <button type="button" class="template-btn analysis-template-btn ${t.analysis_prompt===rules?'selected':''}"
+                data-template-name="${t.template_name}"
+                data-template-prompt="${encodeURIComponent(t.analysis_prompt)}">
+                <div class="template-btn-name">${t.template_name}</div>
+                <div class="template-btn-sub">Click to apply template</div>
+              </button>
+            `).join('')}
+          </div>
+        </div>` : ''}
+
+        <div class="form-group">
+          <div class="rules-actions">
+            <label id="rules-heading" class="form-label" style="margin-bottom:0;">Rules for Analysis</label>
+            <div style="display:flex;gap:6px;">
+              <button type="button" id="rules-voice-btn" class="voice-btn" title="Voice input"><i class="fas fa-microphone"></i></button>
+              <button type="button" id="rules-clear-btn" class="clear-btn" title="Clear"><i class="fas fa-trash"></i></button>
+            </div>
+          </div>
+          <textarea id="rules-textarea" class="rules-textarea" rows="5"
+            placeholder="Select a template above or type custom rules…">${rules}</textarea>
+          <div class="form-hint">Type or dictate rules using voice input.</div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Display Method</label>
+          <select id="display-method" class="form-select">
+            <option value="table" ${displayMethod==='table'?'selected':''}>Table</option>
+            <option value="text" ${displayMethod==='text'?'selected':''}>Text</option>
+            <option value="cards" ${displayMethod==='cards'?'selected':''}>Cards</option>
+            <option value="timeline" ${displayMethod==='timeline'?'selected':''}>Timeline</option>
+          </select>
+          <div class="form-hint">How the generated output renders in the UI.</div>
+        </div>
+
+        ${selectedOutputCats.length > 0 ? `
+        <div class="form-group">
+          <label class="form-label">Selected Output Categories</label>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;">
+            ${selectedOutputCats.map(c => `<span style="font-size:0.65rem;padding:0.2rem 0.6rem;border:1px solid var(--border);color:var(--text-muted);">${c}</span>`).join('')}
+          </div>
+        </div>` : ''}
+
+        <div id="output-categories-section" class="output-cats-section hidden">
+          <label class="form-label">Select Output Categories for Testing</label>
+          <div id="output-categories-container" class="checkbox-grid"></div>
+          <div class="form-hint" style="margin-top:0.5rem;">Select which outputs this feature can generate.</div>
+        </div>
+      </div>
+
+      <div class="config-footer">
+        <button type="button" id="cancel-config" class="btn-cancel">Cancel</button>
+        ${!FEATURES_WITHOUT_TEST_BUTTON.has(feature.id) ? '<button type="button" id="test-config" class="btn-test">Test Configuration</button>' : ''}
+        <button type="button" id="save-config" class="btn-save">Save Configuration</button>
+      </div>
+    </div>
+  `;
+}
+
+// ── SCREENING FORM ──
+function renderScreeningForm(feature, category) {
+  return `
+    <div class="config-card">
+      <div class="config-card-header">
+        <div class="config-card-header-left">
+          <div class="config-icon-box"><i class="${feature.icon}"></i></div>
+          <div>
+            <div class="config-title">Screening Form Fields</div>
+            <div class="config-category">${category.name}</div>
+          </div>
+        </div>
+        <button id="close-config" class="close-btn"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="config-body">
+        <div class="form-group">
+          <label class="form-label">Form Fields</label>
+          <div id="screening-fields" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px;"></div>
+          <div id="optional-vital-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;"></div>
+          <button id="add-screening-field" type="button" class="btn-cancel" style="font-size:0.68rem;">
+            <i class="fas fa-plus" style="margin-right:6px;font-size:0.6rem;"></i>Add Field
+          </button>
+        </div>
+      </div>
+      <div class="config-footer">
+        <button type="button" id="cancel-config" class="btn-cancel">Cancel</button>
+        <button type="button" id="save-config" class="btn-save">Save Fields</button>
+      </div>
+    </div>
+  `;
+}
+
+function screeningFieldRow(value = '') {
+  return `
+    <div style="display:flex;gap:8px;align-items:center;">
+      <input type="text" placeholder="Field name (e.g. Blood Pressure)"
+        value="${value}"
+        class="form-input" style="max-width:100%;flex:1;">
+      <button class="remove-field clear-btn" style="flex-shrink:0;"><i class="fas fa-trash"></i></button>
+    </div>
+  `;
+}
+
+// ── PATIENT PROFILE FORM ──
+function renderPatientProfileForm(feature, category, featureConfig = null) {
+  const savedFields = featureConfig?.patient_profile?.fields || state.patientProfileFields.selected;
+  const displayMode = featureConfig?.patient_profile?.display_mode || 'detailed';
+  const displayName = featureConfig?.feature_name || feature.name;
+
+  return `
+    <div class="config-card">
+      <div class="config-card-header">
+        <div class="config-card-header-left">
+          <div class="config-icon-box"><i class="${feature.icon}"></i></div>
+          <div>
+            <div class="config-title">${displayName}</div>
+            <div class="config-category">${category.name}</div>
+            ${featureConfig ? '<div class="config-loaded-tag">pre-configured data loaded</div>' : ''}
+          </div>
+        </div>
+        <button id="close-config" class="close-btn"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="config-body">
+        <div class="form-group">
+          <label class="form-label">Patient Fields to Include</label>
+          <div class="checkbox-grid">
+            ${state.patientProfileFields.all.map(field => `
+              <label class="checkbox-item">
+                <input type="checkbox" id="${field.id}" ${savedFields.includes(field.id)?'checked':''}>
+                <span class="checkbox-label">${field.label}</span>
+              </label>
+            `).join('')}
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Profile Display Mode</label>
+          <select id="display-mode" class="form-select">
+            <option value="profile" ${displayMode==='profile'?'selected':''}>Profile</option>
+            <option value="detailed" ${displayMode==='detailed'?'selected':''}>Detailed View</option>
+            <option value="high-priority" ${displayMode==='high-priority'?'selected':''}>High Priority Fields Only</option>
+            <option value="low-priority" ${displayMode==='low-priority'?'selected':''}>Low Priority Fields Only</option>
+          </select>
+        </div>
+      </div>
+      <div class="config-footer">
+        <button type="button" id="cancel-config" class="btn-cancel">Cancel</button>
+        <button type="button" id="save-config" class="btn-save">Save Configuration</button>
+      </div>
+    </div>
+  `;
+}
+
+// ── PRE-SCREENING FORM ──
+function renderPreScreeningForm(feature, category) {
+  return `
+    <div class="config-card">
+      <div class="config-card-header">
+        <div class="config-card-header-left">
+          <div class="config-icon-box"><i class="${feature.icon}"></i></div>
+          <div>
+            <div class="config-title">${feature.name}</div>
+            <div class="config-category">${category.name}</div>
+          </div>
+        </div>
+        <button id="close-config" class="close-btn"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="config-body">
+        <div class="form-group">
+          <div class="rules-actions">
+            <label class="form-label" style="margin-bottom:0;">Pre-Screening Questions</label>
+            <div style="display:flex;gap:6px;">
+              <button type="button" id="voice-input-btn" class="voice-btn" title="Record voice"><i class="fas fa-microphone"></i></button>
+            </div>
+          </div>
+          <textarea id="pre-screening-questions" class="rules-textarea" rows="7"
+            placeholder="Enter pre-screening questions here (one per line or paragraph)…"></textarea>
+          <div id="processing-indicator" class="hidden form-hint" style="margin-top:6px;">
+            <i class="fas fa-spinner fa-spin" style="margin-right:4px;"></i>Processing voice input…
+          </div>
+          <div class="form-hint">Type or dictate screening questions using voice input. Ctrl+Space to toggle.</div>
+        </div>
+      </div>
+      <div class="config-footer">
+        <button type="button" id="cancel-config" class="btn-cancel">Cancel</button>
+        <button type="button" id="save-screening-questions" class="btn-save">Save Questions</button>
+      </div>
+    </div>
+  `;
+}
+
+// ── SETUP CONFIG LISTENERS ──
+function setupConfigListeners(feature, category, featureConfig = null) {
+  document.getElementById('close-config')?.addEventListener('click', closeConfig);
+  document.getElementById('cancel-config')?.addEventListener('click', closeConfig);
+
+  if (feature.id === 'screening-section') {
+    const urlParams = new URLSearchParams(window.location.search);
+    const doctorId = urlParams.get('doctor_id');
+
+    document.getElementById('add-screening-field')?.addEventListener('click', () => {
+      document.getElementById('screening-fields')?.insertAdjacentHTML('beforeend', screeningFieldRow());
+    });
+
+    document.getElementById('screening-fields')?.addEventListener('click', (e) => {
+      if (e.target.closest('.remove-field')) e.target.closest('div').remove();
+    });
+
+    document.getElementById('save-config')?.addEventListener('click', () => saveConfig(feature, category));
+
+    (async () => {
+      const saved = await getSavedScreeningFeature(doctorId);
+      const savedFields = saved?.screening_section?.fields || [];
+      const { important, optional } = await getScreeningFields(doctorId);
+      const container = document.getElementById('screening-fields');
+      if (container) container.innerHTML = '';
+      const fieldsToShow = savedFields.length > 0 ? savedFields : important;
+      fieldsToShow.forEach(f => container?.insertAdjacentHTML('beforeend', screeningFieldRow(f)));
+      renderOptionalVitalChips(optional);
+    })();
+    return;
+  }
+
+  if (feature.id === 'patient-profile') {
+    document.getElementById('save-config')?.addEventListener('click', () => savePatientProfileConfig(feature, category));
+    return;
+  }
+
+  const triggerMethod = document.getElementById('trigger-method');
+  const buttonLabelContainer = document.getElementById('button-label-container');
+  if (triggerMethod && buttonLabelContainer) {
+    if (featureConfig?.trigger?.type === 'button-click') buttonLabelContainer.classList.remove('hidden');
+    triggerMethod.addEventListener('change', (e) => {
+      buttonLabelContainer.classList.toggle('hidden', e.target.value !== 'button-click');
+    });
+  }
+
+  document.getElementById('test-config')?.addEventListener('click', () => testConfig(feature, category));
+  document.getElementById('save-config')?.addEventListener('click', () => saveConfig(feature, category));
+}
+
+// ── TEMPLATE HANDLERS ──
+function attachTemplateHandlers() {
+  document.querySelectorAll('.analysis-template-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const name = btn.dataset.templateName;
+      const prompt = decodeURIComponent(btn.dataset.templatePrompt);
+      const heading = document.getElementById('rules-heading');
+      if (heading) heading.textContent = `Rules — ${name}`;
+      const ta = document.getElementById('rules-textarea');
+      if (ta) ta.value = prompt;
+      document.querySelectorAll('.analysis-template-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+    });
+  });
+}
+
+// ── RULES VOICE ──
+function setupRulesVoice() {
+  let recorder, chunks = [], recording = false;
+  const voiceBtn = document.getElementById('rules-voice-btn');
+  const clearBtn = document.getElementById('rules-clear-btn');
+  const ta = document.getElementById('rules-textarea');
+  if (!voiceBtn || !clearBtn || !ta) return;
+
+  const updateIcon = () => {
+    voiceBtn.innerHTML = recording ? '<i class="fas fa-stop"></i>' : '<i class="fas fa-microphone"></i>';
+    voiceBtn.classList.toggle('recording', recording);
+  };
+
+  voiceBtn.addEventListener('click', async () => {
+    if (recording) {
+      recorder.stop(); recorder.stream.getTracks().forEach(t => t.stop());
+      recording = false; updateIcon();
+      recorder.onstop = async () => {
+        const blob = new Blob(chunks, { type:'audio/webm' });
+        const fd = new FormData(); fd.append('file', blob, 'rules.webm');
+        const res = await fetch(`${API_BASE}/hms/users/ai/elevenlabs/api/transcribe_labs`, { method:'POST', body:fd });
+        const d = await res.json();
+        const text = d?.text || '';
+        const cur = ta.value.trim();
+        ta.value = cur ? cur.replace(/,\s*$/, '') + ', ' + text.trim() : text.trim();
+      };
+    } else {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio:true });
+      recorder = new MediaRecorder(stream); chunks = [];
+      recorder.ondataavailable = e => chunks.push(e.data);
+      recorder.start(); recording = true; updateIcon();
+    }
+  });
+
+  clearBtn.addEventListener('click', () => { ta.value = ''; });
+}
+
+// ── OUTPUT CATEGORIES ──
+function showOutputCategoriesSection(apiResponse) {
+  const cats = apiResponse?.feature_output_categories?.possible_output_categories || [];
+  if (cats.length === 0) return;
+  let section = document.getElementById('output-categories-section');
+  let container = document.getElementById('output-categories-container');
+  if (!section || !container) return;
+  container.innerHTML = '';
+  cats.forEach(cat => {
+    container.insertAdjacentHTML('beforeend', `
+      <label class="checkbox-item">
+        <input type="checkbox" id="output-${cat.section_id}" name="output_categories" value="${cat.section_id}">
+        <span class="checkbox-label">${cat.section_name}</span>
+      </label>
+    `);
+  });
+  section.classList.remove('hidden');
+}
+
+function getSelectedOutputCategories() {
+  return Array.from(document.querySelectorAll('#output-categories-container input:checked')).map(cb => cb.value);
+}
+
+// ── BUILD PAYLOADS ──
+function buildFeatureConfigJSON(feature, category) {
+  return {
+    feature_id: feature.id, feature_name: feature.name,
+    category_id: category.id, category_name: category.name,
+    enabled: feature.enabled, configured: true,
+    trigger: {
+      type: document.getElementById('trigger-method')?.value || 'page-reload',
+      button_label: document.getElementById('button-label')?.value || null
+    },
+    rules: document.getElementById('rules-textarea')?.value || '',
+    display_method: document.getElementById('display-method')?.value || 'table',
+    selected_output_categories: getSelectedOutputCategories(),
+    timestamp: new Date().toISOString()
+  };
+}
+
+function buildScreeningPayload(feature, category) {
+  const fields = Array.from(document.querySelectorAll('#screening-fields input')).map(i => i.value.trim()).filter(Boolean);
+  const urlParams = new URLSearchParams(window.location.search);
+  return { doctor_id: urlParams.get('doctor_id'), feature_id: feature.id, feature_name: feature.name, category_id: category.id, fields, enabled: false, configured: true, timestamp: new Date().toISOString() };
+}
+
+function buildPatientProfilePayload(feature, category) {
+  const selectedFields = [];
+  document.querySelectorAll('#config-panel input[type="checkbox"]:checked').forEach(cb => {
+    if (state.patientProfileFields.all.find(f => f.id === cb.id)) selectedFields.push(cb.id);
+  });
+  const urlParams = new URLSearchParams(window.location.search);
+  return { feature_id: feature.id, feature_name: feature.name, category_id: category.id, doctor_id: urlParams.get('doctor_id'), enabled: true, configured: true, patient_profile: { fields: selectedFields, display_mode: document.getElementById('display-mode')?.value || 'detailed' }, timestamp: new Date().toISOString() };
+}
+
+// ── SAVE / TEST ──
+async function saveConfig(feature, category) {
+  feature.configured = true;
+  const urlParams = new URLSearchParams(window.location.search);
+  const doctorId = urlParams.get('doctor_id');
+  let payload, endpoint;
+
+  if (feature.id === 'patient-profile') {
+    payload = buildPatientProfilePayload(feature, category); payload.doctor_id = doctorId;
+    endpoint = `${API_BASE}/hms/users/orchestration/doctor_patient_profile_save`;
+  } else if (feature.id === 'screening-section') {
+    payload = buildScreeningPayload(feature, category);
+    endpoint = `${API_BASE}/hms/users/orchestration/doctor_screening_feature_save`;
+  } else {
+    payload = buildFeatureConfigJSON(feature, category); payload.doctor_id = doctorId;
+    payload.selected_output_categories = getSelectedOutputCategories();
+    endpoint = `${API_BASE}/hms/users/orchestration/doctor-feature-save`;
+  }
+
+  try {
+    const res = await fetch(endpoint, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    if (!res.ok) throw new Error();
+    showToast(feature.name, 'saved');
+    updateActiveCount(); renderCategories();
+  } catch { alert('Error saving configuration'); }
+}
+
+async function savePatientProfileConfig(feature, category) {
+  feature.configured = true;
+  const payload = buildPatientProfilePayload(feature, category);
+  try {
+    const res = await fetch(`${API_BASE}/hms/users/orchestration/doctor_patient_profile_save`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    if (!res.ok) throw new Error();
+    closeConfig(); showToast(feature.name, 'saved'); updateActiveCount(); renderCategories();
+  } catch { alert('Error saving patient profile'); }
+}
+
+async function testConfig(feature, category) {
+  const urlParams = new URLSearchParams(window.location.search);
+  const doctorId = urlParams.get('doctor_id');
+  const payload = {
+    feature_id: feature.id, feature_name: feature.name, doctor_id: doctorId,
+    trigger: { type: document.getElementById('trigger-method')?.value || 'page-reload', button_label: document.getElementById('button-label')?.value },
+    rules: document.getElementById('rules-textarea')?.value || '',
+    display_method: document.getElementById('display-method')?.value || 'table'
+  };
+  try {
+    const res = await fetch(`${API_BASE}/hms/users/orchestration/feature-output-categories`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    if (!res.ok) throw new Error();
+    const result = await res.json();
+    showOutputCategoriesSection(result);
+    showToast('Test complete', 'test');
+  } catch (e) { alert('Test failed: ' + e.message); }
+}
+
+// ── TOAST ──
+function showToast(name, type='saved') {
+  const isTest = type === 'test';
+  const toast = document.createElement('div');
+  toast.className = `toast ${isTest ? 'test' : 'success'}`;
+  toast.innerHTML = `
+    <div>
+      <div class="toast-title">${isTest ? 'Test successful' : name + ' saved'}</div>
+      <div class="toast-sub">${isTest ? 'Output categories generated' : 'Configuration stored successfully'}</div>
+    </div>
+  `;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 3000);
+}
+
+// ── API HELPERS ──
+async function getFeatureConfiguration(doctorId, featureId) {
+  try {
+    const res = await fetch(`${API_BASE}/hms/users/orchestration/get-doctor-features/${doctorId}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (featureId === 'screening-section') return null;
+    return data.features?.find(f => f.feature_id === featureId) || null;
+  } catch { return null; }
+}
+
+async function fetchFeatureTemplates({ doctorId, feature }) {
+  try {
+    const res = await fetch(`${API_BASE}/hms/users/orchestration/feature-analysis-templates`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ doctor_id: doctorId, feature }) });
+    return res.ok ? await res.json() : null;
+  } catch { return null; }
+}
+
+async function getSavedScreeningFeature(doctorId) {
+  try {
+    const res = await fetch(`${API_BASE}/hms/users/orchestration/doctor_screening_features/${doctorId}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.features?.find(f => f.feature_id==='screening-section' && f.enabled && f.configured && f.screening_section?.fields?.length > 0) || null;
+  } catch { return null; }
+}
+
+async function getScreeningFields(doctorId) {
+  try {
+    const res = await fetch(`${API_BASE}/hms/users/orchestration/speciality-vital-selection`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ doctor_id: doctorId }) });
+    if (!res.ok) return { important:[], optional:[] };
+    const d = await res.json();
+    return { important: d?.vital_selection?.important_vitals || [], optional: d?.vital_selection?.optional_vitals || [] };
+  } catch { return { important:[], optional:[] }; }
+}
+
+function renderOptionalVitalChips(vitals = []) {
+  const el = document.getElementById('optional-vital-chips');
+  if (!el) return;
+  el.innerHTML = '';
+  vitals.forEach(v => {
+    const span = document.createElement('span');
+    span.style.cssText = 'padding:0.25rem 0.65rem;border:1px solid var(--border);font-size:0.65rem;cursor:pointer;color:var(--text-sec);transition:all 0.15s;';
+    span.textContent = '+ ' + v;
+    span.addEventListener('mouseenter', () => { span.style.borderColor='var(--text)'; span.style.color='var(--text)'; });
+    span.addEventListener('mouseleave', () => { span.style.borderColor='var(--border)'; span.style.color='var(--text-sec)'; });
+    span.addEventListener('click', () => {
+      const container = document.getElementById('screening-fields');
+      const exists = Array.from(container?.querySelectorAll('input')||[]).some(i => i.value.trim() === v);
+      if (!exists) container?.insertAdjacentHTML('beforeend', screeningFieldRow(v));
+    });
+    el.appendChild(span);
+  });
+}
+
+async function loadPatientProfileConfig(doctorId) {
+  try {
+    const res = await fetch(`${API_BASE}/hms/users/orchestration/doctor_patient_features/${doctorId}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.features?.find(f => f.feature_id === 'patient-profile') || null;
+  } catch { return null; }
+}
+
+async function fetchDoctorSpeciality(doctorId) {
+  try {
+    const res = await fetch(`${API_BASE}/hms/users/doctors/get_doctor_speciality/${doctorId}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.specialization?.toLowerCase() || null;
+  } catch { return null; }
+}
+
+async function loadEnabledFeatures(doctorId) {
+  try {
+    const res = await fetch(`${API_BASE}/hms/users/orchestration/get-doctor-features/${doctorId}`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data.features || []).filter(f => f.enabled === true);
+  } catch { return []; }
+}
+
+async function loadDoctorFeatures(doctorId) {
+  try {
+    const res = await fetch(`${API_BASE}/hms/users/orchestration/doctor_screening_features/${doctorId}`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data.features) ? data.features : [];
+  } catch { return []; }
+}
+
+function updateFeatureStates(enabledFeatures = [], configuredFeatures = [], patientProfileConfig = null) {
+  state.categories.forEach(cat => {
+    cat.features.forEach(f => { f.enabled = false; f.configured = false; state.activeFeatures.delete(f.id); });
+    cat.enabledCount = 0;
+  });
+
+  state.categories.forEach(cat => {
+    cat.features.forEach(f => {
+      f.enabled = enabledFeatures.some(ef => ef.feature_id === f.id);
+      f.enabled ? state.activeFeatures.add(f.id) : state.activeFeatures.delete(f.id);
+    });
+  });
+
+  configuredFeatures.forEach(cf => {
+    if (cf.feature_id === 'screening-section') return;
+    state.categories.forEach(cat => {
+      cat.features.forEach(f => {
+        if (f.id === cf.feature_id && cf.configured) { f.configured = true; if (cf.feature_name) f.name = cf.feature_name; }
+      });
+    });
+  });
+
+  if (patientProfileConfig) {
+    state.categories.forEach(cat => {
+      cat.features.forEach(f => {
+        if (f.id === 'patient-profile') {
+          f.enabled = patientProfileConfig.enabled || false;
+          f.configured = patientProfileConfig.configured || false;
+          if (patientProfileConfig.feature_name) f.name = patientProfileConfig.feature_name;
+          f.enabled ? state.activeFeatures.add('patient-profile') : state.activeFeatures.delete('patient-profile');
+          state.patientProfileFields.selected = patientProfileConfig.patient_profile?.fields || [];
+        }
+      });
+    });
+  }
+
+  state.categories.forEach(cat => { cat.enabledCount = cat.features.filter(f => f.enabled).length; });
+}
+
+// ── PERSIST ──
+async function persistEnable(feature, category) {
+  const doctorId = new URLSearchParams(window.location.search).get('doctor_id');
+  try { await fetch(`${API_BASE}/hms/users/orchestration/doctor-feature-enable`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ doctor_id: doctorId, feature_id: feature.id }) }); } catch {}
+}
+async function persistDisable(feature, category) {
+  const doctorId = new URLSearchParams(window.location.search).get('doctor_id');
+  await fetch(`${API_BASE}/hms/users/orchestration/doctor-feature-disable`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ doctor_id: doctorId, feature_id: feature.id }) });
+}
+async function persistPatientEnable(feature) {
+  const doctorId = new URLSearchParams(window.location.search).get('doctor_id');
+  await fetch(`${API_BASE}/hms/users/orchestration/doctor-patient-feature-toggle`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ doctor_id: doctorId, feature_id: feature.id, enabled: true }) });
+}
+async function persistPatientDisable(feature) {
+  const doctorId = new URLSearchParams(window.location.search).get('doctor_id');
+  await fetch(`${API_BASE}/hms/users/orchestration/doctor-patient-feature-toggle`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ doctor_id: doctorId, feature_id: feature.id, enabled: false }) });
+}
+
+// ── PRE-SCREENING INIT ──
+function initPreScreeningForm(feature, category) {
+  setupPreScreeningVoice();
+  const urlParams = new URLSearchParams(window.location.search);
+  const doctorId = urlParams.get('doctor_id');
+  if (!doctorId) return;
+
+  fetch(`${API_BASE}/hms/users/data/whatsapp/screening-questions/${doctorId}`)
+    .then(r => r.json()).then(data => {
+      const qs = data.questions || [];
+      const ta = document.getElementById('pre-screening-questions');
+      if (ta && qs.length > 0) { ta.value = qs.join('\n'); ta.scrollTop = ta.scrollHeight; }
+    }).catch(() => {});
+
+  document.getElementById('save-screening-questions')?.addEventListener('click', async () => {
+    const ta = document.getElementById('pre-screening-questions');
+    const qs = ta?.value.trim();
+    if (!qs) return alert('Please enter some questions.');
+    const btn = document.getElementById('save-screening-questions');
+    btn.textContent = 'Saving…'; btn.disabled = true;
+    try {
+      await fetch(`${API_BASE}/hms/users/orchestration/save_doctor_screening_questions`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ doctor_id: doctorId, questions: [qs] }) });
+      showToast('Questions', 'saved'); feature.configured = true;
+      category.enabledCount = category.features.filter(f => f.enabled).length;
+      updateActiveCount(); renderCategories();
+    } catch { alert('Save failed.'); }
+    finally { btn.textContent = 'Save Questions'; btn.disabled = false; }
+  });
+}
+
+function setupPreScreeningVoice() {
+  let recorder, chunks = [], recording = false;
+  const btn = document.getElementById('voice-input-btn');
+  const ta = document.getElementById('pre-screening-questions');
+  const indicator = document.getElementById('processing-indicator');
+  if (!btn) return;
+
+  btn.addEventListener('click', async () => {
+    if (recording) {
+      recorder.stop(); recorder.stream.getTracks().forEach(t => t.stop());
+      recording = false; btn.innerHTML = '<i class="fas fa-microphone"></i>'; btn.classList.remove('recording');
+      recorder.onstop = async () => {
+        indicator?.classList.remove('hidden');
+        try {
+          const blob = new Blob(chunks, { type:'audio/webm' }); const fd = new FormData(); fd.append('file', blob, 'ps.webm');
+          const res = await fetch(`${API_BASE}/hms/users/ai/elevenlabs/api/transcribe_labs`, { method:'POST', body:fd });
+          const d = await res.json(); const text = d?.text || '';
+          if (ta) { ta.value = ta.value ? ta.value + '\n\n' + text : text; ta.scrollTop = ta.scrollHeight; }
+          showToast('Transcription complete', 'saved');
+        } catch {} finally { indicator?.classList.add('hidden'); }
+      };
+    } else {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio:true });
+      recorder = new MediaRecorder(stream); chunks = [];
+      recorder.ondataavailable = e => chunks.push(e.data); recorder.start();
+      recording = true; btn.innerHTML = '<i class="fas fa-stop"></i>'; btn.classList.add('recording');
+    }
+  });
+}
+
+// ── LOGOUT ──
+function handleLogout() {
+  const doctorId = new URLSearchParams(window.location.search).get('doctor_id');
+  fetch(`${API_BASE}/hms/users/auth/logout`, { method:'POST', credentials:'include' })
+    .finally(() => { window.location.href = '/login'; });
+}
+
+// ── INIT ──
+async function init() {
+  renderCategories();
+  const urlParams = new URLSearchParams(window.location.search);
+  const doctorId = urlParams.get('doctor_id');
+  if (!doctorId) return;
+
+  state.doctorSpeciality = await fetchDoctorSpeciality(doctorId);
+  const [enabledFeatures, savedFeatures, patientProfileConfig] = await Promise.all([
+    loadEnabledFeatures(doctorId),
+    loadDoctorFeatures(doctorId),
+    loadPatientProfileConfig(doctorId)
+  ]);
+  updateFeatureStates(enabledFeatures, savedFeatures, patientProfileConfig);
+  updateActiveCount();
+  renderCategories();
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+
+</body>
+</html>

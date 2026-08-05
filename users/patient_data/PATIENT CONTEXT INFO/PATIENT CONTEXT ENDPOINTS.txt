@@ -1,0 +1,1676 @@
+API ENDPOINTS REFERENCE
+============================================================
+patientcontext.py  |  router prefix: /context  |  273 total endpoints
+Grouped by feature area. [inferred] = no docstring existed; description
+guessed from the route name and should be verified.
+============================================================
+
+### DOCTOR INFO / ADMIN  (30 endpoints)
+------------------------------------------------------------
+  GET    /get-current-plan/{patient_id}/{doctor_id}
+         function : get_current_plan
+         does     : Retrieve get current plan  [inferred]
+         touches  : documentation_treatment_plan_collection
+
+  GET    /get-doctor-info
+         function : get_doctor_info
+         does     : Retrieve get doctor info  [inferred]
+         touches  : doctor, doctor_user_collection
+
+  POST   /save_ContextAdminRuleByDoctor
+         function : save_context_admin_rule_by_doctor
+         does     : Create/save save ContextAdminRuleByDoctor  [inferred]
+         touches  : context_rule_collection, doctor, doctor_user_collection
+
+  POST   /save_ContextAdminDoctorRule
+         function : save_context_admin_doctor_rule
+         does     : Create/save save ContextAdminDoctorRule  [inferred]
+         touches  : context_rule_doctor_collection, doctor
+
+  GET    /get_ContextAdminDoctorRule/{doctor_id}
+         function : get_context_admin_doctor_rule
+         does     : Retrieve get ContextAdminDoctorRule  [inferred]
+         touches  : context_rule_doctor_collection, doctor
+
+  POST   /save_DoctorMedicalCurrentRule
+         function : save_doctor_medical_current_rule
+         does     : Create/save save DoctorMedicalCurrentRule  [inferred]
+         touches  : doctor, doctor_medical_current_rule_collection
+
+  GET    /get_DoctorMedicalCurrentRule/{doctor_id}
+         function : get_doctor_medical_current_rule
+         does     : Retrieve get DoctorMedicalCurrentRule  [inferred]
+         touches  : doctor_medical_current_rule_collection
+
+  DELETE /delete_DoctorMedicalCurrentRule/{doctor_id}
+         function : delete_doctor_medical_current_rule
+         does     : Delete delete DoctorMedicalCurrentRule  [inferred]
+         touches  : doctor, doctor_medical_current_rule_collection
+
+  GET    /structured-note-instructions/{doctor_id}
+         function : get_doctor_structured_note_rule
+         does     : Retrieve structured note instructions  [inferred]
+         touches  : structured_note_doctor_collection
+
+  POST   /doctor-voice-note-forprocessing/save
+         function : save_doctor_voice_note
+         does     : Save Doctor Voice Note separately from EMT Voice Dictation
+         touches  : doctor, doctor_voice_notes_collection_forprocessing, emergency_patients_collection
+
+  GET    /doctor-voice-note-forprocessing/{patient_id}
+         function : get_doctor_voice_notes
+         does     : Retrieve doctor voice note forprocessing  [inferred]
+         touches  : doctor_voice_notes_collection_forprocessing
+
+  POST   /update-doctor-info
+         function : update_doctor_info
+         does     : Create/save update doctor info  [inferred]
+         touches  : doctor, doctor_user_collection, user_auth_collection
+
+  GET    /context/all/{patient_id}/{doctor_id}
+         function : get_all_context
+         does     : Retrieve ALL saved clinical context documents (latest first)
+         touches  : context_data_collection
+
+  GET    /temp_documents/{doctor_id}/{patient_id}
+         function : get_temp_documents
+         does     : Retrieve temp documents  [inferred]
+         touches  : temp_documents_collection
+
+  GET    /skills/get-by-doctor
+         function : get_skills
+         does     : Retrieve skills get by doctor  [inferred]
+         touches  : skills_collection
+
+  GET    /doctors/endswith-dra
+         function : get_doctors_endswith_dra
+         does     : Retrieve doctors endswith dra  [inferred]
+         touches  : doctor_user_collection
+
+  GET    /api/pipeline/tasks/{doctor_id}
+         function : get_doctor_tasks
+         does     : Retrieve all pipeline tasks for a specific doctor directly from database
+         touches  : doctor, tracker
+
+  DELETE /delete/pipeline/tasks/{doctor_id}
+         function : delete_doctor_tasks
+         does     : Delete all pipeline tasks for a specific doctor
+         touches  : doctor, tracker
+
+  DELETE /api/pipeline/tasks/{doctor_id}/failed
+         function : delete_failed_tasks
+         does     : Delete only failed tasks for a specific doctor
+         touches  : doctor, tracker
+
+  DELETE /api/pipeline/tasks/{doctor_id}/completed
+         function : delete_completed_tasks
+         does     : Delete only completed tasks for a specific doctor
+         touches  : doctor, tracker
+
+  DELETE /api/pipeline/tasks/{doctor_id}/processing
+         function : delete_processing_tasks
+         does     : Delete only processing tasks for a specific doctor
+         touches  : doctor, tracker
+
+  GET    /api/pipeline/tasks/{doctor_id}/latest
+         function : get_latest_doctor_task
+         does     : Retrieve the latest pipeline task for a specific doctor
+         touches  : doctor, tracker
+
+  GET    /api/pipeline/tasks/{doctor_id}/latest/detailed
+         function : get_latest_doctor_task_detailed
+         does     : Retrieve the latest pipeline task for a doctor with additional summary info
+         touches  : doctor, tracker
+
+  POST   /doctor-logs
+         function : save_doctor_logs
+         does     : Save/update doctor log book (per-doctor, not per-booking).
+         touches  : doctor, doctor_logs_collection
+
+  GET    /doctor-logs/{doctor_id}
+         function : get_doctor_logs
+         does     : Get doctor log book.
+         touches  : doctor, doctor_logs_collection
+
+  POST   /chemo-doctor-note-structure
+         function : structure_chemo_doctor_note
+         does     : Structure free-text / voice-dictated doctor's notes from the Chemo OP Record
+         touches  : doctor, Groq LLM
+
+  GET    /doctor-summary/{doctor_id}
+         function : get_doctor_patient_summaries
+         does     : Retrieve doctor summary  [inferred]
+         touches  : summary_collection
+
+  POST   /doctor-chat/{doctor_id}
+         function : doctor_chat
+         does     : Create/save doctor chat  [inferred]
+         touches  : none detected
+
+  POST   /doctor-rag/search
+         function : doctor_rag_search
+         does     : Create/save doctor rag search  [inferred]
+         touches  : none detected
+
+  POST   /doctor-rag/build/{doctor_id}
+         function : build_rag
+         does     : Create/save doctor rag build  [inferred]
+         touches  : none detected
+
+
+### ONCOLOGY - RADIOTHERAPY  (12 endpoints)
+------------------------------------------------------------
+  POST   /save-radiotherapy-record
+         function : save_radiotherapy_record
+         does     : Create/save save radiotherapy record  [inferred]
+         touches  : radiotherapy_records_collection
+
+  GET    /get-radiotherapy-record
+         function : get_radiotherapy_record
+         does     : Retrieve get radiotherapy record  [inferred]
+         touches  : completed_docs_cursor, radiotherapy_records_collection
+
+  GET    /radiotherapy-treatment-extraction/{patient_id}
+         function : radiotherapy_treatment_extraction
+         does     : Retrieve radiotherapy treatment extraction  [inferred]
+         touches  : dictation_collection, radiotherapy_records_collection, Groq LLM
+
+  GET    /radiotherapy-treatment-extraction/{patient_id}
+         function : radiotherapy_treatment_extraction
+         does     : Retrieve radiotherapy treatment extraction  [inferred]
+         touches  : dictation_collection, radiotherapy_records_collection, Groq LLM
+
+  POST   /generate-radiotherapy-summary
+         function : generate_radiotherapy_summary
+         does     : Generates a natural language narrative summary of the radiotherapy treatment
+         touches  : Groq LLM
+
+  GET    /get-patient-radiotherapy-summary-oprecord
+         function : get_patient_radiotherapy_summary_oprecord
+         does     : Retrieve get patient radiotherapy summary oprecord  [inferred]
+         touches  : radiotherapy_records_collection
+
+  POST   /generate-radiotherapy-summary
+         function : generate_radiotherapy_summary
+         does     : Generates a natural language narrative summary of the radiotherapy treatment
+         touches  : Groq LLM
+
+  POST   /radiotherapy-workflow/structure
+         function : structure_radiotherapy_workflow
+         does     : Structure transcribed dictation text into JSON format for the RadiationTherapyWorkflow form using Groq LLM.
+         touches  : Groq LLM
+
+  GET    /radiotherapy-records
+         function : get_all_radiotherapy_records
+         does     : Retrieve radiotherapy records  [inferred]
+         touches  : radiotherapy_records_collection
+
+  GET    /radiotherapy-records-1/{patient_id}
+         function : get_latest_radiotherapy_record
+         does     : Retrieve radiotherapy records 1  [inferred]
+         touches  : radiotherapy_records_collection
+
+  DELETE /radiotherapy-records/{patient_id}
+         function : delete_radiotherapy_record
+         does     : Delete radiotherapy records  [inferred]
+         touches  : radiotherapy_records_collection
+
+  POST   /radiotherapy-ebrt-brachy-structure
+         function : structure_radiotherapy_ebrt_brachy
+         does     : Structure transcribed dictation text into JSON format for the EBRT and Brachytherapy modules in RadiotherapyRecord using Groq LLM.
+         touches  : Groq LLM
+
+
+### DOCUMENTATION  (11 endpoints)
+------------------------------------------------------------
+  POST   /documentation_save
+         function : save_documentation
+         does     : Create/save documentation save  [inferred]
+         touches  : document_user_collection
+
+  GET    /documentation_get/{doctor_id}
+         function : get_documentation
+         does     : Retrieve documentation get  [inferred]
+         touches  : document_user_collection
+
+  POST   /save_documentation_features_bulk
+         function : save_documentation_features_bulk
+         does     : Create/save save documentation features bulk  [inferred]
+         touches  : documentation_clinical_notes_collection, documentation_investigation_notes_collection, documentation_medication_analysis_collection, documentation_treatment_plan_collection, documentation_treatment_summary_collection, patient_appointments_collection, Celery
+
+  GET    /get_documentation_features_by_patient/{patient_id}
+         function : get_documentation_features_by_patient
+         does     : Retrieve get documentation features by patient  [inferred]
+         touches  : documentation_clinical_notes_collection, documentation_investigation_notes_collection, documentation_medication_analysis_collection, documentation_treatment_plan_collection, documentation_treatment_summary_collection
+
+  GET    /documentation-medication-analysis
+         function : get_all_medication_analysis_data
+         does     : Retrieve documentation medication analysis  [inferred]
+         touches  : documentation_treatment_plan_collection
+
+  GET    /documentation-medication-analysis/{patient_id}/{doctor_id}
+         function : get_medication_analysis_by_patient_doctor
+         does     : Retrieve documentation medication analysis  [inferred]
+         touches  : doctor, documentation_medication_analysis_collection
+
+  GET    /documentation-investigation-notes/{patient_id}/{doctor_id}
+         function : get_investigation_notes
+         does     : Retrieve documentation investigation notes  [inferred]
+         touches  : documentation_investigation_notes_collection
+
+  GET    /documentation-treatment-plan/{patient_id}/{doctor_id}
+         function : get_treatment_plan_by_patient_doctor
+         does     : Retrieve documentation treatment plan  [inferred]
+         touches  : doctor, documentation_treatment_plan_collection
+
+  GET    /documentation-treatment-plans/{patient_id}/{doctor_id}
+         function : get_treatment_plan_by_patient_doctor
+         does     : Retrieve documentation treatment plans  [inferred]
+         touches  : doctor, documentation_treatment_plan_collection
+
+  GET    /documentation/latest-treatment-plan
+         function : get_latest_treatment_plan
+         does     : Retrieve documentation latest treatment plan  [inferred]
+         touches  : documentation_treatment_plan_collection
+
+  GET    /get-documentation-outputs
+         function : get_documentation_outputs
+         does     : Retrieve get documentation outputs  [inferred]
+         touches  : doctor, documentation_clinical_notes_collection, documentation_investigation_notes_collection, documentation_medication_analysis_collection, documentation_treatment_plan_collection, patient_appointments_collection, patient_vitals_collection
+
+
+### DICTATION / VOICE  (11 endpoints)
+------------------------------------------------------------
+  POST   /save_dictation
+         function : save_dictation
+         does     : Create/save save dictation  [inferred]
+         touches  : assertion_collections, dictation_collection, document_categories_collection, patient_vitals_collection
+
+  GET    /get_dictation_by_patient
+         function : get_dictation_by_patient
+         does     : Retrieve get dictation by patient  [inferred]
+         touches  : dictation_collection
+
+  POST   /general/dictation/save
+         function : save_dictation
+         does     : Create/save general dictation save  [inferred]
+         touches  : audio_from_mobile
+
+  GET    /dictation/latest
+         function : get_latest_dictation
+         does     : Retrieve dictation latest  [inferred]
+         touches  : audio_from_mobile
+
+  POST   /voice-dictation/save
+         function : save_voice_dictation
+         does     : Save voice dictation for a patient (by Incident ID)
+         touches  : emergency_patients_collection, voice_dictations_collection
+
+  GET    /voice-dictation/{patient_id}
+         function : get_patient_dictations
+         does     : Get all voice dictations for a specific patient (by Incident ID)
+         touches  : emergency_patients_collection, voice_dictations_collection
+
+  GET    /voice-dictation/timestamp/{patient_id}
+         function : get_patient_dictations
+         does     : Get ALL voice dictations for a patient
+         touches  : voice_dictations_collection
+
+  DELETE /voice-dictation/delete-all
+         function : delete_all_voice_dictations
+         does     : Delete voice dictation delete all  [inferred]
+         touches  : emergency_patients_collection, voice_dictations_collection
+
+  DELETE /voice-dictation/delete/{patient_id}
+         function : delete_patient_voice_dictations
+         does     : Delete all voice dictations for a specific patient
+         touches  : emergency_patients_collection, voice_dictations_collection
+
+  POST   /general/nurse/dictation/save
+         function : save_nurse_dictation
+         does     : Create/save general nurse dictation save  [inferred]
+         touches  : nursenote, Celery
+
+  GET    /general/nurse/dictation/latest
+         function : get_latest_nurse_note
+         does     : Retrieve general nurse dictation latest  [inferred]
+         touches  : nursenote
+
+
+### AGENT / AUTOMATION RULES  (11 endpoints)
+------------------------------------------------------------
+  POST   /save_agentic_data
+         function : save_agentic_data
+         does     : Create/save save agentic data  [inferred]
+         touches  : agentic_data_collection
+
+  GET    /get_agentic_data
+         function : get_agentic_data
+         does     : Retrieve get agentic data  [inferred]
+         touches  : agentic_data_collection, doctor
+
+  GET    /get_agentic_data
+         function : get_agentic_data
+         does     : Retrieve get agentic data  [inferred]
+         touches  : agentic_data_collection, doctor
+
+  POST   /doctor-agent-rules/save-single
+         function : save_single_doctor_agent_rule_endpoint
+         does     : Save single doctor rule for an agent layer.
+         touches  : doctor, doctor_rule_agent_collection
+
+  POST   /admin-agent-rules/save-single
+         function : save_single_admin_agent_rule_endpoint
+         does     : Save GLOBAL ADMIN agent rule (SPECIALTY BASED).
+         touches  : admin_rule_agent_collection
+
+  GET    /doctor-agent-rules/all
+         function : get_all_doctor_rules_admin
+         does     : 🔥 ADMIN endpoint
+         touches  : doctor, doctor_rule_agent_collection
+
+  POST   /doctor-agent-rules/get-by-doctor
+         function : get_doctor_agent_rules_endpoint
+         does     : Retrieve doctor agent rules based on doctor_id.
+         touches  : doctor, doctor_rule_agent_collection
+
+  POST   /agentic-layers/get-by-doctor-patient
+         function : get_agentic_layers_endpoint
+         does     : Retrieve agentic reusable layers using doctor_id and patient_id.
+         touches  : none detected
+
+  GET    /admin-agent-rules/get-all
+         function : get_admin_rules
+         does     : Retrieve admin agent rules get all  [inferred]
+         touches  : admin_rule_agent_collection
+
+  POST   /doctor-agent-rules/get-by-doctor
+         function : get_doctor_agent_rules_endpoint
+         does     : Retrieve all agent rules for a doctor.
+         touches  : doctor, doctor_rule_agent_collection
+
+  GET    /agentic-layers/{patient_id}/{doctor_id}
+         function : fetch_agentic_layers_endpoint
+         does     : Retrieve agentic layers  [inferred]
+         touches  : biomarker_trend, case_boundaries_collection, comorbidity_interaction, consistency_check, delta_snapshots, disease_identity_collection, disease_trajectory_collection, functional_status_collection, hypothesis_layer_collection, imaging_progression, lab_trend_analysis, medication_safety, next_visit_brief_collection, patient_summary_collection, prognosis_collection, risk_topology_collection, symptom_trajectory, treatment_memory_collection
+
+
+### NURSE NOTES  (11 endpoints)
+------------------------------------------------------------
+  POST   /process_nurse_note
+         function : process_nurse_note
+         does     : Create/save process nurse note  [inferred]
+         touches  : Groq LLM
+
+  POST   /nurse_note/append
+         function : append_nurse_note
+         does     : Append nurse note using patient_id + doctor_id scope.
+         touches  : nurse_task_collection
+
+  GET    /nurse_note/latest/{doctor_id}/{patient_id}
+         function : get_latest_nurse_note
+         does     : Retrieve latest nurse note for a doctor + patient.
+         touches  : doctor, nurse_task_collection
+
+  POST   /nurse_note/task/complete
+         function : complete_nurse_task
+         does     : Mark nurse task completed using doctor scope.
+         touches  : doctor, nurse_task_collection
+
+  GET    /get_nurses_by_hospital/{hospital_id}
+         function : get_nurses_by_hospital
+         does     : Retrieve get nurses by hospital  [inferred]
+         touches  : nurse_user_collection, user_auth_collection
+
+  POST   /update-nurse-info
+         function : update_nurse_info
+         does     : Create/save update nurse info  [inferred]
+         touches  : doctor, nurse_user_collection, user_auth_collection
+
+  POST   /nurse_note/referral/create
+         function : create_nurse_referral_letter
+         does     : Create a referral letter from the Nurse's Notes tab.
+         touches  : doctor_user_collection, nurse_referral_letters_collection
+
+  GET    /nurse_note/referral/{patient_id}/{doctor_id}
+         function : get_nurse_referral_letters
+         does     : Retrieve all referral letters for a specific patient + doctor.
+         touches  : doctor, nurse_referral_letters_collection
+
+  GET    /nurse-referral-letters
+         function : get_all_nurse_referral_letters
+         does     : Retrieve nurse referral letters  [inferred]
+         touches  : nurse_referral_letters_collection
+
+  GET    /nurse-referral-letters/doctor/{doctor_id}
+         function : get_nurse_referral_letters_by_doctor
+         does     : Retrieve nurse referral letters doctor  [inferred]
+         touches  : nurse_referral_letters_collection, patient_user_collection
+
+  PUT    /nurse-referral-letters/{referral_id}/complete
+         function : complete_nurse_referral
+         does     : Update nurse referral letters complete  [inferred]
+         touches  : nurse_referral_letters_collection
+
+
+### PAIN MANAGEMENT  (9 endpoints)
+------------------------------------------------------------
+  POST   /pain-management/save
+         function : save_pain_management
+         does     : Save a Pain Management assessment (New / Follow Up forms only).
+         touches  : nerve_block_assessments_collection, pain_management_collection
+
+  GET    /pain-management/history/{patient_id}/{doctor_id}
+         function : get_pain_management_history
+         does     : Fetch all Pain Management assessments (New / Follow Up only — nerve
+         touches  : pain_management_collection
+
+  GET    /pain-management/patient-details/{patient_id}/{doctor_id}
+         function : get_pain_management_patient_details
+         does     : Auto-fill for Pain Management New Form's "General Details" section
+         touches  : doctor, patient_users_collection
+
+  POST   /pain-management/extract-fields
+         function : extract_pain_management_fields
+         does     : Extracts Pain Characteristics + Quality of Life fields from a doctor's
+         touches  : doctor, Groq LLM
+
+  POST   /pain-management/nerve-block/extract-fields
+         function : extract_nerve_block_fields
+         does     : Expected payload:
+         touches  : Groq LLM
+
+  POST   /pain-management/nerve-block/save
+         function : save_nerve_block
+         does     : Standalone save for a Nerve Block assessment, stored independently
+         touches  : nerve_block_assessments_collection
+
+  GET    /pain-management/nerve-block/history/{patient_id}/{doctor_id}
+         function : get_nerve_block_history
+         does     : Fetch nerve block assessment history, most recent first.
+         touches  : nerve_block_assessments_collection
+
+  GET    /pain-management/summarize/{patient_id}/{doctor_id}
+         function : summarize_pain_management_history
+         does     : Generates an LLM summary across a patient's Pain Management history
+         touches  : pain_management_collection, Groq LLM
+
+  GET    /pain-management/latest-medications/{patient_id}/{doctor_id}
+         function : get_latest_medications_summary
+         does     : Fetches the patient's most recent documentation-medication-analysis
+         touches  : documentation_medication_analysis_collection, Groq LLM
+
+
+### ONCOLOGY - GENERAL  (8 endpoints)
+------------------------------------------------------------
+  POST   /oncology-verification
+         function : create_or_update_oncology_verification
+         does     : Create/save oncology verification  [inferred]
+         touches  : insurance_verification_collection
+
+  GET    /oncology-verification/by-patient/{patient_id}
+         function : get_oncology_verifications_by_patient
+         does     : Retrieve oncology verification by patient  [inferred]
+         touches  : insurance_verification_collection
+
+  POST   /oncology-stage-treatment-insurance/process
+         function : process_stage_treatment_insurance
+         does     : Steps 4, 5, 6: Stage Mapping, Treatment Protocol, Insurance Criteria
+         touches  : Groq LLM
+
+  POST   /oncology-investigations
+         function : create_investigation
+         does     : Create a new oncology investigation record for a doctor.
+         touches  : doctor, oncology_investigations_collection
+
+  GET    /oncology-investigations/{patient_id}
+         function : get_investigations
+         does     : Get the history of investigations for a patient, optionally filtered by doctor_id.
+         touches  : oncology_investigations_collection
+
+  POST   /oncology-investigations/generate-suggestion
+         function : generate_unified_investigation_suggestion
+         does     : Create/save oncology investigations generate suggestion  [inferred]
+         touches  : chemotherapy_records_collection, radiotherapy_records_collection, summary_collection, Groq LLM
+
+  POST   /oncology-investigations/completed-documents
+         function : get_completed_oncology_documents
+         does     : Create/save oncology investigations completed documents  [inferred]
+         touches  : oncology_investigations_collection, processed_documents
+
+  GET    /get-medical-oncology-dashboard
+         function : get_medical_oncology_dashboard
+         does     : Aggregates all chemotherapy records for a given doctor
+         touches  : chemotherapy_records_collection, doctor
+
+
+### ONCOLOGY - CHEMOTHERAPY  (8 endpoints)
+------------------------------------------------------------
+  POST   /save-chemotherapy-record
+         function : save_chemotherapy_record
+         does     : Create/save save chemotherapy record  [inferred]
+         touches  : chemotherapy_records_collection, doctor
+
+  GET    /get-chemotherapy-record
+         function : get_chemotherapy_record
+         does     : Retrieve get chemotherapy record  [inferred]
+         touches  : chemotherapy_records_collection, documentation_medication_analysis_collection
+
+  GET    /get-patient-chemotherapy-history
+         function : get_patient_chemotherapy_history
+         does     : Retrieve get patient chemotherapy history  [inferred]
+         touches  : chemotherapy_records_collection
+
+  GET    /get-chemotherapy-record/{patient_id}
+         function : get_chemotherapy_record
+         does     : Retrieve get chemotherapy record  [inferred]
+         touches  : chemotherapy_records_collection
+
+  GET    /get-chemotherapy-record
+         function : get_chemotherapy_record
+         does     : Retrieve get chemotherapy record  [inferred]
+         touches  : chemotherapy_records_collection
+
+  GET    /chemotherapy-records/patient/{patient_id}
+         function : get_chemotherapy_records_by_patient
+         does     : Retrieve chemotherapy records patient  [inferred]
+         touches  : chemotherapy_records_collection
+
+  GET    /chemotherapy-records
+         function : get_all_chemotherapy_records
+         does     : Retrieve chemotherapy records  [inferred]
+         touches  : chemotherapy_records_collection
+
+  GET    /chemotherapy-regimen/{patient_id}/{doctor_id}
+         function : get_chemotherapy_regimen
+         does     : Retrieve chemotherapy regimen  [inferred]
+         touches  : chemotherapy_records_collection
+
+
+### TUMOR BOARD  (7 endpoints)
+------------------------------------------------------------
+  POST   /save-tumor-board-plan
+         function : save_tumor_board_plan
+         does     : Create/save save tumor board plan  [inferred]
+         touches  : tumor_board_plan_collection
+
+  GET    /get-tumor-board-plans
+         function : get_tumor_board_plans
+         does     : Retrieve get tumor board plans  [inferred]
+         touches  : tumor_board_plan_collection
+
+  GET    /get-tumor-board-plan-by-doctor/{patient_id}/{doctor_id}
+         function : get_latest_tumor_board_plan_by_doctor
+         does     : Retrieve get tumor board plan by doctor  [inferred]
+         touches  : doctor, tumor_board_plan_collection
+
+  PUT    /approve-tumor-board-plan/{patient_id}/{doctor_id}
+         function : approve_tumor_board_plan
+         does     : Update approve tumor board plan  [inferred]
+         touches  : doctor, tumor_board_plan_collection
+
+  GET    /get-tumor-board-plan
+         function : get_tumor_board_plan
+         does     : Retrieve get tumor board plan  [inferred]
+         touches  : tumor_board_plan_collection
+
+  PUT    /complete-tumor-board-step/{patient_id}/{doctor_id}/{step_number}
+         function : complete_tumor_board_step
+         does     : Update complete tumor board step  [inferred]
+         touches  : doctor, tumor_board_plan_collection
+
+  POST   /tumor-board/assign
+         function : assign_tumor_board
+         does     : Create/save tumor board assign  [inferred]
+         touches  : doctor, doctor_user_c, tumor_board_assignments_collection
+
+
+### CONVERSATION LOGS  (6 endpoints)
+------------------------------------------------------------
+  POST   /save_conversation_user
+         function : save_conversation_user
+         does     : Create/save save conversation user  [inferred]
+         touches  : assertion_collections, conversation_user_collection, document_categories_collection, patient_vitals_collection
+
+  GET    /get_conversation_user_by_patient
+         function : get_conversation_user_by_patient
+         does     : Retrieve get conversation user by patient  [inferred]
+         touches  : conversation_user_collection
+
+  POST   /general/conversation/save
+         function : save_dictation
+         does     : Create/save general conversation save  [inferred]
+         touches  : conversation_from_mobile
+
+  GET    /conversation/latest
+         function : get_latest_dictation
+         does     : Retrieve conversation latest  [inferred]
+         touches  : conversation_from_mobile
+
+  POST   /structure_conversation_simple
+         function : structure_conversation_simple
+         does     : Create/save structure conversation simple  [inferred]
+         touches  : doctor, Groq LLM
+
+  POST   /structure_nurse_patient_conversation_mobile
+         function : structure_nurse_patient_conversation_mobile
+         does     : Processes a raw conversation between a nurse and a patient using an LLM,
+         touches  : Groq LLM
+
+
+### HOSPITAL ADMIN  (6 endpoints)
+------------------------------------------------------------
+  POST   /save_ReportHospitalRule
+         function : save_report_hospital_rule
+         does     : Create/save save ReportHospitalRule  [inferred]
+         touches  : hospital_report_rule_collection
+
+  GET    /get_ReportHospitalRules/{hospital_id}
+         function : get_report_hospital_rules
+         does     : Retrieve get ReportHospitalRules  [inferred]
+         touches  : hospital_report_rule_collection
+
+  DELETE /delete_ReportHospitalRules/{hospital_id}
+         function : delete_report_hospital_rules
+         does     : Delete delete ReportHospitalRules  [inferred]
+         touches  : hospital_report_rule_collection
+
+  GET    /get_doctors_by_hospital/{hospital_id}
+         function : get_doctors_by_hospital
+         does     : Retrieve get doctors by hospital  [inferred]
+         touches  : doctor, doctor_user_collection, user_auth_collection
+
+  GET    /hospital/endswith-inst
+         function : get_hospitals_endswith_inst
+         does     : Retrieve hospital endswith inst  [inferred]
+         touches  : hospital_user_collection
+
+  GET    /patients/{hospital_id}
+         function : get_patients_by_hospital
+         does     : Retrieve patients  [inferred]
+         touches  : patient_users_collection
+
+
+### PROCESSING STATUS  (5 endpoints)
+------------------------------------------------------------
+  PUT    /update-plan-status/{patient_id}/{doctor_id}
+         function : update_plan_status
+         does     : Update update plan status  [inferred]
+         touches  : documentation_treatment_plan_collection
+
+  GET    /status/{patient_id}/{doctor_id}
+         function : get_processing_status
+         does     : Retrieve status  [inferred]
+         touches  : processed_documents, processing_tracker, tracker
+
+  GET    /status/summary/{patient_id}/{doctor_id}
+         function : get_processing_status
+         does     : Retrieve status summary  [inferred]
+         touches  : processed_documents, summary_tracker, tracker
+
+  DELETE /api/pipeline/tasks/{doctor_id}/status/{status}
+         function : delete_doctor_tasks_by_status
+         does     : Delete tasks for a doctor by specific status only
+         touches  : doctor, tracker
+
+  GET    /api/pipeline/tasks/{doctor_id}/status/batch
+         function : get_tasks_status_batch
+         does     : Check status of multiple tasks in one request
+         touches  : tracker
+
+
+### DOCTOR GUIDELINES  (5 endpoints)
+------------------------------------------------------------
+  POST   /save_DoctorGuidelines
+         function : save_doctor_guidelines
+         does     : Create/save save DoctorGuidelines  [inferred]
+         touches  : doctor, doctor_guidelines_collection
+
+  GET    /get_DoctorGuidelinesByDoctor/{doctor_id}
+         function : get_doctor_guidelines_by_doctor_id
+         does     : Retrieve get DoctorGuidelinesByDoctor  [inferred]
+         touches  : doctor_guidelines_collection
+
+  GET    /get_DoctorGuidelines/{doctor_id}/{specialization}
+         function : get_doctor_guidelines
+         does     : Retrieve get DoctorGuidelines  [inferred]
+         touches  : doctor_guidelines_collection
+
+  DELETE /delete_DoctorGuidelines/{doctor_id}/{specialization}
+         function : delete_doctor_guidelines
+         does     : Delete delete DoctorGuidelines  [inferred]
+         touches  : doctor_guidelines_collection
+
+  DELETE /delete_AllDoctorGuidelines/{doctor_id}
+         function : delete_all_doctor_guidelines
+         does     : Delete delete AllDoctorGuidelines  [inferred]
+         touches  : doctor_guidelines_collection
+
+
+### MEDICAL CONTEXT  (4 endpoints)
+------------------------------------------------------------
+  POST   /medical_context_save
+         function : save_medical_context
+         does     : Create/save medical context save  [inferred]
+         touches  : medical_context_collection
+
+  GET    /medical_context_get/{doctor_id}
+         function : get_medical_context
+         does     : Retrieve medical context get  [inferred]
+         touches  : medical_context_collection
+
+  GET    /medical_contextu
+         function : get_medical_context
+         does     : Retrieve medical contextu  [inferred]
+         touches  : medical_context_collection
+
+  GET    /medical_context/by-patient
+         function : get_medical_context_by_patient
+         does     : Retrieve medical context by patient  [inferred]
+         touches  : medical_context_collection
+
+
+### CURRENT CONTEXT  (4 endpoints)
+------------------------------------------------------------
+  POST   /current_context_save
+         function : save_current_context
+         does     : Create/save current context save  [inferred]
+         touches  : current_context_collection
+
+  GET    /current_context_get/{doctor_id}
+         function : get_current_context
+         does     : Retrieve current context get  [inferred]
+         touches  : current_context_collection
+
+  GET    /current_contextu
+         function : get_current_context
+         does     : Retrieve current contextu  [inferred]
+         touches  : current_context_collection
+
+  GET    /current_context/by-patient
+         function : get_current_context_by_patient
+         does     : Retrieve current context by patient  [inferred]
+         touches  : current_context_collection
+
+
+### ONCOLOGY - SURGICAL  (4 endpoints)
+------------------------------------------------------------
+  POST   /save_surgical
+         function : save_surgical
+         does     : Create/save save surgical  [inferred]
+         touches  : surgical_collection
+
+  GET    /surgical-oncology-summary/{patient_id}
+         function : get_latest_surgical_oncology_summary
+         does     : Retrieve surgical oncology summary  [inferred]
+         touches  : surgonc_collection
+
+  GET    /surgical-oncology-records
+         function : get_all_surgical_oncology_records
+         does     : Retrieve surgical oncology records  [inferred]
+         touches  : rt_record_details_collection
+
+  GET    /surgical-oncology/hospital/{hospital_id}
+         function : get_surgical_oncology_records_by_hospital
+         does     : Retrieve surgical oncology hospital  [inferred]
+         touches  : surgical_oncology_collection
+
+
+### USER MANAGEMENT  (4 endpoints)
+------------------------------------------------------------
+  GET    /patient-user/{patient_id}
+         function : get_patient_user
+         does     : Retrieve patient user  [inferred]
+         touches  : patient_user_collection
+
+  GET    /patient/{sys_user_id}
+         function : get_patient_details
+         does     : Retrieve patient  [inferred]
+         touches  : patient_user_collection, user_auth_collection
+
+  PUT    /block_user/{sys_user_id}
+         function : block_user
+         does     : Update block user  [inferred]
+         touches  : user_auth_collection
+
+  PUT    /activate_user/{sys_user_id}
+         function : activate_user
+         does     : Update activate user  [inferred]
+         touches  : user_auth_collection
+
+
+### PROGNOSIS  (4 endpoints)
+------------------------------------------------------------
+  POST   /save-prognosis-data
+         function : save_prognosis_data
+         does     : Create/save save prognosis data  [inferred]
+         touches  : prognosis_data_collection
+
+  GET    /get-prognosis-data
+         function : get_prognosis_data
+         does     : Retrieve get prognosis data  [inferred]
+         touches  : prognosis_data_collection
+
+  GET    /get-prognosis-data-by-patient
+         function : get_prognosis_data_by_patient
+         does     : Retrieve get prognosis data by patient  [inferred]
+         touches  : prognosis_data_collection
+
+  DELETE /delete-all-prognosis-data
+         function : delete_all_prognosis_data
+         does     : Delete delete all prognosis data  [inferred]
+         touches  : prognosis_data_collection
+
+
+### GENERAL  (4 endpoints)
+------------------------------------------------------------
+  POST   /general/temp/save
+         function : save_temp_data
+         does     : Create/save general temp save  [inferred]
+         touches  : temp_data_collection, Celery
+
+  GET    /general/temp/get
+         function : get_temp_data
+         does     : Retrieve general temp get  [inferred]
+         touches  : temp_data_collection
+
+  DELETE /general/temp/delete
+         function : delete_temp_data
+         does     : Delete general temp delete  [inferred]
+         touches  : temp_data_collection
+
+  GET    /general/temp/get_date
+         function : get_temp_date
+         does     : Retrieve general temp get date  [inferred]
+         touches  : temp_data_collection
+
+
+### DIAGNOSIS  (4 endpoints)
+------------------------------------------------------------
+  POST   /diagnosis/save
+         function : save_diagnosis
+         does     : Save diagnosis separately
+         touches  : diagnosis_data_collection
+
+  GET    /diagnosis/history/{patient_id}/{doctor_id}
+         function : get_diagnosis_history
+         does     : Retrieve diagnosis history  [inferred]
+         touches  : diagnosis_data_collection
+
+  POST   /verify-diagnosis
+         function : verify_diagnosis
+         does     : Create/save verify diagnosis  [inferred]
+         touches  : none detected
+
+  GET    /generate-diagnosis-summary/{patient_id}
+         function : generate_diagnosis_summary
+         does     : Retrieve generate diagnosis summary  [inferred]
+         touches  : summary_collection, Groq LLM
+
+
+### LABORATORY / PATHOLOGY REPORTS  (3 endpoints)
+------------------------------------------------------------
+  GET    /get_laboratory_pathology_reports
+         function : get_laboratory_pathology_reports
+         does     : Retrieve get laboratory pathology reports  [inferred]
+         touches  : none detected
+
+  GET    /get_laboratory_pathology_report/{report_id}
+         function : get_laboratory_pathology_report
+         does     : Retrieve get laboratory pathology report  [inferred]
+         touches  : none detected
+
+  POST   /save_laboratory
+         function : save_laboratory
+         does     : Create/save save laboratory  [inferred]
+         touches  : laboratory_collection
+
+
+### CONSULTATION HISTORY  (3 endpoints)
+------------------------------------------------------------
+  GET    /data/context/patient/{patient_id}/consultation-history
+         function : consultation_history
+         does     : Retrieve data context patient consultation history  [inferred]
+         touches  : conversation_user_collection, dictation_collection, doctor
+
+  POST   /date-wise-consultation-summary
+         function : generate_date_wise_summary
+         does     : Create/save date wise consultation summary  [inferred]
+         touches  : date_wise_collection, Groq LLM
+
+  GET    /date-wise-consultation-summary/{patient_id}/{doctor_id}
+         function : get_date_wise_summary
+         does     : Retrieve date wise consultation summary  [inferred]
+         touches  : date_wise_collection
+
+
+### INSURANCE  (3 endpoints)
+------------------------------------------------------------
+  POST   /save_insurance_claim
+         function : save_insurance_claim
+         does     : Create/save save insurance claim  [inferred]
+         touches  : insurance_claims_collection
+
+  GET    /get_insurance_claims/{patient_id}
+         function : get_insurance_claims
+         does     : Retrieve get insurance claims  [inferred]
+         touches  : insurance_claims_collection
+
+  POST   /insurance-verification/process
+         function : process_insurance_verification
+         does     : Steps 1, 2, 3: OCR Extraction, Policy Eligibility, Diagnosis Validation
+         touches  : audit_collection, Groq LLM
+
+
+### PATIENT INTAKE  (3 endpoints)
+------------------------------------------------------------
+  POST   /patient-intake/save
+         function : save_patient_intake
+         does     : Save patient intake assessment data
+         touches  : patient_exists, patient_intake_collection
+
+  GET    /patient-intake/{patient_id}
+         function : get_patient_intake
+         does     : Get all intake assessments for a patient
+         touches  : patient_intake_collection
+
+  GET    /patient-intake/{patient_id}/latest
+         function : get_latest_patient_intake
+         does     : Get the latest intake assessment for a patient
+         touches  : patient_intake_collection
+
+
+### API  (3 endpoints)
+------------------------------------------------------------
+  GET    /api/pipeline/task/{task_id}
+         function : get_task_by_id
+         does     : Get a specific task by its Celery task ID directly from database
+         touches  : tracker
+
+  DELETE /api/pipeline/tasks/older-than/{days}
+         function : delete_old_tasks
+         does     : Delete tasks older than specified days
+         touches  : tracker
+
+  GET    /api/pipeline/patient/{patient_id}/latest
+         function : get_latest_patient_task
+         does     : Retrieve the latest pipeline task for a specific patient
+         touches  : tracker
+
+
+### ONCOLOGY - RADIATION  (3 endpoints)
+------------------------------------------------------------
+  GET    /radiation-oncology-summary/{patient_id}
+         function : get_latest_surgical_oncology_summary
+         does     : Retrieve radiation oncology summary  [inferred]
+         touches  : radi_collection
+
+  GET    /radiation-oncology-dashboard/{doctorId}
+         function : get_radiation_oncology_dashboard
+         does     : Retrieve radiation oncology dashboard  [inferred]
+         touches  : doctor, radiotherapy_records_collection
+
+  GET    /radiation-oncology/patient/{patient_id}
+         function : get_radiation_oncology_records
+         does     : Retrieve radiation oncology patient  [inferred]
+         touches  : radiotherapy_records_collection, rt_record_details_collection
+
+
+### LLM / AI PROCESSING  (2 endpoints)
+------------------------------------------------------------
+  POST   /process_feature_context_llm
+         function : process_feature_context_llm
+         does     : Create/save process feature context llm  [inferred]
+         touches  : condition_collection, current_context_collection, doctor, medical_context_collection, Groq LLM
+
+  DELETE /delete_AllMedicalCurrentAdminRules
+         function : delete_all_medical_current_admin_rules
+         does     : Delete delete AllMedicalCurrentAdminRules  [inferred]
+         touches  : medical_current_rule_collection
+
+
+### DOCUMENT CATEGORIES  (2 endpoints)
+------------------------------------------------------------
+  POST   /save_document_categories
+         function : save_document_categories
+         does     : Create/save save document categories  [inferred]
+         touches  : document_categories_collection, Celery
+
+  GET    /get_document_categories_by_patient
+         function : get_document_categories_by_patient
+         does     : Retrieve get document categories by patient  [inferred]
+         touches  : document_categories_collection
+
+
+### DISCHARGE  (2 endpoints)
+------------------------------------------------------------
+  POST   /save_discharge
+         function : save_discharge
+         does     : Create/save save discharge  [inferred]
+         touches  : discharge_collection
+
+  GET    /discharge-summary/{patient_id}
+         function : get_latest_discharge_summary
+         does     : Retrieve the most recently generated discharge summary for a patient
+         touches  : none detected
+
+
+### PATIENT  (2 endpoints)
+------------------------------------------------------------
+  GET    /patient/{patient_id}/summary-stats
+         function : get_patient_summary_stats
+         does     : Get summary statistics for patient records.
+         touches  : none detected
+
+  GET    /patient/{patient_id}/document/{document_id}/full-details
+         function : get_document_full_details
+         does     : Get full formatted details of a specific document.
+         touches  : none detected
+
+
+### CLINICAL NOTES  (2 endpoints)
+------------------------------------------------------------
+  GET    /clinical-notes-by-patient-doctor/{patient_id}/{doctor_id}
+         function : get_clinical_notes_by_patient_doctor
+         does     : Retrieve clinical notes by patient doctor  [inferred]
+         touches  : doctor, documentation_clinical_notes_collection
+
+  GET    /clinical-notes-by-patient-doctor/{patient_id}/{doctor_id}
+         function : get_clinical_notes_by_patient_doctor
+         does     : Retrieve clinical notes by patient doctor  [inferred]
+         touches  : doctor, documentation_clinical_notes_collection
+
+
+### AMBULANCE DISPATCH  (2 endpoints)
+------------------------------------------------------------
+  POST   /ambulance-dispatch/save
+         function : save_ambulance_dispatch
+         does     : Save ambulance dispatch information when assigning ambulance and driver
+         touches  : ambulance_dispatches_collection, emergency_patients_collection
+
+  GET    /ambulance-dispatch/{patient_id}
+         function : get_patient_dispatch
+         does     : Get dispatch information for a specific patient (by Incident ID)
+         touches  : ambulance_dispatches_collection, emergency_patients_collection
+
+
+### ALLOCATION  (2 endpoints)
+------------------------------------------------------------
+  POST   /allocation/create
+         function : save_allocation
+         does     : Create/save allocation create  [inferred]
+         touches  : quality_checker_collection
+
+  GET    /allocation/{qc_id}
+         function : get_allocations_by_qc_id
+         does     : Retrieve allocation  [inferred]
+         touches  : quality_checker_collection
+
+
+### ANAESTHESIA  (2 endpoints)
+------------------------------------------------------------
+  POST   /anaesthesia-checklist/save
+         function : save_anaesthesia_checklist
+         does     : Save Anaesthesia Checklist (OT Part C) data
+         touches  : anaesthesia_checklist_collection
+
+  GET    /anaesthesia-checklist/{patient_id}/{booking_id}
+         function : get_anaesthesia_checklist
+         does     : Retrieve Anaesthesia Checklist by patient_id and booking_id
+         touches  : anaesthesia_checklist_collection
+
+
+### DELETE  (2 endpoints)
+------------------------------------------------------------
+  DELETE /delete/{patient_id}/{document_name}
+         function : delete_document
+         does     : Delete delete  [inferred]
+         touches  : processed_documents, Neo4j
+
+  DELETE /delete/pipeline/task/{task_id}
+         function : delete_task_by_id
+         does     : Delete a specific task by its Celery task ID
+         touches  : tracker
+
+
+### TRIAGE  (2 endpoints)
+------------------------------------------------------------
+  POST   /save_triage_assessment
+         function : save_simple_triage
+         does     : Create/save save triage assessment  [inferred]
+         touches  : triage_assessment_collection
+
+  GET    /get_latest_simple_triage/{patient_id}
+         function : get_latest_simple_triage
+         does     : Retrieve get latest simple triage  [inferred]
+         touches  : triage_assessment_collection
+
+
+### SCREENING  (2 endpoints)
+------------------------------------------------------------
+  POST   /preventive-screening/save
+         function : save_preventive_screening
+         does     : Create/save preventive screening save  [inferred]
+         touches  : preventive_screening_collection
+
+  GET    /preventive-screening/get/{patient_id}
+         function : get_preventive_screening
+         does     : Retrieve preventive screening get  [inferred]
+         touches  : preventive_screening_collection
+
+
+### PROTOCOL MASTER  (2 endpoints)
+------------------------------------------------------------
+  GET    /protocol-master/prefill/{patient_id}
+         function : get_protocol_master_prefill
+         does     : On-demand endpoint to fetch or extract protocol master prefill data using the latest dictation.
+         touches  : dictation_collection, doctor, protocol_master_prefills_collection, Groq LLM
+
+  GET    /protocol-master/all
+         function : get_all_protocols
+         does     : Retrieve protocol master all  [inferred]
+         touches  : protocol_master_collection
+
+
+### PATIENT CONDITIONS  (1 endpoint)
+------------------------------------------------------------
+  GET    /conditions
+         function : get_patient_conditions
+         does     : Retrieve conditions  [inferred]
+         touches  : condition_collection
+
+
+### ADMINISTRATIVE  (1 endpoint)
+------------------------------------------------------------
+  POST   /save_administrative
+         function : save_administrative
+         does     : Create/save save administrative  [inferred]
+         touches  : administrative_collection
+
+
+### REFERRALS  (1 endpoint)
+------------------------------------------------------------
+  POST   /save_referral
+         function : save_referral
+         does     : Create/save save referral  [inferred]
+         touches  : referral_collection
+
+
+### SPECIALTY RECORDS  (1 endpoint)
+------------------------------------------------------------
+  POST   /save_specialty
+         function : save_specialty
+         does     : Create/save save specialty  [inferred]
+         touches  : specialty_collection
+
+
+### EMERGENCY RECORDS  (1 endpoint)
+------------------------------------------------------------
+  POST   /save_emergency
+         function : save_emergency
+         does     : Create/save save emergency  [inferred]
+         touches  : emergency_collection
+
+
+### PHARMACY  (1 endpoint)
+------------------------------------------------------------
+  POST   /save_pharmacy
+         function : save_pharmacy
+         does     : Create/save save pharmacy  [inferred]
+         touches  : pharmacy_collection
+
+
+### SAVE CLINICAL  (1 endpoint)
+------------------------------------------------------------
+  POST   /save_clinical
+         function : save_clinical
+         does     : Create/save save clinical  [inferred]
+         touches  : clinical_collection
+
+
+### FUNCTIONAL ASSESSMENT  (1 endpoint)
+------------------------------------------------------------
+  POST   /save_functional
+         function : save_functional
+         does     : Create/save save functional  [inferred]
+         touches  : functional_collection
+
+
+### SAVE IMAGING  (1 endpoint)
+------------------------------------------------------------
+  POST   /save_imaging
+         function : save_imaging
+         does     : Create/save save imaging  [inferred]
+         touches  : imaging_collection
+
+
+### DOCUMENTS  (1 endpoint)
+------------------------------------------------------------
+  GET    /documents/by-patient-and-type
+         function : get_documents_by_patient_and_type
+         does     : Retrieve documents by patient and type  [inferred]
+         touches  : administrative_collection, clinical_collection, discharge_collection, emergency_collection, functional_collection, imaging_collection, laboratory_collection, pharmacy_collection, referral_collection, specialty_collection, surgical_collection
+
+
+### GET FULL PATIENT RECORD  (1 endpoint)
+------------------------------------------------------------
+  GET    /get_full_patient_record/{patient_id}
+         function : get_full_patient_record
+         does     : Retrieve get full patient record  [inferred]
+         touches  : administrative_collection, clinical_collection, conversation_user_collection, dictation_collection, discharge_collection, doctor_screening_results_collection, documentation_clinical_notes_collection, documentation_investigation_notes_collection, documentation_medication_analysis_collection, documentation_treatment_plan_collection, documentation_treatment_summary_collection, emergency_collection, functional_collection, imaging_collection, laboratory_collection, patient_appointments_collection, patient_user_collection, patient_vitals_collection, pharmacy_collection, referral_collection, specialty_collection, surgical_collection
+
+
+### BILL MEDICAL NECESSITY  (1 endpoint)
+------------------------------------------------------------
+  POST   /bill-medical-necessity/process
+         function : process_bill_and_necessity
+         does     : Steps 7, 8: Bill Verification, Medical Necessity
+         touches  : audit_collection, Groq LLM
+
+
+### SAVE REPORTADMINRULE  (1 endpoint)
+------------------------------------------------------------
+  POST   /save_ReportAdminRule
+         function : save_report_admin_rule
+         does     : Create/save save ReportAdminRule  [inferred]
+         touches  : report_rule_collection
+
+
+### DELETE ALL REPORTADMINRULES  (1 endpoint)
+------------------------------------------------------------
+  DELETE /delete_all_ReportAdminRules
+         function : delete_all_report_admin_rules
+         does     : Delete delete all ReportAdminRules  [inferred]
+         touches  : report_rule_collection
+
+
+### DELETE REPORTADMINRULE  (1 endpoint)
+------------------------------------------------------------
+  DELETE /delete_ReportAdminRule/{rule_id}
+         function : delete_report_admin_rule
+         does     : Delete delete ReportAdminRule  [inferred]
+         touches  : report_rule_collection
+
+
+### GET REPORTADMINRULES  (1 endpoint)
+------------------------------------------------------------
+  GET    /get_ReportAdminRules
+         function : get_report_admin_rules
+         does     : Retrieve get ReportAdminRules  [inferred]
+         touches  : report_rule_collection
+
+
+### APPOINTMENTS  (1 endpoint)
+------------------------------------------------------------
+  GET    /get-patient-last-appointment
+         function : get_patient_last_appointment
+         does     : Retrieve get patient last appointment  [inferred]
+         touches  : doctor, patient_appointments_collection
+
+
+### GET PATIENT INFO  (1 endpoint)
+------------------------------------------------------------
+  GET    /get-patient-info
+         function : get_patient_info
+         does     : Retrieve get patient info  [inferred]
+         touches  : doctor, patient_appointments_collection, patient_user_collection
+
+
+### TRIGGER  (1 endpoint)
+------------------------------------------------------------
+  POST   /trigger
+         function : trigger_clinical_generation
+         does     : Create/save trigger  [inferred]
+         touches  : eventdb_collection, Groq LLM
+
+
+### LATEST EVENTS  (1 endpoint)
+------------------------------------------------------------
+  GET    /latest-events/{patient_id}
+         function : get_latest_feature_events
+         does     : Retrieve latest events  [inferred]
+         touches  : eventdb_collection
+
+
+### ALL EVENTS  (1 endpoint)
+------------------------------------------------------------
+  GET    /all-events/{patient_id}
+         function : fetch_all_eventdb_data
+         does     : Fetch COMPLETE eventdb document for a patient.
+         touches  : eventdb_collection
+
+
+### TIMELINE  (1 endpoint)
+------------------------------------------------------------
+  GET    /timeline/{patient_id}
+         function : get_patient_timeline
+         does     : Retrieve timeline  [inferred]
+         touches  : eventdb_collection
+
+
+### GET ASSERTIONS BY PATIENT  (1 endpoint)
+------------------------------------------------------------
+  GET    /get_assertions_by_patient
+         function : get_assertions_by_patient
+         does     : Retrieve get assertions by patient  [inferred]
+         touches  : assertion_collections
+
+
+### SAVE CONTEXTADMINRULE  (1 endpoint)
+------------------------------------------------------------
+  POST   /save_ContextAdminRule
+         function : save_context_admin_rule
+         does     : Create/save save ContextAdminRule  [inferred]
+         touches  : context_rule_collection
+
+
+### GET CONTEXTADMINRULES  (1 endpoint)
+------------------------------------------------------------
+  GET    /get_ContextAdminRules
+         function : get_context_admin_rules
+         does     : Retrieve get ContextAdminRules  [inferred]
+         touches  : context_rule_collection
+
+
+### GET CONTEXTADMINRULE  (1 endpoint)
+------------------------------------------------------------
+  GET    /get_ContextAdminRule/{speciality}
+         function : get_context_rule_by_speciality
+         does     : Retrieve get ContextAdminRule  [inferred]
+         touches  : context_rule_collection
+
+
+### DELETE CONTEXTADMINRULE  (1 endpoint)
+------------------------------------------------------------
+  DELETE /delete_ContextAdminRule/{rule_id}
+         function : delete_context_admin_rule
+         does     : Delete delete ContextAdminRule  [inferred]
+         touches  : context_rule_collection
+
+
+### DELETE ALLCONTEXTADMINRULES  (1 endpoint)
+------------------------------------------------------------
+  DELETE /delete_AllContextAdminRules
+         function : delete_all_context_admin_rules
+         does     : Delete delete AllContextAdminRules  [inferred]
+         touches  : context_rule_collection
+
+
+### SAVE MEDICALCURRENTADMINRULE  (1 endpoint)
+------------------------------------------------------------
+  POST   /save_MedicalCurrentAdminRule
+         function : save_medical_current_admin_rule
+         does     : Create/save save MedicalCurrentAdminRule  [inferred]
+         touches  : medical_current_rule_collection
+
+
+### GET MEDICALCURRENTADMINRULES  (1 endpoint)
+------------------------------------------------------------
+  GET    /get_MedicalCurrentAdminRules
+         function : get_medical_current_admin_rules
+         does     : Retrieve get MedicalCurrentAdminRules  [inferred]
+         touches  : medical_current_rule_collection
+
+
+### DELETE MEDICALCURRENTADMINRULE  (1 endpoint)
+------------------------------------------------------------
+  DELETE /delete_MedicalCurrentAdminRule/{rule_id}
+         function : delete_medical_current_admin_rule
+         does     : Delete delete MedicalCurrentAdminRule  [inferred]
+         touches  : medical_current_rule_collection
+
+
+### SAVE STRUCTUREDNOTEADMINRULE  (1 endpoint)
+------------------------------------------------------------
+  POST   /save_StructuredNoteAdminRule
+         function : save_structured_note_admin_rule
+         does     : Create/save save StructuredNoteAdminRule  [inferred]
+         touches  : structured_note_rule_collection
+
+
+### GET STRUCTUREDNOTEADMINRULES  (1 endpoint)
+------------------------------------------------------------
+  GET    /get_StructuredNoteAdminRules
+         function : get_structured_note_admin_rules
+         does     : Retrieve get StructuredNoteAdminRules  [inferred]
+         touches  : structured_note_rule_collection
+
+
+### GET STRUCTUREDNOTEADMINRULE  (1 endpoint)
+------------------------------------------------------------
+  GET    /get_StructuredNoteAdminRule/{rule_id}
+         function : get_structured_note_admin_rule_by_id
+         does     : Retrieve get StructuredNoteAdminRule  [inferred]
+         touches  : structured_note_rule_collection
+
+
+### DELETE ALLSTRUCTUREDNOTEADMINRULES  (1 endpoint)
+------------------------------------------------------------
+  DELETE /delete_AllStructuredNoteAdminRules
+         function : delete_all_structured_note_admin_rules
+         does     : Delete delete AllStructuredNoteAdminRules  [inferred]
+         touches  : structured_note_rule_collection
+
+
+### DELETE STRUCTUREDNOTEADMINRULE  (1 endpoint)
+------------------------------------------------------------
+  DELETE /delete_StructuredNoteAdminRule/{rule_id}
+         function : delete_structured_note_admin_rule_by_id
+         does     : Delete delete StructuredNoteAdminRule  [inferred]
+         touches  : structured_note_rule_collection
+
+
+### STRUCTURED NOTE INSTRUCTIONS  (1 endpoint)
+------------------------------------------------------------
+  POST   /structured-note-instructions
+         function : save_doctor_structured_note_rule
+         does     : Create/save structured note instructions  [inferred]
+         touches  : doctor, structured_note_doctor_collection
+
+
+### PATIENT SUMMARY  (1 endpoint)
+------------------------------------------------------------
+  GET    /patient-summary/{patient_id}
+         function : get_latest_patient_summary
+         does     : Retrieve patient summary  [inferred]
+         touches  : summary_collection
+
+
+### PROCESSED DOCUMENTS  (1 endpoint)
+------------------------------------------------------------
+  GET    /processed-documents/{patient_id}
+         function : fetch_processed_documents
+         does     : Retrieve processed documents  [inferred]
+         touches  : processed_documents
+
+
+### TH  (1 endpoint)
+------------------------------------------------------------
+  GET    /th/patient/{patient_id}
+         function : get_processed_documents
+         does     : Retrieve th patient  [inferred]
+         touches  : processed_documents
+
+
+### CONTEXT  (1 endpoint)
+------------------------------------------------------------
+  POST   /context/save
+         function : save_context_data
+         does     : Create/save context save  [inferred]
+         touches  : context_data_collection
+
+
+### PATIENT SUMM  (1 endpoint)
+------------------------------------------------------------
+  PUT    /patient-summ/{patient_id}
+         function : update_patient_summary
+         does     : Update patient summ  [inferred]
+         touches  : summary_collection
+
+
+### UPDATE CLINICAL SUMMARY  (1 endpoint)
+------------------------------------------------------------
+  POST   /update-clinical-summary
+         function : update_clinical_summary
+         does     : Create/save update clinical summary  [inferred]
+         touches  : summary_collection
+
+
+### SKILLS  (1 endpoint)
+------------------------------------------------------------
+  POST   /skills/save-raw
+         function : save_raw_skill
+         does     : Create/save skills save raw  [inferred]
+         touches  : skills_collection
+
+
+### VERIFY PATIENT SUMMARY  (1 endpoint)
+------------------------------------------------------------
+  POST   /verify-patient-summary
+         function : verify_patient_summary
+         does     : Create/save verify patient summary  [inferred]
+         touches  : summary_collection
+
+
+### TREATMENT PLANS  (1 endpoint)
+------------------------------------------------------------
+  POST   /verify-treatment-plan
+         function : verify_treatment_plan
+         does     : Create/save verify treatment plan  [inferred]
+         touches  : none detected
+
+
+### VERIFY TRANSCRIPTION  (1 endpoint)
+------------------------------------------------------------
+  POST   /verify-transcription
+         function : verify_transcription
+         does     : Create/save verify transcription  [inferred]
+         touches  : none detected
+
+
+### VERIFY PROCESSED DOCUMENT  (1 endpoint)
+------------------------------------------------------------
+  POST   /verify-processed-document
+         function : verify_processed_document
+         does     : Create/save verify processed document  [inferred]
+         touches  : processed_documents
+
+
+### GET PATIENT CHEMO SUMMARY  (1 endpoint)
+------------------------------------------------------------
+  GET    /get-patient-chemo-summary
+         function : get_patient_chemo_summary
+         does     : Retrieve get patient chemo summary  [inferred]
+         touches  : chemotherapy_records_collection
+
+
+### GET PATIENT SURGERY SUMMARY  (1 endpoint)
+------------------------------------------------------------
+  GET    /get-patient-surgery-summary
+         function : get_patient_surgery_summary
+         does     : Retrieve get patient surgery summary  [inferred]
+         touches  : surgical_oncology_collection
+
+
+### SAVE RT RECORD DETAILS  (1 endpoint)
+------------------------------------------------------------
+  POST   /save-rt-record-details
+         function : save_rt_record_details
+         does     : Create/save save rt record details  [inferred]
+         touches  : radiotherapy_records_collection
+
+
+### GET RT RECORD DETAILS  (1 endpoint)
+------------------------------------------------------------
+  GET    /get-rt-record-details
+         function : get_rt_record_details
+         does     : Retrieve get rt record details  [inferred]
+         touches  : completed_docs_cursor
+
+
+### GET PATIENT REGISTRATION DETAILS  (1 endpoint)
+------------------------------------------------------------
+  GET    /get-patient-registration-details
+         function : get_patient_registration_details
+         does     : Retrieve get patient registration details  [inferred]
+         touches  : none detected
+
+
+### GET PATIENT SURGERY SUMMARY OPRECORD  (1 endpoint)
+------------------------------------------------------------
+  GET    /get-patient-surgery-summary-oprecord
+         function : get_patient_surgery_summary_oprecord
+         does     : Retrieve get patient surgery summary oprecord  [inferred]
+         touches  : surgical_oncology_collection
+
+
+### CHECK DRUG SAFETY  (1 endpoint)
+------------------------------------------------------------
+  POST   /check-drug-safety
+         function : check_drug_safety
+         does     : Create/save check drug safety  [inferred]
+         touches  : doctor, Groq LLM
+
+
+### CHECK DRUG INTERACTIONS  (1 endpoint)
+------------------------------------------------------------
+  POST   /check-drug-interactions
+         function : check_drug_interactions
+         does     : Create/save check drug interactions  [inferred]
+         touches  : doctor, Groq LLM
+
+
+### SYNOPTIC REPORT  (1 endpoint)
+------------------------------------------------------------
+  GET    /synoptic-report/{patient_id}
+         function : get_latest_synoptic_report
+         does     : Retrieve the most recently generated synoptic report for a patient
+         touches  : synoptic_collection
+
+
+### GENERATE CHEMO TOXICITY SUMMARY  (1 endpoint)
+------------------------------------------------------------
+  POST   /generate-chemo-toxicity-summary
+         function : generate_chemo_toxicity_summary
+         does     : Generates a natural language narrative summary of the toxicities during chemotherapy
+         touches  : chemotherapy_records_collection, Groq LLM
+
+
+### GET CHEMO SUSPENSION DETAILS  (1 endpoint)
+------------------------------------------------------------
+  GET    /get-chemo-suspension-details/{patient_id}
+         function : get_chemo_suspension_details
+         does     : Retrieve get chemo suspension details  [inferred]
+         touches  : chemotherapy_records_collection, doctor
+
+
+### GENERATE TOXICITY SUMMARY  (1 endpoint)
+------------------------------------------------------------
+  POST   /generate-toxicity-summary
+         function : generate_toxicity_summary
+         does     : Generates a natural language narrative summary of the toxicities during radiotherapy
+         touches  : radiotherapy_records_collection, Groq LLM
+
+
+### CHEMO DRUG ADMIN RISK CHECK  (1 endpoint)
+------------------------------------------------------------
+  POST   /chemo-drug-admin-risk-check
+         function : chemo_drug_admin_risk_check
+         does     : AI-powered risk assessment for drugs listed in the Nurse's Notes
+         touches  : Groq LLM
+
+
+### GET LATEST STRUCTURED NOTE  (1 endpoint)
+------------------------------------------------------------
+  POST   /get-latest-structured-note
+         function : get_latest_structured_note
+         does     : Create/save get latest structured note  [inferred]
+         touches  : structured_note_collection
+
+
+### UPDATE STRUCTURED NOTE  (1 endpoint)
+------------------------------------------------------------
+  POST   /update-structured-note
+         function : update_structured_note
+         does     : Create/save update structured note  [inferred]
+         touches  : structured_note_collection

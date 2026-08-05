@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Niva Bupa – Investigation Report</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 14mm 15mm 18mm 15mm;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 10px;
+      color: #000;
+      background: #fff;
+    }
+
+    .page {
+      width: 180mm;
+      margin: 0 auto;
+      background: #fff;
+    }
+
+    /* ── FIXED PAGE FOOTER ──────────────────────────────────── */
+    .page-footer {
+      position: fixed;
+      bottom: 0;
+      left: 15mm;
+      right: 15mm;
+      border-top: 1px solid #ccc;
+      padding-top: 3px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 8.5px;
+      color: #888;
+      background: #fff;
+    }
+
+    /* ── PAGE HEADER (bold centered) ───────────────────────── */
+    .doc-header {
+      text-align: center;
+      margin-bottom: 10px;
+    }
+
+    .doc-header-title {
+      font-size: 12px;
+      font-weight: bold;
+      letter-spacing: 0.5px;
+      margin-bottom: 2px;
+    }
+
+    .doc-header-sub {
+      font-size: 11px;
+      font-weight: bold;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+
+    /* ── ALL TABLES ─────────────────────────────────────────── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      margin-bottom: 0;
+    }
+
+    td, th {
+      border: 1px solid #000;
+      padding: 3px 6px;
+      vertical-align: top;
+      font-size: 10px;
+      line-height: 1.55;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+    }
+
+    .lbl {
+      font-weight: bold;
+      background: #fff;
+    }
+
+    .val {
+      background: #fff;
+    }
+
+    /* ── SECTION HEADING ────────────────────────────────────── */
+    .sec-heading {
+      font-size: 10px;
+      font-weight: bold;
+      margin: 10px 0 4px 0;
+      border-bottom: 1px solid #000;
+      padding-bottom: 2px;
+    }
+
+    /* ── YES/NO INLINE ──────────────────────────────────────── */
+    .yn-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 10px;
+    }
+
+    .yn-box {
+      display: inline-block;
+      width: 11px;
+      height: 11px;
+      border: 1px solid #000;
+      text-align: center;
+      line-height: 10px;
+      font-size: 9px;
+      vertical-align: middle;
+      margin-right: 2px;
+    }
+
+    /* ── DISEASE CHECKLIST TABLE ────────────────────────────── */
+    .disease-tbl td { font-size: 9.5px; padding: 2px 5px; }
+    .disease-tbl .lbl { width: 38%; }
+    .disease-tbl .yn  { width: 8%; text-align: center; }
+    .disease-tbl .sw  { width: 16%; }
+
+    /* ── FINDINGS FREE BOX ──────────────────────────────────── */
+    .free-box {
+      border: 1px solid #000;
+      min-height: 50px;
+      padding: 5px 7px;
+      font-size: 10px;
+      line-height: 1.7;
+      margin-bottom: 4px;
+    }
+
+    .free-box-sm {
+      border: 1px solid #000;
+      min-height: 28px;
+      padding: 4px 7px;
+      font-size: 10px;
+      line-height: 1.65;
+      margin-bottom: 4px;
+    }
+
+    /* ── INDENT BULLETS ─────────────────────────────────────── */
+    .bullet-block {
+      padding: 5px 7px;
+      font-size: 10px;
+      line-height: 1.8;
+    }
+
+    .bullet-block p { margin-bottom: 4px; }
+    .bullet-block p::before { content: "• "; }
+
+    /* ── PAGE BREAK ─────────────────────────────────────────── */
+    .page-break { page-break-before: always; }
+
+    /* ── PAGE NUMBER ────────────────────────────────────────── */
+    .page-num {
+      text-align: left;
+      font-size: 9px;
+      font-weight: bold;
+      margin-top: 10px;
+      color: #333;
+    }
+
+    /* ── STAMP ──────────────────────────────────────────────── */
+    .sig-stamp {
+      width: 80px;
+      height: auto;
+      object-fit: contain;
+      display: block;
+    }
+
+    /* ── CONCLUSION WRAPPER ─────────────────────────────────── */
+    .conclusion-wrapper {
+      font-size: 10px;
+      color: #000;
+      line-height: 1.7;
+    }
+
+    .conclusion-wrapper img {
+      max-width: 160mm;
+      height: auto;
+      display: block;
+      margin: 4px 0;
+    }
+
+    @media print {
+      body  { background: #fff; }
+      .page { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════ -->
+<!-- FIXED FOOTER                               -->
+<!-- ══════════════════════════════════════════ -->
+<div class="page-footer">
+  <span>Internal</span>
+</div>
+
+<div class="page">
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!-- PAGE 1                                                  -->
+  <!-- ══════════════════════════════════════════════════════ -->
+
+  <div class="doc-header">
+    <div class="doc-header-title">NIVA BUPA HEALTH INSURANCE CO LTD</div>
+    <div class="doc-header-sub">INVESTIGATION REPORT</div>
+  </div>
+
+  <!-- ── MAIN CLAIM / POLICY TABLE ── -->
+  <table>
+    <tr>
+      <td class="lbl" style="width:45%;">Claim No / Preauth ID / SR No</td>
+      <td class="val" style="width:55%;">{{ case.insurerRef or case.caseId or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Name of the Policy Holder</td>
+      <td class="val">{{ case.policyHolderName or case.claimantName or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Insured Person Name</td>
+      <td class="val">{{ facts.patient_name or case.claimantName or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Relation with Policy Holder</td>
+      <td class="val">{{ case.relationship or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Insured Address</td>
+      <td class="val">{{ facts.accident_place or case.claimantAddress or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Insured contact details</td>
+      <td class="val">{{ facts.data_collected_from_phone or case.claimantMobile or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Insured Person Age</td>
+      <td class="val">{{ facts.patient_age_gender or case.claimantAge or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Gender</td>
+      <td class="val">{{ facts.patient_gender or case.claimantGender or '' }}</td>
+    </tr>
+  </table>
+
+  <!-- Policy Details sub-header -->
+  <table style="margin-top:6px;">
+    <tr>
+      <td class="lbl" colspan="4" style="background:#f2f2f2; text-align:left;">Policy Details :</td>
+    </tr>
+    <tr>
+      <td class="lbl" style="width:22%;">Policy Number</td>
+      <td class="val" style="width:28%;">{{ case.policyNumber or 'NA' }}</td>
+      <td class="lbl" style="width:22%;">Member number</td>
+      <td class="val" style="width:28%;">{{ case.memberNumber or case.tpaRef or 'NA' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Policy effective date</td>
+      <td class="val">{{ case.policyInceptionDate or '' }}</td>
+      <td class="lbl">Product Name</td>
+      <td class="val">{{ case.productName or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Portability</td>
+      <td class="val">{{ facts.ported_details or '' }}</td>
+      <td class="lbl">Previous Insurer</td>
+      <td class="val">{{ facts.previous_insurer or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Admission Date</td>
+      <td class="val">
+        {{ facts.admission_date or hospital.admissionDate or '' }}
+        {% if facts.admission_time %}&nbsp;{{ facts.admission_time }}{% endif %}
+      </td>
+      <td class="lbl">Discharge Date</td>
+      <td class="val">{{ facts.discharge_date or hospital.dischargeDate or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Final Diagnosis</td>
+      <td class="val" colspan="3">
+        {{ facts.final_diagnosis or facts.provisional_diagnosis or critical.diagnosis or '' }}
+      </td>
+    </tr>
+  </table>
+
+  <!-- Previous Claim Details -->
+  <table style="margin-top:6px;">
+    <tr>
+      <td class="lbl" colspan="5" style="background:#f2f2f2;">
+        Previous Claim Details :&nbsp;
+        <span style="font-weight:normal;">No Of claims :&nbsp;{{ facts.previous_claim_count or '1' }}</span>
+      </td>
+    </tr>
+    <tr>
+      <th style="width:20%;">Claim No</th>
+      <th style="width:20%;">Admission Date</th>
+      <th style="width:20%;">Discharge Date</th>
+      <th style="width:20%;">Diagnosis</th>
+      <th style="width:20%;">Hospital Name &amp; Address</th>
+    </tr>
+    {% if facts.previous_claims %}
+      {% for pc in facts.previous_claims %}
+      <tr>
+        <td class="val">{{ pc.claim_no or '' }}</td>
+        <td class="val">{{ pc.admission_date or '' }}</td>
+        <td class="val">{{ pc.discharge_date or '' }}</td>
+        <td class="val">{{ pc.diagnosis or '' }}</td>
+        <td class="val">{{ pc.hospital or '' }}</td>
+      </tr>
+      {% endfor %}
+    {% else %}
+      <tr>
+        <td class="val" style="font-style:italic; color:#888;">(Auto)</td>
+        <td class="val" style="font-style:italic; color:#888;">(Auto)</td>
+        <td class="val" style="font-style:italic; color:#888;">(Auto)</td>
+        <td class="val" style="font-style:italic; color:#888;">(Auto)</td>
+        <td class="val" style="font-style:italic; color:#888;">(Auto)</td>
+      </tr>
+    {% endif %}
+  </table>
+
+  <!-- Hospital Details -->
+  <table style="margin-top:6px;">
+    <tr>
+      <td class="lbl" colspan="2" style="background:#f2f2f2;">Hospital Details :</td>
+    </tr>
+    <tr>
+      <td class="lbl" style="width:40%;">Hospital Name</td>
+      <td class="val">{{ facts.hospital_name or hospital.name or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Hospital Address (City)</td>
+      <td class="val">{{ facts.hospital_address or hospital.address or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Network Type</td>
+      <td class="val">{{ facts.hospital_empanelment_status or 'In Network' }}</td>
+    </tr>
+  </table>
+
+  <!-- Reason for Investigation -->
+  <table style="margin-top:6px;">
+    <tr>
+      <td class="lbl" style="background:#f2f2f2;">Reason for Investigation</td>
+    </tr>
+    <tr>
+      <td class="val" style="line-height:1.9; padding: 5px 8px;">
+        {% set triggers = case.claimTriggers or [] %}
+        {% for t in triggers %}
+          {{ loop.index }}.&nbsp;{{ t | replace('_', ' ') | title }}<br/>
+        {% endfor %}
+        {% if not triggers %}
+          1.&nbsp;{{ facts.trigger_reason_1 or '' }}<br/>
+          2.&nbsp;{{ facts.trigger_reason_2 or '' }}<br/>
+          3.&nbsp;{{ facts.trigger_reason_3 or '' }}<br/>
+          4.&nbsp;{{ facts.trigger_reason_4 or '' }}<br/>
+          <br/>
+          <span style="color:#555;">SP_EXCL_DESC</span><br/>
+          <span style="color:#555;">PREEXIST_WAIT_PERIOD</span><br/>
+          <span style="color:#555;">NO_CLAIM_WAIT_PERIOD</span>
+        {% endif %}
+      </td>
+    </tr>
+  </table>
+
+  <div class="page-num">1 | P a g e</div>
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!-- PAGE 2                                                  -->
+  <!-- ══════════════════════════════════════════════════════ -->
+  <div class="page-break"></div>
+
+  <div class="doc-header">
+    <div class="doc-header-title">NIVA BUPA HEALTH INSURANCE CO LTD</div>
+    <div class="doc-header-sub">INVESTIGATION REPORT</div>
+  </div>
+
+  <!-- Details verified by the investigator -->
+  <div class="sec-heading">Details verified by the investigator : <span style="font-weight:normal;">(Manual)</span></div>
+
+  <table>
+
+    <!-- HOSPITAL VISIT -->
+    <tr>
+      <td class="lbl" style="width:22%; vertical-align:middle;" rowspan="4">Hospital Visit</td>
+      <td class="lbl" style="width:55%;">ICP collected from the Hospital</td>
+      <td class="val" style="width:23%;">
+        {% set v = facts.ip_register_collected or '' %}
+        <span class="yn-box">{{ 'X' if v|lower == 'yes' else '' }}</span> Yes &nbsp;
+        <span class="yn-box">{{ 'X' if v|lower == 'no' else '' }}</span> No
+      </td>
+    </tr>
+    <tr>
+      <td class="lbl">Whether Previous admission details checked</td>
+      <td class="val">
+        {% set v = facts.previous_admission_checked or '' %}
+        <span class="yn-box">{{ 'X' if v|lower == 'yes' else '' }}</span> Yes &nbsp;
+        <span class="yn-box">{{ 'X' if v|lower == 'no' else '' }}</span> No
+      </td>
+    </tr>
+    <tr>
+      <td class="lbl">If yes, whether previous hospitalization documents collected</td>
+      <td class="val">
+        {% set v = facts.prev_hosp_docs_collected or '' %}
+        <span class="yn-box">{{ 'X' if v|lower == 'yes' else '' }}</span> Yes &nbsp;
+        <span class="yn-box">{{ 'X' if v|lower == 'no' else '' }}</span> No
+      </td>
+    </tr>
+    <tr>
+      <td class="lbl">Was any discrepancy noted in the findings?</td>
+      <td class="val">
+        {% set v = facts.hv_discrepancy_noted or '' %}
+        <span class="yn-box">{{ 'X' if v|lower == 'yes' else '' }}</span> Yes &nbsp;
+        <span class="yn-box">{{ 'X' if v|lower == 'no' else '' }}</span> No
+      </td>
+    </tr>
+    <tr>
+      <td class="lbl" colspan="2" style="padding-left:10px;">If yes, Details :-</td>
+      <td class="val">{{ facts.hv_discrepancy_details or '' }}</td>
+    </tr>
+
+    <!-- TREATING DOCTOR / FAMILY PHYSICIAN VISIT -->
+    <tr>
+      <td class="lbl" style="vertical-align:middle;" rowspan="3">Treating Doctor / Family Physician Visit</td>
+      <td class="lbl">Treating doctor / family physician opinion taken</td>
+      <td class="val">
+        {% set v = facts.doctor_opinion_taken or '' %}
+        <span class="yn-box">{{ 'X' if v|lower == 'yes' else '' }}</span> Yes &nbsp;
+        <span class="yn-box">{{ 'X' if v|lower == 'no' else '' }}</span> No
+      </td>
+    </tr>
+    <tr>
+      <td class="lbl">Was any discrepancy noted in the findings?</td>
+      <td class="val">
+        {% set v = facts.doctor_discrepancy_noted or '' %}
+        <span class="yn-box">{{ 'X' if v|lower == 'yes' else '' }}</span> Yes &nbsp;
+        <span class="yn-box">{{ 'X' if v|lower == 'no' else '' }}</span> No
+      </td>
+    </tr>
+    <tr>
+      <td class="lbl" style="padding-left:10px;">If yes, Details :-</td>
+      <td class="val">{{ facts.doctor_discrepancy_details or '' }}</td>
+    </tr>
+
+    <!-- DIAGNOSTIC CENTRE VISIT -->
+    <tr>
+      <td class="lbl" style="vertical-align:middle;" rowspan="3">Diagnostic centre Visit</td>
+      <td class="lbl">Diagnostic centre visited &amp; records verified</td>
+      <td class="val">
+        {% set v = facts.diagnostic_centre_visited or '' %}
+        <span class="yn-box">{{ 'X' if v|lower == 'yes' else '' }}</span> Yes &nbsp;
+        <span class="yn-box">{{ 'X' if v|lower == 'no' else '' }}</span> No
+      </td>
+    </tr>
+    <tr>
+      <td class="lbl">Was any discrepancy noted in the findings?</td>
+      <td class="val">
+        {% set v = facts.diagnostic_discrepancy_noted or '' %}
+        <span class="yn-box">{{ 'X' if v|lower == 'yes' else '' }}</span> Yes &nbsp;
+        <span class="yn-box">{{ 'X' if v|lower == 'no' else '' }}</span> No
+      </td>
+    </tr>
+    <tr>
+      <td class="lbl" style="padding-left:10px;">If yes, Details :-</td>
+      <td class="val">{{ facts.diagnostic_discrepancy_details or '' }}</td>
+    </tr>
+
+    <!-- PHARMACY / MEDICAL STORE VISIT -->
+    <tr>
+      <td class="lbl" style="vertical-align:middle;" rowspan="3">Pharmacy / Medical Store Visit</td>
+      <td class="lbl">Medical store visited &amp; records verified</td>
+      <td class="val">
+        {% set v = facts.pharmacy_visited or '' %}
+        <span class="yn-box">{{ 'X' if v|lower == 'yes' else '' }}</span> Yes &nbsp;
+        <span class="yn-box">{{ 'X' if v|lower == 'no' else '' }}</span> No
+      </td>
+    </tr>
+    <tr>
+      <td class="lbl">Was any discrepancy noted in the findings?</td>
+      <td class="val">
+        {% set v = facts.pharmacy_discrepancy_noted or '' %}
+        <span class="yn-box">{{ 'X' if v|lower == 'yes' else '' }}</span> Yes &nbsp;
+        <span class="yn-box">{{ 'X' if v|lower == 'no' else '' }}</span> No
+      </td>
+    </tr>
+    <tr>
+      <td class="lbl" style="padding-left:10px;">If yes, Details :-</td>
+      <td class="val">{{ facts.pharmacy_discrepancy_details or '' }}</td>
+    </tr>
+
+    <!-- VICINITY CHECK -->
+    <tr>
+      <td class="lbl" style="vertical-align:middle;" rowspan="2">Vicinity Check</td>
+      <td class="lbl">Neighborhood check</td>
+      <td class="val">
+        {% set v = facts.vicinity_check or '' %}
+        <span class="yn-box">{{ 'X' if v|lower == 'yes' else '' }}</span> Yes &nbsp;
+        <span class="yn-box">{{ 'X' if v|lower == 'no' else '' }}</span> No
+      </td>
+    </tr>
+    <tr>
+      <td class="lbl" style="padding-left:10px;">If yes, Details :-</td>
+      <td class="val">{{ facts.vicinity_check_details or '' }}</td>
+    </tr>
+
+  </table>
+
+  <!-- Employer / School details -->
+  <table style="margin-top:6px;">
+    <tr>
+      <td class="lbl" colspan="2">
+        Employer Details – Name address and telephone number of the employer:
+      </td>
+    </tr>
+    <tr>
+      <td class="val" colspan="2" style="min-height:22px;">{{ facts.employer_name or '' }}
+        {% if facts.employer_address %}&nbsp;|&nbsp;{{ facts.employer_address }}{% endif %}
+        {% if facts.employer_phone %}&nbsp;|&nbsp;{{ facts.employer_phone }}{% endif %}
+      </td>
+    </tr>
+    <tr>
+      <td class="lbl" colspan="2">Details of leave availed during the course of employment:</td>
+    </tr>
+    <tr>
+      <td class="val" colspan="2" style="min-height:18px;">{{ facts.leave_details or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl" colspan="2">School / college attendance record (if insured person is a student):</td>
+    </tr>
+    <tr>
+      <td class="val" colspan="2" style="min-height:18px;">{{ facts.school_attendance or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl" colspan="2">Was any discrepancy noted in the above findings :</td>
+    </tr>
+    <tr>
+      <td class="val" colspan="2" style="min-height:18px;">{{ facts.employer_discrepancy_details or '' }}</td>
+    </tr>
+  </table>
+
+  <div class="page-num">2 | P a g e</div>
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!-- PAGE 3                                                  -->
+  <!-- ══════════════════════════════════════════════════════ -->
+  <div class="page-break"></div>
+
+  <div class="doc-header">
+    <div class="doc-header-title">NIVA BUPA HEALTH INSURANCE CO LTD</div>
+    <div class="doc-header-sub">INVESTIGATION REPORT</div>
+  </div>
+
+  <!-- Insured Visit — Disease Checklist -->
+  <div class="sec-heading">Insured Visit</div>
+
+  <table class="disease-tbl">
+    <tr>
+      <th style="width:38%; text-align:left;">Disease Details</th>
+      <th style="width:8%;">Yes</th>
+      <th style="width:8%;">No</th>
+      <th style="width:46%;">Since When</th>
+    </tr>
+
+    {% set diseases = [
+      ('DM',                                    facts.disease_dm_yes,           facts.disease_dm_no,           facts.disease_dm_since),
+      ('HTN',                                   facts.disease_htn_yes,          facts.disease_htn_no,          facts.disease_htn_since),
+      ('Heart Disease',                         facts.disease_heart_yes,        facts.disease_heart_no,        facts.disease_heart_since),
+      ('Liver Disease / Jaundice',              facts.disease_liver_yes,        facts.disease_liver_no,        facts.disease_liver_since),
+      ('Alcohol intake / Drug Intake',          facts.disease_alcohol_yes,      facts.disease_alcohol_no,      facts.disease_alcohol_since),
+      ('Renal Disease / Haematuria',            facts.disease_renal_yes,        facts.disease_renal_no,        facts.disease_renal_since),
+      ('OA',                                    facts.disease_oa_yes,           facts.disease_oa_no,           facts.disease_oa_since),
+      ('Thyroid (Tremors / Hot-Cold intol.)',   facts.disease_thyroid_yes,      facts.disease_thyroid_no,      facts.disease_thyroid_since),
+      ('CVA / Stroke / TIA',                   facts.disease_cva_yes,          facts.disease_cva_no,          facts.disease_cva_since),
+      ('STD',                                   facts.disease_std_yes,          facts.disease_std_no,          facts.disease_std_since),
+      ('Convulsion / Seizure',                  facts.disease_seizure_yes,      facts.disease_seizure_no,      facts.disease_seizure_since),
+      ('Respiratory Problems (BA / TB / COPD)', facts.disease_respiratory_yes,  facts.disease_respiratory_no,  facts.disease_respiratory_since),
+      ('Glaucoma / Cataract / RD',              facts.disease_eye_yes,          facts.disease_eye_no,          facts.disease_eye_since),
+      ('Cancer',                                facts.disease_cancer_yes,       facts.disease_cancer_no,       facts.disease_cancer_since),
+    ] %}
+
+    {% for name, yes_val, no_val, since_val in diseases %}
+    <tr>
+      <td class="lbl" style="font-weight:normal;">{{ name }}</td>
+      <td class="yn" style="text-align:center;">{{ yes_val or '' }}</td>
+      <td class="yn" style="text-align:center;">{{ no_val or '' }}</td>
+      <td class="sw">{{ since_val or '' }}</td>
+    </tr>
+    {% endfor %}
+
+    <!-- Child rows -->
+    <tr>
+      <td class="lbl" colspan="4" style="background:#f5f5f5; font-size:9.5px;">
+        In cases of child (less than 10 years)
+      </td>
+    </tr>
+    <tr>
+      <td class="lbl" style="font-weight:normal;">Birth H/o NICU / pre-term care</td>
+      <td class="yn" style="text-align:center;">{{ facts.child_nicu_yes or '' }}</td>
+      <td class="yn" style="text-align:center;">{{ facts.child_nicu_no or '' }}</td>
+      <td class="sw">{{ facts.child_nicu_since or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl" style="font-weight:normal;">Any convulsion H/o</td>
+      <td class="yn" style="text-align:center;">{{ facts.child_convulsion_yes or '' }}</td>
+      <td class="yn" style="text-align:center;">{{ facts.child_convulsion_no or '' }}</td>
+      <td class="sw">{{ facts.child_convulsion_since or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl" style="font-weight:normal;">Development Milestone</td>
+      <td class="yn" style="text-align:center;">{{ facts.child_milestone_yes or '' }}</td>
+      <td class="yn" style="text-align:center;">{{ facts.child_milestone_no or '' }}</td>
+      <td class="sw">{{ facts.child_milestone_since or '' }}</td>
+    </tr>
+  </table>
+
+  <!-- Personal Habits -->
+  <table style="margin-top:6px;">
+    <tr>
+      <td class="lbl" colspan="2" style="background:#f2f2f2;">Personal Habits:</td>
+    </tr>
+    <tr>
+      <td class="lbl" style="width:40%;">Alcohol</td>
+      <td class="val">{{ facts.alcohol_consumption or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Smoking</td>
+      <td class="val">{{ facts.smoking_status or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Chewing Tobacco / Mawa / Gutkha</td>
+      <td class="val">{{ facts.tobacco_status or '' }}</td>
+    </tr>
+  </table>
+
+  <!-- Previous hospitalization -->
+  <table style="margin-top:6px;">
+    <tr>
+      <td class="lbl" colspan="2">Previous hospitalization / major injury (if any)</td>
+    </tr>
+    <tr>
+      <td class="lbl" style="width:30%;">Specific details :</td>
+      <td class="val" style="min-height:22px;">{{ facts.past_history or facts.previous_hospitalization or '' }}</td>
+    </tr>
+  </table>
+
+  <!-- Documents Collected From Insured -->
+  <table style="margin-top:6px;">
+    <tr>
+      <td class="lbl" colspan="3" style="background:#f2f2f2;">Documents Collected From Insured :</td>
+    </tr>
+    <tr>
+      <th style="width:60%; text-align:left;">Document Name</th>
+      <th style="width:20%;">Yes</th>
+      <th style="width:20%;">No</th>
+    </tr>
+    <tr>
+      <td class="lbl" style="font-weight:normal;">Original discharge summary</td>
+      <td class="val" style="text-align:center;">{{ facts.doc_discharge_summary_yes or '' }}</td>
+      <td class="val" style="text-align:center;">{{ facts.doc_discharge_summary_no or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl" style="font-weight:normal;">Original hospital detailed bill break up</td>
+      <td class="val" style="text-align:center;">{{ facts.doc_bill_breakup_yes or '' }}</td>
+      <td class="val" style="text-align:center;">{{ facts.doc_bill_breakup_no or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl" style="font-weight:normal;">Original hospital payment receipts</td>
+      <td class="val" style="text-align:center;">{{ facts.doc_payment_receipts_yes or '' }}</td>
+      <td class="val" style="text-align:center;">{{ facts.doc_payment_receipts_no or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl" style="font-weight:normal;">KYC Documents</td>
+      <td class="val" style="text-align:center;">{{ facts.doc_kyc_yes or '' }}</td>
+      <td class="val" style="text-align:center;">{{ facts.doc_kyc_no or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl" style="font-weight:normal;">NEFT details</td>
+      <td class="val" style="text-align:center;">{{ facts.doc_neft_yes or '' }}</td>
+      <td class="val" style="text-align:center;">{{ facts.doc_neft_no or '' }}</td>
+    </tr>
+  </table>
+
+  <div class="page-num">3 | P a g e</div>
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!-- PAGE 4                                                  -->
+  <!-- ══════════════════════════════════════════════════════ -->
+  <div class="page-break"></div>
+
+  <div class="doc-header">
+    <div class="doc-header-title">NIVA BUPA HEALTH INSURANCE CO LTD</div>
+    <div class="doc-header-sub">INVESTIGATION REPORT</div>
+  </div>
+
+  <!-- Recording / photographs -->
+  <table>
+    <tr>
+      <td class="lbl" style="width:55%;">Recording / photographs taken :</td>
+      <td class="val" style="width:45%;">
+        {% set v = facts.photos_taken or '' %}
+        <span class="yn-box">{{ 'X' if v|lower == 'yes' else '' }}</span> Yes &nbsp;
+        <span class="yn-box">{{ 'X' if v|lower == 'no' else '' }}</span> No
+      </td>
+    </tr>
+    <tr>
+      <td class="lbl">Was any discrepancy noted in the findings?</td>
+      <td class="val">
+        {% set v = facts.photos_discrepancy or '' %}
+        <span class="yn-box">{{ 'X' if v|lower == 'yes' else '' }}</span> Yes &nbsp;
+        <span class="yn-box">{{ 'X' if v|lower == 'no' else '' }}</span> No
+      </td>
+    </tr>
+    <tr>
+      <td class="lbl" colspan="2">If Yes, details:-</td>
+    </tr>
+    <tr>
+      <td class="val" colspan="2" style="min-height:18px;">{{ facts.photos_discrepancy_details or '' }}</td>
+    </tr>
+  </table>
+
+  <!-- Findings: Hospital Part + Member Part -->
+  <div class="sec-heading" style="margin-top:8px;">Findings:</div>
+
+  <div class="free-box">
+    <div style="font-weight:bold; margin-bottom:4px;">HOSPITAL PART</div>
+    <div class="bullet-block">
+      <p>Our investigator visited the hospital, verified ICP and took photograph of the same</p>
+      {% if facts.admission_date or hospital.admissionDate %}
+        <p>As per ICP, patient was admitted at hospital on
+          {{ facts.admission_date or hospital.admissionDate or '' }}
+          {% if facts.admission_time %}&nbsp;{{ facts.admission_time }}{% endif %}
+        </p>
+      {% endif %}
+      {% if facts.field_officer_hospital_opinion %}
+        <p>{{ facts.field_officer_hospital_opinion }}</p>
+      {% endif %}
+      {% if facts.hospital_registration_number %}
+        <p>Hospital Reg No: {{ facts.hospital_registration_number }}
+          {% if facts.hospital_registration_validity %} (Valid till: {{ facts.hospital_registration_validity }}){% endif %}
+        </p>
+      {% endif %}
+      {% if facts.treating_doctor %}
+        <p>Treating doctor: {{ facts.treating_doctor }}
+          {% if facts.doctor_reg_number %}&nbsp;(Reg: {{ facts.doctor_reg_number }}){% endif %}
+        </p>
+      {% endif %}
+      {% if facts.discrepancies_verbatim %}
+        <p>{{ facts.discrepancies_verbatim }}</p>
+      {% endif %}
+    </div>
+
+    <div style="font-weight:bold; margin-top:8px; margin-bottom:4px;">MEMBER PART</div>
+    <div class="bullet-block">
+      <p>Member verification done, copy of ID proof collected</p>
+      {% if facts.field_officer_member_opinion %}
+        <p>As per member statement, {{ facts.field_officer_member_opinion }}</p>
+      {% endif %}
+      {% if facts.chief_complaints %}
+        <p>Presenting complaints: {{ facts.chief_complaints }}</p>
+      {% endif %}
+      {% if facts.past_history %}
+        <p>Past history: {{ facts.past_history }}</p>
+      {% endif %}
+      {% if facts.personal_habits or facts.alcohol_consumption %}
+        <p>Personal habits: {{ facts.personal_habits or facts.alcohol_consumption }}</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Recommendations / Conclusion -->
+  <div class="sec-heading" style="margin-top:8px;">Recommendations:</div>
+  <div class="free-box" style="min-height:70px;">
+    <div class="conclusion-wrapper">
+      {% if conclusion_html %}
+        {{ conclusion_html | safe }}
+      {% elif facts.final_verdict_verbatim %}
+        {{ facts.final_verdict_verbatim }}
+      {% elif case.description %}
+        {{ case.description }}
+      {% else %}
+        &nbsp;
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- QC Remark -->
+  <table style="margin-top:6px;">
+    <tr>
+      <td class="lbl" style="width:60%;">
+        QC Remark (To be filled in at QC level):&nbsp;
+        <span style="font-weight:normal;">Strong &nbsp;&nbsp; Weak</span>
+      </td>
+      <td class="val" style="width:40%;">{{ facts.qc_remark or '' }}</td>
+    </tr>
+  </table>
+
+  <!-- Agency / Submission details -->
+  <table style="margin-top:6px;">
+    <tr>
+      <td class="lbl" style="width:50%;">Name of the CFR / Agency</td>
+      <td class="val" style="width:50%;">Optimus Medical Services Pvt Ltd</td>
+    </tr>
+    <tr>
+      <td class="lbl">Date of case assignment</td>
+      <td class="val">{{ case.allocationDate or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Date of report submission</td>
+      <td class="val">{{ case.reportingDate or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Signature of the CFR / Agency</td>
+      <td class="val" style="min-height:26px;"></td>
+    </tr>
+    <tr>
+      <td class="lbl">QC Done By</td>
+      <td class="val">{{ facts.qc_done_by or medical_staff.qcOfficer or 'Dr Sukanya' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Date of QC</td>
+      <td class="val">{{ facts.qc_date or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Signature For Optimus Medical Services Pvt Ltd</td>
+      <td class="val" style="min-height:26px;"></td>
+    </tr>
+  </table>
+
+  <div class="page-num">4 | P a g e</div>
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!-- PAGE 5 — STAMP                                          -->
+  <!-- ══════════════════════════════════════════════════════ -->
+  <div class="page-break"></div>
+
+  <div class="doc-header">
+    <div class="doc-header-title">NIVA BUPA HEALTH INSURANCE CO LTD</div>
+    <div class="doc-header-sub">INVESTIGATION REPORT</div>
+  </div>
+
+  <table>
+    <tr>
+      <td class="val" style="width:35%; min-height:110px; vertical-align:top;"></td>
+      <td class="val" style="width:65%; vertical-align:top; padding: 10px;">
+        {% if show_stamp and stamp_image %}
+          <img src="{{ stamp_image }}" class="sig-stamp" alt="Stamp"/>
+        {% endif %}
+        <div style="font-weight:bold; margin-top:8px;">Authorised Signatory</div>
+      </td>
+    </tr>
+  </table>
+
+  <div class="page-num">5 | P a g e</div>
+
+</div>
+</body>
+</html>

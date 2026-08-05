@@ -1,0 +1,92 @@
+DATABASES & COLLECTIONS REFERENCE
+============================================================
+watsapp.py  |  12 MongoDB collections opened at startup
+============================================================
+
+### MONGODB COLLECTIONS
+------------------------------------------------------------
+Format:  variable name in code  ->  actual MongoDB collection
+
+  whatsapp_message_collection            -> whatsapp_messages
+  OPD_Doctor_timings_collection           -> OPD_Doctor_timings
+  patient_user_collection                 -> patient_users
+  patient_appointments_collection          -> patient_appointments
+  doctor_user_collection                   -> doctor_users
+  doctor_screening_questions_collection     -> doctor_screening_questions
+  doctor_screening_results_collection       -> doctor_screening_results
+  hospital_user_collection                 -> hospital_users
+  appointment_records_collection            -> appointment_records
+  whatsapp_followup_collection              -> whatsapp_followup
+  patient_education_collection              -> patient_education
+  doctor_patient_messages_collection         -> doctor_patient_messages
+
+Note: appointment_records, whatsapp_followup, patient_education, and
+doctor_patient_messages do not appear in the PATIENT_CONTEXT collection
+list — they look specific to this WhatsApp bot module.
+
+### DATABASE CLIENTS
+------------------------------------------------------------
+  Async  : AsyncIOMotorClient(MONGO_URI)  ->  database = mongodb_client[MONGO_DB]
+           used by all collections above except hospital_user_collection
+  Sync   : MongoClient(MONGO_URI)          ->  db = client[MONGO_DB]
+           used only by hospital_user_collection
+  MONGO_DB = "doctorassistai" (same database name as patientcontext.py)
+
+### DUPLICATE / OVERLAPPING VARIABLE NAMES (vs. patientcontext.py)
+------------------------------------------------------------
+Same variable name, same underlying collection — consistent with the
+patientcontext.py reference:
+
+  OPD_Doctor_timings_collection   -> OPD_Doctor_timings
+  doctor_user_collection          -> doctor_users
+  doctor_screening_questions_collection -> doctor_screening_questions
+  doctor_screening_results_collection   -> doctor_screening_results
+  patient_appointments_collection -> patient_appointments
+  hospital_user_collection        -> hospital_users
+  whatsapp_message_collection     -> whatsapp_messages
+
+Note: patient_user_collection here points to "patient_users", the same
+underlying collection as patient_user_collec / patient_user_collection /
+patient_users_collection in patientcontext.py (all resolve to
+"patient_users" - see the DUPLICATE section of PATIENT_CONTEXT_DATABASES
+_AND_COLLECTIONS.txt).
+
+### NEW COLLECTIONS NOT SEEN IN patientcontext.py
+------------------------------------------------------------
+  appointment_records_collection     -> appointment_records
+  whatsapp_followup_collection       -> whatsapp_followup
+  patient_education_collection       -> patient_education
+  doctor_patient_messages_collection -> doctor_patient_messages
+
+### NEO4J
+------------------------------------------------------------
+  Not used in this file. (imported/used in patientcontext.py only.)
+
+### OTHER EXTERNAL SERVICES
+------------------------------------------------------------
+  Groq LLM API   : groq_client = Groq(api_key=GROQ_API_KEY)
+                   used directly in 2 place(s) inside helper functions
+                   (follow-up date extraction, education Q&A answering)
+  Twilio API     : Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+                   used directly in 4 place(s) to send WhatsApp messages
+                   (doctor-send-message, followup reminders, test template,
+                   general follow-up sending)
+                   Credentials are hardcoded in this file:
+                     TWILIO_AUTH_TOKEN, TWILIO_ACCOUNT_SID,
+                     TWILIO_WHATSAPP_NUMBER = "+918123722166"
+  Twilio TwiML   : MessagingResponse() used 2 place(s) (webhook auto-replies)
+  Celery         : Not used in this file.
+  In-memory state: DOCTOR_AVAILABILITY_CACHE, USER_RESPONSE_SESSIONS (dicts,
+                   not persisted to MongoDB) - hold doctor availability cache
+                   and per-patient WhatsApp conversation-flow session state.
+
+### FILE STORAGE
+------------------------------------------------------------
+  UPLOAD_DIR = <this file's directory>/uploads  (created on startup)
+  Used by the /view/{filename} endpoint and media-upload handling in the
+  webhook flow.
+
+### ENVIRONMENT VARIABLES USED
+------------------------------------------------------------
+  VITE_BACKEND_URL, SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_DAYS,
+  GROQ_API_KEY, MONGO_URI

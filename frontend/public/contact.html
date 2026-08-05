@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html class="no-js" lang="en">
+  <head>
+    <!-- Meta -->
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="author" content="DoctorAssist.AI">
+    <link rel="icon" href="/newweb/assets/img/favicon.png">
+    <title>Contact Us - DoctorAssist.AI | AI-Powered Healthcare Solutions</title>
+    <meta name="description" content="Contact DoctorAssist.AI. Email our team for demos, support, partnerships, or general inquiries.">
+
+    <!-- Your styles -->
+    <link rel="stylesheet" href="/newweb/assets/css/plugins/bootstrap.min.css">
+    <link rel="stylesheet" href="/newweb/assets/css/plugins/fontawesome.min.css">
+    <link rel="stylesheet" href="/newweb/assets/css/plugins/animate.css">
+    <link rel="stylesheet" href="/newweb/assets/css/plugins/slick.css">
+    <link rel="stylesheet" href="/newweb/assets/css/plugins/odometer.css">
+    <link rel="stylesheet" href="/newweb/assets/css/plugins/lightgallery.min.css">
+    <link rel="stylesheet" href="/newweb/assets/css/plugins/jquery.timepicker.min.css">
+    <link rel="stylesheet" href="/newweb/assets/css/plugins/jquery-ui.css">
+    <link rel="stylesheet" href="/newweb/assets/css/plugins/select2.min.css">
+    <link rel="stylesheet" href="/newweb/assets/css/plugins/animated-headline.css">
+    <link rel="stylesheet" href="/newweb/assets/css/style.css">
+
+    <!-- Page-only styles -->
+    <style>
+      :root{
+        --primary-color:#1A4E8A;
+        --secondary-color:#307BC4;
+        --text-dark:#203040;
+        --text-light:#6b7a8c;
+      }
+
+      /* Header: ensure visibility + correct logo path */
+      .cs_site_header{position:sticky;top:0;z-index:9999}
+      .cs_site_branding .cs_logo{height:50px;width:auto;display:block}
+
+      /* Hero */
+      .contact-hero{
+        background:linear-gradient(135deg,var(--primary-color),var(--secondary-color));
+        padding:120px 0 80px; color:#fff; position:relative; overflow:hidden;
+      }
+      .contact-hero::before{
+        content:""; position:absolute;inset:0;
+        background:url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="20" cy="20" r="2" fill="rgba(255,255,255,0.1)"/><circle cx="80" cy="40" r="1" fill="rgba(255,255,255,0.1)"/><circle cx="40" cy="80" r="1.5" fill="rgba(255,255,255,0.1)"/></svg>');
+        animation:float 20s ease-in-out infinite;
+      }
+      @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-20px)}}
+      .hero-content{position:relative;z-index:2;text-align:center}
+      .hero-title{font-size:3rem;font-weight:800;line-height:1.15;margin:0 0 1rem;color:#e9f2ff}
+      .hero-subtitle{max-width:720px;margin:0 auto 1.5rem;opacity:.92}
+
+      .mailto-cta{
+        display:inline-flex;align-items:center;gap:.6rem;
+        background:#fff;color:var(--primary-color);
+        padding:14px 22px;border-radius:999px;font-weight:700;text-decoration:none;
+        box-shadow:0 10px 28px rgba(0,0,0,.12);
+      }
+      .mailto-cta:hover{transform:translateY(-2px)}
+
+      /* Cards */
+      .contact-methods{padding:70px 0;background:#f8f9fa}
+      .method-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:24px;margin-top:24px}
+      .method-card{
+        background:#fff;border-radius:16px;padding:26px;text-align:center;
+        box-shadow:0 10px 30px rgba(0,0,0,.08);position:relative;overflow:hidden
+      }
+      .method-card::before{
+        content:"";position:absolute;left:0;right:0;top:0;height:4px;
+        background:linear-gradient(90deg,var(--primary-color),var(--secondary-color))
+      }
+      .method-icon{
+        width:72px;height:72px;border-radius:50%;display:grid;place-items:center;
+        background:linear-gradient(135deg,var(--primary-color),var(--secondary-color));
+        color:#fff;font-size:1.6rem;margin:0 auto 14px
+      }
+      .method-title{font-weight:700;color:var(--text-dark);margin:.3rem 0}
+      .method-description{color:var(--text-light);margin:0 0 10px}
+
+      /* Offices */
+      .office{padding:70px 0;background:#fff}
+      .office-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+      .office-card{background:#fff;border-radius:16px;padding:24px;box-shadow:0 10px 26px rgba(0,0,0,.08)}
+      .office-title{font-weight:700;color:var(--text-dark);margin:0 0 12px}
+      .office-details{list-style:none;margin:0;padding:0}
+      .office-details li{padding:8px 0;color:var(--text-light)}
+
+      @media (max-width:768px){
+        .hero-title{font-size:2.4rem}
+        .office-grid{grid-template-columns:1fr}
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- (Optional) Preloader — keep if used globally -->
+    <div class="cs_perloader" style="display:none"></div>
+
+    <!-- Header -->
+    <header class="cs_site_header cs_style1 cs_color_1 cs_sticky_header cs_white_color">
+      <div class="cs_main_header">
+        <div class="container">
+          <div class="cs_main_header_in">
+            <div class="cs_main_header_left">
+              <a class="cs_site_branding" href="/">
+                <!-- fixed path + filename (no spaces) -->
+                <img src="../../../newweb/assets/img/white doctorassist.png" alt="Logo" class="cs_logo">
+              </a>
+              <nav class="cs_nav">
+                <ul class="cs_nav_list">
+                  <li><a href="/">Home</a></li>
+                  <li><a href="/about">About</a></li>
+                  <li><a href="/contact">Contact</a></li>
+                </ul>
+              </nav>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Hero -->
+    <section class="contact-hero">
+      <div class="container">
+        <div class="hero-content">
+          <h1 class="hero-title">Get in Touch</h1>
+          <p class="hero-subtitle">
+          Email us and a DoctorAssist.AI specialist will respond promptly.
+          </p>
+          <a class="mailto-cta" href="mailto:hello@doctorassist.ai" aria-label="Email DoctorAssist.AI">
+            <i class="fas fa-envelope"></i> hello@doctorassist.ai
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Contact Methods (all route to mailto) -->
+    <section class="contact-methods">
+      <div class="container">
+        <div class="text-center">
+          <h2 class="form-title" style="font-weight:800;color:#123">How can we help?</h2>
+          <p class="form-subtitle" style="color:var(--text-light)">Pick a lane—each button opens your email client.</p>
+        </div>
+
+        <div class="method-grid">
+          <div class="method-card">
+            <div class="method-icon"><i class="fas fa-laptop-medical"></i></div>
+            <h3 class="method-title">Request a Demo</h3>
+            <p class="method-description">See DoctorAssist.AI in action, tailored to your specialty & workflows.</p>
+            <a class="mailto-cta" href="mailto:hello@doctorassist.ai?subject=Demo%20Request%20-%20DoctorAssist.AI&body=Hi%20DoctorAssist.AI%20team%2C%0A%0AWe%27d%20like%20a%20demo.%20Our%20organization%3A%20%5Bname%5D%2C%20specialty%3A%20%5B%5D%2C%20preferred%20time%20zone%3A%20%5B%5D.%0A%0AThanks!">
+              Email for Demo
+            </a>
+          </div>
+
+          <div class="method-card">
+            <div class="method-icon"><i class="fas fa-headset"></i></div>
+            <h3 class="method-title">Technical Support</h3>
+            <p class="method-description">Implementation help, integrations, or troubleshooting.</p>
+            <a class="mailto-cta" href="mailto:hello@doctorassist.ai?subject=Technical%20Support%20-%20DoctorAssist.AI&body=Hi%20Support%2C%0A%0AIssue%20summary%3A%20%5B%5D%0AEnvironment%20%28on-prem%2Fcloud%29%3A%20%5B%5D%0AUrgency%3A%20%5B%5D%0A%0AThanks.">
+              Email Support
+            </a>
+          </div>
+
+          <div class="method-card">
+            <div class="method-icon"><i class="fas fa-handshake"></i></div>
+            <h3 class="method-title">Partnerships</h3>
+            <p class="method-description">Resellers, research, or co-development programs.</p>
+            <a class="mailto-cta" href="mailto:hello@doctorassist.ai?subject=Partnership%20Inquiry%20-%20DoctorAssist.AI&body=Hello%2C%0A%0AWe%27re%20interested%20in%20partnering.%20Company%3A%20%5B%5D%2C%20region%3A%20%5B%5D%2C%20area%20of%20focus%3A%20%5B%5D.%0A%0AThanks.">
+              Email Partnerships
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Offices -->
+    <section class="office">
+      <div class="container">
+        <div class="office-grid">
+          <!-- <div class="office-card">
+            <h3 class="office-title">India Office</h3>
+            <ul class="office-details">
+              <li>Cove Office, PHI Tower, Ground Floor, Tower-2</li>
+              <li>SJR I PARK, Rd Number 9, EPIP Zone</li>
+              <li>Whitefield, Bengaluru, Karnataka 560066</li>
+              <li>Phone: +91 81237 22166</li>
+              <li>Email: <a href="mailto:hello@doctorassist.ai">hello@doctorassist.ai</a></li>
+            </ul>
+          </div>
+          <div class="office-card">
+            <h3 class="office-title">United Kingdom</h3>
+            <ul class="office-details">
+              <li>1B Halford Street, LE1 1JA</li>
+              <li>Leicester, England</li>
+              <li>Email: <a href="mailto:hello@doctorassist.ai">hello@doctorassist.ai</a></li>
+            </ul>
+          </div> -->
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="cs_footer cs_style_2 cs_accent_bg cs_white_color">
+      <div class="container">
+        <div class="cs_footer_in">
+          <div class="cs_footer_col">
+            <div class="cs_footer_item">
+              <div class="cs_text_widget">
+                <h2 class="text-white">DoctorAssist.AI</h2>
+              </div>
+              <ul class="cs_contact_widget1">
+               <!--  <li>
+                  <i class="cs_accent_bg">
+                    <svg width="9" height="12" viewBox="0 0 9 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M4.5 11.3896C3.21094 9.32715 0.955078 6.53131 0.955078 4.12506C0.955078 2.04008 2.54533 0.343815 4.5 0.343815C6.45467 0.343815 8.04492 2.04008 8.04492 4.12506C8.04492 6.53131 5.78906 9.32715 4.5 11.3896Z" stroke="#307BC4" stroke-width="0.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
+                      <path d="M4.5 5.84375C3.61156 5.84375 2.88867 5.07267 2.88867 4.125C2.88867 3.17733 3.61156 2.40625 4.5 2.40625C5.38844 2.40625 6.11133 3.17733 6.11133 4.125C6.11133 5.07267 5.38844 5.84375 4.5 5.84375Z" stroke="#307BC4" stroke-width="0.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </i>
+                  Cove Office, PHI Tower, Ground Floor, Tower-2,<br>SJR I PARK, Rd Number 9, EPIP Zone,<br>Whitefield, Bengaluru, Karnataka 560066
+                </li>
+                <li>
+                  <i class="cs_accent_bg">
+                    <svg width="9" height="9" viewBox="0 0 9 9" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1.82381 5.98259C2.71487 7.04372 3.7875 7.8792 5.01177 8.47037C5.47789 8.69043 6.10126 8.95151 6.79576 8.99627C6.83881 8.99813 6.87999 9 6.92305 9C7.38917 9 7.76356 8.83962 8.06869 8.50953C8.07057 8.50767 8.07431 8.50394 8.07618 8.50021C8.18476 8.36966 8.30831 8.25218 8.43747 8.12723C8.52545 8.04331 8.61531 7.95566 8.70142 7.86614C9.10015 7.45213 9.10015 6.92623 8.69768 6.52528L7.57262 5.40448C7.38168 5.2068 7.1533 5.10236 6.91369 5.10236C6.67408 5.10236 6.44383 5.2068 6.24727 5.40261L5.5771 6.07024C5.51533 6.03481 5.45168 6.00311 5.39178 5.97327C5.3169 5.93597 5.24764 5.90054 5.18586 5.86138C4.5756 5.47534 4.0215 4.97182 3.49173 4.3247C3.22404 3.98715 3.04433 3.70369 2.91891 3.41463C3.09488 3.25611 3.25961 3.09014 3.41873 2.92789C3.47489 2.87008 3.53292 2.81227 3.59095 2.75445C3.79312 2.55305 3.90169 2.31993 3.90169 2.08309C3.90169 1.84625 3.79499 1.61314 3.59095 1.41173L3.0331 0.855988C2.96758 0.790717 2.90581 0.72731 2.84216 0.662039C2.71861 0.535226 2.58944 0.404683 2.46215 0.287194C2.26934 0.0988396 2.04283 0 1.80322 0C1.56548 0 1.3371 0.0988396 1.1368 0.289059L0.436681 0.986531C0.182094 1.24016 0.0379521 1.54787 0.00800063 1.90406C-0.0275668 2.34977 0.0547998 2.82346 0.268204 3.39598C0.595799 4.28181 1.09 5.10423 1.82381 5.98259Z" fill="#307BC4"/></svg>
+                  </i>
+                  +91 81237 22166
+                </li> -->
+                <!-- <li>
+                  <i class="cs_accent_bg">
+                    <svg width="10" height="8" viewBox="0 0 10 8" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9.16666 0.25H0.83334C0.37373 0.25 0 0.62373 0 1.08334V6.91668C0 7.37627 0.37373 7.75 0.83334 7.75H9.16668C9.62627 7.75 10 7.37627 10 6.91666V1.08334C10 0.62373 9.62627 0.25 9.16666 0.25ZM0.83334 0.66666H9.16668C9.19738 0.66666 9.22443 0.677852 9.25324 0.68418C8.53178 1.34447 6.13951 3.53299 5.30234 4.28727C5.23684 4.34627 5.13125 4.41666 5.00002 4.41666C4.86879 4.41666 4.7632 4.34627 4.69748 4.28707C3.86039 3.53291 1.46799 1.34428 0.746641 0.684219C0.775508 0.677891 0.802617 0.66666 0.83334 0.66666ZM0.41666 6.91666V1.08334C0.41666 1.04252 0.428965 1.00549 0.43998 0.968184C0.992168 1.47357 2.66139 3.00061 3.74373 3.98484C2.6649 4.91154 0.995254 6.49451 0.438672 7.02525C0.428848 6.98982 0.41666 6.95518 0.41666 6.91666ZM9.16666 7.33334H0.83334C0.800059 7.33334 0.770469 7.32174 0.739394 7.31432C1.31453 6.76604 2.9948 5.17396 4.05467 4.26727C4.19283 4.3926 4.31904 4.50688 4.41854 4.59652C4.59025 4.75156 4.79125 4.83334 5 4.83334C5.20875 4.83334 5.40975 4.75154 5.58125 4.59672C5.68078 4.50703 5.80709 4.39266 5.94533 4.26727C7.00525 5.17387 8.68529 6.76582 9.26061 7.31432C9.22953 7.32174 9.19998 7.33334 9.16666 7.33334ZM9.58334 6.91666C9.58334 6.95516 9.57115 6.98982 9.56135 7.02525C9.00455 6.49424 7.3351 4.91145 6.25629 3.98486C7.33867 3.00063 9.00764 1.47373 9.56002 0.968144C9.57104 1.00545 9.58334 1.0425 9.58334 1.08332V6.91666Z" fill="#307BC4"/></svg>
+                  </i>
+                  <a href="mailto:hello@doctorassist.ai">hello@doctorassist.ai</a>
+                </li> -->
+              </ul>
+            </div>
+          </div>
+          <div class="cs_footer_col">
+            <div class="cs_footer_item">
+              <ul class="cs_menu_widget cs_mp0">
+                <li><a href="/Blogs">Clinical Documentation</a></li>
+                <li><a href="/Blogs">Medical Coding</a></li>
+                <li><a href="/Blogs">Decision Support</a></li>
+                <li><a href="/Blogs">Analytics & Research</a></li>
+              </ul>
+            </div>
+          </div>
+          <div class="cs_footer_col">
+            <div class="cs_footer_item">
+              <ul class="cs_menu_widget cs_mp0">
+                <li><a href="/about">About Us</a></li>
+                <li><a href="/our_team">Our Team</a></li>
+                <li><a href="/contact">Contact Us</a></li>
+              </ul>
+            </div>
+          </div>
+          <div class="cs_footer_col">
+            <div class="cs_footer_item">
+              <ul class="cs_menu_widget cs_mp0">
+                <li><a href="/Privacy-policy">Privacy Policy</a></li>
+                <li><a href="/terms-condition">Terms and Conditions</a></li>
+                <li><a href="/webpages/agentic-ai-healthcare">Blogs</a></li>
+              </ul>
+              <div class="cs_social_links_wrap">
+                <h2 class="cs_white_color">Follow Us</h2>
+                <div class="cs_social_links">
+                  <a href="https://www.linkedin.com/company/doctorassist"><i class="fa-brands fa-linkedin-in"></i></a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div><!-- /cs_footer_in -->
+      </div>
+      <div class="cs_footer_bottom">
+        <div class="container">
+          <div class="cs_copyright">Copyright © 2025 DoctorAssist.AI. All rights reserved.</div>
+          <div class="cs_copyright">DoctorAssist.AI is undergoing clinical validation and is intended solely for licensed clinicians. It supports—not replaces—independent clinical judgment.</div>
+        </div>
+      </div>
+    </footer>
+
+    <span class="cs_scrollup"><i class="fa-solid fa-arrow-up"></i></span>
+
+    <!-- Core scripts (keep if used sitewide) -->
+    <script src="/newweb/assets/js/plugins/jquery-3.6.0.min.js"></script>
+    <script src="/newweb/assets/js/plugins/wow.min.js"></script>
+    <script src="/newweb/assets/js/plugins/slick.min.js"></script>
+    <script src="/newweb/assets/js/plugins/odometer.js"></script>
+    <script src="/newweb/assets/js/plugins/isotope.pkg.min.js"></script>
+    <script src="/newweb/assets/js/plugins/lightgallery.min.js"></script>
+    <script src="/newweb/assets/js/plugins/jquery.timepicker.min.js"></script>
+    <script src="/newweb/assets/js/plugins/jquery-ui.js"></script>
+    <script src="/newweb/assets/js/plugins/select2.min.js"></script>
+    <script src="/newweb/assets/js/plugins/ripples.min.js"></script>
+    <script src="/newweb/assets/js/plugins/gsap.min.js"></script>
+    <script src="/newweb/assets/js/plugins/animated-headline.js"></script>
+    <script src="/newweb/assets/js/main.js"></script>
+  </body>
+</html>

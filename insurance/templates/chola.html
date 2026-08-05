@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Chola MS - Health Claims Verification Report</title>
+  <style>
+    @page { size: A4; margin: 14mm 14mm; }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 11px;
+      color: #000;
+      background: #fff;
+    }
+
+    .page {
+      width: 182mm;
+      margin: 0 auto;
+      background: #fff;
+    }
+
+    /* ── Chola MS logo header ── */
+    .header {
+      text-align: center;
+      margin-bottom: 10px;
+    }
+    .header-logo {
+      height: 52px;
+      width: auto;
+      object-fit: contain;
+    }
+
+    /* ── All tables ── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      margin-bottom: 0;
+    }
+
+    td {
+      border: 1px solid #555;
+      padding: 4px 6px;
+      vertical-align: middle;
+      font-size: 11px;
+      line-height: 1.5;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+    }
+
+    /* ── Report title row ── */
+    .title-row td {
+      background: #ffc000;
+      font-weight: bold;
+      font-size: 12px;
+      text-align: center;
+      padding: 5px 6px;
+      border: 1px solid #555;
+    }
+
+    /* ── Section header rows ── */
+    .sec-a td { background: #ffc000; font-weight: bold; color: #c00000; }
+    .sec-b td { background: #ffc000; font-weight: bold; color: #c00000; }
+    .sec-d td { background: #bdd7ee; font-weight: bold; color: #c00000; }
+    .sec-e td { background: #bdd7ee; font-weight: bold; color: #c00000; }
+    .sec-g td { background: #ffc000; font-weight: bold; color: #7030a0; }
+    .sec-h td { background: #ffc000; font-weight: bold; color: #7030a0; }
+    .sec-i td { background: #ffc000; font-weight: bold; color: #7030a0; }
+    .sec-v td { background: #ff0000; font-weight: bold; color: #fff; }
+
+    /* ── Numbered label cells ── */
+    .num  { width: 6%;  text-align: center; border: 1px solid #555; }
+    .lbl  { width: 44%; border: 1px solid #555; }
+    .val  { width: 50%; border: 1px solid #555; }
+
+    /* ── Letter column ── */
+    .letter { width: 6%; font-weight: bold; text-align: center; vertical-align: middle; border: 1px solid #555; }
+
+    /* ── Observations row (purple + yellow) ── */
+    .obs-lbl { background: #d9b3ff; font-weight: bold; color: #7030a0; width: 38%; vertical-align: top; min-height: 70px; }
+    .obs-val { background: #ffff00; vertical-align: top; min-height: 70px; width: 56%; }
+
+    /* ── Signature section ── */
+    .sig-area {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 16px;
+      font-size: 11px;
+    }
+    .sig-block { width: 46%; }
+
+    /* ── Stamp ── */
+    .sig-stamp {
+      width: 80px;
+      height: auto;
+      object-fit: contain;
+      display: block;
+      margin-top: 8px;
+    }
+
+    @media print {
+      body { background: #fff; }
+      .page { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Chola MS Logo -->
+  <div class="header">
+    <img src="{{ header_image }}" class="header-logo" alt="Chola MS General Insurance">
+  </div>
+
+  <table>
+
+    <!-- Report Title -->
+    <tr class="title-row"><td colspan="3">Health Claims Verification Report</td></tr>
+
+    <!-- ── A: Claim Details ── -->
+    <tr class="sec-a">
+      <td class="letter">A</td>
+      <td colspan="2" style="font-weight:bold; color:#c00000; background:#ffc000;">Claim Details</td>
+    </tr>
+    <tr>
+      <td class="num"></td>
+      <td class="lbl">Claim No:</td>
+      <td class="val">{{ case.insurerRef or '' }}</td>
+    </tr>
+    <tr>
+      <td class="num"></td>
+      <td class="lbl">Policy No:</td>
+      <td class="val">{{ case.policyNumber or '' }}</td>
+    </tr>
+    <tr>
+      <td class="num"></td>
+      <td class="lbl">Membership No:</td>
+      <td class="val">{{ (case.get('policyDetails') or {}).get('membershipNo') or (case.get('cashlessDetails') or {}).get('maid') or '' }}</td>
+    </tr>
+    <tr>
+      <td class="num"></td>
+      <td class="lbl">Group / Individual / IBL / SIB</td>
+      <td class="val">{{ case.policyType or '' }}</td>
+    </tr>
+    <!-- spacer -->
+    <tr><td colspan="3" style="border:none; height:6px;"></td></tr>
+
+    <!-- ── B: Details of the Patient ── -->
+    <tr class="sec-b">
+      <td class="letter">B</td>
+      <td colspan="2" style="font-weight:bold; color:#c00000; background:#ffc000;">Details of the patient</td>
+    </tr>
+    <tr>
+      <td class="num">1</td>
+      <td class="lbl">Name of the Patient</td>
+      <td class="val">{{ case.claimantName or '' }}</td>
+    </tr>
+    <tr>
+      <td class="num">2</td>
+      <td class="lbl">Age, Gender &amp; Relation</td>
+      <td class="val">
+        {{ case.claimantAge or '' }}{% if case.claimantGender %}, {{ case.claimantGender }}{% endif %}{% if case.relationship %}, {{ case.relationship }}{% endif %}
+      </td>
+    </tr>
+    <tr>
+      <td class="num">3</td>
+      <td class="lbl">Name of the Insured</td>
+      <td class="val">{{ case.insuredName or case.claimantName or '' }}</td>
+    </tr>
+    <tr>
+      <td class="num">4</td>
+      <td class="lbl">Photo ID of the patient, if not Insured</td>
+      <td class="val">{{ (case.get('patientVerification') or {}).get('idProofName') or '' }}</td>
+    </tr>
+    <!-- spacer -->
+    <tr><td colspan="3" style="border:none; height:6px;"></td></tr>
+    <tr><td colspan="3" style="border:none; height:6px;"></td></tr>
+
+    <!-- ── D: Hospital Details ── -->
+    <tr class="sec-d">
+      <td class="letter">D</td>
+      <td colspan="2" style="font-weight:bold; color:#c00000; background:#bdd7ee;">Hospital Details:</td>
+    </tr>
+    <tr>
+      <td class="num">1</td>
+      <td class="lbl">IPD Register (whether the entries are in order or not)</td>
+      <td class="val">{{ case.ipRegister or (case.get('hospitalVerificationChecks') or {}).get('q2_yes') or '' }}</td>
+    </tr>
+    <tr>
+      <td class="num">2</td>
+      <td class="lbl">Number of beds</td>
+      <td class="val">{{ hospital.get('beds','') if hospital.get else '' }}</td>
+    </tr>
+    <tr>
+      <td class="num">3</td>
+      <td class="lbl">Name of Hospital</td>
+      <td class="val">{{ hospital.name or '' }}</td>
+    </tr>
+    <tr>
+      <td class="num">4</td>
+      <td class="lbl">Date of admission</td>
+      <td class="val">{{ hospital.admissionDate or '' }}</td>
+    </tr>
+    <tr>
+      <td class="num">5</td>
+      <td class="lbl">Duration of stay</td>
+      <td class="val">{{ additional.get('durationOfStay','') if additional.get else '' }}</td>
+    </tr>
+    <tr>
+      <td class="num">6</td>
+      <td class="lbl">Room Category as per hospital records</td>
+      <td class="val">{{ (case.get('billingDetails') or billing or {}).get('roomType','') }}</td>
+    </tr>
+    <tr>
+      <td class="num">7</td>
+      <td class="lbl">Presenting complaints with duration</td>
+      <td class="val">{{ additional.get('chiefComplaints','') if additional.get else '' }}</td>
+    </tr>
+    <tr>
+      <td class="num">8</td>
+      <td class="lbl">Past history</td>
+      <td class="val">{{ additional.get('pastMedicalHistory','') if additional.get else '' }}</td>
+    </tr>
+    <tr>
+      <td class="num">9</td>
+      <td class="lbl">Diagnosis as per case sheet</td>
+      <td class="val">{{ critical.diagnosis or '' }}</td>
+    </tr>
+    <tr>
+      <td class="num">10</td>
+      <td class="lbl">Requested Amount</td>
+      <td class="val">{{ case.claimedAmount or (case.get('cashlessDetails') or {}).get('estimatedCost') or '' }}</td>
+    </tr>
+    <!-- spacer -->
+    <tr><td colspan="3" style="border:none; height:6px;"></td></tr>
+
+    <!-- ── E: Treating Dr's Name ── -->
+    <tr class="sec-e">
+      <td class="letter">E</td>
+      <td colspan="2" style="font-weight:bold; color:#c00000; background:#bdd7ee;">Treating Dr's Name</td>
+    </tr>
+    <tr>
+      <td class="num"></td>
+      <td colspan="2" class="val">{{ hospital.doctorName or case.treatingDoctor or '' }}</td>
+    </tr>
+    <!-- spacer -->
+    <tr><td colspan="3" style="border:none; height:4px;"></td></tr>
+
+    <!-- ── F: Observations ── -->
+    <tr>
+      <td class="letter" style="vertical-align:middle; background:#fff;">F</td>
+      <td class="obs-lbl" style="min-height:80px; vertical-align:top; padding:6px 8px;">
+        <strong>Observations and feedback from the member visited</strong>
+      </td>
+      <td class="obs-val" style="min-height:80px; vertical-align:top; padding:6px 8px;">
+        {{ case.onFieldObservations or additional.get('investigatorMemberOpinion','') if additional.get else case.onFieldObservations or '' }}
+        {% if conclusion_html %}
+          <div style="margin-top:4px; font-size:11px;">{{ conclusion_html | safe }}</div>
+        {% endif %}
+      </td>
+    </tr>
+    <!-- spacer -->
+    <tr><td colspan="3" style="border:none; height:6px;"></td></tr>
+
+    <!-- ── G: Name & Designation ── -->
+    <tr class="sec-g">
+      <td class="letter" style="background:#ffc000; color:#7030a0;">G</td>
+      <td colspan="2" style="background:#ffc000; font-weight:bold; color:#7030a0;">
+        Name &amp; Designation of person from whom information collected.
+      </td>
+    </tr>
+    <tr>
+      <td class="num"></td>
+      <td colspan="2" class="val">{{ (case.get('cholaVerification') or {}).get('informationCollectedFrom') or investigation.investigatorName or '' }}</td>
+    </tr>
+
+    <!-- ── H: Date of visit ── -->
+    <tr class="sec-h">
+      <td class="letter" style="background:#ffc000; color:#7030a0;">H</td>
+      <td colspan="2" style="background:#ffc000; font-weight:bold; color:#7030a0;">Date of visit</td>
+    </tr>
+    <tr>
+      <td class="num"></td>
+      <td colspan="2" class="val">{{ (case.get('cholaVerification') or {}).get('dateOfVisit') or case.reportDate or '' }}</td>
+    </tr>
+
+    <!-- ── I: Time of Visit ── -->
+    <tr class="sec-i">
+      <td class="letter" style="background:#ffc000; color:#7030a0;">I</td>
+      <td colspan="2" style="background:#ffc000; font-weight:bold; color:#7030a0;">Time of Visit</td>
+    </tr>
+    <tr>
+      <td class="num"></td>
+      <td colspan="2" class="val">{{ (case.get('cholaVerification') or {}).get('timeOfVisit') or '' }}</td>
+    </tr>
+
+    <!-- ── Verification mode ── -->
+    <tr class="sec-v">
+      <td colspan="3" style="background:#ff0000; font-weight:bold; color:#fff; font-size:11px;">
+        Verification done by Direct Visit / Telephonic
+      </td>
+    </tr>
+    <tr>
+      <td class="num"></td>
+      <td colspan="2" class="val">{{ (case.get('cholaVerification') or {}).get('verificationMode') or 'Direct Visit' }}</td>
+    </tr>
+
+  </table>
+
+  <!-- Signature section -->
+  <div class="sig-area">
+    <div class="sig-block">
+      <div>Name &amp; Signature of the Person Visited with Date</div>
+      {% if show_stamp != false %}
+        <img src="{{ stamp_image }}" class="sig-stamp" alt="Stamp">
+      {% endif %}
+    </div>
+    <div class="sig-block" style="text-align:right;">
+      <div>Verified by Regional Claims Manager (Name and Signature)</div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

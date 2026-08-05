@@ -1,0 +1,99 @@
+PYDANTIC MODELS REFERENCE
+============================================================
+watsapp.py  |  10 Pydantic BaseModel classes + 1 plain state-constants class
+============================================================
+
+### MESSAGING / WHATSAPP  (3 models)
+------------------------------------------------------------
+  File
+         uuid, url, type
+
+  Message
+         message, date, files
+
+  WhatsAppMessage
+         number, messages
+
+
+### APPOINTMENTS / TIMINGS  (2 models)
+------------------------------------------------------------
+  TimingSlot
+         day, from_time, to_time, interval
+
+  DoctorTiming
+         doctor_id, timings
+
+
+### SCREENING  (2 models)
+------------------------------------------------------------
+  Result
+         question, answer
+
+  DoctorScreeningResult
+         appointment_id, doctor_id, HMS_Id, result, created_at
+
+
+### APPOINTMENT RECORDS / FOLLOW-UP  (2 models)
+------------------------------------------------------------
+  AppointmentRecord
+         hms_id, hospital_id, phone_number, appointment_id, appointment_date
+         appointment_time, patient_name, doctor_id, doctor_name
+         specialization, created_at, updated_at
+
+  FollowUpDB
+         patient_id, doctor_id, followup_date, reminded, created_at
+
+
+### PATIENT EDUCATION  (1 model)
+------------------------------------------------------------
+  PatientEducation
+         education_id, patient_id, patient_name, hms_id, phone_number
+         doctor_id, doctor_name, hospital_id, appointment_id
+         appointment_date, question, answer, medical_context
+         question_timestamp, answer_timestamp, question_source
+         session_id, question_number
+
+
+### CONVERSATION STATE (plain class, not a BaseModel)  (1 class, 24 states)
+------------------------------------------------------------
+  ConversationState
+         MAIN_MENU, LAB_REPORTS, LAB_REPORTS_UPLOAD, LAB_REPORTS_MORE
+         APPOINTMENT, APPOINTMENT_METHOD, APPOINTMENT_HMS_ID
+         APPOINTMENT_DOB_VERIFY, APPOINTMENT_VERIFY, APPOINTMENT_DOCTOR_TYPE
+         APPOINTMENT_SELECT_SPECIALITY, APPOINTMENT_SELECT_DOCTOR
+         APPOINTMENT_SELECT_DATE, APPOINTMENT_SELECT_TIME
+         APPOINTMENT_CHIEF_COMPLAINT, APPOINTMENT_CONFIRM
+         APPOINTMENT_VISIT_TYPE, RESCHEDULE_CONFIRM
+         RESCHEDULE_CONFIRM_NO_APPOINTMENTS, RESCHEDULE_SELECT_APPOINTMENT
+         RESCHEDULE_SELECT_DATE, RESCHEDULE_SELECT_TIME
+         RESCHEDULE_CONFIRM_CHANGES, EDUCATION_ASK_QUESTION
+         CLINIC_REGISTRATION
+
+  Used as string-constant labels for the WhatsApp bot's finite-state
+  conversation machine (drives which "handle_..." helper function runs
+  for a given incoming message). Not persisted directly as a Mongo model;
+  the active state string is stored per-user in the in-memory
+  USER_RESPONSE_SESSIONS dict (see WHATSAPP_DATABASES_AND_COLLECTIONS.txt).
+
+
+### NAMES SHARED WITH patientcontext.py MODELS
+------------------------------------------------------------
+These class names also exist in patientcontext.py's model set, with the
+same or a very similar field list — check PATIENT_CONTEXT_MODELS.txt if
+you need to confirm they're identical before merging/importing:
+
+  File     (uuid, url, type)               - identical fields
+  Message  (message, date, files)          - identical fields
+  Result   (question, answer)              - identical fields
+
+
+### DATA REFERENCED BUT NOT DEFINED IN THIS FILE
+------------------------------------------------------------
+  DoctorMessageDB
+         Instantiated 3 times (doctor_send_message_to_patient endpoint,
+         ~lines 9548, 9586, 9659) with fields: message_id, doctor_id,
+         doctor_name, patient_id, patient_name, message_content,
+         phone_number, message_sid, delivery_status, created_at.
+         No class definition or import for DoctorMessageDB exists anywhere
+         in watsapp.py - it must be defined/imported elsewhere in the
+         actual project (or is a latent bug). Flagging so no data is lost.

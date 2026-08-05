@@ -1,0 +1,633 @@
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    ports:
+      - "${FRONTEND_PORT}:5173"
+    env_file:
+      - .env
+    volumes:
+      - ./frontend:/app
+    command: npm run dev -- --host
+    restart: "no"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+    
+
+  gateway:
+    build:
+      context: .
+      dockerfile: ./gateway/Dockerfile
+    container_name: gateway
+    ports:
+      - "${GATEWAY_PORT}:8000"
+    env_file:
+      - .env
+    depends_on:
+      - rabbitmq
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+
+  orchestration:
+    build:
+      context: .
+      dockerfile: ./orchestration/Dockerfile
+    container_name: orchestration
+    env_file:
+      - .env
+    depends_on:
+      - rabbitmq
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+
+  agentic:
+    build:
+      context: .
+      dockerfile: ./Agentic/Dockerfile
+    container_name: agentic
+    ports:
+      - "${AGENTIC_PORT}:8000"
+    env_file:
+      - .env
+    depends_on:
+      - rabbitmq
+      # - ollama
+      - neo4j
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 1536m   # 1.5GB — ML models, embeddings, LangGraph
+
+  neo4j:
+    image: neo4j:5
+    container_name: neo4j
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    environment:
+      NEO4J_AUTH: neo4j/password
+      # Limit Neo4j's internal heap so it respects the container limit
+      NEO4J_server_memory_heap_initial__size: 512m
+      NEO4J_server_memory_heap_max__size: 512m
+      NEO4J_server_memory_pagecache_size: 256m  
+    volumes:
+      - neo4j_data:/data
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 1024m
+
+  # ollama:
+  #   image: ollama/ollama:latest
+  #   container_name: ollama
+  #   ports:
+  #     - "${OLLAMA_PORT}:11434"
+  #   volumes:
+  #     - ollama_data:/root/.ollama
+  #   restart: unless-stopped
+
+  users:
+    build:
+      context: .
+      dockerfile: ./users/Dockerfile
+    container_name: users
+    env_file:
+      - .env
+    depends_on:
+      - rabbitmq
+    volumes:
+      - ./users/patient_data/uploads:/app/uploads
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+  insurance:
+    build:
+      context: .
+      dockerfile: ./insurance/Dockerfile
+    container_name: insurance
+    env_file:
+      - .env
+    depends_on:
+      - rabbitmq
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+    
+  speciality:
+    build:
+      context: .
+      dockerfile: ./speciality/Dockerfile
+    container_name: speciality
+    env_file:
+      - .env
+    depends_on:
+      - rabbitmq
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 1050m
+
+  integration:
+    build:
+      context: .
+      dockerfile: ./integration/Dockerfile
+    container_name: integration
+    env_file:
+      - .env
+    depends_on:
+      - rabbitmq
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+
+  abha:
+    build:
+      context: .
+      dockerfile: ./abha/Dockerfile
+    container_name: abha
+    env_file:
+      - .env
+    depends_on:
+      - rabbitmq
+    volumes:
+      - /tmp:/tmp
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 768m
+
+  audit-service:
+    build:
+      context: .
+      dockerfile: ./audit-service/Dockerfile
+    container_name: audit-service
+    env_file:
+      - .env
+    depends_on:
+      - rabbitmq
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+
+  ai_service:
+    build:
+      context: .
+      dockerfile: ./ai_service/Dockerfile
+    container_name: ai_service
+    env_file:
+      - .env
+    depends_on:
+      - rabbitmq
+    volumes:
+      - /tmp:/tmp
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 768m
+
+  common:
+    build:
+      context: .
+      dockerfile: ./common/Dockerfile
+    container_name: common
+    env_file:
+      - .env
+    depends_on:
+      - rabbitmq
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+
+  celery-legacy:
+    build:
+      context: .
+      dockerfile: ./common/Dockerfile.celery
+    container_name: celery-legacy
+    depends_on:
+      - rabbitmq
+    env_file:
+      - .env
+    environment:
+      CELERY_BROKER_URL: amqp://legacy_ai_user:strongpassword@rabbitmq:5672/legacy_pdf_ai
+      # CELERY_RESULT_BACKEND: redis://redis:6379/0
+      MONGO_URI: ${MONGO_URI}
+      MONGO_DB: ${MONGO_DB}
+    volumes:
+      - /tmp/documents:/tmp/documents
+      - /etc/localtime:/etc/localtime:ro
+    command: >
+      celery -A common.celery_worker.celery_app:celery_app worker
+      --loglevel=info
+      --pool=prefork
+      --concurrency=4
+      --prefetch-multiplier=1
+      -Q legacy_queue
+      -n legacy@%h
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 1024m   # 4 prefork workers x ~256MB each
+
+
+
+  celery-agent-pdf:
+
+    build:
+      context: .
+      dockerfile: ./common/Dockerfile.celery
+
+    container_name: celery-agent-pdf
+
+    depends_on:
+      - rabbitmq
+      - neo4j
+
+    env_file:
+      - .env
+
+    environment:
+
+      CELERY_BROKER_URL: amqp://legacy_ai_user:strongpassword@rabbitmq:5672/legacy_pdf_ai
+
+      MONGO_URI: ${MONGO_URI}
+
+      MONGO_DB: ${MONGO_DB}
+
+    volumes:
+      - /tmp/documents:/tmp/documents
+      - /etc/localtime:/etc/localtime:ro
+
+    command: >
+      celery -A common.celery_worker.celery_app:celery_app worker
+      --loglevel=info
+      --pool=prefork
+      --concurrency=1
+      --prefetch-multiplier=1
+      -Q agent_pdf_queue
+      -n agent-pdf@%h
+
+    restart: always
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+    deploy:
+      resources:
+        limits:
+          memory: 2048m
+
+  celery-handwritten:
+    build:
+      context: .
+      dockerfile: ./common/Dockerfile.celery
+    container_name: celery-handwritten
+    depends_on:
+      - rabbitmq
+    env_file:
+      - .env
+    environment:
+      CELERY_BROKER_URL: amqp://legacy_ai_user:strongpassword@rabbitmq:5672/legacy_pdf_ai
+      MONGO_URI: ${MONGO_URI}
+      MONGO_DB: ${MONGO_DB}
+    volumes:
+      - /tmp/documents:/tmp/documents
+      - /etc/localtime:/etc/localtime:ro
+    command: >
+      celery -A common.celery_worker.celery_app:celery_app worker
+      --loglevel=info
+      --pool=prefork
+      --concurrency=2
+      --prefetch-multiplier=1
+      -Q handwritten_queue
+      -n handwritten@%h
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 1024m
+
+  celery-agentic:
+    build:
+      context: .
+      dockerfile: ./common/Dockerfile.celery
+    container_name: celery-agentic
+    depends_on:
+      - rabbitmq
+    env_file:
+      - .env
+    environment:
+      CELERY_BROKER_URL: amqp://legacy_ai_user:strongpassword@rabbitmq:5672/legacy_pdf_ai
+      # CELERY_RESULT_BACKEND: redis://redis:6379/0
+      MONGO_URI: ${MONGO_URI}
+      MONGO_DB: ${MONGO_DB}
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+    command: >
+      celery -A common.celery_worker.celery_app:celery_app worker
+      --loglevel=info
+      --pool=prefork
+      --concurrency=2
+      --prefetch-multiplier=1
+      -Q agentic_queue
+      -n agentic@%h
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 768m
+
+  celery-summary:
+    build:
+      context: .
+      dockerfile: ./common/Dockerfile.celery
+    container_name: celery-summary
+    depends_on:
+      - rabbitmq
+
+    env_file:
+      - .env
+
+    environment:
+      CELERY_BROKER_URL: amqp://legacy_ai_user:strongpassword@rabbitmq:5672/legacy_pdf_ai
+      MONGO_URI: ${MONGO_URI}
+      MONGO_DB: ${MONGO_DB}
+      AGENTIC_URL: http://agentic:8000   # ✅ IMPORTANT
+
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+
+    command: >
+      celery -A common.celery_worker.celery_app:celery_app worker
+      --loglevel=info
+      --pool=prefork
+      --concurrency=2
+      --prefetch-multiplier=1
+      -Q summary_queue
+      -n summary@%h
+
+    restart: always
+  
+  celery-phase1:
+    build:
+      context: .
+      dockerfile: ./common/Dockerfile.celery
+    container_name: celery-phase1
+    depends_on:
+      rabbitmq:
+        condition: service_started
+    env_file:
+      - .env
+    environment:
+      CELERY_BROKER_URL: amqp://legacy_ai_user:strongpassword@rabbitmq:5672/legacy_pdf_ai
+      MONGO_URI: ${MONGO_URI}
+      MONGO_DB: ${MONGO_DB}
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+    command: >
+      celery -A common.celery_worker.celery_app:celery_app worker
+      --loglevel=info
+      --pool=prefork
+      --concurrency=1
+      --prefetch-multiplier=1
+      -Q phase1_queue
+      -n phase1@%h
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 2048m   # NCCN PDFs + embeddings need room
+  celery-mobile-parse:
+    build:
+      context: .
+      dockerfile: ./common/Dockerfile.celery
+    container_name: celery-mobile-parse
+    depends_on:
+      - rabbitmq
+    env_file:
+      - .env
+    environment:
+      CELERY_BROKER_URL: amqp://legacy_ai_user:strongpassword@rabbitmq:5672/legacy_pdf_ai
+      MONGO_URI: ${MONGO_URI}
+      MONGO_DB: ${MONGO_DB}
+    volumes:
+      - /tmp/documents:/tmp/documents
+      - /etc/localtime:/etc/localtime:ro
+    command: >
+      celery -A common.celery_worker.celery_app:celery_app worker
+      --loglevel=info
+      --pool=prefork
+      --concurrency=2
+      --prefetch-multiplier=1
+      -Q mobile_parse_queue
+      -n mobile-parse@%h
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 1024m
+  celery-advanced-upload:
+    build:
+      context: .
+      dockerfile: ./insurance/Dockerfile
+    container_name: celery-advanced-upload
+    depends_on:
+      - rabbitmq
+    env_file:
+      - .env
+    environment:
+      CELERY_BROKER_URL: amqp://legacy_ai_user:strongpassword@rabbitmq:5672/legacy_pdf_ai
+      MONGO_URI: ${MONGO_URI}
+      MONGO_DB: ${MONGO_DB}
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+    command: >
+      celery -A celery_worker.celery_app:celery_app worker
+      --loglevel=info
+      --pool=prefork
+      --concurrency=2
+      --prefetch-multiplier=1
+      -Q advanced_upload_queue
+      -n advanced-upload@%h
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 1024m
+
+  # NCCN PDFs + embeddings need room
+  
+  # workflow_engine:
+  #   build:
+  #     context: .
+  #     dockerfile: ./workflow_engine/Dockerfile
+  #   container_name: workflow_engine
+  #   env_file:
+  #     - .env
+  #   depends_on:
+  #     - rabbitmq
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "${RABBITMQ_PORT}:5672"
+      - "${RABBITMQ_UI_PORT}:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+
+  redis:
+    image: redis:7
+    container_name: redis
+    command: >
+      redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru --save ""
+    # ports:
+    #   - "${REDIS_PORT}:6379"
+    volumes:
+      - redis_data:/data
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+
+  # log-streamer:
+  #   build:
+  #     context: ./log-streamer
+  #     dockerfile: Dockerfile
+  #   container_name: log-streamer
+  #   restart: unless-stopped
+  #   volumes:
+  #     - /var/run/docker.sock:/var/run/docker.sock:ro
+  #   env_file:
+  #     - .env
+  #   ports:
+  #     - "${LOG_STREAMER_PORT}:9001"
+
+volumes:
+  rabbitmq_data:
+  redis_data:
+  # ollama_data:
+  neo4j_data:
+
+
+

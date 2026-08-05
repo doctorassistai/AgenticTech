@@ -1,0 +1,100 @@
+# ===============================
+# Core Web Framework
+# ===============================
+fastapi==0.115.0
+uvicorn==0.31.0
+httpx==0.27.2
+aiohttp
+requests
+jinja2
+python-multipart
+slowapi
+langchain-openai>=0.1.0
+# ===============================
+# Auth & Security
+# ===============================
+python-dotenv==1.0.1
+python-jose[cryptography]
+passlib[bcrypt]==1.7.4
+bcrypt==4.0.1
+email-validator
+pydantic[email]==2.9.0
+
+# ===============================
+# Databases & Messaging
+# ===============================
+pymongo
+motor
+redis
+pika
+neo4j==5.25.0
+
+# ===============================
+# AI / LLM Orchestration
+# ===============================
+langgraph==0.2.27
+langchain==0.3.0
+langchain-core==0.3.0
+langchain-community
+langchain-text-splitters
+langchain-groq==0.2.0
+langchain-openai==0.2.0
+
+groq==0.11.0
+openai==1.50.0
+anthropic==0.39.0
+networkx
+# ===============================
+# Vector Stores (CPU ONLY)
+# ===============================
+
+chromadb==0.5.23
+
+
+# ===============================
+# Data Processing
+# ===============================
+pandas==2.2.3
+numpy==1.26.4
+python-dateutil==2.9.0
+pytz
+
+# ===============================
+# Utilities
+# ===============================
+loguru==0.7.2
+tenacity
+aiofiles
+rapidfuzz==3.9.6
+
+
+
+
+
+
+# ===============================
+# Media / Docs / Audio
+# ===============================
+PyPDF2
+pypdf
+pdfplumber==0.11.4
+PyMuPDF>=1.23.0
+python-docx
+beautifulsoup4
+firecrawl-py
+python-magic
+
+pillow
+assemblyai
+elevenlabs
+celery==5.3.6
+
+# OCR (optional, for scanned PDFs)
+pytesseract
+
+qdrant-client==1.9.1
+rank-bm25
+
+scipy>=1.13.0
+scikit-learn>=1.5.0
+accelerate>=0.34.0

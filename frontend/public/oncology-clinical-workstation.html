@@ -1,0 +1,1629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clinical Knowledge Hub</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@200;300;400;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --black:#050505;
+    --line:#2a2a2a;
+    --line-soft:#1b1b1b;
+    --white:#f4f4f2;
+    --grey:#8a8a86;
+    --grey-dim:#5c5c58;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    background:var(--black); color:var(--white);
+    font-family:'Open Sans', sans-serif; font-weight:300; line-height:1.65; font-size:15px;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{ background:var(--white); color:var(--black); }
+  a{ color:inherit; }
+  ul{ padding-left:18px; }
+  li{ margin-bottom:4px; }
+  b{ font-weight:600; }
+
+  /* ============ HEADER / TABS ============ */
+  .app-header{
+    position:sticky; top:0; z-index:60;
+    background:rgba(5,5,5,0.97); backdrop-filter:blur(6px);
+    border-bottom:1px solid var(--line);
+  }
+  .app-header-inner{ max-width:1400px; margin:0 auto; padding:20px 32px 0; }
+  .brand-row{ display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:8px 24px; margin-bottom:18px; }
+  .brand{ font-weight:200; font-size:21px; letter-spacing:0.13em; text-transform:uppercase; }
+  .brand span{ font-weight:600; }
+  .brand-sub{ font-weight:300; font-size:10.5px; letter-spacing:0.18em; text-transform:uppercase; color:var(--grey); }
+  .meta-line{ font-size:10.5px; letter-spacing:0.08em; color:var(--grey-dim); text-transform:uppercase; }
+
+  .tab-nav{ display:flex; gap:0; }
+  .tab-btn{
+    background:none; border:none; color:var(--grey);
+    font-family:'Open Sans', sans-serif; font-weight:300; font-size:13px; letter-spacing:0.06em;
+    padding:14px 22px 16px; cursor:pointer; border-bottom:2px solid transparent;
+    text-transform:uppercase; letter-spacing:0.09em; font-size:11.5px;
+  }
+  .tab-btn:hover{ color:var(--white); }
+  .tab-btn.active{ color:var(--white); border-bottom-color:var(--white); font-weight:400; }
+
+  .tab-panel{ display:none; }
+  .tab-panel.active{ display:block; }
+
+  /* ============ SHARED ============ */
+  .wrap{ max-width:1400px; margin:0 auto; padding:40px 32px 100px; }
+  .page-title{ font-size:26px; font-weight:200; margin-bottom:8px; }
+  .page-desc{ font-size:13.5px; color:var(--grey); max-width:720px; margin-bottom:36px; }
+
+  .field-label{ font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:var(--grey-dim); margin-bottom:6px; }
+  select, input[type=number], input[type=text]{
+    width:100%; background:transparent; border:1px solid var(--line); color:var(--white);
+    font-family:'Open Sans', sans-serif; font-weight:300; font-size:14px; padding:11px 14px; outline:none;
+  }
+  select:focus, input:focus{ border-color:var(--white); }
+  select option{ background:#111; color:var(--white); }
+
+  .btn{
+    background:var(--white); color:var(--black); border:none; font-family:'Open Sans', sans-serif;
+    font-weight:400; font-size:12px; letter-spacing:0.08em; text-transform:uppercase; padding:12px 22px;
+    cursor:pointer;
+  }
+  .btn:hover{ background:#d8d8d4; }
+  .btn-ghost{
+    background:none; color:var(--grey); border:1px solid var(--line); font-family:'Open Sans', sans-serif;
+    font-weight:300; font-size:11.5px; letter-spacing:0.08em; text-transform:uppercase; padding:11px 20px; cursor:pointer;
+  }
+  .btn-ghost:hover{ color:var(--white); border-color:var(--white); }
+
+  .card-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(320px,1fr)); gap:1px; background:var(--line); border:1px solid var(--line); }
+  .card-grid.single{ grid-template-columns:1fr; }
+  .card{ background:var(--black); padding:24px 26px; }
+  .card-title-row{ display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:10px; }
+  .card-title{ font-size:16.5px; font-weight:400; letter-spacing:0.01em; }
+  .card-tag{ font-size:9.5px; letter-spacing:0.1em; text-transform:uppercase; color:var(--grey-dim); border:1px solid var(--line); padding:3px 8px; white-space:nowrap; }
+  .card-sub{ font-size:11.5px; color:var(--grey); margin-bottom:14px; }
+  .field{ margin-bottom:11px; }
+  .field:last-child{ margin-bottom:0; }
+  .field-value{ font-size:13.5px; color:var(--white); font-weight:300; }
+  .keywords{ display:none; }
+
+  table{ width:100%; border-collapse:collapse; font-size:13px; }
+  th, td{ text-align:left; padding:10px 14px; border-bottom:1px solid var(--line-soft); vertical-align:top; }
+  th{ font-size:10px; letter-spacing:0.1em; text-transform:uppercase; color:var(--grey-dim); font-weight:400; border-bottom:1px solid var(--line); }
+  td{ color:var(--white); font-weight:300; }
+  tr:last-child td{ border-bottom:none; }
+  .table-wrap{ border:1px solid var(--line); overflow-x:auto; }
+  .table-wrap table{ min-width:560px; }
+
+  .note{ font-size:12px; color:var(--grey); border-left:2px solid var(--line); padding:10px 16px; margin-top:18px; }
+  .hidden{ display:none !important; }
+
+  /* ============ PATHWAY BUILDER ============ */
+  .pathway-controls{
+    display:grid; grid-template-columns:1fr 1fr auto; gap:20px; align-items:end;
+    border:1px solid var(--line); padding:26px; margin-bottom:8px;
+  }
+  .pathway-meta{ font-size:11px; color:var(--grey-dim); letter-spacing:0.05em; margin:14px 0 34px; }
+  .pathway-output{ border-top:1px solid var(--line); padding-top:34px; }
+  .pathway-output.empty-msg{ color:var(--grey); font-size:14px; padding:60px 0; text-align:center; }
+  .po-section{ margin-bottom:30px; }
+  .po-label{ font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:var(--grey-dim); margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid var(--line-soft); display:flex; justify-content:space-between; align-items:center; }
+  .po-num{ color:var(--grey-dim); }
+  .po-body{ font-size:14px; color:var(--white); font-weight:300; }
+  .po-body ul{ margin-top:4px; }
+  .po-flag{ display:inline-block; font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:var(--black); background:var(--white); padding:2px 8px; margin-right:8px; }
+  .pathway-actions{ display:flex; gap:14px; margin-top:36px; }
+  .pathway-header-row{ display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:12px; margin-bottom:6px; }
+  .pathway-headline{ font-size:22px; font-weight:200; }
+  .pathway-sub{ font-size:12px; color:var(--grey); text-transform:uppercase; letter-spacing:0.08em; }
+
+  /* ============ CALCULATORS ============ */
+  .calc-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(360px,1fr)); gap:1px; background:var(--line); border:1px solid var(--line); }
+  .calc-card{ background:var(--black); padding:28px 28px 30px; }
+  .calc-title{ font-size:16px; font-weight:400; margin-bottom:4px; }
+  .calc-desc{ font-size:12px; color:var(--grey); margin-bottom:20px; }
+  .calc-row{ display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
+  .calc-row.full{ grid-template-columns:1fr; }
+  .calc-result{ margin-top:18px; padding-top:16px; border-top:1px solid var(--line-soft); }
+  .calc-result-value{ font-size:24px; font-weight:200; }
+  .calc-result-label{ font-size:10.5px; letter-spacing:0.1em; text-transform:uppercase; color:var(--grey-dim); margin-top:4px; }
+  .calc-interp{ font-size:12px; color:var(--grey); margin-top:8px; }
+  .mascc-item{ display:flex; justify-content:space-between; align-items:center; padding:9px 0; border-bottom:1px solid var(--line-soft); font-size:13px; }
+  .mascc-item:last-child{ border-bottom:none; }
+  .mascc-item select{ width:auto; min-width:150px; padding:7px 10px; font-size:12.5px; }
+
+  /* ============ REFERENCE LIBRARY (nested) ============ */
+  .ref-search-wrap{ position:relative; margin-bottom:0; }
+  .search-input{
+    width:100%; background:transparent; border:1px solid var(--line); color:var(--white);
+    font-family:'Open Sans', sans-serif; font-weight:300; font-size:16px; letter-spacing:0.02em; padding:15px 20px; outline:none;
+  }
+  .search-input::placeholder{ color:var(--grey-dim); font-weight:200; }
+  .search-input:focus{ border-color:var(--white); }
+  .search-meta{ display:flex; justify-content:space-between; align-items:center; margin-top:8px; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--grey-dim); }
+  #resultCount b{ color:var(--white); font-weight:400; }
+  .clear-btn{ background:none; border:none; color:var(--grey); font-family:inherit; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; cursor:pointer; text-decoration:underline; text-underline-offset:3px; }
+  .clear-btn:hover{ color:var(--white); }
+
+  .ref-layout{ display:grid; grid-template-columns:240px 1fr; gap:0; margin-top:28px; }
+  .sidebar{ position:sticky; top:150px; align-self:start; max-height:calc(100vh - 170px); overflow-y:auto; padding:0 20px 60px 0; border-right:1px solid var(--line); }
+  .sidebar::-webkit-scrollbar{ width:4px; }
+  .sidebar::-webkit-scrollbar-thumb{ background:var(--line); }
+  .side-label{ font-size:10px; letter-spacing:0.18em; text-transform:uppercase; color:var(--grey-dim); margin-bottom:16px; }
+  .side-link{ display:flex; gap:12px; align-items:baseline; padding:9px 0; font-size:13px; color:var(--grey); border-bottom:1px solid var(--line-soft); cursor:pointer; }
+  .side-link:hover{ color:var(--white); }
+  .side-link.active{ color:var(--white); }
+  .side-num{ font-size:10.5px; color:var(--grey-dim); font-variant-numeric:tabular-nums; min-width:18px; }
+  .side-link.active .side-num{ color:var(--white); }
+  .ref-main{ padding:2px 0 0 36px; min-width:0; }
+
+  .master-section{ margin-bottom:96px; scroll-margin-top:220px; }
+  .master-head{ display:flex; gap:22px; align-items:flex-start; border-bottom:1px solid var(--line); padding-bottom:22px; margin-bottom:34px; }
+  .master-index{ font-size:13px; color:var(--grey-dim); font-weight:200; letter-spacing:0.05em; padding-top:6px; min-width:34px; }
+  .master-title{ font-size:26px; font-weight:200; letter-spacing:0.01em; }
+  .master-purpose{ font-size:13px; color:var(--grey); margin-top:8px; font-weight:300; max-width:640px; }
+  .subgroup{ margin-bottom:38px; }
+  .subgroup-title{ font-size:11px; letter-spacing:0.16em; text-transform:uppercase; color:var(--grey-dim); margin-bottom:16px; padding-bottom:8px; border-bottom:1px solid var(--line-soft); }
+  .divider-graph{ margin-top:60px; padding:36px 0 0; border-top:1px solid var(--line); }
+  .divider-graph h3{ font-weight:200; font-size:20px; margin-bottom:14px; }
+  .divider-graph p{ font-size:13.5px; color:var(--grey); max-width:760px; margin-bottom:14px; }
+  .empty-state{ text-align:center; padding:100px 20px; color:var(--grey); font-size:14px; letter-spacing:0.02em; }
+  mark{ background:var(--white); color:var(--black); padding:0 1px; }
+
+  footer{ border-top:1px solid var(--line); padding:36px 32px 60px; max-width:1400px; margin:0 auto; font-size:11px; color:var(--grey-dim); letter-spacing:0.05em; }
+
+  @media (max-width:900px){
+    .ref-layout{ grid-template-columns:1fr; }
+    .sidebar{ position:static; max-height:none; border-right:none; border-bottom:1px solid var(--line); padding:0 0 30px; }
+    .ref-main{ padding-left:0; }
+    .pathway-controls{ grid-template-columns:1fr; }
+    .app-header-inner{ padding:16px 20px 0; }
+    .wrap{ padding:28px 18px 90px; }
+    .calc-row{ grid-template-columns:1fr; }
+  }
+
+  @media print{
+    .app-header, .tab-nav, .pathway-actions, footer, .tab-panel:not(.active) { display:none !important; }
+    body{ background:#fff; color:#000; }
+    .po-label, .pathway-headline{ color:#000; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app-header">
+  <div class="app-header-inner">
+    <div class="brand-row">
+      <div>
+        <div class="brand">Clinical Knowledge Hub</div>
+        <div class="brand-sub">Cross-Specialty Oncology Decision Support</div>
+      </div>
+      <div class="meta-line">Reference index only — verify against institutional protocol</div>
+    </div>
+    <div class="tab-nav">
+      <button class="tab-btn active" data-tab="pathway">Pathway Builder</button>
+      <button class="tab-btn" data-tab="calc">Calculators</button>
+      <button class="tab-btn" data-tab="ref">Reference Library</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= TAB 1: PATHWAY BUILDER ================= -->
+<div class="tab-panel active" id="tab-pathway">
+  <div class="wrap">
+    <div class="page-title">Diagnosis-Driven Pathway</div>
+    <div class="page-desc">Select a tumor type and disease extent to assemble a cross-specialty pathway pulled from the Diagnostic, Staging, Molecular, Surgical, Medical Oncology, Radiation, Toxicity and Follow-up masters in one view.</div>
+
+    <div class="pathway-controls">
+      <div>
+        <div class="field-label">Tumor Type</div>
+        <select id="cancerSelect"></select>
+      </div>
+      <div>
+        <div class="field-label">Disease Extent</div>
+        <select id="stageSelect"></select>
+      </div>
+      <div>
+        <button class="btn" id="buildBtn">Build Pathway</button>
+      </div>
+    </div>
+    <div class="pathway-meta">Pathway assembled from guideline-concordant general practice patterns (NCCN / ESMO-aligned). Confirm against institutional tumor-board decision and current guideline version before acting.</div>
+
+    <div class="pathway-output" id="pathwayOutput">
+      <div class="empty-msg">Choose a tumor type and disease extent, then select Build Pathway.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= TAB 2: CALCULATORS ================= -->
+<div class="tab-panel" id="tab-calc">
+  <div class="wrap">
+    <div class="page-title">Clinical Calculators</div>
+    <div class="page-desc">Bedside oncology calculations. All results are decision-support estimates — round and verify per institutional pharmacy policy before prescribing.</div>
+
+    <div class="calc-grid">
+
+      <!-- BSA -->
+      <div class="calc-card">
+        <div class="calc-title">Body Surface Area</div>
+        <div class="calc-desc">Mosteller &amp; DuBois formulas</div>
+        <div class="calc-row">
+          <div><div class="field-label">Height (cm)</div><input type="number" id="bsaHeight" placeholder="170"></div>
+          <div><div class="field-label">Weight (kg)</div><input type="number" id="bsaWeight" placeholder="70"></div>
+        </div>
+        <div class="calc-result">
+          <div class="calc-result-value" id="bsaResult">—</div>
+          <div class="calc-result-label">Mosteller BSA (m²)</div>
+          <div class="calc-interp" id="bsaResult2">DuBois BSA: —</div>
+        </div>
+      </div>
+
+      <!-- Dose from BSA -->
+      <div class="calc-card">
+        <div class="calc-title">Dose Calculator (BSA-based)</div>
+        <div class="calc-desc">Total dose from body surface area × dose/m²</div>
+        <div class="calc-row">
+          <div><div class="field-label">BSA (m²)</div><input type="number" step="0.01" id="doseBsa" placeholder="1.75"></div>
+          <div><div class="field-label">Dose (mg/m²)</div><input type="number" id="doseRate" placeholder="75"></div>
+        </div>
+        <div class="calc-result">
+          <div class="calc-result-value" id="doseResult">—</div>
+          <div class="calc-result-label">Total dose (mg)</div>
+        </div>
+      </div>
+
+      <!-- ANC -->
+      <div class="calc-card">
+        <div class="calc-title">Absolute Neutrophil Count</div>
+        <div class="calc-desc">ANC + CTCAE neutropenia grade</div>
+        <div class="calc-row">
+          <div><div class="field-label">WBC (×10³/µL)</div><input type="number" step="0.1" id="ancWbc" placeholder="3.2"></div>
+          <div><div class="field-label">% Neutrophils + Bands</div><input type="number" id="ancPct" placeholder="42"></div>
+        </div>
+        <div class="calc-result">
+          <div class="calc-result-value" id="ancResult">—</div>
+          <div class="calc-result-label">ANC (cells/µL)</div>
+          <div class="calc-interp" id="ancGrade">Enter values to see CTCAE grade</div>
+        </div>
+      </div>
+
+      <!-- Creatinine Clearance -->
+      <div class="calc-card">
+        <div class="calc-title">Creatinine Clearance</div>
+        <div class="calc-desc">Cockcroft-Gault formula</div>
+        <div class="calc-row">
+          <div><div class="field-label">Age (yrs)</div><input type="number" id="crclAge" placeholder="60"></div>
+          <div><div class="field-label">Weight (kg)</div><input type="number" id="crclWeight" placeholder="70"></div>
+        </div>
+        <div class="calc-row">
+          <div><div class="field-label">Serum Creatinine (mg/dL)</div><input type="number" step="0.01" id="crclCr" placeholder="0.9"></div>
+          <div><div class="field-label">Sex</div>
+            <select id="crclSex"><option value="1">Male</option><option value="0.85">Female</option></select>
+          </div>
+        </div>
+        <div class="calc-result">
+          <div class="calc-result-value" id="crclResult">—</div>
+          <div class="calc-result-label">CrCl (mL/min)</div>
+        </div>
+      </div>
+
+      <!-- Carboplatin Calvert -->
+      <div class="calc-card">
+        <div class="calc-title">Carboplatin Dose (Calvert)</div>
+        <div class="calc-desc">Dose (mg) = Target AUC × (CrCl + 25)</div>
+        <div class="calc-row">
+          <div><div class="field-label">Target AUC</div><input type="number" step="0.5" id="calvertAuc" placeholder="5"></div>
+          <div><div class="field-label">CrCl (mL/min)</div><input type="number" id="calvertCrcl" placeholder="Use CrCl result or enter"></div>
+        </div>
+        <div class="calc-result">
+          <div class="calc-result-value" id="calvertResult">—</div>
+          <div class="calc-result-label">Carboplatin dose (mg)</div>
+        </div>
+        <div class="calc-interp">Tip: switch to the Creatinine Clearance card first, then copy the CrCl value in here.</div>
+      </div>
+
+      <!-- ECOG / KPS -->
+      <div class="calc-card">
+        <div class="calc-title">ECOG / Karnofsky Reference</div>
+        <div class="calc-desc">Performance status lookup</div>
+        <div class="table-wrap">
+          <table>
+            <tr><th>ECOG</th><th>Definition</th><th>KPS</th></tr>
+            <tr><td>0</td><td>Fully active, no restriction</td><td>100</td></tr>
+            <tr><td>1</td><td>Restricted in strenuous activity, ambulatory, light work</td><td>80–90</td></tr>
+            <tr><td>2</td><td>Ambulatory, self-care, up &gt;50% of waking hours, unable to work</td><td>60–70</td></tr>
+            <tr><td>3</td><td>Limited self-care, confined to bed/chair &gt;50% of waking hours</td><td>40–50</td></tr>
+            <tr><td>4</td><td>Completely disabled, no self-care, fully bed/chair bound</td><td>10–30</td></tr>
+            <tr><td>5</td><td>Dead</td><td>0</td></tr>
+          </table>
+        </div>
+      </div>
+
+      <!-- MASCC -->
+      <div class="calc-card" style="grid-column: span 2;">
+        <div class="calc-title">MASCC Risk Index — Febrile Neutropenia</div>
+        <div class="calc-desc">Score ≥21 predicts low risk of complications; consider outpatient management per institutional policy</div>
+        <div class="mascc-item"><span>Burden of illness</span>
+          <select id="m1"><option value="5">No or mild symptoms (+5)</option><option value="3">Moderate symptoms (+3)</option><option value="0">Severe symptoms (+0)</option></select></div>
+        <div class="mascc-item"><span>Hypotension</span>
+          <select id="m2"><option value="5">No hypotension (+5)</option><option value="0">Hypotension present (+0)</option></select></div>
+        <div class="mascc-item"><span>Chronic obstructive pulmonary disease</span>
+          <select id="m3"><option value="4">Absent (+4)</option><option value="0">Present (+0)</option></select></div>
+        <div class="mascc-item"><span>Tumor type</span>
+          <select id="m4"><option value="4">Solid tumor / no prior fungal infection (+4)</option><option value="0">Hematologic malignancy with prior fungal infection (+0)</option></select></div>
+        <div class="mascc-item"><span>Dehydration</span>
+          <select id="m5"><option value="3">No dehydration requiring IV fluids (+3)</option><option value="0">Dehydration present (+0)</option></select></div>
+        <div class="mascc-item"><span>Status at onset of fever</span>
+          <select id="m6"><option value="3">Outpatient (+3)</option><option value="0">Inpatient (+0)</option></select></div>
+        <div class="mascc-item"><span>Age</span>
+          <select id="m7"><option value="2">Under 60 years (+2)</option><option value="0">60 years or older (+0)</option></select></div>
+        <div class="calc-result">
+          <div class="calc-result-value" id="masccResult">21</div>
+          <div class="calc-result-label">MASCC Score (max 26)</div>
+          <div class="calc-interp" id="masccInterp">≥21 = low risk of serious complications</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ================= TAB 3: REFERENCE LIBRARY ================= -->
+<div class="tab-panel" id="tab-ref">
+  <div class="wrap" style="padding-bottom:0;">
+    <div class="ref-search-wrap">
+      <input type="text" id="searchInput" class="search-input" placeholder="Search a condition, protocol, drug, biomarker, procedure or guideline — e.g. &quot;triple negative breast cancer&quot;, &quot;FOLFOX&quot;, &quot;febrile neutropenia&quot;, &quot;EGFR&quot;">
+      <div class="search-meta">
+        <span id="resultCount">Showing all entries</span>
+        <button class="clear-btn" id="clearBtn">Clear search</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap" style="padding-top:0;">
+  <div class="ref-layout">
+
+    <nav class="sidebar" id="sidebar">
+      <div class="side-label">Master Libraries</div>
+      <div class="side-link" data-target="m1"><span class="side-num">01</span><span>Medical Oncology</span></div>
+      <div class="side-link" data-target="m2"><span class="side-num">02</span><span>Radiation Oncology</span></div>
+      <div class="side-link" data-target="m3"><span class="side-num">03</span><span>Surgical Oncology</span></div>
+      <div class="side-link" data-target="m4"><span class="side-num">04</span><span>Diagnostic Oncology</span></div>
+      <div class="side-link" data-target="m5"><span class="side-num">05</span><span>Pathology</span></div>
+      <div class="side-link" data-target="m6"><span class="side-num">06</span><span>Molecular Oncology</span></div>
+      <div class="side-link" data-target="m7"><span class="side-num">07</span><span>Cancer Staging</span></div>
+      <div class="side-link" data-target="m8"><span class="side-num">08</span><span>Clinical Guidelines</span></div>
+      <div class="side-link" data-target="m9"><span class="side-num">09</span><span>Toxicity Management</span></div>
+      <div class="side-link" data-target="m10"><span class="side-num">10</span><span>Supportive Care</span></div>
+      <div class="side-link" data-target="m11"><span class="side-num">11</span><span>Clinical Trials</span></div>
+      <div class="side-link" data-target="m12"><span class="side-num">12</span><span>Follow-up</span></div>
+      <div class="side-link" data-target="m13"><span class="side-num">13</span><span>Tumor Board (MDT)</span></div>
+      <div class="side-link" data-target="m14"><span class="side-num">14</span><span>Patient Education</span></div>
+      <div class="side-link" data-target="m15"><span class="side-num">—</span><span>Knowledge Graph</span></div>
+    </nav>
+
+    <main class="ref-main" id="mainContent">
+
+    <!-- ================= 1. MEDICAL ONCOLOGY ================= -->
+    <section class="master-section" id="m1">
+      <div class="master-head">
+        <div class="master-index">01</div>
+        <div>
+          <div class="master-title">Medical Oncology Master</div>
+          <div class="master-purpose">The chemotherapy / systemic therapy protocol library — cytotoxic, targeted, immunotherapy, hormonal, maintenance and salvage regimens, with dose modification rules, premedication, toxicity and growth factor support.</div>
+        </div>
+      </div>
+
+      <div class="subgroup">
+        <div class="subgroup-title">Cytotoxic &amp; Combination Regimens</div>
+        <div class="card-grid">
+
+          <div class="card">
+            <div class="card-title-row"><div class="card-title">FOLFOX (mFOLFOX6)</div><div class="card-tag">Cytotoxic</div></div>
+            <div class="card-sub">Colorectal cancer — adjuvant &amp; metastatic</div>
+            <div class="field"><div class="field-label">Regimen</div><div class="field-value">Oxaliplatin 85 mg/m² IV Day 1 · Leucovorin 400 mg/m² Day 1 · 5-FU bolus 400 mg/m² Day 1 · 5-FU 2400 mg/m² continuous infusion over 46 h</div></div>
+            <div class="field"><div class="field-label">Cycle</div><div class="field-value">Every 14 days · Adjuvant: 12 cycles (6 months) · Metastatic: until progression/toxicity</div></div>
+            <div class="field"><div class="field-label">Premedication</div><div class="field-value">5-HT3 antagonist + dexamethasone; avoid cold fluids/objects for 3–5 days (oxaliplatin acute neuropathy)</div></div>
+            <div class="field"><div class="field-label">Key toxicities</div><div class="field-value">Peripheral sensory neuropathy (acute cold-induced &amp; cumulative), neutropenia, diarrhea, nausea, thrombocytopenia</div></div>
+            <div class="keywords">colorectal colon rectal cancer folfox oxaliplatin 5fu leucovorin metastatic crc adjuvant</div>
+          </div>
+
+          <div class="card">
+            <div class="card-title-row"><div class="card-title">FOLFIRI</div><div class="card-tag">Cytotoxic</div></div>
+            <div class="card-sub">Metastatic colorectal cancer, 1st/2nd line</div>
+            <div class="field"><div class="field-label">Regimen</div><div class="field-value">Irinotecan 180 mg/m² Day 1 · Leucovorin 400 mg/m² Day 1 · 5-FU bolus 400 mg/m² + infusion 2400 mg/m²/46 h</div></div>
+            <div class="field"><div class="field-label">Cycle</div><div class="field-value">Every 14 days, continued until progression or unacceptable toxicity</div></div>
+            <div class="field"><div class="field-label">Pre-therapy testing</div><div class="field-value">UGT1A1 genotype (*28 homozygotes → dose reduction, high diarrhea/neutropenia risk)</div></div>
+            <div class="field"><div class="field-label">Key toxicities</div><div class="field-value">Acute cholinergic syndrome (atropine on standby), delayed diarrhea, neutropenia, alopecia</div></div>
+            <div class="keywords">colorectal colon rectal cancer folfiri irinotecan ugt1a1 metastatic crc second line</div>
+          </div>
+
+          <div class="card">
+            <div class="card-title-row"><div class="card-title">TPF Induction</div><div class="card-tag">Cytotoxic</div></div>
+            <div class="card-sub">Locally advanced head &amp; neck squamous cell carcinoma</div>
+            <div class="field"><div class="field-label">Regimen</div><div class="field-value">Docetaxel 75 mg/m² Day 1 · Cisplatin 75 mg/m² Day 1 · 5-FU 750 mg/m²/day Days 1–4 (civ)</div></div>
+            <div class="field"><div class="field-label">Cycle</div><div class="field-value">Every 21 days × 3 cycles, followed by response-adapted CRT or surgery</div></div>
+            <div class="field"><div class="field-label">Premedication</div><div class="field-value">Dexamethasone (docetaxel hypersensitivity/fluid retention prophylaxis), aggressive hydration for cisplatin, antiemetics</div></div>
+            <div class="field"><div class="field-label">Key toxicities</div><div class="field-value">Febrile neutropenia (consider G-CSF), mucositis, nephrotoxicity, ototoxicity</div></div>
+            <div class="keywords">head and neck cancer hnscc larynx oropharynx induction chemotherapy tpf docetaxel cisplatin</div>
+          </div>
+
+          <div class="card">
+            <div class="card-title-row"><div class="card-title">AC → T</div><div class="card-tag">Cytotoxic</div></div>
+            <div class="card-sub">Breast cancer — adjuvant/neoadjuvant</div>
+            <div class="field"><div class="field-label">Regimen</div><div class="field-value">Doxorubicin 60 mg/m² + Cyclophosphamide 600 mg/m² q2–3wk × 4, followed by Paclitaxel 175 mg/m² q3wk × 4 (or weekly Paclitaxel 80 mg/m² × 12)</div></div>
+            <div class="field"><div class="field-label">Cardiac monitoring</div><div class="field-value">Baseline &amp; interval LVEF (echo/MUGA); cumulative anthracycline dose tracking</div></div>
+            <div class="field"><div class="field-label">Key toxicities</div><div class="field-value">Cardiotoxicity, myelosuppression, alopecia, peripheral neuropathy (taxane), hypersensitivity (taxane — premedicate with steroid/H1/H2 blockers)</div></div>
+            <div class="keywords">breast cancer ac-t doxorubicin cyclophosphamide paclitaxel adjuvant neoadjuvant anthracycline taxane</div>
+          </div>
+
+          <div class="card">
+            <div class="card-title-row"><div class="card-title">BEP</div><div class="card-tag">Cytotoxic</div></div>
+            <div class="card-sub">Germ cell tumors (testicular, ovarian)</div>
+            <div class="field"><div class="field-label">Regimen</div><div class="field-value">Bleomycin 30 units weekly · Etoposide 100 mg/m² Days 1–5 · Cisplatin 20 mg/m² Days 1–5</div></div>
+            <div class="field"><div class="field-label">Cycle</div><div class="field-value">Every 21 days × 3–4 cycles depending on risk group (IGCCCG)</div></div>
+            <div class="field"><div class="field-label">Precautions</div><div class="field-value">Baseline &amp; interval PFTs with DLCO (bleomycin pulmonary toxicity); avoid high FiO₂ during and after anesthesia; aggressive hydration for cisplatin</div></div>
+            <div class="field"><div class="field-label">Key toxicities</div><div class="field-value">Bleomycin pulmonary fibrosis, nephrotoxicity, ototoxicity, myelosuppression, Raynaud phenomenon</div></div>
+            <div class="keywords">germ cell tumor testicular cancer ovarian gct bep bleomycin etoposide cisplatin</div>
+          </div>
+
+          <div class="card">
+            <div class="card-title-row"><div class="card-title">R-CHOP</div><div class="card-tag">Immunochemo</div></div>
+            <div class="card-sub">Diffuse large B-cell lymphoma (DLBCL)</div>
+            <div class="field"><div class="field-label">Regimen</div><div class="field-value">Rituximab 375 mg/m² · Cyclophosphamide 750 mg/m² · Doxorubicin 50 mg/m² · Vincristine 1.4 mg/m² (capped 2 mg) — Day 1 · Prednisone 100 mg Days 1–5</div></div>
+            <div class="field"><div class="field-label">Cycle</div><div class="field-value">Every 21 days × 6–8 cycles</div></div>
+            <div class="field"><div class="field-label">Pre-therapy testing</div><div class="field-value">HBV serology (reactivation risk with rituximab), baseline LVEF</div></div>
+            <div class="field"><div class="field-label">Key toxicities</div><div class="field-value">Infusion reactions (rituximab), cardiotoxicity, peripheral neuropathy (vincristine), tumor lysis syndrome, febrile neutropenia</div></div>
+            <div class="keywords">dlbcl lymphoma non-hodgkin r-chop rituximab cyclophosphamide doxorubicin vincristine prednisone</div>
+          </div>
+
+          <div class="card">
+            <div class="card-title-row"><div class="card-title">ABVD</div><div class="card-tag">Cytotoxic</div></div>
+            <div class="card-sub">Classical Hodgkin lymphoma</div>
+            <div class="field"><div class="field-label">Regimen</div><div class="field-value">Doxorubicin 25 mg/m² · Bleomycin 10 units/m² · Vinblastine 6 mg/m² · Dacarbazine 375 mg/m² — Days 1 &amp; 15</div></div>
+            <div class="field"><div class="field-label">Cycle</div><div class="field-value">Every 28 days; number of cycles guided by interim PET response (Deauville score)</div></div>
+            <div class="field"><div class="field-label">Precautions</div><div class="field-value">Baseline PFT/DLCO, LVEF; interim PET-CT after cycle 2</div></div>
+            <div class="field"><div class="field-label">Key toxicities</div><div class="field-value">Bleomycin pulmonary toxicity, cardiotoxicity, myelosuppression, infertility risk</div></div>
+            <div class="keywords">hodgkin lymphoma abvd doxorubicin bleomycin vinblastine dacarbazine deauville pet</div>
+          </div>
+
+          <div class="card">
+            <div class="card-title-row"><div class="card-title">7+3 Induction</div><div class="card-tag">Cytotoxic</div></div>
+            <div class="card-sub">Acute myeloid leukemia — induction</div>
+            <div class="field"><div class="field-label">Regimen</div><div class="field-value">Cytarabine 100–200 mg/m²/day continuous infusion Days 1–7 · Anthracycline (Daunorubicin 60–90 mg/m² or Idarubicin 12 mg/m²) Days 1–3</div></div>
+            <div class="field"><div class="field-label">Supportive care</div><div class="field-value">Tumor lysis prophylaxis, neutropenic precautions, transfusion support, antifungal/antibacterial prophylaxis</div></div>
+            <div class="field"><div class="field-label">Response assessment</div><div class="field-value">Day 14 bone marrow biopsy; count recovery marrow at Day 28–35</div></div>
+            <div class="field"><div class="field-label">Key toxicities</div><div class="field-value">Profound myelosuppression, tumor lysis syndrome, cardiotoxicity, mucositis, typhlitis</div></div>
+            <div class="keywords">aml acute myeloid leukemia 7+3 cytarabine daunorubicin idarubicin induction leukemia</div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="subgroup">
+        <div class="subgroup-title">Targeted, Immunotherapy, Hormonal &amp; Maintenance Therapy</div>
+        <div class="card-grid">
+          <div class="card">
+            <div class="card-title-row"><div class="card-title">Anti-HER2 Therapy</div><div class="card-tag">Targeted</div></div>
+            <div class="card-sub">HER2-positive breast &amp; gastric cancer</div>
+            <div class="field"><div class="field-label">Agents</div><div class="field-value">Trastuzumab, Pertuzumab, T-DM1 (ado-trastuzumab emtansine), Trastuzumab deruxtecan</div></div>
+            <div class="field"><div class="field-label">Cardiac monitoring</div><div class="field-value">LVEF every 3 months during therapy</div></div>
+            <div class="field"><div class="field-label">Key toxicities</div><div class="field-value">Cardiotoxicity (usually reversible), infusion reactions, interstitial lung disease (T-DXd)</div></div>
+            <div class="keywords">her2 positive breast cancer trastuzumab pertuzumab t-dm1 trastuzumab deruxtecan targeted therapy gastric</div>
+          </div>
+          <div class="card">
+            <div class="card-title-row"><div class="card-title">Immune Checkpoint Inhibitors</div><div class="card-tag">Immunotherapy</div></div>
+            <div class="card-sub">NSCLC, melanoma, renal, urothelial, MSI-H tumors and others</div>
+            <div class="field"><div class="field-label">Agents</div><div class="field-value">PD-1: Pembrolizumab, Nivolumab · PD-L1: Atezolizumab, Durvalumab · CTLA-4: Ipilimumab</div></div>
+            <div class="field"><div class="field-label">Biomarker gating</div><div class="field-value">PD-L1 TPS/CPS, MSI-H/dMMR, TMB-high (see Molecular Master)</div></div>
+            <div class="field"><div class="field-label">Key toxicities</div><div class="field-value">Immune-related adverse events (irAEs): colitis, pneumonitis, hepatitis, endocrinopathy, dermatitis — graded per CTCAE, managed with corticosteroids ± immunosuppression</div></div>
+            <div class="keywords">immunotherapy checkpoint inhibitor pembrolizumab nivolumab atezolizumab durvalumab ipilimumab pd-1 pd-l1 irae</div>
+          </div>
+          <div class="card">
+            <div class="card-title-row"><div class="card-title">Endocrine Therapy</div><div class="card-tag">Hormonal</div></div>
+            <div class="card-sub">Hormone receptor-positive breast cancer</div>
+            <div class="field"><div class="field-label">Agents</div><div class="field-value">Tamoxifen (pre/peri-menopausal), Aromatase inhibitors — Anastrozole, Letrozole, Exemestane (post-menopausal), Ovarian suppression (GnRH agonist) + AI</div></div>
+            <div class="field"><div class="field-label">Duration</div><div class="field-value">5–10 years adjuvant, risk-stratified extension</div></div>
+            <div class="field"><div class="field-label">Monitoring</div><div class="field-value">Bone density (AI-induced bone loss), endometrial surveillance (tamoxifen), lipid profile</div></div>
+            <div class="keywords">hormone receptor positive breast cancer tamoxifen aromatase inhibitor anastrozole letrozole endocrine adjuvant</div>
+          </div>
+          <div class="card">
+            <div class="card-title-row"><div class="card-title">Maintenance &amp; Salvage Therapy</div><div class="card-tag">Framework</div></div>
+            <div class="card-sub">Cross-tumor principle</div>
+            <div class="field"><div class="field-label">Maintenance examples</div><div class="field-value">Bevacizumab or Capecitabine maintenance post-FOLFOX (CRC); Rucaparib/Olaparib maintenance post-platinum (ovarian, BRCA-mutated); PD-1 maintenance post-chemo-immunotherapy (NSCLC)</div></div>
+            <div class="field"><div class="field-label">Salvage principle</div><div class="field-value">Regimen selection guided by prior therapy exposure, resistance mechanism, biomarker re-testing at progression, and performance status</div></div>
+            <div class="keywords">maintenance therapy salvage therapy parp inhibitor olaparib rucaparib bevacizumab progression relapse</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="subgroup">
+        <div class="subgroup-title">Operational Rules</div>
+        <div class="card-grid">
+          <div class="card">
+            <div class="card-title-row"><div class="card-title">Dose Modification Rules</div><div class="card-tag">Rule Set</div></div>
+            <div class="field-value">
+              <ul>
+                <li>ANC &lt; 1000/µL or platelets &lt; 75,000/µL on day of treatment → delay cycle</li>
+                <li>Grade ≥3 non-hematologic toxicity → hold until resolution to ≤Grade 1, resume at reduced dose (typically 75–80%)</li>
+                <li>Renal/hepatic impairment-based dose capping (agent-specific creatinine clearance / bilirubin thresholds)</li>
+                <li>Cumulative dose ceilings (e.g., doxorubicin 450–550 mg/m² lifetime, bleomycin 400 units lifetime)</li>
+              </ul>
+            </div>
+            <div class="keywords">dose modification rules neutropenia thrombocytopenia dose reduction delay cumulative dose</div>
+          </div>
+          <div class="card">
+            <div class="card-title-row"><div class="card-title">Standard Premedications</div><div class="card-tag">Rule Set</div></div>
+            <div class="field-value">
+              <ul>
+                <li>Taxanes: Dexamethasone + H1 blocker (diphenhydramine) + H2 blocker (ranitidine/famotidine)</li>
+                <li>Platinum agents: 5-HT3 antagonist + NK1 antagonist + dexamethasone (highly emetogenic tier)</li>
+                <li>Rituximab / mAbs: Paracetamol + antihistamine ± hydrocortisone before first infusions</li>
+                <li>Cisplatin: pre- and post-hydration with electrolyte supplementation, mannitol/furosemide if indicated</li>
+              </ul>
+            </div>
+            <div class="keywords">premedication antiemetic prophylaxis hypersensitivity taxane platinum rituximab</div>
+          </div>
+          <div class="card">
+            <div class="card-title-row"><div class="card-title">Growth Factor Support</div><div class="card-tag">Rule Set</div></div>
+            <div class="field-value">
+              <ul>
+                <li>Primary G-CSF prophylaxis when febrile neutropenia risk of regimen ≥20% (e.g., TPF, dose-dense AC)</li>
+                <li>Secondary prophylaxis after a prior febrile neutropenia episode without dose reduction option</li>
+                <li>Filgrastim daily until ANC recovery, or single dose pegfilgrastim 24h post-chemotherapy</li>
+                <li>ESA consideration for chemotherapy-induced anemia per Hb threshold and guideline criteria</li>
+              </ul>
+            </div>
+            <div class="keywords">g-csf growth factor filgrastim pegfilgrastim febrile neutropenia prophylaxis esa anemia</div>
+          </div>
+          <div class="card">
+            <div class="card-title-row"><div class="card-title">Drug Interaction Flags</div><div class="card-tag">Rule Set</div></div>
+            <div class="field-value">
+              <ul>
+                <li>CYP3A4 inhibitors/inducers with vinca alkaloids, taxanes, TKIs — dose/level adjustment</li>
+                <li>Warfarin + capecitabine/5-FU → enhanced anticoagulant effect, monitor INR closely</li>
+                <li>Live vaccines contraindicated during active immunosuppressive chemotherapy</li>
+                <li>QT-prolonging co-medications with agents such as osimertinib, vandetanib, arsenic trioxide</li>
+              </ul>
+            </div>
+            <div class="keywords">drug interactions cyp3a4 warfarin qt prolongation vaccine contraindication</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= 2. RADIATION ONCOLOGY ================= -->
+    <section class="master-section" id="m2">
+      <div class="master-head">
+        <div class="master-index">02</div>
+        <div>
+          <div class="master-title">Radiation Oncology Master</div>
+          <div class="master-purpose">Treatment intent protocols, technique library, dose/fractionation schedules, organ-at-risk constraints, contouring atlas and planning protocols.</div>
+        </div>
+      </div>
+
+      <div class="subgroup">
+        <div class="subgroup-title">Treatment Protocols by Intent</div>
+        <div class="table-wrap">
+          <table>
+            <tr><th>Intent</th><th>Definition</th><th>Typical Setting</th></tr>
+            <tr><td>Curative RT</td><td>Definitive treatment aiming at disease eradication, alone or with concurrent systemic therapy</td><td>Cervix, anal canal, early larynx, prostate</td></tr>
+            <tr><td>Adjuvant RT</td><td>Post-operative treatment to sterilize microscopic residual disease</td><td>Breast post-BCS, high-risk H&amp;N post-resection</td></tr>
+            <tr><td>Neoadjuvant RT</td><td>Pre-operative treatment to downstage / improve resectability</td><td>Rectal cancer (long-course CRT or short-course RT)</td></tr>
+            <tr><td>Palliative RT</td><td>Symptom control — pain, bleeding, obstruction, neurologic compromise</td><td>Bone metastases, cord compression, brain metastases</td></tr>
+            <tr><td>Stereotactic RT (SBRT/SRS)</td><td>Ablative high-precision, hypofractionated dose to small, well-defined targets</td><td>Oligometastases, early lung cancer, brain metastases</td></tr>
+          </table>
+        </div>
+      </div>
+
+      <div class="subgroup">
+        <div class="subgroup-title">Technique Master</div>
+        <div class="card-grid">
+          <div class="card"><div class="card-title-row"><div class="card-title">3DCRT</div><div class="card-tag">Technique</div></div><div class="field-value">Three-dimensional conformal RT using CT-based planning and multiple shaped fields; workhorse technique for many curative and palliative indications.</div><div class="keywords">3dcrt conformal radiotherapy technique</div></div>
+          <div class="card"><div class="card-title-row"><div class="card-title">IMRT</div><div class="card-tag">Technique</div></div><div class="field-value">Intensity-Modulated RT — modulated beam fluence for concave dose distributions around OARs; standard for head &amp; neck, prostate, gynecologic RT.</div><div class="keywords">imrt intensity modulated radiotherapy technique</div></div>
+          <div class="card"><div class="card-title-row"><div class="card-title">VMAT</div><div class="card-tag">Technique</div></div><div class="field-value">Volumetric Modulated Arc Therapy — continuous gantry rotation with dynamic MLC and dose-rate modulation; faster delivery than static-field IMRT.</div><div class="keywords">vmat volumetric arc therapy technique</div></div>
+          <div class="card"><div class="card-title-row"><div class="card-title">IGRT</div><div class="card-tag">Technique</div></div><div class="field-value">Image-Guided RT — daily/periodic imaging (CBCT, kV, surface guidance) to verify target position and reduce PTV margins.</div><div class="keywords">igrt image guided radiotherapy technique cbct</div></div>
+          <div class="card"><div class="card-title-row"><div class="card-title">SBRT</div><div class="card-tag">Technique</div></div><div class="field-value">Stereotactic Body RT — ablative hypofractionated doses (1–5 fractions) to extracranial targets with tight immobilization and image guidance.</div><div class="keywords">sbrt stereotactic body radiotherapy technique oligometastasis</div></div>
+          <div class="card"><div class="card-title-row"><div class="card-title">SRS</div><div class="card-tag">Technique</div></div><div class="field-value">Stereotactic Radiosurgery — single or few-fraction high-dose treatment of intracranial targets (brain metastases, AVMs, benign tumors).</div><div class="keywords">srs stereotactic radiosurgery brain metastasis technique</div></div>
+          <div class="card"><div class="card-title-row"><div class="card-title">Brachytherapy</div><div class="card-tag">Technique</div></div><div class="field-value">Sealed-source RT delivered intracavitary/interstitial for steep dose fall-off; central to cervical and prostate cancer management.</div><div class="keywords">brachytherapy intracavitary interstitial cervix prostate technique</div></div>
+          <div class="card"><div class="card-title-row"><div class="card-title">Proton Therapy</div><div class="card-tag">Technique</div></div><div class="field-value">Charged-particle therapy exploiting the Bragg peak to spare distal normal tissue; used in pediatric, base-of-skull and re-irradiation settings.</div><div class="keywords">proton therapy bragg peak pediatric technique</div></div>
+        </div>
+      </div>
+
+      <div class="subgroup">
+        <div class="subgroup-title">Dose / Fractionation Master</div>
+        <div class="table-wrap">
+          <table>
+            <tr><th>Site</th><th>Regimen</th><th>Notes</th></tr>
+            <tr><td rowspan="2">Breast</td><td>40 Gy / 15 fractions</td><td>Hypofractionated whole-breast RT, standard of care</td></tr>
+            <tr><td>50 Gy / 25 fractions</td><td>Conventional fractionation ± boost 10–16 Gy</td></tr>
+            <tr><td rowspan="2">Head &amp; Neck</td><td>70 Gy / 35 fractions</td><td>Definitive dose to gross tumor volume</td></tr>
+            <tr><td>66 Gy / 33 fractions</td><td>Post-operative adjuvant dose to high-risk bed</td></tr>
+            <tr><td rowspan="2">Prostate</td><td>60 Gy / 20 fractions</td><td>Moderate hypofractionation, definitive</td></tr>
+            <tr><td>SBRT 36.25 Gy / 5 fractions</td><td>Ultra-hypofractionated, low/intermediate risk</td></tr>
+            <tr><td rowspan="3">Bone Metastasis</td><td>8 Gy × 1</td><td>Single-fraction palliation, uncomplicated pain</td></tr>
+            <tr><td>20 Gy / 5 fractions</td><td>Multi-fraction, better local re-treatment profile</td></tr>
+            <tr><td>30 Gy / 10 fractions</td><td>Extended palliative course, complicated / impending fracture sites</td></tr>
+          </table>
+        </div>
+        <div class="keywords">dose fractionation breast head neck prostate bone metastasis gray fractions palliative sbrt</div>
+      </div>
+
+      <div class="subgroup">
+        <div class="subgroup-title">Organ-at-Risk (OAR) Constraints</div>
+        <div class="card-grid">
+          <div class="card"><div class="card-title-row"><div class="card-title">Spinal Cord</div><div class="card-tag">OAR</div></div><div class="field-value">Constraint type: <b>Maximum point dose</b> — conventional fractionation ceiling typically ≤45–50 Gy depending on cord length irradiated; stricter limits for re-irradiation and SBRT.</div><div class="keywords">spinal cord constraint oar maximum dose myelopathy</div></div>
+          <div class="card"><div class="card-title-row"><div class="card-title">Parotid</div><div class="card-tag">OAR</div></div><div class="field-value">Constraint type: <b>Mean dose</b> — spare at least one parotid to reduce xerostomia; contralateral sparing prioritized in unilateral disease.</div><div class="keywords">parotid gland constraint oar mean dose xerostomia</div></div>
+          <div class="card"><div class="card-title-row"><div class="card-title">Kidney</div><div class="card-tag">OAR</div></div><div class="field-value">Constraint type: <b>Mean dose</b> — bilateral mean dose limitation critical in abdominal/paraaortic fields to preserve renal function.</div><div class="keywords">kidney constraint oar mean dose renal</div></div>
+          <div class="card"><div class="card-title-row"><div class="card-title">Liver</div><div class="card-tag">OAR</div></div><div class="field-value">Constraint type: <b>V30 volumetric</b> — percentage of liver volume receiving ≥30 Gy kept below threshold to avoid radiation-induced liver disease.</div><div class="keywords">liver constraint oar v30 radiation induced liver disease</div></div>
+          <div class="card"><div class="card-title-row"><div class="card-title">Heart</div><div class="card-tag">OAR</div></div><div class="field-value">Constraint type: <b>V25 &amp; mean dose</b> — particularly relevant in left breast and mediastinal irradiation; deep-inspiration breath-hold reduces cardiac dose.</div><div class="keywords">heart constraint oar v25 mean dose cardiotoxicity left breast</div></div>
+        </div>
+      </div>
+
+      <div class="subgroup">
+        <div class="subgroup-title">Contouring Atlas &amp; Planning Protocols</div>
+        <div class="card-grid">
+          <div class="card"><div class="card-title-row"><div class="card-title">Volume Definitions</div><div class="card-tag">Atlas</div></div><div class="field-value"><ul><li><b>GTV</b> — Gross Tumor Volume, visible/palpable disease</li><li><b>CTV</b> — Clinical Target Volume, GTV + subclinical microscopic spread margin</li><li><b>ITV</b> — Internal Target Volume, CTV + physiological motion margin</li><li><b>PTV</b> — Planning Target Volume, ITV/CTV + setup uncertainty margin</li><li><b>OAR</b> — Organ at Risk, structures whose tolerance dose constrains the plan</li></ul></div><div class="keywords">gtv ctv itv ptv contouring atlas oar definitions volumes</div></div>
+          <div class="card"><div class="card-title-row"><div class="card-title">Planning Protocol Elements</div><div class="card-tag">Workflow</div></div><div class="field-value"><ul><li>Immobilization device selection (thermoplastic mask, vac-bag, wing-board)</li><li>CT simulation slice thickness and contrast protocol per site</li><li>Bolus usage for skin/scar dose build-up</li><li>Image guidance frequency (daily CBCT vs weekly kV pairs)</li><li>Adaptive RT trigger criteria (anatomical change, weight loss, tumor regression)</li></ul></div><div class="keywords">ct simulation immobilization bolus image guidance adaptive radiotherapy planning</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= 3. SURGICAL ONCOLOGY ================= -->
+    <section class="master-section" id="m3">
+      <div class="master-head">
+        <div class="master-index">03</div>
+        <div>
+          <div class="master-title">Surgical Oncology Master</div>
+          <div class="master-purpose">Procedure pathways in place of drug protocols — operative options, preoperative workup, margin standards, lymph node templates, reconstruction and ERAS.</div>
+        </div>
+      </div>
+
+      <div class="subgroup">
+        <div class="subgroup-title">Surgical Procedure Master — by Site</div>
+        <div class="card-grid">
+          <div class="card"><div class="card-title-row"><div class="card-title">Breast</div><div class="card-tag">Procedures</div></div><div class="field-value"><ul><li>Lumpectomy (breast-conserving surgery)</li><li>Modified Radical Mastectomy</li><li>Sentinel Node Biopsy</li></ul></div><div class="keywords">breast cancer surgery lumpectomy mastectomy sentinel node biopsy</div></div>
+          <div class="card"><div class="card-title-row"><div class="card-title">Colon</div><div class="card-tag">Procedures</div></div><div class="field-value"><ul><li>Right Hemicolectomy</li><li>Left Hemicolectomy</li><li>Abdominoperineal Resection (APR)</li><li>Low Anterior Resection (LAR)</li></ul></div><div class="keywords">colon cancer colorectal surgery hemicolectomy apr lar resection</div></div>
+          <div class="card"><div class="card-title-row"><div class="card-title">Lung</div><div class="card-tag">Procedures</div></div><div class="field-value"><ul><li>Lobectomy</li><li>Pneumonectomy</li><li>VATS (video-assisted thoracoscopic surgery)</li><li>Robotic-assisted resection</li></ul></div><div class="keywords">lung cancer surgery lobectomy pneumonectomy vats robotic thoracic</div></div>
+          <div class="card"><div class="card-title-row"><div class="card-title">Head &amp; Neck</div><div class="card-tag">Procedures</div></div><div class="field-value"><ul><li>Composite Resection</li><li>Neck Dissection</li><li>Glossectomy</li></ul></div><div class="keywords">head and neck cancer surgery composite resection neck dissection glossectomy</div></div>
+          <div class="card"><div class="card-title-row"><div class="card-title">Gynecology</div><div class="card-tag">Procedures</div></div><div class="field-value"><ul><li>Radical Hysterectomy</li><li>Cytoreductive Surgery (debulking)</li></ul></div><div class="keywords">gynecologic cancer surgery radical hysterectomy cytoreductive debulking ovarian cervical</div></div>
+        </div>
+      </div>
+
+      <div class="subgroup">
+        <div class="subgroup-title">Preoperative Workup Master</div>
+        <div class="card-grid single">
+          <div class="card">
+            <div class="field-value"><ul>
+              <li><b>Hematology / biochemistry</b> — CBC, LFT, RFT</li>
+              <li><b>Cardiac</b> — ECG, Echocardiogram (as indicated by risk)</li>
+              <li><b>Pulmonary</b> — Pulmonary Function Tests for thoracic resections</li>
+              <li><b>Imaging</b> — site-specific staging and anatomical mapping studies</li>
+              <li><b>Fitness assessment</b> — ASA grade, frailty/performance status, anesthesia clearance</li>
+            </ul></div>
+            <div class="keywords">preoperative workup cbc lft rft ecg echo pft fitness assessment surgical clearance</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="subgroup">
+        <div class="subgroup-title">Surgical Margin Standards &amp; Lymph Node Templates</div>
+        <div class="card-grid">
+          <div class="card">
+            <div class="card-title-row"><div class="card-title">Margin Classification</div><div class="card-tag">Standard</div></div>
+            <div class="field-value"><ul><li><b>R0</b> — no residual tumor (complete resection)</li><li><b>R1</b> — microscopic residual tumor at margin</li><li><b>R2</b> — macroscopic residual tumor left in situ</li></ul>Site-specific clear margin distances are defined per tumor type (e.g. breast "no ink on tumor" for invasive disease, wider margins for sarcoma).</div>
+            <div class="keywords">surgical margin r0 r1 r2 resection status clear margin</div>
+          </div>
+          <div class="card">
+            <div class="card-title-row"><div class="card-title">Lymph Node Templates</div><div class="card-tag">Standard</div></div>
+            <div class="field-value"><ul><li><b>Breast</b> — Axillary Levels I–III</li><li><b>Head &amp; Neck</b> — Neck Levels I–VII</li><li><b>Colon</b> — D1 (pericolic) / D2 (intermediate) / D3 (central) node dissection</li></ul></div>
+            <div class="keywords">lymph node template axillary levels neck levels d1 d2 d3 dissection</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="subgroup">
+        <div class="subgroup-title">Reconstruction &amp; Enhanced Recovery (ERAS)</div>
+        <div class="card-grid">
+          <div class="card"><div class="card-title-row"><div class="card-title">Reconstruction Master</div><div class="card-tag">Options</div></div><div class="field-value"><ul><li>Flaps (pedicled/free — e.g. TRAM, DIEP, radial forearm)</li><li>Grafts (skin, tissue)</li><li>Mesh (abdominal wall/chest wall reconstruction)</li><li>Prosthesis (breast implants, maxillofacial prosthetics)</li></ul></div><div class="keywords">reconstruction flap graft mesh prosthesis diep tram</div></div>
+          <div class="card"><div class="card-title-row"><div class="card-title">ERAS Pathway</div><div class="card-tag">Phases</div></div><div class="field-value"><ul><li><b>Pre-op:</b> carbohydrate loading, minimal fasting, patient education</li><li><b>Intra-op:</b> goal-directed fluid therapy, normothermia, opioid-sparing anesthesia</li><li><b>Post-op:</b> early mobilization, early oral intake, multimodal analgesia</li><li><b>Discharge:</b> structured criteria-based pathway with follow-up plan</li></ul></div><div class="keywords">eras enhanced recovery after surgery pre-op intra-op post-op discharge pathway</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= 4. DIAGNOSTIC ONCOLOGY ================= -->
+    <section class="master-section" id="m4">
+      <div class="master-head">
+        <div class="master-index">04</div>
+        <div>
+          <div class="master-title">Diagnostic Oncology Master</div>
+          <div class="master-purpose">Standardized diagnostic workflows — cancer-specific work-up algorithms, imaging recommendations, biopsy pathways, staging investigations, laboratory panels and tumor marker recommendations.</div>
+        </div>
+      </div>
+      <div class="card-grid">
+        <div class="card">
+          <div class="card-title-row"><div class="card-title">Breast Lump Work-up</div><div class="card-tag">Algorithm</div></div>
+          <div class="field-value"><ul><li>Clinical exam → Diagnostic mammography + targeted ultrasound</li><li>BI-RADS categorization → core needle biopsy if BI-RADS 4/5</li><li>Receptor panel: ER, PR, HER2 on biopsy</li><li>Staging: CT chest/abdomen/pelvis or PET-CT, bone scan if symptomatic/high-risk, MRI breast for extent</li><li>Tumor marker: CA 15-3 / CEA for baseline &amp; monitoring (not diagnostic)</li></ul></div>
+          <div class="keywords">breast lump workup mammography biopsy bi-rads staging ca 15-3 diagnostic</div>
+        </div>
+        <div class="card">
+          <div class="card-title-row"><div class="card-title">Lung Nodule Work-up</div><div class="card-tag">Algorithm</div></div>
+          <div class="field-value"><ul><li>CT chest characterization → PET-CT for FDG-avidity/staging</li><li>Tissue diagnosis: bronchoscopy, CT-guided biopsy, or EBUS-TBNA for mediastinal nodes</li><li>Brain MRI for staging in non-squamous / advanced disease</li><li>Reflex molecular testing on biopsy: EGFR, ALK, ROS1, PD-L1 (see Molecular Master)</li></ul></div>
+          <div class="keywords">lung nodule workup ct chest pet ebus bronchoscopy staging molecular reflex testing</div>
+        </div>
+        <div class="card">
+          <div class="card-title-row"><div class="card-title">Colorectal Work-up</div><div class="card-tag">Algorithm</div></div>
+          <div class="field-value"><ul><li>Colonoscopy with biopsy for tissue diagnosis</li><li>CT chest/abdomen/pelvis for staging; pelvic MRI for rectal cancer</li><li>Baseline CEA</li><li>Reflex MSI/dMMR testing on tumor tissue for all newly diagnosed CRC</li></ul></div>
+          <div class="keywords">colorectal cancer workup colonoscopy cea msi dmmr staging mri pelvis</div>
+        </div>
+        <div class="card">
+          <div class="card-title-row"><div class="card-title">Head &amp; Neck Work-up</div><div class="card-tag">Algorithm</div></div>
+          <div class="field-value"><ul><li>Flexible/rigid endoscopy with biopsy</li><li>Contrast-enhanced CT or MRI neck for local extent, PET-CT for nodal/distant staging</li><li>HPV/p16 testing for oropharyngeal primaries</li><li>Dental and nutritional assessment prior to therapy</li></ul></div>
+          <div class="keywords">head and neck cancer workup endoscopy biopsy hpv p16 ct mri neck staging</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= 5. PATHOLOGY ================= -->
+    <section class="master-section" id="m5">
+      <div class="master-head">
+        <div class="master-index">05</div>
+        <div>
+          <div class="master-title">Pathology Master</div>
+          <div class="master-purpose">WHO tumor classifications, CAP synoptic reporting templates, histologic grading systems, margin/LVI/PNI assessment and molecular pathology fields.</div>
+        </div>
+      </div>
+      <div class="card-grid">
+        <div class="card"><div class="card-title-row"><div class="card-title">Grading Systems</div><div class="card-tag">Reference</div></div><div class="field-value"><ul><li><b>Breast:</b> Nottingham (Bloom-Richardson) grade — tubule formation, nuclear pleomorphism, mitotic count</li><li><b>Prostate:</b> Gleason score / ISUP Grade Group</li><li><b>Sarcoma:</b> FNCLCC grading — differentiation, mitotic count, necrosis</li><li><b>CNS tumors:</b> WHO CNS grade (1–4, integrating molecular features)</li></ul></div><div class="keywords">histologic grading nottingham gleason isup fnclcc sarcoma prostate breast</div></div>
+        <div class="card"><div class="card-title-row"><div class="card-title">CAP Synoptic Report — Core Elements</div><div class="card-tag">Template</div></div><div class="field-value"><ul><li>Specimen type &amp; procedure</li><li>Tumor site, size, histologic type &amp; grade</li><li>Margin status</li><li>Lymphovascular invasion (LVI)</li><li>Perineural invasion (PNI)</li><li>Lymph node yield &amp; positivity</li><li>pTNM stage</li><li>Ancillary/molecular study results</li></ul></div><div class="keywords">cap synoptic report template margin lvi pni lymph node ptnm</div></div>
+        <div class="card"><div class="card-title-row"><div class="card-title">Invasion Assessment</div><div class="card-tag">Reference</div></div><div class="field-value"><b>Lymphovascular invasion (LVI):</b> tumor cells within endothelium-lined vascular/lymphatic spaces — adverse prognostic factor across most solid tumors.<br><br><b>Perineural invasion (PNI):</b> tumor cells tracking along/around nerve sheaths — associated with local recurrence risk, particularly in prostate, pancreatic and head &amp; neck cancers.</div><div class="keywords">lymphovascular invasion perineural invasion lvi pni prognostic factor</div></div>
+        <div class="card"><div class="card-title-row"><div class="card-title">Molecular Pathology Fields</div><div class="card-tag">Reference</div></div><div class="field-value">Standard reflex/ancillary fields captured alongside histology: IHC panel results, FISH/NGS findings, mismatch repair (MMR) status, gene fusion results — cross-referenced to the Molecular Oncology Master for interpretation and therapy mapping.</div><div class="keywords">molecular pathology ihc fish ngs mismatch repair gene fusion</div></div>
+      </div>
+    </section>
+
+    <!-- ================= 6. MOLECULAR ONCOLOGY ================= -->
+    <section class="master-section" id="m6">
+      <div class="master-head">
+        <div class="master-index">06</div>
+        <div>
+          <div class="master-title">Molecular Oncology Master</div>
+          <div class="master-purpose">Biomarker knowledge base — testing indication, recommended assay, interpretation, targeted therapies and resistance mechanisms for each actionable marker.</div>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <tr><th>Biomarker</th><th>Testing Indication</th><th>Recommended Assay</th><th>Targeted Therapy</th><th>Resistance Mechanism</th></tr>
+          <tr><td>EGFR</td><td>Advanced NSCLC (non-squamous)</td><td>NGS / PCR (exon 19 del, L858R, T790M, exon 20)</td><td>Osimertinib, Gefitinib, Erlotinib</td><td>T790M (1st/2nd-gen), C797S (osimertinib), MET amplification</td></tr>
+          <tr><td>ALK</td><td>Advanced NSCLC, young/never-smoker</td><td>IHC screen → FISH/NGS confirmation</td><td>Alectinib, Lorlatinib, Crizotinib</td><td>Secondary ALK kinase domain mutations, bypass signaling</td></tr>
+          <tr><td>ROS1</td><td>Advanced NSCLC</td><td>IHC screen → FISH/NGS confirmation</td><td>Crizotinib, Entrectinib</td><td>ROS1 G2032R and related kinase domain mutations</td></tr>
+          <tr><td>HER2</td><td>Breast, gastric/GEJ cancer</td><td>IHC → FISH reflex for equivocal (2+)</td><td>Trastuzumab, Pertuzumab, T-DXd</td><td>HER2 heterogeneity, downstream pathway activation</td></tr>
+          <tr><td>BRCA1/2</td><td>Breast, ovarian, pancreatic, prostate</td><td>Germline &amp; somatic NGS</td><td>PARP inhibitors (Olaparib, Niraparib, Rucaparib)</td><td>Reversion mutations restoring BRCA function</td></tr>
+          <tr><td>KRAS</td><td>Colorectal, pancreatic, NSCLC</td><td>NGS / PCR</td><td>KRAS G12C inhibitors (Sotorasib, Adagrasib); predicts anti-EGFR resistance in CRC</td><td>Bypass RTK signaling, secondary KRAS mutations</td></tr>
+          <tr><td>NRAS</td><td>Colorectal cancer</td><td>NGS / PCR</td><td>Predicts anti-EGFR mAb resistance (Cetuximab/Panitumumab contraindicated)</td><td>—</td></tr>
+          <tr><td>MSI / dMMR</td><td>Colorectal, endometrial, gastric — universal reflex testing recommended</td><td>IHC (MLH1/MSH2/MSH6/PMS2) or PCR-based MSI panel</td><td>Immune checkpoint inhibitors (Pembrolizumab)</td><td>Loss of neoantigen presentation, adaptive resistance</td></tr>
+          <tr><td>TMB</td><td>Pan-tumor, especially when other biomarkers negative</td><td>Comprehensive genomic profiling (NGS)</td><td>TMB-high → checkpoint inhibitor eligibility</td><td>Immune evasion mechanisms independent of mutation load</td></tr>
+          <tr><td>NTRK</td><td>Pan-tumor, especially rare fusion-driven tumors</td><td>IHC screen → NGS/FISH confirmation</td><td>Larotrectinib, Entrectinib</td><td>NTRK kinase domain solvent-front mutations</td></tr>
+          <tr><td>BRAF</td><td>Melanoma, colorectal, thyroid, NSCLC</td><td>PCR / NGS (V600E most common)</td><td>Dabrafenib + Trametinib (BRAF/MEK combination)</td><td>MAPK pathway reactivation, NRAS mutations</td></tr>
+          <tr><td>RET</td><td>NSCLC, medullary thyroid carcinoma</td><td>NGS / FISH</td><td>Selpercatinib, Pralsetinib</td><td>RET solvent-front mutations</td></tr>
+          <tr><td>MET</td><td>NSCLC (exon 14 skipping), amplification</td><td>NGS / FISH</td><td>Capmatinib, Tepotinib</td><td>Secondary MET mutations, bypass EGFR reactivation</td></tr>
+          <tr><td>PD-L1</td><td>NSCLC, urothelial, gastric, others</td><td>IHC (TPS/CPS scoring, assay-specific clones)</td><td>Guides checkpoint inhibitor selection/sequencing</td><td>Antigen presentation loss, T-cell exclusion</td></tr>
+        </table>
+      </div>
+      <div class="keywords">egfr alk ros1 her2 brca kras nras msi tmb ntrk braf ret met pd-l1 biomarker targeted therapy resistance mutation testing</div>
+    </section>
+
+    <!-- ================= 7. STAGING ================= -->
+    <section class="master-section" id="m7">
+      <div class="master-head">
+        <div class="master-index">07</div>
+        <div>
+          <div class="master-title">Cancer Staging Master</div>
+          <div class="master-purpose">Structured AJCC/UICC staging engine — TNM definitions, stage grouping logic, prognostic staging and site-specific rules.</div>
+        </div>
+      </div>
+      <div class="card-grid">
+        <div class="card">
+          <div class="card-title-row"><div class="card-title">TNM Framework</div><div class="card-tag">Core Logic</div></div>
+          <div class="field-value"><ul><li><b>T</b> — primary Tumor extent/size (T0–T4, subcategories a/b)</li><li><b>N</b> — regional lymph Node involvement (N0–N3)</li><li><b>M</b> — distant Metastasis (M0 / M1)</li><li>Prefix modifiers: <b>c</b> (clinical), <b>p</b> (pathologic), <b>yc/yp</b> (post-neoadjuvant), <b>r</b> (recurrent)</li></ul></div>
+          <div class="keywords">tnm staging t stage n stage m stage ajcc uicc clinical pathologic</div>
+        </div>
+        <div class="card">
+          <div class="card-title-row"><div class="card-title">Stage Grouping</div><div class="card-tag">Core Logic</div></div>
+          <div class="field-value">TNM combinations are mapped to Stage 0 through Stage IV per site-specific AJCC rules — e.g. Breast Stage IIA = T0-1N1M0 or T2N0M0; Colon Stage III = any T, N1-2, M0; Lung Stage IV = any T, any N, M1. Each edition (currently AJCC 8th) refines cut-points using outcomes data.</div>
+          <div class="keywords">stage grouping stage 0 i ii iii iv ajcc 8th edition breast colon lung</div>
+        </div>
+        <div class="card">
+          <div class="card-title-row"><div class="card-title">Prognostic Staging</div><div class="card-tag">Refinement</div></div>
+          <div class="field-value">Certain sites (notably breast cancer) layer biomarker data — grade, ER/PR/HER2 status, genomic recurrence score — onto anatomic TNM to produce a Prognostic Stage Group that better reflects outcome than anatomic stage alone.</div>
+          <div class="keywords">prognostic staging biomarker grade er pr her2 oncotype recurrence score</div>
+        </div>
+        <div class="card">
+          <div class="card-title-row"><div class="card-title">Site-Specific Rules</div><div class="card-tag">Examples</div></div>
+          <div class="field-value"><ul><li><b>Breast:</b> Tis includes DCIS/LCIS/Paget disease without invasive component</li><li><b>Colon:</b> T4b defined by direct invasion of adjacent organs/structures</li><li><b>Cervix:</b> FIGO staging integrated alongside TNM, incorporates imaging/pathologic findings per 2018 revision</li><li><b>Lung:</b> T-category driven by size thresholds (≤1, ≤2, ≤3, ≤4, ≤5, ≤7, &gt;7 cm) and invasion features</li></ul></div>
+          <div class="keywords">site specific staging rules breast colon cervix figo lung t category</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= 8. GUIDELINES ================= -->
+    <section class="master-section" id="m8">
+      <div class="master-head">
+        <div class="master-index">08</div>
+        <div>
+          <div class="master-title">Clinical Guidelines Master</div>
+          <div class="master-purpose">Every recommendation in the platform is mapped to its guideline source, version, evidence level, category and supporting reference.</div>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <tr><th>Body</th><th>Full Name</th><th>Scope</th></tr>
+          <tr><td>NCG</td><td>National Cancer Grid</td><td>Regional/national consensus oncology guidelines</td></tr>
+          <tr><td>NCCN</td><td>National Comprehensive Cancer Network</td><td>Pan-tumor US clinical practice guidelines, updated frequently with category-of-evidence grading</td></tr>
+          <tr><td>ESMO</td><td>European Society for Medical Oncology</td><td>European clinical practice guidelines with Magnitude of Clinical Benefit Scale</td></tr>
+          <tr><td>ASCO</td><td>American Society of Clinical Oncology</td><td>Evidence-based clinical practice guidelines and provisional opinions</td></tr>
+          <tr><td>EHA</td><td>European Hematology Association</td><td>Hematologic malignancy guidelines, often joint with ESMO</td></tr>
+          <tr><td>ESGO</td><td>European Society of Gynaecological Oncology</td><td>Gynecologic cancer management guidelines</td></tr>
+          <tr><td>ESTRO</td><td>European SocieTy for Radiotherapy &amp; Oncology</td><td>Radiation oncology technique and target-volume guidelines</td></tr>
+          <tr><td>ASTRO</td><td>American Society for Radiation Oncology</td><td>US radiation oncology clinical guidelines and choosing-wisely recommendations</td></tr>
+          <tr><td>SSO</td><td>Society of Surgical Oncology</td><td>Surgical margin and technique consensus statements</td></tr>
+        </table>
+      </div>
+      <div class="note">Each recommendation record stores: guideline version/year, the recommendation text, level of evidence (e.g. I–V), recommendation category/grade (e.g. NCCN Category 1/2A/2B), and the supporting reference citation.</div>
+      <div class="keywords">ncg nccn esmo asco eha esgo estro astro sso guidelines evidence level category</div>
+    </section>
+
+    <!-- ================= 9. TOXICITY ================= -->
+    <section class="master-section" id="m9">
+      <div class="master-head">
+        <div class="master-index">09</div>
+        <div>
+          <div class="master-title">Toxicity Management Master</div>
+          <div class="master-purpose">CTCAE-based grading with recommended management, dose modification and rechallenge guidance for major treatment-related toxicities.</div>
+        </div>
+      </div>
+      <div class="card-grid">
+        <div class="card">
+          <div class="card-title-row"><div class="card-title">Febrile Neutropenia</div><div class="card-tag">CTCAE</div></div>
+          <div class="field-value"><b>Definition:</b> ANC &lt;500/µL (or &lt;1000 with predicted decline) + single temperature ≥38.3°C (or ≥38.0°C sustained 1h).<br><b>Management:</b> Empiric broad-spectrum IV antibiotics within 1 hour, risk stratification (MASCC score), blood cultures before antibiotics.<br><b>Dose modification:</b> Reduce subsequent cycle dose or add G-CSF prophylaxis.<br><b>Rechallenge:</b> Permitted with growth factor support unless recurrent despite prophylaxis.</div>
+          <div class="keywords">febrile neutropenia ctcae grading management antibiotics mascc g-csf</div>
+        </div>
+        <div class="card">
+          <div class="card-title-row"><div class="card-title">Mucositis</div><div class="card-tag">CTCAE</div></div>
+          <div class="field-value"><b>Grades:</b> 1 (asymptomatic/mild) → 4 (life-threatening, urgent intervention).<br><b>Management:</b> Oral hygiene protocols, topical analgesics, cryotherapy during bolus 5-FU, opioid analgesia for severe grades, nutritional support.<br><b>Dose modification:</b> Hold chemotherapy/RT for Grade ≥3 until resolution to ≤Grade 1.</div>
+          <div class="keywords">mucositis ctcae grading management cryotherapy oral hygiene chemotherapy radiation</div>
+        </div>
+        <div class="card">
+          <div class="card-title-row"><div class="card-title">Diarrhea</div><div class="card-tag">CTCAE</div></div>
+          <div class="field-value"><b>Grades:</b> 1 (&lt;4 stools/day above baseline) → 4 (life-threatening).<br><b>Management:</b> Loperamide for uncomplicated Grade 1–2; hospitalization, IV fluids, octreotide consideration for Grade ≥3 or complicated features.<br><b>Dose modification:</b> Hold irinotecan/5-FU-based regimens until resolved; reduce dose on rechallenge.</div>
+          <div class="keywords">diarrhea ctcae grading management loperamide octreotide irinotecan</div>
+        </div>
+        <div class="card">
+          <div class="card-title-row"><div class="card-title">Pneumonitis</div><div class="card-tag">CTCAE</div></div>
+          <div class="field-value"><b>Grades:</b> 1 (radiographic only) → 4 (life-threatening respiratory compromise).<br><b>Management:</b> Corticosteroids for Grade ≥2, hold offending agent (immunotherapy/targeted therapy/RT), pulmonology input, consider bronchoscopy to exclude infection.<br><b>Rechallenge:</b> Cautious rechallenge for Grade 1–2 after resolution; generally avoided for Grade ≥3.</div>
+          <div class="keywords">pneumonitis ctcae grading management corticosteroids immunotherapy irae radiation</div>
+        </div>
+        <div class="card">
+          <div class="card-title-row"><div class="card-title">Hepatitis (Immune/Drug-related)</div><div class="card-tag">CTCAE</div></div>
+          <div class="field-value"><b>Grades:</b> based on ALT/AST and bilirubin elevation multiples of ULN.<br><b>Management:</b> Hold therapy, corticosteroids for Grade ≥2, mycophenolate for steroid-refractory immune-related hepatitis.<br><b>Rechallenge:</b> Individualized; avoid in Grade 4 or steroid-refractory cases.</div>
+          <div class="keywords">hepatitis ctcae grading management alt ast corticosteroids immune related</div>
+        </div>
+        <div class="card">
+          <div class="card-title-row"><div class="card-title">Cardiotoxicity</div><div class="card-tag">CTCAE</div></div>
+          <div class="field-value"><b>Grades:</b> based on LVEF decline and symptomatic heart failure severity.<br><b>Management:</b> Cardiology referral, ACE inhibitor/beta-blocker initiation, hold anthracycline/anti-HER2 therapy for significant LVEF drop.<br><b>Monitoring:</b> Serial echo/MUGA at defined intervals during and after cardiotoxic regimens.</div>
+          <div class="keywords">cardiotoxicity ctcae grading lvef management anthracycline her2 heart failure</div>
+        </div>
+        <div class="card">
+          <div class="card-title-row"><div class="card-title">Peripheral Neuropathy</div><div class="card-tag">CTCAE</div></div>
+          <div class="field-value"><b>Grades:</b> 1 (asymptomatic) → 3 (limiting self-care ADL); Grade 4 rare.<br><b>Management:</b> Dose reduction or discontinuation of offending taxane/platinum/vinca agent at Grade ≥2 with functional impairment; duloxetine for established painful neuropathy.<br><b>Prevention:</b> Cold avoidance for oxaliplatin, cumulative dose tracking.</div>
+          <div class="keywords">peripheral neuropathy ctcae grading management taxane platinum vinca duloxetine</div>
+        </div>
+        <div class="card">
+          <div class="card-title-row"><div class="card-title">Cytokine Release Syndrome (CRS)</div><div class="card-tag">CTCAE</div></div>
+          <div class="field-value"><b>Grades:</b> 1 (fever only) → 4 (life-threatening, multi-organ, ventilator/pressor requirement) — commonly graded by ASTCT consensus.<br><b>Management:</b> Supportive care for Grade 1; Tocilizumab (IL-6 receptor blockade) ± corticosteroids for Grade ≥2; ICU-level support for severe grades.<br><b>Context:</b> Principally seen with CAR-T cell therapy and bispecific antibody constructs.</div>
+          <div class="keywords">cytokine release syndrome crs ctcae grading tocilizumab car-t bispecific management</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= 10. SUPPORTIVE CARE ================= -->
+    <section class="master-section" id="m10">
+      <div class="master-head">
+        <div class="master-index">10</div>
+        <div>
+          <div class="master-title">Supportive Care Master</div>
+          <div class="master-purpose">Antiemetic protocols, pain management, nutrition, transfusion, growth factor use, bone health, infection prophylaxis, palliative and survivorship care.</div>
+        </div>
+      </div>
+      <div class="card-grid">
+        <div class="card">
+          <div class="card-title-row"><div class="card-title">Antiemetic Protocol</div><div class="card-tag">Risk-Stratified</div></div>
+          <div class="field-value"><ul><li><b>High emetogenic risk</b> (cisplatin-based): NK1 antagonist + 5-HT3 antagonist + dexamethasone ± olanzapine</li><li><b>Moderate risk</b> (AC, oxaliplatin): 5-HT3 antagonist + dexamethasone</li><li><b>Low risk:</b> single agent 5-HT3 antagonist or dexamethasone</li><li><b>Minimal risk:</b> no routine prophylaxis</li></ul></div>
+          <div class="keywords">antiemetic protocol emetogenic risk 5-ht3 nk1 dexamethasone olanzapine nausea vomiting</div>
+        </div>
+        <div class="card">
+          <div class="card-title-row"><div class="card-title">Pain Management</div><div class="card-tag">WHO Ladder</div></div>
+          <div class="field-value"><ul><li><b>Step 1</b> — Non-opioid (paracetamol, NSAID) ± adjuvant</li><li><b>Step 2</b> — Weak opioid (tramadol, codeine) for mild-moderate pain</li><li><b>Step 3</b> — Strong opioid (morphine, oxycodone, fentanyl) for moderate-severe pain</li><li>Adjuvants: gabapentinoids for neuropathic pain, bisphosphonates/denosumab for bone pain, corticosteroids for compressive pain</li></ul></div>
+          <div class="keywords">pain management who analgesic ladder opioid morphine oxycodone fentanyl gabapentin</div>
+        </div>
+        <div class="card">
+          <div class="card-title-row"><div class="card-title">Nutrition Support</div><div class="card-tag">Protocol</div></div>
+          <div class="field-value">Baseline nutritional screening (e.g. PG-SGA) at diagnosis, dietitian referral for high-risk sites (head &amp; neck, upper GI, pancreatic), enteral feeding tube consideration before treatment-related dysphagia, protein-calorie targets adjusted for treatment phase.</div>
+          <div class="keywords">nutrition support pg-sga dietitian enteral feeding tube dysphagia</div>
+        </div>
+        <div class="card">
+          <div class="card-title-row"><div class="card-title">Blood Transfusion</div><div class="card-tag">Thresholds</div></div>
+          <div class="field-value">Restrictive transfusion strategy generally applied: RBC transfusion threshold Hb ~7–8 g/dL (adjusted upward for cardiac comorbidity/active bleeding); platelet transfusion threshold typically &lt;10,000/µL prophylactically, higher threshold if actively bleeding or pre-procedure.</div>
+          <div class="keywords">blood transfusion threshold hemoglobin platelet rbc</div>
+        </div>
+        <div class="card">
+          <div class="card-title-row"><div class="card-title">G-CSF Use</div><div class="card-tag">Protocol</div></div>
+          <div class="field-value">Cross-referenced with Medical Oncology Master growth factor rules — primary prophylaxis for high febrile-neutropenia-risk regimens, secondary prophylaxis after a prior episode, and use in neutropenic fever recovery acceleration in select cases.</div>
+          <div class="keywords">g-csf growth factor use prophylaxis neutropenia</div>
+        </div>
+        <div class="card">
+          <div class="card-title-row"><div class="card-title">Bone Health</div><div class="card-tag">Protocol</div></div>
+          <div class="field-value">Bone-modifying agents (zoledronic acid, denosumab) for bone metastases (reduce skeletal-related events) and for aromatase-inhibitor/androgen-deprivation-induced bone loss; baseline dental assessment before initiation (osteonecrosis of jaw risk); calcium/vitamin D supplementation.</div>
+          <div class="keywords">bone health zoledronic acid denosumab skeletal related events osteonecrosis jaw</div>
+        </div>
+        <div class="card">
+          <div class="card-title-row"><div class="card-title">Infection Prophylaxis</div><div class="card-tag">Protocol</div></div>
+          <div class="field-value">Antimicrobial prophylaxis (antibacterial/antifungal/antiviral) during prolonged neutropenia (e.g. AML induction, HSCT); PJP prophylaxis with prolonged high-dose corticosteroids or certain immunosuppressive regimens; vaccination review before immunosuppressive therapy.</div>
+          <div class="keywords">infection prophylaxis neutropenia antifungal antiviral pjp prophylaxis vaccination</div>
+        </div>
+        <div class="card">
+          <div class="card-title-row"><div class="card-title">Palliative &amp; Survivorship Care</div><div class="card-tag">Protocol</div></div>
+          <div class="field-value">Early integration of palliative care alongside active treatment for advanced disease; structured symptom assessment (ESAS); survivorship care plans covering late-effects surveillance, psychosocial support and lifestyle/secondary-prevention counseling at treatment completion.</div>
+          <div class="keywords">palliative care survivorship esas symptom assessment late effects</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= 11. CLINICAL TRIALS ================= -->
+    <section class="master-section" id="m11">
+      <div class="master-head">
+        <div class="master-index">11</div>
+        <div>
+          <div class="master-title">Clinical Trial Master</div>
+          <div class="master-purpose">Structured trial records for eligibility matching — trial name, phase, biomarker requirements, recruiting status, interventions and outcomes.</div>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <tr><th>Field</th><th>Description</th></tr>
+          <tr><td>Trial name / identifier</td><td>Registry ID and short title used for matching and reference</td></tr>
+          <tr><td>Phase</td><td>I / II / III / IV — informs evidence maturity and access pathway</td></tr>
+          <tr><td>Eligibility criteria</td><td>Structured inclusion/exclusion — disease stage, prior therapy lines, organ function, performance status</td></tr>
+          <tr><td>Biomarker requirements</td><td>Molecular gating criteria cross-referenced to the Molecular Oncology Master</td></tr>
+          <tr><td>Recruiting status</td><td>Recruiting / active-not-recruiting / completed / terminated</td></tr>
+          <tr><td>Study interventions</td><td>Investigational drug(s), comparator arm, dosing schema</td></tr>
+          <tr><td>Outcomes</td><td>Primary and secondary endpoints (e.g. PFS, OS, ORR, safety)</td></tr>
+        </table>
+      </div>
+      <div class="note">Designed to support automated eligibility screening: a patient's stage, prior-therapy history and biomarker profile can be matched against open trial criteria in real time.</div>
+      <div class="keywords">clinical trial phase eligibility criteria biomarker recruiting status intervention outcomes matching</div>
+    </section>
+
+    <!-- ================= 12. FOLLOW-UP ================= -->
+    <section class="master-section" id="m12">
+      <div class="master-head">
+        <div class="master-index">12</div>
+        <div>
+          <div class="master-title">Follow-up Master</div>
+          <div class="master-purpose">Disease-specific surveillance plans defining exam intervals, imaging schedules and marker monitoring after primary treatment.</div>
+        </div>
+      </div>
+      <div class="card-grid">
+        <div class="card">
+          <div class="card-title-row"><div class="card-title">Breast Cancer</div><div class="card-tag">Surveillance</div></div>
+          <div class="field-value"><ul><li>Clinical examination every 3–6 months for years 1–3, then 6–12 monthly to year 5, then annually</li><li>Annual mammography (± MRI in high-risk subsets)</li><li>Bone health monitoring during aromatase inhibitor/ovarian suppression therapy</li></ul></div>
+          <div class="keywords">breast cancer follow-up surveillance mammography bone health clinical examination</div>
+        </div>
+        <div class="card">
+          <div class="card-title-row"><div class="card-title">Colon Cancer</div><div class="card-tag">Surveillance</div></div>
+          <div class="field-value"><ul><li>CEA monitoring every 3–6 months for 5 years</li><li>Colonoscopy at 1 year post-resection, then per findings (typically every 3–5 years)</li><li>CT chest/abdomen/pelvis surveillance every 6–12 months for 5 years in stage II–III disease</li></ul></div>
+          <div class="keywords">colon cancer follow-up surveillance cea colonoscopy ct surveillance</div>
+        </div>
+        <div class="card">
+          <div class="card-title-row"><div class="card-title">Head &amp; Neck Cancer</div><div class="card-tag">Surveillance</div></div>
+          <div class="field-value"><ul><li>Endoscopic examination at every follow-up visit (monthly-to-quarterly in year 1, tapering thereafter)</li><li>Imaging schedule guided by symptoms and baseline post-treatment scan (typically 3-month post-RT PET-CT)</li><li>Thyroid function monitoring after neck irradiation (annual TSH, given hypothyroidism risk)</li></ul></div>
+          <div class="keywords">head and neck cancer follow-up surveillance endoscopy imaging thyroid monitoring</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= 13. MDT ================= -->
+    <section class="master-section" id="m13">
+      <div class="master-head">
+        <div class="master-index">13</div>
+        <div>
+          <div class="master-title">Multidisciplinary Tumor Board (MDT) Master</div>
+          <div class="master-purpose">Standardized workflow for case presentation, required data, specialty participation, consensus recommendation and action tracking.</div>
+        </div>
+      </div>
+      <div class="card-grid">
+        <div class="card"><div class="card-title-row"><div class="card-title">Required Data Checklist</div><div class="card-tag">Workflow</div></div><div class="field-value"><ul><li>Complete pathology report with synoptic elements</li><li>Staging imaging and TNM classification</li><li>Relevant biomarker/molecular results</li><li>Performance status and comorbidity profile</li><li>Prior treatment history</li></ul></div><div class="keywords">mdt tumor board required data checklist pathology staging</div></div>
+        <div class="card"><div class="card-title-row"><div class="card-title">Specialty Participation</div><div class="card-tag">Workflow</div></div><div class="field-value">Core attendance: Medical Oncology, Radiation Oncology, Surgical Oncology, Radiology, Pathology. Extended: Palliative Care, Nuclear Medicine, Genetics, Nursing/Care Coordination as indicated by case complexity.</div><div class="keywords">mdt specialty participation attendance oncology radiology pathology</div></div>
+        <div class="card"><div class="card-title-row"><div class="card-title">Case Presentation Structure</div><div class="card-tag">Workflow</div></div><div class="field-value">Standardized order: demographics → presenting history → pathology → staging imaging → biomarker results → proposed question(s) for the board.</div><div class="keywords">mdt case presentation structure format</div></div>
+        <div class="card"><div class="card-title-row"><div class="card-title">Consensus &amp; Action Items</div><div class="card-tag">Workflow</div></div><div class="field-value">Documented consensus recommendation with dissent noted if applicable, assigned action items with responsible clinician and timeline, and a defined follow-up decision point (e.g. re-presentation after neoadjuvant therapy).</div><div class="keywords">mdt consensus recommendation action items follow-up decisions</div></div>
+      </div>
+    </section>
+
+    <!-- ================= 14. PATIENT EDUCATION ================= -->
+    <section class="master-section" id="m14">
+      <div class="master-head">
+        <div class="master-index">14</div>
+        <div>
+          <div class="master-title">Patient Education Master</div>
+          <div class="master-purpose">Standardized educational content delivered alongside treatment plans, in plain language for patients and caregivers.</div>
+        </div>
+      </div>
+      <div class="card-grid">
+        <div class="card"><div class="card-title-row"><div class="card-title">Chemotherapy Instructions</div><div class="card-tag">Education</div></div><div class="field-value">What to expect at each visit, managing nausea/fatigue at home, when to call the care team (fever, uncontrolled vomiting, bleeding), medication schedule at home, infection precautions during neutropenic periods.</div><div class="keywords">chemotherapy patient instructions education home care</div></div>
+        <div class="card"><div class="card-title-row"><div class="card-title">Radiation Care</div><div class="card-tag">Education</div></div><div class="field-value">Skin care during treatment, positioning/immobilization expectations, managing site-specific side effects (mucositis, fatigue, bowel/bladder changes), long-term skin and tissue care after completion.</div><div class="keywords">radiation therapy patient education skin care side effects</div></div>
+        <div class="card"><div class="card-title-row"><div class="card-title">Surgery Preparation</div><div class="card-tag">Education</div></div><div class="field-value">Pre-admission instructions, fasting guidance, what to bring, what to expect in recovery, wound/drain care, activity restrictions and return-to-function milestones.</div><div class="keywords">surgery preparation patient education recovery wound care</div></div>
+        <div class="card"><div class="card-title-row"><div class="card-title">Nutrition Advice</div><div class="card-tag">Education</div></div><div class="field-value">Managing taste changes, maintaining calorie/protein intake during treatment, food safety during neutropenia, guidance for site-specific eating difficulties.</div><div class="keywords">nutrition advice patient education diet during treatment</div></div>
+        <div class="card"><div class="card-title-row"><div class="card-title">Symptom Management</div><div class="card-tag">Education</div></div><div class="field-value">Home management strategies for common symptoms — fatigue, pain, constipation/diarrhea, sleep disturbance — paired with clear escalation criteria.</div><div class="keywords">symptom management patient education home strategies</div></div>
+        <div class="card"><div class="card-title-row"><div class="card-title">Survivorship Resources</div><div class="card-tag">Education</div></div><div class="field-value">Post-treatment survivorship care plan explanation, late-effect awareness, psychosocial support resources, return-to-work/lifestyle guidance.</div><div class="keywords">survivorship resources patient education late effects support</div></div>
+      </div>
+    </section>
+
+    <!-- ================= KNOWLEDGE GRAPH ================= -->
+    <section class="master-section" id="m15">
+      <div class="divider-graph">
+        <h3>The Clinical Knowledge Graph</h3>
+        <p>Rather than functioning as fourteen isolated databases, this reference is designed to operate as an interconnected Clinical Knowledge Graph. The <b>Disease Master</b> sits as the central hub, linked outward to Staging, Pathology, Biomarkers, Surgery, Radiation, Systemic Therapy, Toxicity Management and Follow-up. For a given patient, the graph can be traversed to answer:</p>
+        <div class="field-value">
+          <ul>
+            <li>What is the correct stage?</li>
+            <li>Is surgery indicated?</li>
+            <li>Which chemotherapy regimens are preferred?</li>
+            <li>What radiation dose and fractionation are recommended?</li>
+            <li>Which biomarkers should be tested?</li>
+            <li>What toxicities should be monitored?</li>
+            <li>What is the recommended follow-up schedule?</li>
+          </ul>
+        </div>
+        <div class="table-wrap" style="margin-top:24px;">
+          <table>
+            <tr><th>Master Library</th><th>Purpose</th></tr>
+            <tr><td>Disease Master</td><td>Cancer taxonomy (ICD, ICD-O, SNOMED)</td></tr>
+            <tr><td>Staging Master</td><td>AJCC/UICC TNM and stage grouping</td></tr>
+            <tr><td>Medical Oncology Protocol Master</td><td>Chemotherapy, targeted, immunotherapy regimens</td></tr>
+            <tr><td>Radiation Oncology Master</td><td>Dose, fractionation, techniques, organ-at-risk constraints</td></tr>
+            <tr><td>Surgical Oncology Master</td><td>Procedures, ERAS pathways, lymph node templates</td></tr>
+            <tr><td>Drug Master</td><td>Drugs, dosing, interactions, toxicities</td></tr>
+            <tr><td>Molecular Marker Master</td><td>Biomarkers and targeted therapy mapping</td></tr>
+            <tr><td>Pathology Master</td><td>Synoptic reporting and classifications</td></tr>
+            <tr><td>Diagnostic Work-up Master</td><td>Imaging and laboratory pathways</td></tr>
+            <tr><td>Guideline Master</td><td>NCG, NCCN, ESMO, ASCO recommendations</td></tr>
+            <tr><td>Toxicity Management Master</td><td>CTCAE grading and management</td></tr>
+            <tr><td>Supportive Care Master</td><td>Antiemetics, G-CSF, nutrition, palliative care</td></tr>
+            <tr><td>Clinical Trial Master</td><td>Trial eligibility and matching</td></tr>
+            <tr><td>Follow-up Master</td><td>Surveillance schedules</td></tr>
+            <tr><td>Tumor Board Master</td><td>MDT workflows and documentation</td></tr>
+          </table>
+        </div>
+        <div class="keywords">clinical knowledge graph disease master drug master architecture icd icd-o snomed</div>
+      </div>
+    </section>
+
+    <div class="empty-state hidden" id="emptyState">No entries match your search. Try a broader term — a condition name, drug, biomarker or procedure.</div>
+
+    </main>
+  </div>
+  </div>
+</div>
+
+<footer>
+  Clinical knowledge Hub 
+</footer>
+
+<script>
+/* ================= TAB SWITCHING ================= */
+const tabBtns = document.querySelectorAll('.tab-btn');
+const tabPanels = document.querySelectorAll('.tab-panel');
+tabBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    tabBtns.forEach(b => b.classList.remove('active'));
+    tabPanels.forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+    window.scrollTo({top:0, behavior:'instant'});
+  });
+});
+
+/* ================= PATHWAY DATA ================= */
+const pathwayData = {
+  breast: {
+    label: "Breast Cancer",
+    stages: {
+      dcis: {
+        label: "DCIS (Stage 0, non-invasive)",
+        workup: ["Diagnostic mammography + targeted ultrasound", "Core needle biopsy with ER/PR on the DCIS component", "MRI breast selectively for extent of disease mapping"],
+        staging: "Tis N0 M0 — Stage 0. No nodal or distant staging work-up required for pure DCIS.",
+        biomarkers: ["ER / PR (guides adjuvant endocrine therapy decision)", "HER2 testing not routinely required for pure DCIS"],
+        surgery: "Breast-conserving surgery (lumpectomy) with clear margins, or mastectomy for extensive/multicentric disease. Sentinel node biopsy considered only if mastectomy performed or high suspicion of occult invasion.",
+        systemic: ["No cytotoxic chemotherapy indicated", "Adjuvant endocrine therapy (Tamoxifen or AI) if ER-positive, to reduce ipsilateral/contralateral recurrence risk"],
+        radiation: "Whole-breast RT after BCS: 40 Gy/15 fractions (hypofractionated) or 50 Gy/25 fractions ± boost — reduces local recurrence; omission may be considered in select very-low-risk, older patients.",
+        toxicity: ["RT: acute skin erythema/desquamation", "Tamoxifen: endometrial surveillance, thromboembolism risk"],
+        followup: "Clinical exam every 6–12 months; annual mammography.",
+        flags: ["No chemotherapy indicated", "No distant staging required"]
+      },
+      early_invasive: {
+        label: "Early Invasive, Operable (Stage I–II)",
+        workup: ["Diagnostic mammography + ultrasound", "MRI breast selectively (dense breast, multicentricity concern)", "Staging CT chest/abdomen/pelvis and bone scan not routine for asymptomatic Stage I–II — reserve for high-risk/symptomatic disease"],
+        staging: "T1-2 N0-1 M0 typically — confirm exact grouping against AJCC 8th edition table using T/N and biomarker-based prognostic stage.",
+        biomarkers: ["ER, PR, HER2 (IHC → FISH reflex if equivocal)", "21-gene recurrence score (Oncotype DX) if ER+/HER2-/node-negative to guide chemotherapy benefit"],
+        surgery: "Lumpectomy with sentinel node biopsy, or mastectomy depending on tumor-to-breast ratio and patient preference. Axillary dissection reserved for significant nodal burden.",
+        systemic: ["Adjuvant chemotherapy (e.g. AC → T) if high genomic/clinical risk", "Adjuvant endocrine therapy 5–10 years if HR-positive", "Adjuvant anti-HER2 therapy (Trastuzumab ± Pertuzumab) if HER2-positive"],
+        radiation: "Whole-breast RT after BCS — 40 Gy/15 fractions + boost 10–16 Gy; post-mastectomy RT if node-positive or high-risk features.",
+        toxicity: ["Cardiotoxicity — anthracycline / anti-HER2 (serial LVEF)", "Taxane peripheral neuropathy", "RT skin and cardiac dose (left-sided) monitoring"],
+        followup: "Clinical exam every 3–6 months years 1–3, then 6–12 monthly to year 5, then annually. Annual mammography. Bone density monitoring on AI therapy.",
+        flags: ["Genomic assay may avoid chemotherapy", "HER2 status changes systemic regimen entirely"]
+      },
+      locally_advanced: {
+        label: "Locally Advanced (Stage III)",
+        workup: ["Staging CT chest/abdomen/pelvis, bone scan or PET-CT", "MRI breast for extent and neoadjuvant response monitoring", "Core biopsy with full receptor panel prior to any neoadjuvant therapy"],
+        staging: "Stage III — often T3-4 and/or N2-3, M0. Confirm nodal staging with imaging ± biopsy of suspicious nodes.",
+        biomarkers: ["ER, PR, HER2 mandatory before treatment planning", "Consider genomic panel if residual disease post-neoadjuvant to guide escalation"],
+        surgery: "Definitive surgery (BCS or mastectomy + axillary staging) after neoadjuvant systemic therapy; extent guided by response.",
+        systemic: ["Neoadjuvant AC → T ± dual anti-HER2 blockade (Trastuzumab + Pertuzumab) if HER2-positive", "pCR-adapted post-neoadjuvant escalation: T-DM1 for residual HER2+ disease, Capecitabine for residual triple-negative disease", "Adjuvant endocrine therapy if HR-positive"],
+        radiation: "Post-mastectomy RT to chest wall and regional nodes — 50 Gy/25 fractions standard; boost to tumor bed if BCS performed.",
+        toxicity: ["Febrile neutropenia risk with dose-dense regimens — consider primary G-CSF", "Cardiotoxicity monitoring throughout anthracycline + anti-HER2 sequencing", "Peripheral neuropathy"],
+        followup: "Closer surveillance — clinical exam every 3 months for years 1–2, then per Stage I–II schedule thereafter.",
+        flags: ["Neoadjuvant approach — surgery deferred until systemic therapy response assessed", "MDT discussion mandatory before treatment sequencing"]
+      },
+      metastatic: {
+        label: "Metastatic (Stage IV)",
+        workup: ["Biopsy of a metastatic site to reconfirm receptor status (can differ from primary)", "Staging CT chest/abdomen/pelvis or PET-CT, bone scan, brain imaging if symptomatic", "Consider broader genomic panel (PIK3CA, ESR1, germline BRCA)"],
+        staging: "Stage IV — any T, any N, M1. Sub-classify by burden/site of metastatic disease and receptor status for therapy selection.",
+        biomarkers: ["ER/PR/HER2 reconfirmation on metastatic tissue", "PIK3CA mutation (guides PI3K inhibitor use in HR+/HER2-)", "Germline BRCA1/2 (guides PARP inhibitor eligibility)", "PD-L1 in triple-negative disease (guides checkpoint inhibitor use)"],
+        surgery: "Generally not indicated for cure; rarely considered for symptom palliation or oligometastatic/oligoprogressive disease in select cases discussed at MDT.",
+        systemic: ["HR+/HER2-: CDK4/6 inhibitor + endocrine therapy first line", "HER2+: Trastuzumab-based regimens (e.g. Taxane + Trastuzumab + Pertuzumab), Trastuzumab deruxtecan in later lines", "Triple-negative: Chemotherapy ± checkpoint inhibitor if PD-L1-positive; Sacituzumab govitecan in later lines; PARP inhibitor if BRCA-mutated"],
+        radiation: "Palliative RT for symptomatic bone metastases, cord compression, or brain metastases — dose per site (see Radiation Oncology Master).",
+        toxicity: ["Regimen-specific — cross-reference selected agent in Medical Oncology and Toxicity Masters", "irAE monitoring if on checkpoint inhibitor"],
+        followup: "Symptom-directed visits, periodic imaging per response assessment interval, ongoing quality-of-life and palliative care integration.",
+        flags: ["Treatment intent is disease control, not cure", "Re-biopsy at progression to reassess biomarkers before switching regimen"]
+      }
+    }
+  },
+  colorectal: {
+    label: "Colorectal Cancer",
+    stages: {
+      early: {
+        label: "Early / Resectable (Stage I–II)",
+        workup: ["Colonoscopy with biopsy", "CT chest/abdomen/pelvis for staging", "Pelvic MRI if rectal primary", "Baseline CEA"],
+        staging: "T1-3 N0 M0 typically. Stage II considered high-risk if T4, poor differentiation, LVI, or inadequate node yield (<12 nodes).",
+        biomarkers: ["Universal reflex MSI/dMMR testing on all newly diagnosed CRC", "KRAS/NRAS/BRAF reserved for metastatic setting"],
+        surgery: "Right/left hemicolectomy with D2/D3 lymphadenectomy for colon primary; LAR or APR with total mesorectal excision (TME) for rectal primary depending on distance from anal verge.",
+        systemic: ["Stage I: surgery alone", "Stage II: adjuvant chemotherapy considered only for high-risk features (e.g. capecitabine or FOLFOX) — dMMR/MSI-H tumors generally do not benefit from single-agent 5-FU adjuvant therapy"],
+        radiation: "Neoadjuvant (chemo)radiotherapy considered for rectal primaries at or below the peritoneal reflection depending on MRI-defined risk features, even at early stage in select cases.",
+        toxicity: ["Standard peri-operative risk", "If adjuvant chemo given — see FOLFOX/capecitabine toxicity profile"],
+        followup: "CEA every 3–6 months for 5 years; colonoscopy at 1 year then per findings; CT surveillance per stage-specific interval.",
+        flags: ["dMMR/MSI-H status changes adjuvant chemotherapy benefit calculation"]
+      },
+      locally_advanced: {
+        label: "Locally Advanced (Stage III / High-risk Rectal)",
+        workup: ["CT chest/abdomen/pelvis", "Pelvic MRI mandatory for rectal cancer to define mesorectal fascia involvement", "Baseline CEA"],
+        staging: "Any T, N1-2, M0 (Stage III) for colon; MRI-defined risk stratification for rectal cancer (threatened/involved circumferential resection margin).",
+        biomarkers: ["Universal MSI/dMMR reflex testing", "dMMR/MSI-H locally advanced rectal cancer — consider neoadjuvant immunotherapy pathway per emerging guideline-supported protocols"],
+        surgery: "TME for rectal cancer after neoadjuvant therapy; colectomy with D2/D3 lymphadenectomy for colon cancer followed by adjuvant chemotherapy.",
+        systemic: ["Colon Stage III: adjuvant FOLFOX or CAPOX, 3–6 months depending on risk stratification (T/N substage)", "Rectal cancer: neoadjuvant long-course chemoradiotherapy or short-course RT ± total neoadjuvant chemotherapy (TNT) approach, then surgery"],
+        radiation: "Long-course pelvic CRT (typically 50.4 Gy/28 fractions with concurrent capecitabine) or short-course RT (25 Gy/5 fractions) for rectal cancer — sequencing per TNT protocol.",
+        toxicity: ["Diarrhea, myelosuppression from FOLFOX/CAPOX", "Pelvic RT: proctitis, cystitis, fatigue"],
+        followup: "CEA every 3–6 months, CT surveillance every 6–12 months for 5 years, colonoscopy per findings.",
+        flags: ["MDT sequencing decision essential — order of surgery/RT/chemo varies by TNT protocol selection"]
+      },
+      metastatic: {
+        label: "Metastatic (Stage IV)",
+        workup: ["CT chest/abdomen/pelvis or PET-CT for metastatic mapping", "Liver MRI if hepatic metastases being considered for resection", "Baseline CEA"],
+        staging: "Any T, any N, M1 — sub-classify as resectable, potentially resectable (conversion candidate), or unresectable metastatic disease.",
+        biomarkers: ["MSI/dMMR (guides checkpoint inhibitor eligibility)", "KRAS/NRAS/BRAF mutation status mandatory before anti-EGFR therapy consideration", "HER2 amplification in RAS/BRAF wild-type disease"],
+        surgery: "Resection of liver/lung oligometastases in conjunction with primary resection when technically feasible — potential for cure in selected patients; conversion chemotherapy for borderline-resectable disease.",
+        systemic: ["RAS/BRAF wild-type, left-sided: chemotherapy (FOLFOX/FOLFIRI) + anti-EGFR (Cetuximab/Panitumumab)", "RAS-mutant or right-sided: chemotherapy + Bevacizumab", "BRAF V600E-mutant: consider BRAF/MEK/anti-EGFR combination in later lines", "MSI-H/dMMR: checkpoint inhibitor (Pembrolizumab) can be used first line"],
+        radiation: "Palliative RT for symptomatic primary or metastatic sites (bone, brain) as needed.",
+        toxicity: ["Regimen-specific — see Medical Oncology and Toxicity Masters for FOLFOX/FOLFIRI/anti-EGFR skin toxicity"],
+        followup: "Response-driven imaging every 2–3 cycles; symptom-directed care; re-biopsy/re-testing biomarkers at progression when feasible.",
+        flags: ["RAS/BRAF testing is mandatory before anti-EGFR therapy — do not prescribe Cetuximab/Panitumumab without confirmed wild-type status"]
+      }
+    }
+  },
+  nsclc: {
+    label: "Non-Small Cell Lung Cancer",
+    stages: {
+      early: {
+        label: "Early Stage, Resectable (I–IIIA operable)",
+        workup: ["CT chest with contrast", "PET-CT for staging/FDG avidity", "Brain MRI if non-squamous or symptomatic", "EBUS-TBNA or mediastinoscopy for nodal staging if indicated", "PFTs to assess surgical fitness"],
+        staging: "T1-3 N0-1 M0 typically; N2 disease individualized (may still be surgical candidate after multidisciplinary review).",
+        biomarkers: ["Reflex EGFR, ALK, ROS1, PD-L1 testing on resected/biopsy tissue — increasingly relevant for adjuvant therapy selection"],
+        surgery: "Lobectomy (preferred) or sub-lobar resection in select cases, with mediastinal lymph node dissection/sampling — VATS or robotic approach where feasible.",
+        systemic: ["Adjuvant chemotherapy (platinum doublet) for Stage II-III resected disease", "Adjuvant Osimertinib for resected EGFR-mutant Stage IB-IIIA disease", "Adjuvant immunotherapy (e.g. Atezolizumab) in PD-L1-positive resected disease per trial-defined criteria"],
+        radiation: "Definitive RT (SBRT) as an alternative to surgery in medically inoperable early-stage disease; adjuvant RT not routine after complete resection unless margin-positive.",
+        toxicity: ["Post-operative pulmonary risk", "Adjuvant chemo: myelosuppression, nausea", "Osimertinib: QT prolongation, ILD monitoring"],
+        followup: "CT chest surveillance every 6 months for 2 years, then annually; smoking cessation counseling.",
+        flags: ["Molecular testing result can change adjuvant therapy from chemotherapy to targeted agent"]
+      },
+      locally_advanced: {
+        label: "Locally Advanced, Unresectable (Stage III)",
+        workup: ["PET-CT and brain MRI mandatory for staging", "Pathologic mediastinal nodal confirmation (EBUS/mediastinoscopy)", "PFTs to assess RT tolerance"],
+        staging: "Stage III, unresectable — bulky N2/N3 disease or T4 by invasion/extent precluding upfront surgery.",
+        biomarkers: ["EGFR, ALK, PD-L1 testing to inform post-CRT consolidation therapy choice"],
+        surgery: "Not primary approach; reserved for highly selected cases after multidisciplinary downstaging discussion.",
+        systemic: ["Concurrent platinum-based chemoradiotherapy followed by consolidation Durvalumab (PD-L1 checkpoint inhibitor) in PD-L1-positive, non-progressive disease", "EGFR/ALK-positive disease: consolidation targeted therapy strategies under evolving guideline recommendations"],
+        radiation: "Definitive thoracic RT — typically 60 Gy/30 fractions concurrent with chemotherapy.",
+        toxicity: ["Radiation pneumonitis (see Toxicity Master)", "Esophagitis from concurrent CRT", "Immune-related pneumonitis risk with consolidation immunotherapy"],
+        followup: "CT chest every 3 months for 1 year, then extending intervals; brain MRI surveillance if high-risk histology.",
+        flags: ["Consolidation immunotherapy timing/eligibility depends on PD-L1 status and absence of progression after CRT"]
+      },
+      metastatic: {
+        label: "Metastatic (Stage IV)",
+        workup: ["PET-CT and brain MRI for full staging", "Tissue or liquid biopsy for comprehensive molecular profiling before first-line therapy"],
+        staging: "Stage IV — any T, any N, M1.",
+        biomarkers: ["EGFR, ALK, ROS1, BRAF, MET, RET, NTRK, KRAS G12C, PD-L1 — full panel mandatory before first-line therapy selection"],
+        surgery: "Not indicated for cure; oligometastatic disease may be considered for local ablative therapy to residual sites after systemic response.",
+        systemic: ["Driver mutation-positive (EGFR/ALK/ROS1/etc.): matched targeted therapy first line (e.g. Osimertinib for EGFR, Alectinib for ALK)", "Driver-negative, PD-L1 high: single-agent or combination checkpoint inhibitor", "Driver-negative, PD-L1 low/negative: platinum-doublet chemotherapy + checkpoint inhibitor"],
+        radiation: "SRS for brain metastases, palliative RT for symptomatic bone/other sites.",
+        toxicity: ["Targeted agent-specific (ILD with osimertinib, hepatotoxicity with ALK inhibitors)", "irAE monitoring on checkpoint inhibitor-containing regimens"],
+        followup: "Imaging every 6–9 weeks initially, extending with sustained response; brain MRI surveillance for high CNS-relapse-risk drivers.",
+        flags: ["Do not start chemo-immunotherapy before excluding a targetable driver mutation — EGFR/ALK-positive tumors respond poorly to checkpoint inhibitors"]
+      }
+    }
+  },
+  head_neck: {
+    label: "Head & Neck Squamous Cell Carcinoma",
+    stages: {
+      early: {
+        label: "Early Stage (I–II)",
+        workup: ["Flexible/rigid endoscopy with biopsy", "Contrast CT or MRI neck", "HPV/p16 testing for oropharyngeal primary", "Dental and nutritional assessment"],
+        staging: "T1-2 N0 M0 — note HPV-positive oropharyngeal cancer is staged separately (AJCC 8th edition) with more favorable prognosis at equivalent anatomic extent.",
+        biomarkers: ["HPV/p16 status for oropharyngeal primaries — determines staging system and prognosis"],
+        surgery: "Single-modality treatment — transoral surgery or primary RT depending on site/function preservation goals.",
+        systemic: ["Not routinely indicated at this stage"],
+        radiation: "Definitive RT alone, 70 Gy/35 fractions, if RT selected as primary modality.",
+        toxicity: ["Mucositis, xerostomia (parotid-sparing IMRT), dysphagia"],
+        followup: "Endoscopic exam at every visit; baseline post-treatment imaging around 3 months; annual TSH after neck irradiation.",
+        flags: ["HPV-positive disease may be eligible for de-escalated treatment protocols under active guideline development"]
+      },
+      locally_advanced: {
+        label: "Locally Advanced (III–IVA/B)",
+        workup: ["PET-CT for nodal/distant staging", "MRI/CT neck for local extent", "Dental clearance before RT (extraction of at-risk teeth)"],
+        staging: "T3-4 and/or N2-3, M0.",
+        biomarkers: ["HPV/p16 status for oropharyngeal primary — informs staging and prognosis"],
+        surgery: "Primary surgical resection with neck dissection if resectable, followed by risk-adapted adjuvant therapy; alternatively primary CRT for organ preservation in select sites (larynx, hypopharynx).",
+        systemic: ["Concurrent high-dose cisplatin with RT for organ-preservation or post-operative high-risk disease (positive margin/ECE)", "Induction TPF chemotherapy considered in select larynx-preservation protocols"],
+        radiation: "Definitive 70 Gy/35 fractions or post-operative 60–66 Gy/30–33 fractions depending on margin/nodal status.",
+        toxicity: ["Mucositis, nephrotoxicity/ototoxicity (cisplatin), febrile neutropenia with TPF induction — consider G-CSF"],
+        followup: "Close surveillance — monthly-to-quarterly exams in year 1, PET-CT around 3 months post-treatment, annual TSH.",
+        flags: ["Margin and extracapsular extension status determines concurrent chemo vs RT-alone in adjuvant setting"]
+      },
+      metastatic: {
+        label: "Recurrent / Metastatic",
+        workup: ["Re-biopsy to confirm recurrence vs treatment change", "PET-CT/CT for extent of disease", "PD-L1 CPS testing"],
+        staging: "Recurrent or M1 disease — evaluate for salvage local therapy eligibility vs systemic therapy.",
+        biomarkers: ["PD-L1 CPS score — guides first-line checkpoint inhibitor eligibility (Pembrolizumab ± chemotherapy)"],
+        surgery: "Salvage surgery considered for isolated resectable local recurrence outside a previously irradiated field limitation.",
+        systemic: ["First line: Pembrolizumab ± platinum/5-FU chemotherapy depending on PD-L1 CPS", "Cetuximab-based regimens in select cases"],
+        radiation: "Re-irradiation considered in highly selected cases with careful cumulative dose assessment; palliative RT for symptom control.",
+        toxicity: ["irAE monitoring on checkpoint inhibitor", "Cumulative organ toxicity assessment before re-irradiation"],
+        followup: "Symptom-directed, response-adapted imaging.",
+        flags: ["PD-L1 CPS status is central to first-line systemic therapy selection"]
+      }
+    }
+  },
+  dlbcl: {
+    label: "Diffuse Large B-Cell Lymphoma",
+    stages: {
+      limited: {
+        label: "Limited Stage (I–II, non-bulky)",
+        workup: ["Excisional lymph node biopsy for histologic subtyping", "PET-CT for staging (Lugano classification)", "Baseline echocardiogram/LVEF, HBV serology before rituximab"],
+        staging: "Ann Arbor/Lugano Stage I–II, non-bulky.",
+        biomarkers: ["Cell-of-origin (GCB vs non-GCB) by IHC algorithm", "MYC/BCL2/BCL6 rearrangement testing (rule out double/triple-hit lymphoma) if morphology suggestive"],
+        surgery: "Diagnostic biopsy only — no resective surgical role.",
+        systemic: ["R-CHOP × 3–4 cycles followed by involved-site RT, or R-CHOP × 6 cycles alone depending on risk factors and institutional protocol"],
+        radiation: "Involved-site RT (typically 30 Gy) if combined-modality approach selected.",
+        toxicity: ["Cardiotoxicity (doxorubicin), infusion reactions (rituximab), tumor lysis syndrome risk at treatment initiation, febrile neutropenia"],
+        followup: "PET-CT at end of treatment (Deauville score); clinical review every 3 months for 2 years, then extending intervals.",
+        flags: ["Double/triple-hit lymphoma (MYC + BCL2/BCL6 rearrangement) requires more intensive regimen than standard R-CHOP"]
+      },
+      advanced: {
+        label: "Advanced Stage (III–IV)",
+        workup: ["PET-CT staging", "Bone marrow biopsy if PET equivocal for marrow involvement", "Baseline LVEF, HBV serology, CNS-IPI risk calculation for CNS prophylaxis decision"],
+        staging: "Ann Arbor/Lugano Stage III–IV.",
+        biomarkers: ["Cell-of-origin subtyping", "MYC/BCL2/BCL6 rearrangement testing"],
+        surgery: "No surgical role beyond diagnostic biopsy.",
+        systemic: ["R-CHOP × 6 cycles standard of care", "CNS prophylaxis (intrathecal or high-dose methotrexate) in high CNS-IPI risk or specific extranodal sites", "Intensified regimens considered for double/triple-hit lymphoma"],
+        radiation: "Consolidative RT to bulky or residual PET-avid sites in select cases.",
+        toxicity: ["Cardiotoxicity, tumor lysis syndrome, febrile neutropenia, peripheral neuropathy (vincristine)"],
+        followup: "Interim PET-CT after cycle 2–4 per protocol; end-of-treatment PET-CT; clinical follow-up every 3 months for 2 years.",
+        flags: ["CNS-IPI score determines need for CNS-directed prophylaxis"]
+      },
+      relapsed: {
+        label: "Relapsed / Refractory",
+        workup: ["Re-biopsy to confirm relapse and reassess biology", "PET-CT restaging", "Fitness assessment for transplant/CAR-T eligibility"],
+        staging: "Restage per Lugano classification at relapse.",
+        biomarkers: ["Reassess cell-of-origin and rearrangement status where feasible"],
+        surgery: "No primary surgical role.",
+        systemic: ["Platinum-based salvage chemotherapy followed by autologous stem cell transplant in transplant-eligible responders", "CD19-directed CAR-T cell therapy for eligible relapsed/refractory disease", "Bispecific antibody or other novel agents in later lines"],
+        radiation: "Consolidative or palliative RT to residual/symptomatic sites.",
+        toxicity: ["CRS and neurotoxicity (ICANS) with CAR-T therapy — see Toxicity Master CRS entry", "Prolonged cytopenias post-transplant/CAR-T"],
+        followup: "Close monitoring per transplant/CAR-T center protocol; long-term survivorship surveillance thereafter.",
+        flags: ["CAR-T and bispecific antibody therapy carry CRS/ICANS risk requiring inpatient monitoring per institutional protocol"]
+      }
+    }
+  },
+  prostate: {
+    label: "Prostate Cancer",
+    stages: {
+      localized_low: {
+        label: "Localized, Low/Favorable-Intermediate Risk",
+        workup: ["PSA, DRE", "Multiparametric MRI prostate", "MRI-targeted ± systematic biopsy with Gleason/ISUP grading"],
+        staging: "T1-2, PSA and Gleason/ISUP grade group define NCCN risk category.",
+        biomarkers: ["Gleason score / ISUP Grade Group central to risk stratification", "Genomic classifiers (e.g. Decipher) selectively used to refine risk"],
+        surgery: "Radical prostatectomy (open/robotic) as one definitive option; active surveillance appropriate for genuinely low-risk disease.",
+        systemic: ["Not indicated for low-risk localized disease", "Short-course androgen deprivation therapy (ADT) may be added for favorable-intermediate risk RT protocols per institutional protocol"],
+        radiation: "Definitive RT — 60 Gy/20 fractions (moderate hypofractionation) or SBRT 36.25 Gy/5 fractions; brachytherapy monotherapy an option for low-risk disease.",
+        toxicity: ["Genitourinary — urinary frequency/urgency", "Gastrointestinal — proctitis", "Erectile dysfunction (surgery/RT)"],
+        followup: "PSA every 6–12 months; DRE as clinically indicated.",
+        flags: ["Active surveillance is a guideline-endorsed alternative to immediate treatment in truly low-risk disease"]
+      },
+      localized_high: {
+        label: "Localized, High-Risk / Locally Advanced",
+        workup: ["PSA, DRE, multiparametric MRI", "Bone scan and CT/PSMA-PET for staging given high-risk features", "Biopsy with Gleason/ISUP grading"],
+        staging: "T3-4 and/or PSA >20 and/or Gleason/ISUP Grade Group 4-5 — high-risk category.",
+        biomarkers: ["Gleason/ISUP grade group", "Germline BRCA testing increasingly recommended in high-risk/metastatic disease for family and later-line therapy implications"],
+        surgery: "Radical prostatectomy with extended pelvic lymph node dissection an option in selected high-risk cases; often combined with adjuvant RT/ADT depending on pathology.",
+        systemic: ["Long-course ADT (18–36 months) combined with RT is standard for high-risk localized disease", "Consider addition of an androgen receptor pathway inhibitor per emerging high-risk protocols"],
+        radiation: "Definitive RT to prostate ± pelvic nodes, 60–78 Gy equivalent per institutional fractionation schedule, concurrent with long-course ADT.",
+        toxicity: ["ADT: hot flashes, bone density loss, metabolic syndrome, cardiovascular risk", "RT: genitourinary/gastrointestinal toxicity as above"],
+        followup: "PSA every 3–6 months; bone health monitoring during ADT (DEXA scan, calcium/vitamin D, consider bone-protective agents).",
+        flags: ["Long-course ADT duration and pelvic nodal RT decisions should be confirmed at MDT for high-risk disease"]
+      },
+      metastatic: {
+        label: "Metastatic (M1)",
+        workup: ["PSA, bone scan, CT or PSMA-PET for disease extent", "Germline and somatic BRCA/HRR gene panel testing"],
+        staging: "M1 — sub-classify as hormone-sensitive (mHSPC) vs castration-resistant (mCRPC), and by disease volume (high- vs low-volume).",
+        biomarkers: ["BRCA1/2 and other HRR gene alterations — guide PARP inhibitor eligibility in mCRPC", "PSMA expression — guides PSMA-targeted radioligand therapy eligibility"],
+        surgery: "No curative surgical role; local therapy to the primary occasionally considered in low-volume mHSPC per emerging evidence.",
+        systemic: ["mHSPC: ADT + androgen receptor pathway inhibitor (e.g. Abiraterone, Enzalutamide, Apalutamide) ± docetaxel in high-volume disease", "mCRPC: androgen receptor pathway inhibitor switch, docetaxel/cabazitaxel chemotherapy, PARP inhibitor if HRR-mutated, PSMA-targeted radioligand therapy (e.g. Lu-177-PSMA) in later lines"],
+        radiation: "Palliative RT for symptomatic bone metastases; PSMA-targeted radioligand therapy as a systemic radiotherapeutic option in mCRPC.",
+        toxicity: ["ADT/AR-pathway inhibitor: fatigue, hypertension, metabolic effects", "Docetaxel: myelosuppression, neuropathy", "PARP inhibitor: anemia, myelosuppression"],
+        followup: "PSA and clinical review every 3 months; imaging per symptom/PSA trajectory; ongoing bone health management.",
+        flags: ["HRR mutation testing should be performed early in the metastatic setting to plan for later-line PARP inhibitor eligibility"]
+      }
+    }
+  }
+};
+
+const cancerSelect = document.getElementById('cancerSelect');
+const stageSelect = document.getElementById('stageSelect');
+const pathwayOutput = document.getElementById('pathwayOutput');
+const buildBtn = document.getElementById('buildBtn');
+
+Object.keys(pathwayData).forEach(key => {
+  const opt = document.createElement('option');
+  opt.value = key; opt.textContent = pathwayData[key].label;
+  cancerSelect.appendChild(opt);
+});
+
+function populateStages(){
+  stageSelect.innerHTML = '';
+  const stages = pathwayData[cancerSelect.value].stages;
+  Object.keys(stages).forEach(key => {
+    const opt = document.createElement('option');
+    opt.value = key; opt.textContent = stages[key].label;
+    stageSelect.appendChild(opt);
+  });
+}
+populateStages();
+cancerSelect.addEventListener('change', populateStages);
+
+function listHtml(arr){
+  return '<ul>' + arr.map(i => '<li>' + i + '</li>').join('') + '</ul>';
+}
+
+function renderPathway(){
+  const cancer = pathwayData[cancerSelect.value];
+  const stage = cancer.stages[stageSelect.value];
+
+  const sections = [
+    ['01','Diagnostic Work-up', listHtml(stage.workup)],
+    ['02','Staging', '<p>' + stage.staging + '</p>'],
+    ['03','Biomarkers to Test', listHtml(stage.biomarkers)],
+    ['04','Surgical Consideration', '<p>' + stage.surgery + '</p>'],
+    ['05','Systemic Therapy', listHtml(stage.systemic)],
+    ['06','Radiation Therapy', '<p>' + stage.radiation + '</p>'],
+    ['07','Toxicity Watchlist', listHtml(stage.toxicity)],
+    ['08','Follow-up Schedule', '<p>' + stage.followup + '</p>']
+  ];
+
+  let flagsHtml = '';
+  if(stage.flags && stage.flags.length){
+    flagsHtml = stage.flags.map(f => '<span class="po-flag">' + f + '</span>').join(' ');
+  }
+
+  let html = '';
+  html += '<div class="pathway-header-row"><div class="pathway-headline">' + cancer.label + ' — ' + stage.label + '</div></div>';
+  html += '<div class="pathway-sub">Assembled from Diagnostic · Staging · Molecular · Surgical · Medical Oncology · Radiation · Toxicity · Follow-up Masters</div>';
+  html += '<div style="margin-top:16px;">' + flagsHtml + '</div>';
+  html += '<div style="margin-top:28px;">';
+  sections.forEach(s => {
+    html += '<div class="po-section"><div class="po-label"><span>' + s[1] + '</span><span class="po-num">' + s[0] + '</span></div><div class="po-body">' + s[2] + '</div></div>';
+  });
+  html += '</div>';
+  html += '<div class="pathway-actions"><button class="btn-ghost" onclick="window.print()">Print / Export Pathway</button></div>';
+
+  pathwayOutput.innerHTML = html;
+}
+
+buildBtn.addEventListener('click', renderPathway);
+renderPathway();
+
+/* ================= CALCULATORS ================= */
+function num(id){ const v = parseFloat(document.getElementById(id).value); return isNaN(v) ? null : v; }
+
+function updateBsa(){
+  const h = num('bsaHeight'), w = num('bsaWeight');
+  if(h && w){
+    const mosteller = Math.sqrt((h*w)/3600);
+    const dubois = 0.007184 * Math.pow(h,0.725) * Math.pow(w,0.425);
+    document.getElementById('bsaResult').textContent = mosteller.toFixed(2) + ' m²';
+    document.getElementById('bsaResult2').textContent = 'DuBois BSA: ' + dubois.toFixed(2) + ' m²';
+    document.getElementById('doseBsa').value = mosteller.toFixed(2);
+    updateDose();
+  } else {
+    document.getElementById('bsaResult').textContent = '—';
+    document.getElementById('bsaResult2').textContent = 'DuBois BSA: —';
+  }
+}
+document.getElementById('bsaHeight').addEventListener('input', updateBsa);
+document.getElementById('bsaWeight').addEventListener('input', updateBsa);
+
+function updateDose(){
+  const bsa = num('doseBsa'), rate = num('doseRate');
+  document.getElementById('doseResult').textContent = (bsa && rate) ? (bsa*rate).toFixed(1) + ' mg' : '—';
+}
+document.getElementById('doseBsa').addEventListener('input', updateDose);
+document.getElementById('doseRate').addEventListener('input', updateDose);
+
+function updateAnc(){
+  const wbc = num('ancWbc'), pct = num('ancPct');
+  if(wbc && pct !== null){
+    const anc = wbc*1000*(pct/100);
+    document.getElementById('ancResult').textContent = Math.round(anc).toLocaleString() + ' /µL';
+    let grade;
+    if(anc >= 2000) grade = 'Grade 0 — within normal limits';
+    else if(anc >= 1500) grade = 'Grade 1 — mild neutropenia';
+    else if(anc >= 1000) grade = 'Grade 2 — moderate neutropenia';
+    else if(anc >= 500) grade = 'Grade 3 — severe neutropenia';
+    else grade = 'Grade 4 — life-threatening neutropenia';
+    document.getElementById('ancGrade').textContent = 'CTCAE: ' + grade;
+  } else {
+    document.getElementById('ancResult').textContent = '—';
+    document.getElementById('ancGrade').textContent = 'Enter values to see CTCAE grade';
+  }
+}
+document.getElementById('ancWbc').addEventListener('input', updateAnc);
+document.getElementById('ancPct').addEventListener('input', updateAnc);
+
+function updateCrcl(){
+  const age = num('crclAge'), wt = num('crclWeight'), cr = num('crclCr'), sexFactor = parseFloat(document.getElementById('crclSex').value);
+  if(age && wt && cr){
+    const crcl = ((140-age)*wt)/(72*cr) * sexFactor;
+    document.getElementById('crclResult').textContent = crcl.toFixed(1) + ' mL/min';
+    document.getElementById('calvertCrcl').value = crcl.toFixed(1);
+    updateCalvert();
+  } else {
+    document.getElementById('crclResult').textContent = '—';
+  }
+}
+['crclAge','crclWeight','crclCr','crclSex'].forEach(id => document.getElementById(id).addEventListener('input', updateCrcl));
+
+function updateCalvert(){
+  const auc = num('calvertAuc'), crcl = num('calvertCrcl');
+  document.getElementById('calvertResult').textContent = (auc && crcl) ? Math.round(auc*(crcl+25)) + ' mg' : '—';
+}
+document.getElementById('calvertAuc').addEventListener('input', updateCalvert);
+document.getElementById('calvertCrcl').addEventListener('input', updateCalvert);
+
+function updateMascc(){
+  let total = 0;
+  for(let i=1;i<=7;i++){ total += parseInt(document.getElementById('m'+i).value); }
+  document.getElementById('masccResult').textContent = total;
+  document.getElementById('masccInterp').textContent = total >= 21
+    ? '≥21 — predicts low risk of serious complications; outpatient management may be considered per institutional policy'
+    : '<21 — higher risk of complications; inpatient management with IV antibiotics generally recommended';
+}
+for(let i=1;i<=7;i++){ document.getElementById('m'+i).addEventListener('change', updateMascc); }
+updateMascc();
+
+/* ================= REFERENCE LIBRARY SEARCH ================= */
+const searchInput = document.getElementById('searchInput');
+const clearBtn = document.getElementById('clearBtn');
+const resultCount = document.getElementById('resultCount');
+const emptyState = document.getElementById('emptyState');
+const sections = Array.from(document.querySelectorAll('#tab-ref .master-section'));
+const sideLinks = Array.from(document.querySelectorAll('.side-link'));
+
+function getSearchUnits(){
+  const units = [];
+  document.querySelectorAll('#tab-ref .card').forEach(el => units.push({el, text: el.textContent.toLowerCase()}));
+  document.querySelectorAll('#tab-ref .table-wrap tr').forEach(el => {
+    if (el.querySelector('th')) return;
+    units.push({el, text: el.textContent.toLowerCase()});
+  });
+  return units;
+}
+const units = getSearchUnits();
+
+function runSearch(){
+  const q = searchInput.value.trim().toLowerCase();
+  let totalVisible = 0;
+
+  if(!q){
+    units.forEach(u => u.el.classList.remove('hidden'));
+    sections.forEach(s => s.classList.remove('hidden'));
+    document.querySelectorAll('#tab-ref .subgroup').forEach(s => s.classList.remove('hidden'));
+    emptyState.classList.add('hidden');
+    resultCount.innerHTML = 'Showing all entries';
+    return;
+  }
+
+  units.forEach(u => {
+    const match = u.text.includes(q);
+    u.el.classList.toggle('hidden', !match);
+    if(match) totalVisible++;
+  });
+
+  sections.forEach(section => {
+    const subgroups = section.querySelectorAll('.subgroup');
+    let sectionHasVisible = false;
+
+    if(subgroups.length){
+      subgroups.forEach(sg => {
+        const visibleCards = sg.querySelectorAll('.card:not(.hidden)');
+        const visibleRows = sg.querySelectorAll('tr:not(.hidden)');
+        const hasVisible = visibleCards.length > 0 || visibleRows.length > 0;
+        sg.classList.toggle('hidden', !hasVisible);
+        if(hasVisible) sectionHasVisible = true;
+      });
+    } else {
+      const visibleCards = section.querySelectorAll('.card:not(.hidden)');
+      const visibleRows = section.querySelectorAll('tr:not(.hidden)');
+      sectionHasVisible = visibleCards.length > 0 || visibleRows.length > 0;
+    }
+    section.classList.toggle('hidden', !sectionHasVisible);
+  });
+
+  emptyState.classList.toggle('hidden', totalVisible !== 0);
+  resultCount.innerHTML = totalVisible + ' matching ' + (totalVisible === 1 ? 'entry' : 'entries') + ' for “<b>' + searchInput.value.trim() + '</b>”';
+}
+searchInput.addEventListener('input', runSearch);
+clearBtn.addEventListener('click', () => { searchInput.value=''; runSearch(); searchInput.focus(); });
+
+sideLinks.forEach(link => {
+  link.addEventListener('click', () => {
+    const target = document.getElementById(link.dataset.target);
+    if(target) target.scrollIntoView({behavior:'smooth', block:'start'});
+  });
+});
+
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    const link = document.querySelector('.side-link[data-target="'+entry.target.id+'"]');
+    if(!link) return;
+    if(entry.isIntersecting){
+      sideLinks.forEach(l => l.classList.remove('active'));
+      link.classList.add('active');
+    }
+  });
+}, {rootMargin:'-20% 0px -70% 0px', threshold:0});
+sections.forEach(s => observer.observe(s));
+</script>
+
+</body>
+</html>

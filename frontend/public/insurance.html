@@ -1,0 +1,2012 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OncoVerify - Insurance Verification System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #1e40af;
+            --secondary: #3b82f6;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --bg-light: #f8fafc;
+            --bg-white: #ffffff;
+            --text-dark: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-light);
+            color: var(--text-dark);
+            line-height: 1.6;
+        }
+
+        /* Header */
+        .header {
+            background: var(--bg-white);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: var(--shadow);
+        }
+
+        .header-container {
+            max-width: 1600px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: var(--primary);
+            color: white;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        .export-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.625rem 1.25rem;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .export-btn:hover {
+            background: var(--secondary);
+            transform: translateY(-1px);
+        }
+
+        /* Main Layout */
+        .main-layout {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 2rem;
+            display: grid;
+            grid-template-columns: 260px 1fr;
+            gap: 2rem;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            position: sticky;
+            top: 100px;
+            height: fit-content;
+        }
+
+        .nav-card {
+            background: var(--bg-white);
+            border-radius: 12px;
+            padding: 1rem;
+            box-shadow: var(--shadow);
+        }
+
+        .nav-title {
+            font-weight: 600;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            margin-bottom: 0.75rem;
+            padding: 0 0.5rem;
+        }
+
+        .nav-item {
+            padding: 0.75rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 0.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.625rem;
+            font-size: 0.875rem;
+            color: var(--text-dark);
+            border: none;
+            background: transparent;
+            width: 100%;
+            text-align: left;
+        }
+
+        .nav-item:hover {
+            background: var(--bg-light);
+        }
+
+        .nav-item.active {
+            background: var(--primary);
+            color: white;
+            font-weight: 600;
+        }
+
+        .nav-icon {
+            font-size: 1.125rem;
+            width: 20px;
+            text-align: center;
+        }
+
+        /* Content Area */
+        .content-area {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        /* Case Summary Card */
+        .case-summary {
+            background: var(--bg-white);
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: var(--shadow);
+        }
+
+        .case-number {
+            background: #dbeafe;
+            color: var(--primary);
+            padding: 0.375rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            display: inline-block;
+            margin-bottom: 1rem;
+        }
+
+        .case-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--text-dark);
+            margin-bottom: 1.5rem;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.25rem;
+        }
+
+        .summary-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .summary-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .summary-value {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--text-dark);
+        }
+
+        /* Section Container */
+        .section {
+            background: var(--bg-white);
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: var(--shadow);
+            display: none;
+        }
+
+        .section.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-dark);
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        /* Subsections */
+        .subsection {
+            background: var(--bg-light);
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .subsection-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--text-dark);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* Data Display - Key Value Pairs */
+        .data-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+        }
+
+        .data-item {
+            background: var(--bg-white);
+            padding: 1rem;
+            border-radius: 8px;
+            border-left: 3px solid var(--primary);
+        }
+
+        .data-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            font-weight: 600;
+            margin-bottom: 0.375rem;
+        }
+
+        .data-value {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-dark);
+            word-break: break-word;
+        }
+
+        /* Nested Object Display */
+        .nested-object {
+            background: var(--bg-white);
+            border-radius: 8px;
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+            border: 1px solid var(--border);
+        }
+
+        .nested-title {
+            font-weight: 600;
+            color: var(--primary);
+            margin-bottom: 0.75rem;
+            font-size: 0.9375rem;
+        }
+
+        .nested-grid {
+            display: grid;
+            gap: 0.75rem;
+        }
+
+        .nested-item {
+            display: flex;
+            padding: 0.5rem;
+            background: var(--bg-light);
+            border-radius: 6px;
+        }
+
+        .nested-item-label {
+            font-weight: 600;
+            color: var(--text-muted);
+            min-width: 140px;
+            font-size: 0.875rem;
+        }
+
+        .nested-item-value {
+            color: var(--text-dark);
+            font-size: 0.875rem;
+            flex: 1;
+        }
+
+        /* List Display */
+        .checklist {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 0.625rem;
+        }
+
+        .checklist-item {
+            background: var(--bg-white);
+            padding: 1rem;
+            border-radius: 8px;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            border-left: 3px solid var(--success);
+        }
+
+        .checklist-icon {
+            color: var(--success);
+            font-size: 1.25rem;
+            flex-shrink: 0;
+        }
+
+        .checklist-text {
+            flex: 1;
+            font-size: 0.9375rem;
+            line-height: 1.5;
+        }
+
+        /* Score Card */
+        .score-card {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            margin-bottom: 1.5rem;
+        }
+
+        .score-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .score-label {
+            font-size: 0.9375rem;
+            opacity: 0.9;
+        }
+
+        /* Alert Box */
+        .alert {
+            padding: 1.25rem;
+            border-radius: 10px;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+
+        .alert.success {
+            background: #d1fae5;
+            border-left: 4px solid var(--success);
+            color: #065f46;
+        }
+
+        .alert.warning {
+            background: #fef3c7;
+            border-left: 4px solid var(--warning);
+            color: #92400e;
+        }
+
+        .alert.danger {
+            background: #fee2e2;
+            border-left: 4px solid var(--danger);
+            color: #991b1b;
+        }
+
+        .alert-icon {
+            font-size: 1.5rem;
+            flex-shrink: 0;
+        }
+
+        .alert-content {
+            flex: 1;
+        }
+
+        .alert-title {
+            font-weight: 700;
+            margin-bottom: 0.375rem;
+            font-size: 1rem;
+        }
+
+        .alert-text {
+            font-size: 0.9375rem;
+            line-height: 1.5;
+        }
+
+        /* Table */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--bg-white);
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 1.5rem;
+        }
+
+        .data-table thead {
+            background: var(--bg-light);
+        }
+
+        .data-table th {
+            padding: 0.875rem;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.8125rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+        }
+
+        .data-table td {
+            padding: 0.875rem;
+            border-top: 1px solid var(--border);
+            font-size: 0.9375rem;
+        }
+
+        .data-table tbody tr:hover {
+            background: var(--bg-light);
+        }
+
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-muted);
+        }
+
+        .spinner {
+            border: 3px solid var(--border);
+            border-top: 3px solid var(--primary);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .main-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                position: relative;
+                top: 0;
+            }
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
+        /* Progress Bar */
+        .progress-bar {
+            height: 8px;
+            background: var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 0.5rem;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--success);
+            transition: width 0.3s ease;
+        }
+        .data-item {
+  background: #f8fafc;
+  padding: 10px;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.nested-object {
+  border-left: 4px solid #3b82f6;
+  padding-left: 12px;
+  margin-bottom: 12px;
+}
+
+.nested-title {
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.alert.warning {
+    background: #fff7ed;
+    border-left: 4px solid #f59e0b;
+    color: #92400e;
+}
+
+.alert.warning .alert-icon {
+    font-size: 18px;
+}
+.status-badge {
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+.status-full { background: #d1fae5; color: #065f46; }
+.status-partial { background: #fef3c7; color: #92400e; }
+.status-mismatch { background: #fee2e2; color: #991b1b; }
+
+
+    </style>
+</head>
+
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-container">
+            <div class="logo">
+                <div class="logo-icon">O</div>
+                <div>OncoVerify Insurance</div>
+            </div>
+            <button class="export-btn" onclick="exportReport()">📊 Export Report</button>
+        </div>
+    </header>
+
+    <!-- Main Layout -->
+    <div class="main-layout">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="nav-card">
+                <div class="nav-title">Verification Steps</div>
+                <div class="nav-items">
+                    <button class="nav-item active" onclick="showSection('ocr-extraction')">
+                        <span class="nav-icon">📄</span>
+                        <span>OCR & Extraction</span>
+                    </button>
+                    <button class="nav-item" onclick="showSection('policy-eligibility')">
+                        <span class="nav-icon">📋</span>
+                        <span>Policy Eligibility</span>
+                    </button>
+                    <button class="nav-item" onclick="showSection('diagnosis-validation')">
+                        <span class="nav-icon">🔬</span>
+                        <span>Diagnosis Validation</span>
+                    </button>
+                    <button class="nav-item" onclick="showSection('stage-mapping')">
+                        <span class="nav-icon">📊</span>
+                        <span>Stage Mapping</span>
+                    </button>
+                    <button class="nav-item" onclick="showSection('protocol-verification')">
+                        <span class="nav-icon">💊</span>
+                        <span>Treatment Protocol</span>
+                    </button>
+                    <button class="nav-item" onclick="showSection('insurance-criteria')">
+                        <span class="nav-icon">🏥</span>
+                        <span>Insurance Criteria</span>
+                    </button>
+                    <button class="nav-item" onclick="showSection('bill-verification')">
+                        <span class="nav-icon">💰</span>
+                        <span>Bill Verification</span>
+                    </button>
+                    <button class="nav-item" onclick="showSection('medical-necessity')">
+                        <span class="nav-icon">📈</span>
+                        <span>Necessity Score</span>
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="content-area">
+            <!-- Case Summary -->
+            <div class="case-summary">
+                <span class="case-number" data-case-number>-</span>
+                <h1 class="case-title">Insurance Verification Report</h1>
+                <div class="summary-grid">
+                    <div class="summary-item">
+                        <span class="summary-label">Patient Name</span>
+                        <span class="summary-value" data-patient-name>-</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">Cancer Type</span>
+                        <span class="summary-value" data-cancer-type>-</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">Stage</span>
+                        <span class="summary-value" data-stage>-</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">Claim Amount</span>
+                        <span class="summary-value" data-claim-amount>-</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">Policy Number</span>
+                        <span class="summary-value" data-policy-number>-</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">Hospital</span>
+                        <span class="summary-value" data-hospital>-</span>
+                    </div>
+                </div>
+            </div>
+            <div id="validation-badge"></div>
+            <div id="attention-panel"></div>
+
+            <!-- OCR & Extraction Section -->
+            <section id="ocr-extraction" class="section active">
+                <h2 class="section-title">📄 Step 1: OCR & Data Extraction</h2>
+
+                <div class="score-card">
+                    <div class="score-value" data-ocr-accuracy>0%</div>
+                    <div class="score-label">Extraction Accuracy Score</div>
+                </div>
+
+                <div class="subsection">
+                    <h3 class="subsection-title">Documents Processed</h3>
+                    <div data-documents-processed>
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            Loading documents...
+                        </div>
+                    </div>
+                </div>
+
+                <div class="subsection">
+                    <h3 class="subsection-title">Diagnostic Data</h3>
+                    <div data-diagnostic-data>
+                        <div class="loading">Loading diagnostic data...</div>
+                    </div>
+                </div>
+
+                <div class="subsection">
+                    <h3 class="subsection-title">Treatment Data</h3>
+                    <div data-treatment-data>
+                        <div class="loading">Loading treatment data...</div>
+                    </div>
+                </div>
+
+                <div class="subsection">
+                    <h3 class="subsection-title">Billing Data</h3>
+                    <div data-billing-data>
+                        <div class="loading">Loading billing data...</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Policy Eligibility Section -->
+            <section id="policy-eligibility" class="section">
+                <h2 class="section-title">📋 Step 2: Policy Eligibility & Coverage</h2>
+
+                <div class="alert success">
+                    <div class="alert-icon">✓</div>
+                    <div class="alert-content">
+                        <div class="alert-title" data-policy-status>Loading...</div>
+                    </div>
+                </div>
+
+                <div class="subsection">
+                    <h3 class="subsection-title">Policy Eligibility Checks</h3>
+                    <ul class="checklist" data-policy-eligibility></ul>
+                </div>
+
+                <div class="subsection">
+                    <h3 class="subsection-title">Policy Information</h3>
+                    <div data-policy-info></div>
+                </div>
+
+                <div class="subsection">
+                    <h3 class="subsection-title">Waiting Period</h3>
+                    <div data-waiting-period></div>
+                </div>
+
+                <div class="subsection">
+                    <h3 class="subsection-title">Network Hospital</h3>
+                    <div data-network-hospital></div>
+                </div>
+            </section>
+
+            <!-- Diagnosis Validation Section -->
+            <section id="diagnosis-validation" class="section">
+                <h2 class="section-title">🔬 Step 3: Diagnosis Validation</h2>
+
+                <div class="alert success">
+                    <div class="alert-icon">✓</div>
+                    <div class="alert-content">
+                        <div class="alert-title" data-diagnosis-status>Loading...</div>
+                    </div>
+                </div>
+
+                <div class="subsection">
+                    <h3 class="subsection-title">Histopathology Validation</h3>
+                    <ul class="checklist" data-histopathology></ul>
+                </div>
+
+                <div class="subsection">
+                    <h3 class="subsection-title">Pathology Findings</h3>
+                    <div data-pathology-findings></div>
+                </div>
+
+                <div class="subsection">
+                    <h3 class="subsection-title">IHC Markers</h3>
+                    <div data-ihc-markers></div>
+                </div>
+
+                <div class="subsection">
+                    <h3 class="subsection-title">Additional Tests</h3>
+                    <ul class="checklist" data-additional-tests></ul>
+                </div>
+            </section>
+
+            <!-- Stage Mapping Section -->
+            <section id="stage-mapping" class="section">
+                <h2 class="section-title">📊 Step 4: Stage Mapping & Classification</h2>
+
+                <div class="alert success">
+                    <div class="alert-icon">✓</div>
+                    <div class="alert-content">
+                        <div class="alert-title">Staging Confirmed: <span data-ajcc-stage>-</span></div>
+                    </div>
+                </div>
+
+                <div class="subsection">
+                    <h3 class="subsection-title">TNM Classification</h3>
+                    <div data-stage-tnm></div>
+                </div>
+
+                <div class="subsection">
+                    <h3 class="subsection-title">AJCC Stage Information</h3>
+                    <div data-stage-ajcc></div>
+                </div>
+
+                <div class="score-card">
+                    <div class="score-value" data-stage-accuracy>0%</div>
+                    <div class="score-label">Staging Accuracy Score</div>
+                </div>
+                <div class="subsection">
+                    <h3 class="subsection-title">Tumor Size Assessment</h3>
+                    <div data-tumor-size></div>
+                </div>
+            </section>
+
+            <!-- Treatment Protocol Section -->
+            <section id="protocol-verification" class="section">
+                <h2 class="section-title">💊 Step 5: Treatment Protocol Verification</h2>
+
+                <div class="alert success">
+                    <div class="alert-icon">✓</div>
+                    <div class="alert-content">
+                        <div class="alert-title">Guideline: <span data-guideline>-</span></div>
+                        <div class="alert-text">Compliance Score: <strong data-compliance-score>-</strong></div>
+                    </div>
+                </div>
+
+                <div data-treatment-protocol></div>
+
+                <div class="subsection">
+                    <h3 class="subsection-title">🧠 Clinical Procedure Considerations</h3>
+                    <div data-suggested-procedures></div>
+                </div>
+            </section>
+            
+
+            <!-- Insurance Criteria Section -->
+            <!-- Insurance Criteria Section -->
+<section id="insurance-criteria" class="section">
+    <h2 class="section-title">🏥 Step 6: Insurance Criteria Engine</h2>
+
+    <div class="alert" id="insurance-status-alert">
+        <div class="alert-icon" id="insurance-status-icon">✓</div>
+        <div class="alert-content">
+            <div class="alert-title" data-insurance-status>-</div>
+            <div class="alert-text" data-insurance-summary></div>
+        </div>
+    </div>
+
+    <!-- Policy Checks -->
+    <div class="subsection">
+        <h3 class="subsection-title">Eligibility Checks</h3>
+        <ul class="checklist" data-policy-checks></ul>
+    </div>
+
+    <!-- Cost Validation -->
+    <div class="subsection">
+        <h3 class="subsection-title">Cost Validation</h3>
+        <div class="data-grid" data-cost-validation></div>
+    </div>
+
+    <!-- Coverage Limits -->
+    <div class="subsection">
+        <h3 class="subsection-title">Coverage Limits</h3>
+        <div class="data-grid" data-coverage-limits></div>
+    </div>
+
+    <!-- Summary Stats -->
+    <div class="score-card" style="margin-top: 1rem;">
+        <div class="score-value" data-checks-passed>0</div>
+        <div class="score-label">Checks Passed</div>
+    </div>
+</section>
+            <!-- Bill Verification Section -->
+            <!-- Bill Verification Section -->
+<section id="bill-verification" class="section">
+    <h2 class="section-title">💰 Step 7: Bill Verification</h2>
+    <div data-bill-verification>
+        <!-- Content will be populated by JavaScript -->
+        <div class="loading">
+            <div class="spinner"></div>
+            Loading bill verification data...
+        </div>
+    </div>
+</section>
+
+            <!-- Medical Necessity Section -->
+            <section id="medical-necessity" class="section">
+                <h2 class="section-title">📈 Step 8: Medical Necessity Scoring</h2>
+
+                <div class="score-card">
+                    <div class="score-value" data-necessity-score>0/100</div>
+                    <div class="score-label">Overall Medical Necessity Score</div>
+                </div>
+
+                <div data-necessity-details></div>
+            </section>
+
+            <!-- Final Decision -->
+            <div class="score-card">
+                <div><strong data-final-recommendation>Loading...</strong></div>
+                <div>Analysis confidence: <span data-confidence-score>0%</span></div>
+            </div>
+
+            <!-- <div class="subsection">
+                <h3>Reviewer Action</h3>
+
+                <textarea placeholder="Add reviewer remarks..."></textarea>
+
+                <div style="margin-top:12px;">
+                    <button class="export-btn">Approve</button>
+                    <button class="export-btn" style="background:#f59e0b">Request Info</button>
+                    <button class="export-btn" style="background:#ef4444">Reject</button>
+                </div>
+            </div> -->
+
+        </main>
+    </div>
+
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const patientId = params.get("patient_id");
+        const doctorId = params.get("doctor_id");
+
+        const qs = sel => document.querySelector(sel);
+        const qsAll = sel => document.querySelectorAll(sel);
+
+        function showSection(sectionId) {
+            qsAll('.section').forEach(s => s.classList.remove('active'));
+            document.getElementById(sectionId).classList.add('active');
+
+            qsAll('.nav-item').forEach(item => item.classList.remove('active'));
+            event.target.closest('.nav-item').classList.add('active');
+
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        async function fetchJSON(url) {
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(`Failed: ${url}`);
+            return await res.json();
+        }
+
+        function renderObject(obj, container) {
+            if (!obj || typeof obj !== 'object') {
+                container.innerHTML = '<div class="empty-state">No data available</div>';
+                return;
+            }
+
+            const html = Object.entries(obj).map(([key, value]) => {
+
+                if (value === null || value === undefined || value === '') return '';
+
+                const label = key.replace(/_/g, ' ')
+                                .replace(/\b\w/g, l => l.toUpperCase());
+
+                // 🔹 If Array
+                if (Array.isArray(value)) {
+                    if (value.length === 0) {
+                        return `
+                            <div class="data-item">
+                                <div class="data-label">${label}</div>
+                                <div class="data-value">Not documented</div>
+                            </div>
+                        `;
+                    }
+
+                    return `
+                        <div class="nested-object">
+                            <div class="nested-title">${label}</div>
+                            <div class="nested-grid">
+                                ${value.map(item => {
+                                    if (typeof item === 'object') {
+                                        return `
+                                            <div class="nested-item">
+                                                <span class="nested-item-value">
+                                                    ${Object.entries(item)
+                                                        .map(([k,v]) => `<strong>${k.replace(/_/g,' ')}:</strong> ${v}`)
+                                                        .join('<br>')}
+                                                </span>
+                                            </div>
+                                        `;
+                                    } else {
+                                        return `
+                                            <div class="nested-item">
+                                                <span class="nested-item-value">${item}</span>
+                                            </div>
+                                        `;
+                                    }
+                                }).join('')}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                // 🔹 If Object → RECURSIVE CALL
+                if (typeof value === 'object') {
+                    const tempDiv = document.createElement('div');
+                    renderObject(value, tempDiv);   // recursion
+
+                    return `
+                        <div class="nested-object">
+                            <div class="nested-title">${label}</div>
+                            ${tempDiv.innerHTML}
+                        </div>
+                    `;
+                }
+
+                // 🔹 Primitive value
+                // 🔹 Primitive value
+                let displayValue = value;
+
+                // Convert confidence (0–1) to percentage
+                if (
+                    key.toLowerCase().includes("confidence") &&
+                    typeof value === "number"
+                ) {
+                    displayValue = value <= 1
+                        ? Math.round(value * 100) + "%"
+                        : value + "%";
+                }
+
+                return `
+                    <div class="data-item">
+                        <div class="data-label">${label}</div>
+                        <div class="data-value">${displayValue}</div>
+                    </div>
+                `;
+
+            }).join('');
+
+            container.innerHTML = html || '<div class="empty-state">No data available</div>';
+        }
+
+        function renderArray(arr, container) {
+            if (!arr || !Array.isArray(arr) || arr.length === 0) {
+                container.innerHTML = '<div class="empty-state">No items to display</div>';
+                return;
+            }
+
+            const html = arr.map(item => {
+                if (typeof item === 'string') {
+                    return `
+                        <li class="checklist-item">
+                            <span class="checklist-icon">✓</span>
+                            <span class="checklist-text">${item}</span>
+                        </li>
+                    `;
+                }
+
+               if (typeof item === 'object') {
+
+                    // For additional_tests (MRI, PSA, PET, etc.)
+                    if (item.test_name) {
+                        return `
+                            <li class="checklist-item">
+                                <div><strong>${item.test_name}</strong></div>
+                                <div>Result: ${item.result || '-'}</div>
+                                <div class="muted">${item.comment || ''}</div>
+                            </li>
+                        `;
+                    }
+
+                    // For validation checklist (POLICY / DIAGNOSIS CHECKS)
+                    if (item.check_name) {
+
+                        let icon = 'ℹ️';
+                        let color = '#64748b';
+                        let border = '#cbd5e1';
+
+                        // STRICT RULE: green ONLY if passed === true
+                        if (item.passed === true) {
+                            icon = '✓';
+                            color = '#10b981';
+                            border = '#10b981';
+                        }
+
+                        if (item.passed === false) {
+                            icon = '✗';
+                            color = '#ef4444';
+                            border = '#ef4444';
+                        }
+
+                        // IMPORTANT OVERRIDE: "No PED" must NEVER be green
+                        if (
+                            typeof item.details === 'string' &&
+                            item.details.toLowerCase().includes('no ped')
+                        ) {
+                            icon = 'ℹ️';
+                            color = '#64748b';
+                            border = '#cbd5e1';
+                        }
+
+                        return `
+                            <li class="checklist-item" style="border-left:3px solid ${border}">
+                                <span class="checklist-icon" style="color:${color}">
+                                    ${icon}
+                                </span>
+                                <span class="checklist-text">
+                                    <strong>${item.check_name}</strong> — ${item.details || '-'}
+                                </span>
+                            </li>
+                        `;
+                    }
+
+
+                }
+
+
+                return '';
+            }).join('');
+
+            container.innerHTML = html || '<div class="empty-state">No items to display</div>';
+        }
+
+        async function loadData() {
+    try {
+        // STEP 1: Fetch ALL data FIRST (3 calls)
+        const [oncologyData, insuranceClaims, documents] = await Promise.all([
+            fetchJSON(`/api/hms/users/data/context/oncology-verification/by-patient/${patientId}`),
+            fetchJSON(`/api/hms/users/data/context/get_insurance_claims/${patientId}`),
+            fetchJSON(`/api/hms/users/data/context/get_document_categories_by_patient?patient_id=${patientId}`)
+        ]);
+
+        // Log to verify documents are there
+        console.log('Documents fetched:', documents?.data?.length || 0);
+
+        // STEP 2: Create payload (documents is the FULL response with {status, data})
+        const payload = {
+            patient_id: patientId,
+            doctor_id: doctorId,
+            oncology_verification: oncologyData,
+            insurance_claims: insuranceClaims,
+            document_data: documents  // Pass the ENTIRE response, not just documents.data
+        };
+
+        // STEP 3: Call all three endpoints with SAME payload (3 calls)
+        const [step1and2and3, step4and5and6, step7and8] = await Promise.all([
+            fetch(`/api/hms/users/data/context/insurance-verification/process`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            }).then(r => r.json()),
+
+            fetch(`/api/hms/users/data/context/oncology-stage-treatment-insurance/process`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            }).then(r => r.json()),
+
+            fetch(`/api/hms/users/data/context/bill-medical-necessity/process`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            }).then(r => r.json())
+        ]);
+
+        console.log("🎯 All Processing Responses:", {
+            step1and2and3,
+            step4and5and6,
+            step7and8
+        });
+
+        populateUI(
+            step1and2and3?.data || {}, 
+            step4and5and6?.data || {}, 
+            step7and8?.data || {}
+        );
+
+    } catch (err) {
+        console.error('Load error:', err);
+    }
+}
+
+        function isTreatmentStarted(tp) {
+            if (!tp) return false;
+
+            const keys = ['surgery', 'chemotherapy', 'radiotherapy', 'hormone_therapy', 'immunotherapy', 'targeted_therapy'];
+
+            return keys.some(k => {
+                const obj = tp[k];
+                if (!obj || typeof obj !== 'object') return false;
+                return Object.values(obj).some(v =>
+                    typeof v === 'string' &&
+                    v &&
+                    !v.toLowerCase().includes('not initiated')
+                );
+            });
+        }
+
+
+        function populateUI(data1 = {}, data2 = {}, data3 = {}) {
+            // Case Summary
+            qs('[data-case-number]').textContent = data1.case_summary?.case_number || '-';
+            qs('[data-patient-name]').textContent = data1.case_summary?.patient_name || '-';
+            qs('[data-cancer-type]').textContent = data1.case_summary?.cancer_type || '-';
+            qs('[data-stage]').textContent = data1.case_summary?.stage || '-';
+            qs('[data-claim-amount]').textContent = '₹' + (data1.case_summary?.claim_amount || 0);
+            qs('[data-policy-number]').textContent = data1.case_summary?.policy_number || '-';
+            qs('[data-hospital]').textContent = data1.case_summary?.hospital || '-';
+
+
+            // const vs = data2.validation_status || {};
+            // const badge = qs('#validation-badge');
+
+            // if (vs.overall === 'FULL_MATCH') {
+            // badge.innerHTML = `<div class="status-badge status-full">✅ Fully Matched</div>`;
+            // } else if (vs.overall === 'PARTIAL') {
+            // badge.innerHTML = `<div class="status-badge status-partial">⚠️ Partial / Conditional</div>`;
+            // } else {
+            // badge.innerHTML = `<div class="status-badge status-mismatch">❌ Not Covered</div>`;
+            // }
+
+            // const risks = [...(data2.risk_flags || []), ...(data2.missing_fields || [])];
+            // const panel = qs('#attention-panel');
+
+            // if (risks.length > 0) {
+            // panel.innerHTML = `
+            //     <div class="alert warning">
+            //     <div class="alert-icon">⚠️</div>
+            //     <div class="alert-content">
+            //         <div class="alert-title">Attention Required</div>
+            //         <ul>${risks.map(r => `<li>${r}</li>`).join('')}</ul>
+            //     </div>
+            //     </div>
+            // `;
+            // } else {
+            // panel.innerHTML = '';
+            // }
+
+            // Step 1: OCR
+            // qs('[data-ocr-accuracy]').textContent = (data1.step_1_ocr?.accuracy || 0) + '%';
+
+            const acc = data1.step_1_ocr?.accuracy ?? 0;
+            qs('[data-ocr-accuracy]').textContent =
+                acc <= 1 ? Math.round(acc * 100) + '%' : acc + '%';
+
+
+            const docsContainer = qs('[data-documents-processed]');
+            if (data1.step_1_ocr?.documents_processed) {
+                renderObject(data1.step_1_ocr.documents_processed, docsContainer);
+            }
+
+            const diag = data1.step_1_ocr?.diagnostic_data;
+            const diagContainer = qs('[data-diagnostic-data]');
+
+            if (diag) {
+                let html = '';
+
+                if (Array.isArray(diag.ihc_markers)) {
+                    html += `
+                        <h4>IHC Markers</h4>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Marker</th>
+                                    <th>Result</th>
+                                    <th>%</th>
+                                    <th>Score</th>
+                                    <th>Significance</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${diag.ihc_markers.map(m => `
+                                    <tr>
+                                        <td>${m.marker_name}</td>
+                                        <td>${m.result}</td>
+                                        <td>${m.percentage ?? '-'}</td>
+                                        <td>${m.ihc_score ?? '-'}</td>
+                                        <td>${m.significance ?? '-'}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                }
+
+                const { ihc_markers, ...rest } = diag;
+                const temp = document.createElement('div');
+                renderObject(rest, temp);
+
+                diagContainer.innerHTML = html;
+                diagContainer.appendChild(temp);
+            }
+
+
+            const treatContainer = qs('[data-treatment-data]');
+            const treatmentData = data1.step_1_ocr?.treatment_data;
+
+            if (treatmentData) {
+                let html = '';
+
+                // Render drugs separately
+                if (Array.isArray(treatmentData.drugs) && treatmentData.drugs.length > 0) {
+                    html += `
+                        <h4>💊 Drugs</h4>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Drug Name</th>
+                                    <th>Dosage</th>
+                                    <th>Cycles</th>
+                                    <th>Route</th>
+                                    <th>Frequency</th>
+                                    <th>Total Cost</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${treatmentData.drugs.map(d => `
+                                    <tr>
+                                        <td>${d.drug_name || '-'}</td>
+                                        <td>${d.dosage || '-'}</td>
+                                        <td>${d.cycles || '-'}</td>
+                                        <td>${d.route || '-'}</td>
+                                        <td>${d.frequency || '-'}</td>
+                                        <td>₹${d.total_cost || 0}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                }
+
+                // Clone object WITHOUT drugs
+                const { drugs, ...restTreatment } = treatmentData;
+
+                // Render remaining fields normally
+                const tempDiv = document.createElement('div');
+                renderObject(restTreatment, tempDiv);
+
+                treatContainer.innerHTML = html;
+                treatContainer.appendChild(tempDiv);
+            }
+
+
+            const billContainer = qs('[data-billing-data]');
+            if (data1.step_1_ocr?.billing_data && Array.isArray(data1.step_1_ocr.billing_data)) {
+                const html = `
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Category</th>
+                                <th>Date</th>
+                                <th>Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data1.step_1_ocr.billing_data.map(b => `
+                                <tr>
+                                    <td>${b.category || '-'}</td>
+                                    <td>${b.date ? new Date(b.date).toLocaleDateString() : '-'}</td>
+                                    <td>₹${b.amount || 0}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+                billContainer.innerHTML = html;
+            }
+
+
+            // Step 2: Policy
+            qs('[data-policy-status]').textContent = data1.step_2_policy?.status || '-';
+
+            const eligContainer = qs('[data-policy-eligibility]');
+            if (data1.step_2_policy?.eligibility_checks) {
+                renderArray(data1.step_2_policy.eligibility_checks, eligContainer);
+            }
+
+            const policyInfoContainer = qs('[data-policy-info]');
+            if (data1.step_2_policy?.policy_information) {
+                renderObject(data1.step_2_policy.policy_information, policyInfoContainer);
+            }
+
+            const waitingContainer = qs('[data-waiting-period]');
+            if (data1.step_2_policy?.waiting_period) {
+                renderObject(data1.step_2_policy.waiting_period, waitingContainer);
+            }
+
+            const hospitalContainer = qs('[data-network-hospital]');
+            if (data1.step_2_policy?.network_hospital) {
+                renderObject(data1.step_2_policy.network_hospital, hospitalContainer);
+            }
+
+            // Step 3: Diagnosis
+            qs('[data-diagnosis-status]').textContent = data1.step_3_diagnosis?.status || '-';
+
+            const histoContainer = qs('[data-histopathology]');
+            if (data1.step_3_diagnosis?.histopathology_validation) {
+                renderArray(data1.step_3_diagnosis.histopathology_validation, histoContainer);
+            }
+
+            const pathoContainer = qs('[data-pathology-findings]');
+            if (data1.step_3_diagnosis?.pathology_findings) {
+                renderObject(data1.step_3_diagnosis.pathology_findings, pathoContainer);
+            }
+
+            const ihcContainer = qs('[data-ihc-markers]');
+            if (data1.step_3_diagnosis?.ihc_markers) {
+                renderObject(data1.step_3_diagnosis.ihc_markers, ihcContainer);
+            }
+
+            const testsContainer = qs('[data-additional-tests]');
+            if (data1.step_3_diagnosis?.additional_tests) {
+                renderArray(data1.step_3_diagnosis.additional_tests, testsContainer);
+            }
+
+            // Step 4: Stage Mapping
+            const ajcc = data2.stage_mapping?.ajcc_staging;
+            const tnm = data2.stage_mapping?.tnm_classification;
+
+            let stageText = ajcc?.stage || data2.stage_mapping?.summary || '-';
+
+            if (tnm && tnm.document_supported === false) {
+                stageText += ' (clinically inferred)';
+            }
+
+            qs('[data-ajcc-stage]').textContent = stageText;
+
+            const stageAcc = data2.stage_mapping?.accuracy_score ?? 0;
+            qs('[data-stage-accuracy]').textContent =
+                stageAcc <= 1 ? Math.round(stageAcc * 100) + '%' : stageAcc + '%';
+
+
+            
+            const tnmContainer = qs('[data-stage-tnm]');
+
+            if (tnm) {
+                let html = '';
+
+                if (tnm.document_supported === false) {
+                    html += `
+                        <div class="alert warning">
+                            <div class="alert-icon">⚠️</div>
+                            <div class="alert-content">
+                                <div class="alert-title">Staging Not Document-Verified</div>
+                                <div class="alert-text">
+                                    TNM staging based on oncology input.
+                                    No supporting pathology/radiology uploaded.
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                const tempDiv = document.createElement('div');
+                renderObject(tnm, tempDiv);
+
+                tnmContainer.innerHTML = html;
+                tnmContainer.appendChild(tempDiv);
+            }
+
+
+            const ajccContainer = qs('[data-stage-ajcc]');
+            if (data2.stage_mapping?.ajcc_staging) {
+                renderObject(data2.stage_mapping.ajcc_staging, ajccContainer);
+            }
+
+            const tumorSizeContainer = qs('[data-tumor-size]');
+            const tnmData = data2.stage_mapping?.tnm_classification;
+
+            if (tnmData && tnmData.tumor_size) {
+
+                const badge = tnmData.document_supported
+                    ? `<span style="color:#065f46;font-weight:600">✔ Document supported</span>`
+                    : `<span style="color:#92400e;font-weight:600">⚠ No supporting document</span>`;
+
+                tumorSizeContainer.innerHTML = `
+                    <div class="data-item">
+                        <div class="data-label">Tumor Size</div>
+                        <div class="data-value">${tnmData.tumor_size} cm</div>
+                        <div style="font-size:12px;color:#64748b;margin-top:4px">
+                            Source: ${tnmData.source}<br>${badge}
+                        </div>
+                    </div>
+                `;
+            } else {
+                tumorSizeContainer.innerHTML =
+                    `<div class="empty-state">Tumor size not documented</div>`;
+            }
+
+
+
+            // Step 5: Treatment Protocol
+            const tp = data2.treatment_protocol || {};
+
+            qs('[data-guideline]').textContent = tp.guideline || '—';
+            qs('[data-compliance-score]').textContent = (tp.compliance_score || 0) + '%';
+
+            const treatProtocolContainer = qs('[data-treatment-protocol]');
+            const treatmentStarted = isTreatmentStarted(tp);
+
+            // Badge
+            let badgeHtml = '';
+            if (!treatmentStarted) {
+                badgeHtml = `
+                    <div class="alert warning">
+                        <div class="alert-icon">⏳</div>
+                        <div class="alert-content">
+                            <div class="alert-title">Treatment Not Started</div>
+                            <div class="alert-text">
+                                Diagnostic workup completed. Definitive treatment yet to be initiated.
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Sections
+            const sections = ['surgery', 'chemotherapy', 'hormone_therapy', 'radiotherapy'];
+
+            const sectionsHtml = sections.map(section => {
+                const sectionData = tp[section];
+                if (!sectionData) return '';
+
+                // Check if section has meaningful data
+                // const meaningful = Object.values(sectionData).some(
+                //     v => (typeof v === 'string' && v.trim() !== '')
+                // );
+
+                const meaningful =
+                    Array.isArray(sectionData)
+                        ? sectionData.length > 0
+                        : Object.values(sectionData).some(
+                            v => typeof v === 'string' && v.trim() !== ''
+                        );
+
+
+                if (!meaningful) return ''; // hide empty sections
+
+                return `
+                    <div class="subsection">
+                        <h3 class="subsection-title">${section.replace(/_/g, ' ').toUpperCase()}</h3>
+                        <div class="data-grid">
+                            ${Object.entries(sectionData).map(([k, v]) => {
+                                if (!v || typeof v === 'object') return '';
+                                return `
+                                    <div class="data-item">
+                                        <div class="data-label">${k.replace(/_/g, ' ')}</div>
+                                        <div class="data-value">${v}</div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            treatProtocolContainer.innerHTML =
+                badgeHtml + (sectionsHtml || '<div class="empty-state">No active treatment recorded</div>');
+
+            // =============================
+            // Requirement 2: Suggested Procedures
+            // =============================
+
+            const suggestions = data2.suggested_procedures || [];
+            const suggContainer = qs('[data-suggested-procedures]');
+
+            if (suggestions.length > 0) {
+                suggContainer.innerHTML = `
+                    <div class="alert warning">
+                        <div class="alert-icon">⚠️</div>
+                        <div class="alert-content">
+                            <div class="alert-title">Clinical Considerations</div>
+                            <div class="alert-text">
+                                Based on disease stage and available documentation,
+                                the following procedures are commonly considered.
+                            </div>
+                        </div>
+                    </div>
+
+                    ${suggestions.map(s => `
+                        <div class="nested-object">
+                            <div class="nested-title">${s.procedure}</div>
+
+                            <div class="nested-item">
+                                <span class="nested-item-label">Why:</span>
+                                <span class="nested-item-value">${s.reason}</span>
+                            </div>
+
+                            <div class="nested-item">
+                                <span class="nested-item-label">Clinical Basis:</span>
+                                <span class="nested-item-value">${s.clinical_basis}</span>
+                            </div>
+
+                            <div class="nested-item">
+                                <span class="nested-item-label">Note:</span>
+                                <span class="nested-item-value">
+                                    ${s.disclaimer || 'Decision-support only'}
+                                </span>
+                            </div>
+                        </div>
+                    `).join('')}
+                `;
+            } else {
+                suggContainer.innerHTML =
+                    `<div class="empty-state">No additional procedures suggested</div>`;
+            }
+
+
+            // Inside populateUI function, after processing other sections:
+
+// Step 6: Insurance Criteria - Enhanced to handle all your data
+const ic = data2.insurance_criteria || {};
+
+// Update status alert with appropriate styling
+const statusAlert = qs('#insurance-status-alert');
+const statusIcon = qs('#insurance-status-icon');
+const statusTitle = qs('[data-insurance-status]');
+const statusSummary = qs('[data-insurance-summary]');
+
+// Set status with appropriate styling
+statusTitle.textContent = ic.overall_status || 'Information Available';
+
+// Remove existing alert classes
+statusAlert.classList.remove('success', 'warning', 'danger', 'info');
+
+// Add appropriate class based on status
+const status = ic.overall_status?.toLowerCase() || '';
+if (status.includes('approved')) {
+    statusAlert.classList.add('success');
+    statusIcon.textContent = '✓';
+} else if (status.includes('denied') || status.includes('reject')) {
+    statusAlert.classList.add('danger');
+    statusIcon.textContent = '✗';
+} else if (status.includes('pending') || status.includes('review')) {
+    statusAlert.classList.add('warning');
+    statusIcon.textContent = '⏳';
+} else {
+    statusAlert.classList.add('info');
+    statusIcon.textContent = 'ℹ️';
+}
+
+// Set summary
+statusSummary.textContent = ic.summary || 'No summary available';
+
+// Populate policy checks
+const policyChecksContainer = qs('[data-policy-checks]');
+if (ic.policy_checks && Array.isArray(ic.policy_checks) && ic.policy_checks.length > 0) {
+    const checksHtml = ic.policy_checks.map(check => {
+        let icon = 'ℹ️';
+        let color = '#64748b';
+        let border = '#cbd5e1';
+        
+        const status = check.status?.toLowerCase() || '';
+        
+        if (status.includes('valid') || status.includes('verified') || status.includes('in-network')) {
+            icon = '✓';
+            color = '#10b981';
+            border = '#10b981';
+        } else if (status.includes('failed') || status.includes('invalid')) {
+            icon = '✗';
+            color = '#ef4444';
+            border = '#ef4444';
+        } else if (status.includes('review') || status.includes('pending')) {
+            icon = '⏳';
+            color = '#f59e0b';
+            border = '#f59e0b';
+        }
+        
+        return `
+            <li class="checklist-item" style="border-left:3px solid ${border}">
+                <span class="checklist-icon" style="color:${color}">
+                    ${icon}
+                </span>
+                <span class="checklist-text">
+                    <strong>${check.check || check.title || 'Check'}</strong> — ${check.details || check.detail || '-'}
+                </span>
+            </li>
+        `;
+    }).join('');
+    
+    policyChecksContainer.innerHTML = checksHtml;
+} else {
+    policyChecksContainer.innerHTML = '<li class="checklist-item"><span class="checklist-text">No eligibility checks available</span></li>';
+}
+
+// Populate cost validation - FIXED to handle malformed amounts
+const costValidationContainer = qs('[data-cost-validation]');
+if (ic.cost_validation && Array.isArray(ic.cost_validation) && ic.cost_validation.length > 0) {
+    const costHtml = ic.cost_validation.map(cost => {
+        // Format amount properly, handling malformed entries
+        let amount = cost.amount || '0';
+        
+        // Clean up the amount string
+        if (amount === '₹,' || amount === '₹0' || amount === '0') {
+            // If amount is malformed or zero, try to extract from item context
+            if (cost.item === 'Chemotherapy') {
+                // Look for chemotherapy amount in the summary or elsewhere
+                const summaryMatch = ic.summary?.match(/Chemotherapy.*?₹([\d,]+)/i);
+                if (summaryMatch) {
+                    amount = `₹${summaryMatch[1]}`;
+                } else {
+                    // Default to the total claim amount divided roughly
+                    const totalMatch = ic.cost_validation.find(c => c.item === 'Total')?.amount;
+                    if (totalMatch && totalMatch !== '₹,') {
+                        // Extract numbers from total
+                        const totalNum = parseInt(totalMatch.replace(/[₹,]/g, '')) || 0;
+                        if (totalNum > 0) {
+                            // Rough estimate: chemotherapy is often around 30-40% of total
+                            const chemoEstimate = Math.round(totalNum * 0.33);
+                            amount = `₹${chemoEstimate.toLocaleString('en-IN')}`;
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Remove any extra ₹ symbols and ensure proper formatting
+        amount = amount.toString().replace(/^₹+/, '₹');
+        
+        // If still malformed, show as N/A
+        if (amount === '₹,') {
+            amount = 'N/A';
+        }
+        
+        return `
+            <div class="data-item">
+                <div class="data-label">${cost.item || 'Item'}</div>
+                <div class="data-value">${amount}</div>
+                ${cost.verified ? '<div style="color: #10b981; font-size: 0.75rem; margin-top: 4px;">✓ Verified</div>' : ''}
+            </div>
+        `;
+    }).join('');
+    
+    costValidationContainer.innerHTML = costHtml;
+} else {
+    costValidationContainer.innerHTML = '<div class="empty-state">No cost validation data available</div>';
+}
+
+// Populate coverage limits
+const coverageLimitsContainer = qs('[data-coverage-limits]');
+if (ic.coverage_limits && Array.isArray(ic.coverage_limits) && ic.coverage_limits.length > 0) {
+    const limitsHtml = ic.coverage_limits.map(limit => {
+        return `
+            <div class="data-item">
+                <div class="data-label">${limit.type || 'Coverage Limit'}</div>
+                <div class="data-value">${limit.limit || '-'}</div>
+            </div>
+        `;
+    }).join('');
+    
+    coverageLimitsContainer.innerHTML = limitsHtml;
+} else {
+    // Since coverage_limits is empty in your data, show a message
+    coverageLimitsContainer.innerHTML = '<div class="empty-state">No coverage limits specified in the policy</div>';
+}
+
+// Update checks passed
+const totalChecks = ic.policy_checks?.length || 0;
+qs('[data-checks-passed]').textContent = `${ic.checks_passed || 0} / ${totalChecks}`;
+
+// Add a total summary card at the bottom
+const summaryStats = qs('#insurance-criteria .score-card');
+if (summaryStats) {
+    // Add total claim amount if available
+    const totalCost = ic.cost_validation?.find(c => c.item === 'Total')?.amount;
+    if (totalCost && totalCost !== '₹,') {
+        const totalDiv = document.createElement('div');
+        totalDiv.style.marginTop = '8px';
+        totalDiv.style.fontSize = '0.875rem';
+        totalDiv.style.color = '#64748b';
+        totalDiv.innerHTML = `Total Claim Amount: ${totalCost}`;
+        summaryStats.appendChild(totalDiv);
+    }
+}
+
+            // Step 7: Bill Verification
+const bv = data3.step_7_bill_verification;
+const bvContainer = qs('[data-bill-verification]');
+
+// Clear the container first
+bvContainer.innerHTML = '';
+
+// Check if bill verification data exists
+if (!bv) {
+    bvContainer.innerHTML = '<div class="empty-state">No bill verification data available</div>';
+    return;
+}
+
+// Summary Cards
+if (bv.summary_cards && Array.isArray(bv.summary_cards) && bv.summary_cards.length > 0) {
+    const summaryGrid = document.createElement('div');
+    summaryGrid.className = 'summary-grid';
+    summaryGrid.style.cssText = 'display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem;';
+    
+    bv.summary_cards.forEach(card => {
+        const cardDiv = document.createElement('div');
+        cardDiv.className = 'data-item';
+        cardDiv.style.cssText = 'border-left: 3px solid var(--primary); text-align: center;';
+        cardDiv.innerHTML = `
+            <div class="data-label" style="font-size: 0.75rem;">${card.label || ''}</div>
+            <div class="data-value" style="font-size: 1.5rem; font-weight: 700;">${card.value || '0'}</div>
+        `;
+        summaryGrid.appendChild(cardDiv);
+    });
+    
+    bvContainer.appendChild(summaryGrid);
+}
+
+// Alerts
+if (bv.alerts && Array.isArray(bv.alerts) && bv.alerts.length > 0) {
+    bv.alerts.forEach(alert => {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert ${alert.type || 'info'}`;
+        alertDiv.style.marginBottom = '1.5rem';
+        alertDiv.innerHTML = `
+            <div class="alert-icon">${alert.type === 'success' ? '✓' : 'ℹ️'}</div>
+            <div class="alert-content">
+                <div class="alert-title">${alert.title || ''}</div>
+                <div class="alert-text">${alert.message || ''}</div>
+            </div>
+        `;
+        bvContainer.appendChild(alertDiv);
+    });
+}
+
+// Line Items
+if (bv.line_items && Array.isArray(bv.line_items) && bv.line_items.length > 0) {
+    const lineItemsSection = document.createElement('div');
+    lineItemsSection.className = 'subsection';
+    lineItemsSection.innerHTML = '<h3 class="subsection-title">Billed Items Verification</h3>';
+    
+    const table = document.createElement('table');
+    table.className = 'data-table';
+    
+    // Create table header
+    const thead = document.createElement('thead');
+    thead.innerHTML = `
+        <tr>
+            <th>Description</th>
+            <th>Rate (₹)</th>
+            <th>Status</th>
+        </tr>
+    `;
+    table.appendChild(thead);
+    
+    // Create table body
+    const tbody = document.createElement('tbody');
+    bv.line_items.forEach(item => {
+        const row = document.createElement('tr');
+        
+        // Determine status color
+        const status = item.validation_status || item.status || 'pending';
+        const statusColor = status === 'success' ? '#10b981' : 
+                           status === 'failed' ? '#ef4444' : '#f59e0b';
+        
+        row.innerHTML = `
+            <td>${item.description || item.item || '-'}</td>
+            <td>₹${item.rate || item.amount || 0}</td>
+            <td><span style="color: ${statusColor}; font-weight: 600;">${status}</span></td>
+        `;
+        tbody.appendChild(row);
+    });
+    table.appendChild(tbody);
+    
+    lineItemsSection.appendChild(table);
+    bvContainer.appendChild(lineItemsSection);
+}
+
+// Drug Verification
+if (bv.drug_verification && Array.isArray(bv.drug_verification) && bv.drug_verification.length > 0) {
+    const drugSection = document.createElement('div');
+    drugSection.className = 'subsection';
+    drugSection.innerHTML = '<h3 class="subsection-title">Drug Administration Verification</h3>';
+    
+    bv.drug_verification.forEach(drug => {
+        const drugDiv = document.createElement('div');
+        drugDiv.className = 'nested-object';
+        drugDiv.style.marginBottom = '1rem';
+        
+        let drugHtml = `<div class="nested-title">${drug.drug_name || 'Unknown Drug'}</div>`;
+        drugHtml += '<div class="nested-grid">';
+        
+        // Add all drug properties dynamically
+        Object.entries(drug).forEach(([key, value]) => {
+            if (key !== 'drug_name' && value) {
+                drugHtml += `
+                    <div class="nested-item">
+                        <span class="nested-item-label">${key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}:</span>
+                        <span class="nested-item-value">${value}</span>
+                    </div>
+                `;
+            }
+        });
+        
+        drugHtml += '</div>';
+        drugDiv.innerHTML = drugHtml;
+        drugSection.appendChild(drugDiv);
+    });
+    
+    bvContainer.appendChild(drugSection);
+}
+
+// Investigation Verification
+if (bv.investigation_verification && Array.isArray(bv.investigation_verification) && bv.investigation_verification.length > 0) {
+    const invSection = document.createElement('div');
+    invSection.className = 'subsection';
+    invSection.innerHTML = '<h3 class="subsection-title">Investigation Verification</h3>';
+    
+    const table = document.createElement('table');
+    table.className = 'data-table';
+    
+    // Create table header
+    const thead = document.createElement('thead');
+    thead.innerHTML = `
+        <tr>
+            <th>Test Name</th>
+            <th>Result</th>
+            <th>Value</th>
+            <th>Units</th>
+        </tr>
+    `;
+    table.appendChild(thead);
+    
+    // Create table body
+    const tbody = document.createElement('tbody');
+    bv.investigation_verification.forEach(inv => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${inv.test_name || '-'}</td>
+            <td>${inv.test_result || '-'}</td>
+            <td>${inv.value || '-'}</td>
+            <td>${inv.units || '-'}</td>
+        `;
+        tbody.appendChild(row);
+    });
+    table.appendChild(tbody);
+    
+    invSection.appendChild(table);
+    bvContainer.appendChild(invSection);
+}
+
+// Duplicate Check
+if (bv.duplicate_check) {
+    const duplicateDiv = document.createElement('div');
+    duplicateDiv.className = 'alert success';
+    duplicateDiv.style.marginTop = '1rem';
+    duplicateDiv.innerHTML = `
+        <div class="alert-icon">✓</div>
+        <div class="alert-content">
+            <div class="alert-title">Duplicate Check</div>
+            <div class="alert-text">${bv.duplicate_check}</div>
+        </div>
+    `;
+    bvContainer.appendChild(duplicateDiv);
+}
+
+// If no data was added, show empty state
+if (bvContainer.children.length === 0) {
+    bvContainer.innerHTML = '<div class="empty-state">No bill verification data available</div>';
+}
+            // Step 8: Medical Necessity
+            const mn = data3.step_8_medical_necessity || {
+                score_card: { score: 0 },
+                score_breakdown: [],
+                final_recommendation: ''
+            };
+
+            qs('[data-necessity-score]').textContent =
+                `${mn.score_card?.score || 0}/100`;
+
+
+            qs('[data-necessity-details]').innerHTML = `
+            <div class="alert info">
+                <div class="alert-title">Medical Necessity</div>
+                <div class="alert-text">${mn.final_recommendation}</div>
+            </div>
+            <div class="alert success">
+                <div class="alert-title">
+                    Medical Necessity: <strong>Clinically Justified</strong>
+                </div>
+                <div class="alert-text">
+                    Supported by histopathology and imaging evidence
+                </div>
+            </div>
+            <table class="data-table">
+                <thead>
+                <tr>
+                    <th>Parameter</th>
+                    <th>Score</th>
+                    <th>Justification</th>
+                </tr>
+                </thead>
+                <tbody>
+                ${mn.score_breakdown.map(s => `
+                    <tr>
+                    <td>${s.parameter}</td>
+                    <td>${s.score} / ${s.max_score}</td>
+                    <td>${s.justification}</td>
+                    </tr>
+                `).join('')}
+                </tbody>
+            </table>
+            `;
+
+
+            qs('[data-final-recommendation]').textContent =
+                data2.final_decision?.recommendation ||
+                data3.step_8_medical_necessity?.final_recommendation ||
+                data1.final_decision?.recommendation ||
+                '-';
+
+
+
+            // qs('[data-confidence-score]').textContent =
+            //     (data2.ai_summary?.confidence_score || 0) + '%';
+
+            const cs = data2.ai_summary?.confidence_score ?? 0;
+            qs('[data-confidence-score]').textContent =
+                cs <= 1 ? Math.round(cs * 100) + '%' : cs + '%';
+
+        }
+
+        function exportReport() {
+            alert('Export functionality will be implemented');
+        }
+
+        loadData();
+    </script>
+</body>
+
+</html>

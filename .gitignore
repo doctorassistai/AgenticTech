@@ -1,0 +1,16 @@
+# Environment variables
+.env
+.env.production
+.env.local
+*.env
+.env
+.env.*
+*.pem
+*.key
+__pycache__/
+*.pyc
+
+# Node
+node_modules/
+dist/
+.cache/

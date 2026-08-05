@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Vital Screening | DoctorAssist.AI</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    ::selection { background: #000; color: #fff; }
+
+    :root {
+      --bg: #ffffff;
+      --bg-alt: #fafafa;
+      --bg-tert: #f5f5f5;
+      --text: #000000;
+      --text-sec: #444444;
+      --text-muted: #888888;
+      --border: #e0e0e0;
+      --sidebar-w: 248px;
+    }
+
+    body {
+      font-family: 'Open Sans', system-ui, sans-serif;
+      font-weight: 300;
+      color: var(--text);
+      background: var(--bg);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .layout { display: flex; min-height: 100vh; }
+
+    /* ─── sidebar ─── */
+    .sidebar {
+      width: var(--sidebar-w);
+      min-height: 100vh;
+      position: fixed;
+      left: 0; top: 0;
+      background: var(--bg);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      z-index: 200;
+      overflow-y: auto;
+      transition: transform 0.3s ease;
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    .sidebar::-webkit-scrollbar { display: none; }
+
+    .sidebar-header {
+      padding: 1.5rem 1.5rem 1rem;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .brand-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 1.25rem;
+    }
+    .brand-name { font-weight: 400; font-size: 0.9rem; letter-spacing: -0.01em; color: var(--text); }
+    .close-btn {
+      margin-left: auto; background: none; border: none;
+      cursor: pointer; color: var(--text); display: none;
+      padding: 2px; align-items: center;
+    }
+    .section-label {
+      font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.18em;
+      color: var(--text-muted); font-weight: 400; display: block; margin-bottom: 0.25rem;
+    }
+    .doctor-name { font-size: 0.9rem; font-weight: 400; color: var(--text); }
+    .doctor-spec  { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; }
+
+    .menu-scroll {
+      flex: 1; overflow-y: auto; padding: 0.75rem 0;
+      -ms-overflow-style: none; scrollbar-width: none;
+    }
+    .menu-scroll::-webkit-scrollbar { display: none; }
+
+    .nav-group-label {
+      font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.15em;
+      color: var(--text-muted); font-weight: 400;
+      padding: 0.5rem 0.75rem 0.25rem 1.25rem; display: block;
+    }
+    .nav-btn {
+      width: 100%; background: transparent;
+      border: none; border-left: 2px solid transparent;
+      text-align: left; padding: 0.55rem 1.25rem;
+      font-size: 0.78rem; font-weight: 300; color: var(--text-sec);
+      cursor: pointer; display: flex; align-items: center; gap: 10px;
+      transition: all 0.15s; font-family: 'Open Sans', sans-serif;
+    }
+    .nav-btn:hover { background: var(--bg-alt); color: var(--text); }
+    .nav-btn.active {
+      background: var(--bg-alt); color: var(--text);
+      font-weight: 400; border-left: 2px solid var(--text);
+    }
+    .nav-btn svg { flex-shrink: 0; }
+
+    .sidebar-footer {
+      padding: 1rem 1.25rem; border-top: 1px solid var(--border); flex-shrink: 0;
+    }
+    .logout-btn {
+      width: 100%; background: transparent; border: 1px solid var(--border);
+      padding: 0.6rem 1rem; font-size: 0.75rem; font-weight: 400; color: var(--text-sec);
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      gap: 8px; font-family: 'Open Sans', sans-serif; transition: all 0.2s;
+    }
+    .logout-btn:hover { border-color: var(--text); color: var(--text); }
+
+    /* ─── overlay ─── */
+    .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 199; }
+    .overlay.show { display: block; }
+
+    /* ─── main ─── */
+    .main { flex: 1; margin-left: var(--sidebar-w); min-width: 0; display: flex; flex-direction: column; transition: margin-left 0.3s ease; }
+
+    /* ─── top bar ─── */
+    .top-bar {
+      position: sticky; top: 0; background: var(--bg); border-bottom: 1px solid var(--border);
+      padding: 0.875rem 2rem; display: flex; justify-content: space-between;
+      align-items: center; z-index: 100; gap: 12px;
+    }
+    .top-bar-left { display: flex; align-items: center; gap: 12px; }
+    .top-bar-title { font-size: 1rem; font-weight: 400; color: var(--text); letter-spacing: -0.01em; }
+    .top-bar-sub   { font-size: 0.72rem; color: var(--text-muted); }
+    .hamburger { display: none; background: none; border: none; cursor: pointer; color: var(--text); padding: 4px; align-items: center; }
+
+    /* ─── body ─── */
+    .body-wrap { padding: 2rem; flex: 1; }
+    .page-label {
+      font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.2em;
+      color: var(--text-muted); font-weight: 400; display: block; margin-bottom: 0.25rem;
+    }
+    .page-title { font-size: 1.4rem; font-weight: 300; letter-spacing: -0.02em; color: var(--text); margin-bottom: 1.5rem; }
+
+    /* ─── info bar ─── */
+    .info-bar {
+      padding: 0.75rem 1rem; border: 1px solid var(--border);
+      background: var(--bg-alt); color: var(--text-sec);
+      font-size: 0.75rem; margin-bottom: 1.5rem; font-weight: 400;
+    }
+
+    /* ─── patient card ─── */
+    .patient-card { border: 1px solid var(--border); background: var(--bg); padding: 1.5rem; margin-bottom: 1.5rem; }
+    .patient-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+    .patient-name-txt { font-size: 1.1rem; font-weight: 400; color: var(--text); line-height: 1.3; word-break: break-word; }
+    .patient-meta-txt { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; }
+    .visit-type-badge {
+      display: inline-flex; align-items: center; padding: 0.2rem 0.6rem;
+      border: 1px solid var(--border); font-size: 0.65rem; font-weight: 400;
+      text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-sec);
+      white-space: nowrap; flex-shrink: 0;
+    }
+    .visit-type-badge.emergency { border-color: var(--text); background: var(--text); color: #fff; }
+    .meta-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; padding-top: 1.25rem; border-top: 1px solid var(--border); }
+    .meta-item-label {
+      font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.1em;
+      color: var(--text-muted); display: block; margin-bottom: 0.25rem;
+    }
+    .meta-item-val { font-size: 0.78rem; font-weight: 400; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* ─── vital form ─── */
+    .vital-form-card { border: 1px solid var(--border); background: var(--bg); padding: 1.5rem; margin-bottom: 1.5rem; }
+    .form-section-label {
+      font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.12em;
+      color: var(--text-muted); display: block; margin-bottom: 1rem;
+    }
+    .vital-fields { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+    .field-wrap { display: flex; flex-direction: column; }
+    .field-label { font-size: 0.72rem; font-weight: 400; color: var(--text-sec); margin-bottom: 0.35rem; text-transform: uppercase; letter-spacing: 0.06em; }
+    .field-input {
+      border: 1px solid var(--border); background: var(--bg);
+      padding: 0.5rem 0.75rem; font-size: 0.78rem;
+      font-family: 'Open Sans', sans-serif; font-weight: 300;
+      color: var(--text); outline: none; transition: border-color 0.15s; width: 100%;
+    }
+    .field-input:focus { border-color: var(--text); }
+    .field-input::placeholder { color: var(--text-muted); }
+
+    /* ─── form actions ─── */
+    .form-actions {
+      display: flex; justify-content: flex-end; align-items: center;
+      gap: 0.75rem; padding-top: 1.25rem; margin-top: 1.25rem;
+      border-top: 1px solid var(--border); flex-wrap: wrap;
+    }
+    .btn-reset {
+      padding: 0.45rem 1rem; border: 1px solid var(--border); background: var(--bg);
+      font-size: 0.65rem; font-weight: 400; color: var(--text-sec); cursor: pointer;
+      font-family: 'Open Sans', sans-serif; letter-spacing: 0.05em; transition: all 0.15s;
+    }
+    .btn-reset:hover { border-color: var(--text); color: var(--text); }
+    .btn-save {
+      padding: 0.45rem 1.25rem; border: 1px solid var(--text); background: var(--text);
+      color: #fff; font-size: 0.65rem; font-weight: 400; cursor: pointer;
+      font-family: 'Open Sans', sans-serif; letter-spacing: 0.05em; transition: all 0.15s;
+    }
+    .btn-save:hover { background: transparent; color: var(--text); }
+    .btn-triage {
+      padding: 0.45rem 1.1rem; border: 1px solid var(--border); background: var(--bg-tert);
+      color: var(--text-muted); font-size: 0.65rem; font-weight: 400; cursor: not-allowed;
+      font-family: 'Open Sans', sans-serif; letter-spacing: 0.05em;
+      display: flex; align-items: center; gap: 6px; transition: all 0.15s;
+    }
+    .btn-triage.enabled { background: var(--text); color: #fff; border-color: var(--text); cursor: pointer; }
+    .btn-triage.enabled:hover { background: transparent; color: var(--text); }
+
+    /* ─── modal ─── */
+    .modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 500; align-items: center; justify-content: center; }
+    .modal-backdrop.show { display: flex; }
+    .modal-box { background: var(--bg); border: 1px solid var(--border); padding: 2rem; width: 360px; text-align: center; }
+    .modal-title { font-size: 0.9rem; font-weight: 400; color: var(--text); margin-bottom: 0.4rem; }
+    .modal-sub   { font-size: 0.72rem; color: var(--text-muted); margin-bottom: 1.5rem; }
+    .spinner { width: 28px; height: 28px; border: 2px solid var(--border); border-top-color: var(--text); border-radius: 50%; animation: spin 0.7s linear infinite; margin: 0 auto 1rem; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .success-icon { width: 36px; height: 36px; border: 2px solid var(--text); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem; }
+    .btn-ok {
+      padding: 0.5rem 1.5rem; border: 1px solid var(--text); background: var(--text);
+      color: #fff; font-size: 0.72rem; font-weight: 400; cursor: pointer;
+      font-family: 'Open Sans', sans-serif; letter-spacing: 0.05em; transition: all 0.15s;
+    }
+    .btn-ok:hover { background: transparent; color: var(--text); }
+
+    /* ─── responsive ─── */
+    @media (max-width: 767px) {
+      .sidebar { transform: translateX(-100%); }
+      .sidebar.open { transform: translateX(0); }
+      .main { margin-left: 0 !important; }
+      .hamburger { display: flex !important; }
+      .body-wrap { padding: 1rem; }
+      .top-bar { padding: 0.75rem 1rem; }
+      .meta-grid { grid-template-columns: repeat(2, 1fr); }
+      .vital-fields { grid-template-columns: 1fr; }
+      .close-btn { display: flex !important; }
+    }
+    @media (min-width: 768px) { .hamburger { display: none !important; } }
+  </style>
+</head>
+<body>
+<div class="layout">
+
+  <div class="overlay" id="overlay" onclick="closeSidebar()"></div>
+
+  <!-- ═══════════════ SIDEBAR ═══════════════ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="brand-row">
+        <span class="brand-name">DoctorAssist.AI</span>
+        <button class="close-btn" id="close-btn" onclick="closeSidebar()">
+          <!-- lucide X -->
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <span class="section-label">Physician</span>
+      <p class="doctor-name" id="sidebar-doctor-name">Loading…</p>
+      <p class="doctor-spec"  id="sidebar-doctor-spec">—</p>
+    </div>
+
+    <div class="menu-scroll">
+
+      <span class="nav-group-label">Overview</span>
+
+      <button class="nav-btn" onclick="navTo('dashboard')">
+        <!-- lucide Home -->
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+          <polyline points="9 22 9 12 15 12 15 22"/>
+        </svg>
+        Dashboard
+      </button>
+
+      <button class="nav-btn" onclick="navTo('appointments')">
+        <!-- lucide Settings -->
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+        Appointment
+      </button>
+
+      <button class="nav-btn" onclick="navTo('date-wise')">
+        <!-- lucide Calendar -->
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect width="18" height="18" x="3" y="4" rx="2" ry="2"/>
+          <line x1="16" x2="16" y1="2" y2="6"/>
+          <line x1="8" x2="8" y1="2" y2="6"/>
+          <line x1="3" x2="21" y1="10" y2="10"/>
+        </svg>
+        Date-wise Appointments
+      </button>
+
+      <button class="nav-btn" onclick="navTo('patient-listing')">
+        <!-- lucide Users -->
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+        Patient Listing
+      </button>
+
+      <span class="nav-group-label">Clinical</span>
+
+      <button class="nav-btn active">
+        <!-- lucide Activity -->
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+        </svg>
+        Vital Screening
+      </button>
+
+      <button class="nav-btn" onclick="navTo('skills')">
+        <!-- lucide FileText -->
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="16" x2="8" y1="13" y2="13"/>
+          <line x1="16" x2="8" y1="17" y2="17"/>
+          <polyline points="10 9 9 9 8 9"/>
+        </svg>
+        Skills Settings
+      </button>
+
+      <button class="nav-btn" onclick="navTo('node-settings')">
+        <!-- lucide Settings -->
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+        Node Settings
+      </button>
+
+      <span class="nav-group-label">Communication</span>
+
+      <button class="nav-btn" onclick="navTo('communication')">
+        <!-- lucide MessageCircle -->
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+        Communication View
+      </button>
+
+      <button class="nav-btn" onclick="navTo('comm-progression')">
+        <!-- lucide Calendar -->
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect width="18" height="18" x="3" y="4" rx="2" ry="2"/>
+          <line x1="16" x2="16" y1="2" y2="6"/>
+          <line x1="8" x2="8" y1="2" y2="6"/>
+          <line x1="3" x2="21" y1="10" y2="10"/>
+        </svg>
+        Communication Progression
+      </button>
+
+      <span class="nav-group-label">Other</span>
+
+      <button class="nav-btn" onclick="navTo('register-patient')">
+        <!-- lucide UserPlus -->
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <line x1="19" x2="19" y1="8" y2="14"/>
+          <line x1="22" x2="16" y1="11" y2="11"/>
+        </svg>
+        Patient Registration
+      </button>
+
+    </div>
+
+    <div class="sidebar-footer">
+      <button class="logout-btn" onclick="handleLogout()">
+        <!-- lucide LogOut -->
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+          <polyline points="16 17 21 12 16 7"/>
+          <line x1="21" x2="9" y1="12" y2="12"/>
+        </svg>
+        Logout
+      </button>
+    </div>
+  </aside>
+
+  <!-- ═══════════════ MAIN ═══════════════ -->
+  <main class="main" id="main">
+
+    <div class="top-bar">
+      <div class="top-bar-left">
+        <button class="hamburger" onclick="openSidebar()">
+          <!-- lucide Menu -->
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="4" x2="20" y1="12" y2="12"/>
+            <line x1="4" x2="20" y1="6" y2="6"/>
+            <line x1="4" x2="20" y1="18" y2="18"/>
+          </svg>
+        </button>
+        <span class="top-bar-title">Vital Screening</span>
+      </div>
+      <span class="top-bar-sub">Clinical Data Collection</span>
+    </div>
+
+    <div class="body-wrap">
+      <span class="page-label">Clinical Interface</span>
+      <h1 class="page-title">Vital Screening</h1>
+
+      <!-- patient card -->
+      <div class="patient-card">
+        <div class="patient-top">
+          <div>
+            <p class="patient-name-txt" id="patient-name">—</p>
+            <p class="patient-meta-txt" id="patient-meta">—</p>
+          </div>
+          <span class="visit-type-badge" id="visit-type">—</span>
+        </div>
+        <div class="meta-grid">
+          <div>
+            <span class="meta-item-label">Patient ID</span>
+            <p class="meta-item-val" id="patient-id">—</p>
+          </div>
+          <div>
+            <span class="meta-item-label">Date</span>
+            <p class="meta-item-val" id="visit-date">—</p>
+          </div>
+          <div>
+            <span class="meta-item-label">Time</span>
+            <p class="meta-item-val" id="visit-time">—</p>
+          </div>
+          <div>
+            <span class="meta-item-label">Chief Complaint</span>
+            <p class="meta-item-val" id="chief-complaint">—</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- info bar -->
+      <div class="info-bar">
+        Please record patient vitals carefully before clinical evaluation.
+      </div>
+
+      <!-- vital form -->
+      <div class="vital-form-card">
+        <form id="vital-form">
+          <span class="form-section-label">Vitals</span>
+          <div class="vital-fields" id="vital-fields"></div>
+          <div class="form-actions">
+            <button type="reset" class="btn-reset">Reset</button>
+            <button type="submit" class="btn-save">Save Vitals</button>
+            <button type="button" id="triage-btn" class="btn-triage" disabled>
+              <!-- lucide Activity -->
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+              </svg>
+              Triage Assessment
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ═══════════════ MODAL ═══════════════ -->
+<div class="modal-backdrop" id="triage-modal">
+  <div class="modal-box">
+    <div id="triage-loading">
+      <div class="spinner"></div>
+      <p class="modal-title">Running Triage Assessment</p>
+      <p class="modal-sub">Analysing patient data…</p>
+    </div>
+    <div id="triage-success" style="display:none;">
+      <div class="success-icon">
+        <!-- lucide Check -->
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+      </div>
+      <p class="modal-title">Triage Completed</p>
+      <p class="modal-sub">Assessment saved successfully.</p>
+      <button class="btn-ok" id="triage-ok-btn">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ SCRIPT ═══════════════ -->
+<script>
+  let currentAppointmentId = null;
+  const API_BASE = "https://doctorassist.ai/api";
+
+  function getIds() {
+    const p = new URLSearchParams(window.location.search);
+    return { doctorId: p.get("doctor_id"), patientId: p.get("patient_id") };
+  }
+  function openSidebar() {
+    document.getElementById("sidebar").classList.add("open");
+    document.getElementById("overlay").classList.add("show");
+  }
+  function closeSidebar() {
+    document.getElementById("sidebar").classList.remove("open");
+    document.getElementById("overlay").classList.remove("show");
+  }
+  function navTo(key) {
+    const { doctorId } = getIds();
+    const map = {
+      dashboard:            `/doctor-dashboard?doctor_id=${doctorId}`,
+      appointments:         `/appointments?doctor_id=${doctorId}`,
+      "date-wise":          `/date-wise-appointment-dashboard?doctor_id=${doctorId}`,
+      "patient-listing":    `/patient-listing?doctor_id=${doctorId}`,
+      skills:               `/medical-current-context-rule-settings?doctor_id=${doctorId}`,
+      "node-settings":      `/settings.html?doctor_id=${doctorId}`,
+      communication:        `/appointment-dashboard1?doctor_id=${doctorId}`,
+      "comm-progression":   `/doctor-communication-dashboard?doctor_id=${doctorId}`,
+      "register-patient":   `/register-patient?doctor_id=${doctorId}`,
+    };
+    if (map[key]) window.location.href = map[key];
+  }
+  function handleLogout() {
+    fetch(`${API_BASE}/hms/users/auth/logout`, { method: "POST", credentials: "include" })
+      .finally(() => window.location.href = "/login");
+  }
+
+  document.addEventListener("DOMContentLoaded", async () => {
+    const { doctorId, patientId } = getIds();
+    if (!doctorId || !patientId) { alert("doctor_id or patient_id missing in URL"); return; }
+    await Promise.all([
+      loadPatientHeader(patientId, doctorId),
+      loadDoctorScreeningFields(doctorId),
+      loadDoctorDetails(doctorId)
+    ]);
+  });
+
+  async function loadDoctorDetails(doctorId) {
+    try {
+      const res = await fetch(`${API_BASE}/hms/users/speciality/users/patient/get_doctor_details`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ doctor_id: doctorId })
+      });
+      const data = await res.json();
+      if (data.status === "success") {
+        document.getElementById("sidebar-doctor-name").textContent = data.doctor_name || "—";
+        document.getElementById("sidebar-doctor-spec").textContent = data.doctor_speciality || "—";
+      }
+    } catch {}
+  }
+
+ async function loadPatientHeader(patientId, doctorId) {
+  try {
+    const res = await fetch(`${API_BASE}/hms/users/data/patient_basic_screening_details/${patientId}/${doctorId}`);
+    if (!res.ok) throw new Error("Failed");
+    const result = await res.json();
+    const demo = result.data.demographics;
+    const appt = result.data.latest_appointment;  // ✅ Changed from today_latest_appointment
+    currentAppointmentId = appt?.appointment_id || null;
+    
+    document.getElementById("patient-name").textContent = demo.name;
+    document.getElementById("patient-id").textContent   = demo.patient_id;
+    document.getElementById("patient-meta").textContent = `${calculateAge(demo.date_of_birth)} yrs · ${demo.gender}`;
+    
+    const badge = document.getElementById("visit-type");
+    if (appt) {
+      badge.textContent = appt.visit_type;
+      if ((appt.visit_type || "").toLowerCase() === "emergency") badge.classList.add("emergency");
+      document.getElementById("visit-date").textContent       = appt.date;
+      document.getElementById("visit-time").textContent       = appt.scheduled_time;
+      document.getElementById("chief-complaint").textContent  = appt.chief_complaint;
+    } else {
+      badge.textContent = "No Appointment";
+      document.getElementById("visit-date").textContent = "—";
+      document.getElementById("visit-time").textContent = "—";
+      document.getElementById("chief-complaint").textContent = "—";
+    }
+  } catch (err) { 
+    console.error("Patient header error:", err);
+    alert("Failed to load patient details. Please refresh the page.");
+  }
+}
+
+  async function loadDoctorScreeningFields(doctorId) {
+    try {
+      const res = await fetch(`${API_BASE}/hms/users/orchestration/doctor_screening_features/${doctorId}`);
+      if (!res.ok) throw new Error("Failed");
+      const data = await res.json();
+      const feat = data.features?.find(f => f.feature_id === "screening-section" && f.enabled);
+      const fields = feat?.screening_section?.fields?.length > 0
+        ? feat.screening_section.fields
+        : ["Blood Pressure","Heart Rate","Temperature","Respiratory Rate","Oxygen Saturation","Blood Glucose"];
+      renderVitalFields(fields);
+    } catch {
+      renderVitalFields(["Blood Pressure","Heart Rate","Temperature","Respiratory Rate","Oxygen Saturation","Blood Glucose"]);
+    }
+  }
+
+  function renderVitalFields(fields) {
+    const c = document.getElementById("vital-fields");
+    c.innerHTML = "";
+    fields.forEach(name => {
+      const id = name.toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_|_$/g,"");
+      let type = "text", ph = `Enter ${name.toLowerCase()}`;
+      if (name.toLowerCase().includes("blood pressure")) ph = "e.g., 120/80";
+      else if (name.toLowerCase().includes("rate"))       { type = "number"; }
+      else if (name.toLowerCase().includes("temperature")){ type = "number"; ph = "e.g., 98.6"; }
+      else if (name.toLowerCase().includes("oxygen"))     { type = "number"; ph = "e.g., 98"; }
+      else if (name.toLowerCase().includes("glucose"))    { type = "number"; ph = "e.g., 100"; }
+      c.insertAdjacentHTML("beforeend", `
+        <div class="field-wrap">
+          <label class="field-label">${name}</label>
+          <input type="${type}" name="${id}" placeholder="${ph}" class="field-input" />
+        </div>`);
+    });
+  }
+
+  function calculateAge(dob) {
+    const b = new Date(dob), t = new Date();
+    let a = t.getFullYear() - b.getFullYear();
+    const m = t.getMonth() - b.getMonth();
+    if (m < 0 || (m === 0 && t.getDate() < b.getDate())) a--;
+    return a;
+  }
+
+  document.getElementById("vital-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const { doctorId, patientId } = getIds();
+    if (!doctorId || !patientId) { alert("doctor_id or patient_id missing"); return; }
+    if (!currentAppointmentId)   { alert("Appointment ID not found"); return; }
+    const entries = Object.fromEntries(new FormData(e.target).entries());
+    const timestamp = new Date().toISOString();
+    const isEmergency = document.getElementById("visit-type").textContent.trim().toLowerCase() === "emergency";
+    const payload = {
+      sys_user_id: patientId, appointment_id: currentAppointmentId,
+      vitals: { [timestamp]: { doctor_id: doctorId, appointment_id: currentAppointmentId, ...entries } }
+    };
+    try {
+      const res = await fetch(`${API_BASE}/hms/users/data/save_patient_vitals`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
+      });
+      if (!res.ok) throw new Error(await res.text() || "Failed");
+      await res.json();
+      alert("Vitals saved successfully");
+      if (isEmergency) {
+        const btn = document.getElementById("triage-btn");
+        btn.disabled = false;
+        btn.classList.add("enabled");
+      }
+    } catch (err) { console.error(err); alert("Failed to save vitals. Please try again."); }
+  });
+
+  document.getElementById("triage-btn").addEventListener("click", async () => {
+    const { doctorId, patientId } = getIds();
+    document.getElementById("triage-loading").style.display = "block";
+    document.getElementById("triage-success").style.display = "none";
+    document.getElementById("triage-modal").classList.add("show");
+    try {
+      const res = await fetch(`${API_BASE}/hms/users/ai-legacy/emergency/triage/dynamic`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ patient_id: patientId, doctor_id: doctorId, appointment_id: currentAppointmentId })
+      });
+      const t = await res.json();
+      const saveRes = await fetch(`${API_BASE}/hms/users/data/context/save_triage_assessment`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          patient_id: t.patient_id, doctor_id: t.doctor_id, appointment_id: currentAppointmentId,
+          triage_level: t.triage_level, triage_category: t.triage_category,
+          triage_standard_used: t.triage_standard_used, why_this_level: t.why_this_level,
+          why_this_standard: t.why_this_standard, clinical_findings: t.clinical_findings,
+          risk_analysis: t.risk_analysis, immediate_actions: t.immediate_actions,
+          monitoring_plan: t.monitoring_plan, referrals_needed: t.referrals_needed,
+          transfer_decision: t.transfer_decision, triage_summary: t.triage_summary,
+          disposition_plan: t.disposition_plan, triage_timestamp: t.triage_timestamp,
+          processing_time_ms: t.processing_time_ms
+        })
+      });
+      if (!saveRes.ok) throw new Error("Failed to save triage");
+      document.getElementById("triage-loading").style.display = "none";
+      document.getElementById("triage-success").style.display = "block";
+    } catch (err) {
+      console.error(err);
+      alert("Triage failed: " + err.message);
+      document.getElementById("triage-modal").classList.remove("show");
+    }
+  });
+
+  document.getElementById("triage-ok-btn").addEventListener("click", () => {
+    document.getElementById("triage-modal").classList.remove("show");
+  });
+</script>
+</body>
+</html>

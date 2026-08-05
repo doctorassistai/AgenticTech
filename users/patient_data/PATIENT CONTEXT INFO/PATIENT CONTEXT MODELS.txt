@@ -1,0 +1,967 @@
+PYDANTIC MODELS REFERENCE
+============================================================
+patientcontext.py  |  234 total request/response models
+Grouped by clinical/functional domain.
+============================================================
+
+### CLINICAL NOTES / DOCUMENTATION  (29 models)
+------------------------------------------------------------
+  ProgressNotes
+         daily_progress_note, soap_note, consultant_note, specialty_consultation_report
+         follow_up_note, telephone_encounter_note, clinical_note
+
+  ClinicalNotesRecords
+         patient_id, doctor_id, hospital_id, report_date, admission_records, progress_notes
+
+  DischargeDocumentation
+         discharge_summary, discharge_instructions, discharge_medication_list
+         discharge_against_medical_advice, transfer_summary, death_summary
+         post_discharge_follow_up_plan
+
+  DischargeSummaryDocuments
+         patient_id, doctor_id, hospital_id, report_date, discharge_documentation
+         clinical_summaries
+
+  ReferralDocumentation
+         patient_id, doctor_id, hospital_id, report_date, specialist_referral_letter
+         primary_care_referral, inter_hospital_transfer_note
+         emergency_transfer_documentation, referral_response_letter
+
+  MedicalLegalDocuments
+         fitness_for_work_certificate, medical_leave_certificate, disability_certificate
+         medico_legal_case_documentation, autopsy_report, death_certificate
+         birth_certificate
+
+  InsuranceDocumentation
+         insurance_verification_form, pre_authorization_request, insurance_claim_form
+         explanation_of_benefits, coordination_of_benefits, letter_of_medical_necessity
+
+  InsuranceBillingDocuments
+         patient_id, doctor_id, hospital_id, report_date, insurance_documentation
+         billing_records
+
+  DocumentCategories
+         patient_id, doctor_id, hospital_id, report_date, laboratory_pathology_reports
+         imaging_radiology_reports, functional_special_tests, clinical_notes_records
+         surgical_procedure_records, pharmacy_medication_records
+         emergency_critical_care_records, specialty_department_records
+         discharge_summary_documents, referral_documentation, administrative_consent_forms
+         insurance_billing_documents
+
+  UltrasoundDocument
+         doctor_id, patient_id, appointment_id, path, date, appointment_date
+         radiologist_name, findings, abnormalities, recommendations, diagnosis
+         confidence_score, region, notes
+
+  CTScanDocument
+         doctor_id, patient_id, appointment_id, path, date, appointment_date
+         radiologist_name, findings, abnormalities, recommendations, diagnosis
+         confidence_score, region, notes
+
+  CTCAScanDocument
+         doctor_id, patient_id, appointment_id, path, date, appointment_date
+         radiologist_name, findings, abnormalities, recommendations, diagnosis
+         confidence_score, region, notes
+
+  SOAPNote
+         subjective, objective, assessment, plan
+
+  DiagnosisSummary
+         diagnosis, icd_10_code, reasoning
+
+  ClinicalNoteMetadata
+         analysis_date, department, model, note
+
+  ClinicalNoteContent
+         soap, diagnosis_summary, procedures_and_investigations, loinc_lab_reports
+         functional_overview, insurance_considerations, additional_notes, metadata
+
+  ClinicalNote
+         id, appointment_id, doctor_id, patient_id, structured_note, clinical_note, date
+
+  documentation
+         id, date, patient_id, doctor_id, medications, clinical_note, investigations
+
+  File
+         uuid, url, type
+
+  BaseDocument
+         created_at
+
+  DocumentExpectations
+
+  DictationSave
+         patient_id, doctor_id, conversation
+
+  StructuredNoteAdminRuleRequest
+         speciality, rule_text
+
+  DoctorStructuredNoteRequest
+         doctor_id, instructions
+
+  VoiceDictationRequest
+         patient_id, conversation
+
+  DoctorVoiceNoteRequest
+         patient_id, conversation
+
+  ContactNotes
+         insuranceContact, insuranceRemarks
+
+  DictationSa
+         patient_id, doctor_id, nurse_id, conversation
+
+  ClinicalSummaryUpdate
+         patient_id, content
+
+
+### LABORATORY / INVESTIGATIONS  (26 models)
+------------------------------------------------------------
+  CoreLaboratoryPanelsRoutine
+         cbc_full_panel, hemoglobin, hematocrit, cbc_differential, peripheral_blood_smear
+         bun, serum_creatinine, egfr, serum_uric_acid, sodium, potassium, chloride
+         bicarbonate, total_calcium, ionized_calcium, magnesium, phosphorus, total_protein
+         albumin, globulin, albumin_globulin_ratio, ast, alt, alp, ggt, total_bilirubin
+         direct_bilirubin, indirect_bilirubin, fasting_glucose, postprandial_glucose
+         random_glucose, hba1c, total_cholesterol, ldl, hdl, triglycerides, urine_routine
+         urine_microscopy, urine_protein, uacr
+
+  CardiacBiomarkers
+         troponin_i, troponin_t, high_sensitivity_troponin, ck_mb, bnp, nt_probnp, hs_crp
+         d_dimer, homocysteine, lipoprotein_a
+
+  TumorMarkers
+         psa_total, psa_free, psa_ratio, afp, cea, ca_125, ca_19_9, ca_15_3, beta_hcg, ldh
+
+  DiabetesMarkers
+         glycated_albumin, c_peptide, insulin_fasting, insulin_postprandial
+         islet_cell_antibody, gad_antibody, ogtt
+
+  HematologyIronStudies
+         ferritin, serum_iron, tibc, transferrin_saturation, vitamin_b12, serum_folate
+         reticulocyte_count, pt, inr, aptt, bleeding_time, clotting_time, fibrinogen, d_dimer
+         coagulation_factors, platelet_function, teg, flow_cytometry
+
+  VitaminsMinerals
+         vitamin_d_25oh, vitamin_d3, vitamin_b12, folate, iron_studies, calcium, magnesium
+         phosphorus, zinc, copper
+
+  GastrointestinalMarkers
+         amylase, lipase, fecal_calprotectin, fobt, fecal_fat, gastric_emptying
+         breath_test_lactose, breath_test_fructose, urea_breath_test
+
+  SepsisInflammatoryMarkers
+         procalcitonin, serum_lactate, il6, crp, esr
+
+  MicrobiologyCulture
+         blood_culture, urine_culture, sputum_culture, stool_culture, wound_swab, pus_culture
+         csf_culture, gram_stain, afb_smear, tb_culture, cbnaat, lpa, antibiotic_sensitivity
+         fungal_culture, koh_mount
+
+  InfectiousDiseaseSerology
+         malaria_smear, malaria_antigen, widal, weil_felix, dengue_ns1, dengue_igm
+         dengue_igg, chikungunya_igm, zika_pcr, covid_rt_pcr, influenza_pcr, hbsag, hbeag
+         hcv_ab, hiv_ab, hiv_viral_load, cd4, cd8, vdrl, tpha
+
+  ThyroidFunctionTests
+         tsh, free_t4, free_t3, total_t4, total_t3, anti_tpo, anti_thyroglobulin
+         thyroglobulin
+
+  ReproductiveHormones
+         lh, fsh, estradiol_e2, progesterone, testosterone_total, testosterone_free, dheas
+         prolactin, amh, shbg, beta_hcg_quantitative
+
+  OtherHormonesGrowthFactors
+         pth, igf_1, growth_hormone, calcitonin, vitamin_d_1_25_dihydroxy
+
+  ImmunologicalAutoimmuneMarkers
+         ana, anti_ds_dna, anti_smith, rheumatoid_factor, anti_ccp, complement_c3
+         complement_c4, anca, p_anca, c_anca, anti_cardiolipin_antibody, lupus_anticoagulant
+         beta_2_glycoprotein_1_antibody, igg, iga, igm, ige_total
+         serum_protein_electrophoresis, immunofixation_electrophoresis
+
+  HistopathologyCytology
+         histopathological_examination_hpe, fine_needle_aspiration_cytology_fnac
+         core_needle_biopsy, excisional_biopsy, incisional_biopsy, tru_cut_biopsy
+         endoscopic_biopsy, image_guided_biopsy_report, frozen_section_analysis
+         immunohistochemistry_ihc, special_stains_pas_ziehl_neelsen
+         molecular_pathology_report, fish_analysis, pcr_tissue_analysis, tumor_grading_report
+         tumor_staging_tnm_report, mitotic_index_assessment, ki_67_proliferation_index
+         molecular_tumor_profiling, bone_marrow_aspiration_report, bone_marrow_biopsy_report
+
+  BloodGasAnalysis
+         abg, vbg, ph, pco2, po2, hco3, base_excess, lactate
+
+  LaboratoryPathologyReports
+         patient_id, doctor_id, hospital_id, report_date, core_laboratory_panels_routine
+         cardiac_biomarkers, tumor_markers, diabetes_markers, hematology_iron_studies
+         vitamins_minerals, gastrointestinal_markers, sepsis_inflammatory_markers
+         microbiology_culture, infectious_disease_serology, thyroid_function_tests
+         adrenal_function_tests, reproductive_hormones, other_hormones_growth_factors
+         immunological_autoimmune_markers, histopathology_cytology, blood_gas_analysis
+
+  Lab
+         id, doctor_id, patient_id, appointment_id, document_id, path, date, appointment_date
+         reported_by, structured_data, medical_insights, conditions, test_name, result_value
+         unit, reference_range, status
+
+  HistopathologyDocument
+         doctor_id, patient_id, appointment_id, path, date, appointment_date
+         radiologist_name, findings, abnormalities, recommendations, diagnosis
+         confidence_score, region, notes
+
+  CytologyDocument
+         doctor_id, patient_id, appointment_id, path, date, appointment_date
+         radiologist_name, findings, abnormalities, recommendations, diagnosis
+         confidence_score, region, notes
+
+  ProcedureOrInvestigation
+         procedure_or_therapy, cpt_code, rationale
+
+  LoincLabReport
+         test_name, loinc_code, reported_value, interpretation, clinical_significance
+
+  TestItem
+         test_name, details
+
+  InvestigationOrdersData
+         id, doctor_id, patient_id, appointment_id, lab_reports, imaging_reports, other
+
+  CreateInvestigationPayload
+         patient_id, doctor_id, clinical_indication, parameters, investigation_type
+         order_context
+
+  UnifiedInvestigationSuggestionPayload
+         patient_id, department, booking_id, doctor_id, hospital_id
+
+
+### DIAGNOSTIC TESTS / PROCEDURES  (23 models)
+------------------------------------------------------------
+  InterventionalFluoroscopy
+         barium_swallow, barium_meal, barium_follow_through, barium_enema, hsg, mcu, vcug
+         sinogram, fistulogram, sialography, dsa, coronary_angiography
+         peripheral_angiography, cerebral_angiography
+
+  BoneDensityDEXA
+         dexa_scan, dexa_spine, dexa_hip
+
+  PulmonaryFunctionTests
+         spirometry_complete, fvc, fev1, fev1_fvc_ratio, pefr, fef_25_75
+         bronchodilator_reversibility, lung_volumes, dlco, airway_resistance
+         six_minute_walk_test, cpet, methacholine_challenge
+         exercise_induced_bronchoconstriction
+
+  CardiacFunctionalTests
+         resting_ecg, stress_ecg_tmt, holter_monitoring, abpm, tilt_table_test
+         signal_averaged_ecg, heart_rate_variability, pacemaker_interrogation
+         icd_interrogation, ffr, ivus, coronary_oct, cardiac_autonomic_reflex_tests
+
+  NeurophysiologicalTests
+         eeg, video_eeg, long_term_video_eeg, sleep_eeg, qeeg, vep, baer_abr, ssep, emg, ncs
+         repetitive_nerve_stimulation, autonomic_function_tests, ionm
+
+  GastrointestinalEndoscopy
+         upper_gi_endoscopy_egd, colonoscopy, sigmoidoscopy, proctoscopy, enteroscopy
+         capsule_endoscopy, ercp, eus, esophageal_varices_grading
+         barretts_esophagus_assessment, colonic_polyp_detection
+
+  RespiratoryEndoscopy
+         bronchoscopy, flexible_bronchoscopy, rigid_bronchoscopy, bal, endobronchial_biopsy
+         ct_virtual_bronchoscopy
+
+  UrologicalEndoscopy
+         cystoscopy, ureteroscopy, bladder_lesion_evaluation
+
+  GynecologicalEndoscopy
+         hysteroscopy, colposcopy, diagnostic_laparoscopy
+
+  JointEndoscopy
+         arthroscopy_knee, arthroscopy_shoulder, arthroscopy_hip, arthroscopy_ankle
+
+  GIMotilityManometry
+         anorectal_manometry, esophageal_manometry, ph_monitoring_24h, impedance_ph_study
+         small_bowel_manometry
+
+  UrodynamicStudies
+         urodynamic_study_complete, cystometrogram, uroflowmetry, pressure_flow_study
+         post_void_residual_volume, ambulatory_urodynamic_study
+
+  SleepStudies
+         polysomnography_level_1, polysomnography_level_2, polysomnography_level_3
+         polysomnography_level_4, cpap_titration, bipap_titration, overnight_pulse_oximetry
+         mslt
+
+  AudiologyVestibularTests
+         pure_tone_audiometry, speech_audiometry, tympanometry, impedance_audiometry, abr
+         oae, vestibular_function_tests
+
+  OphthalmologicalTests
+         visual_acuity, visual_field_perimetry, oct_eye, fundus_photography
+         fluorescein_angiography, tonometry_iop, corneal_topography, a_scan_biometry
+         b_scan_ultrasound_eye
+
+  CognitivePsychologicalAssessment
+         mmse, moca, gcs, neuropsychological_testing
+
+  PhysicalMedicineRehabilitation
+         gait_analysis, range_of_motion_assessment, fim, diagnostic_nerve_block
+
+  RehabilitationRecords
+         physical_therapy_evaluation, physical_therapy_progress_note
+         occupational_therapy_evaluation, speech_therapy_evaluation
+         rehabilitation_plan_of_care
+
+  EndoscopyReportDocument
+         doctor_id, patient_id, appointment_id, path, date, appointment_date
+         radiologist_name, findings, abnormalities, recommendations, diagnosis
+         confidence_score, region, notes
+
+  BiopsyDocument
+         doctor_id, patient_id, appointment_id, path, date, appointment_date
+         radiologist_name, findings, abnormalities, recommendations, diagnosis
+         confidence_score, region, notes
+
+  OCRDocumentStatus
+         status, confidence, document_name
+
+  OCRDataExtraction
+         accuracy, summary, documents_processed, diagnostic_data
+
+  TranscriptionRequest
+         text, patient_id, doctor_id, admission_id, hospital_id
+
+
+### IMAGING / RADIOLOGY  (22 models)
+------------------------------------------------------------
+  PlainRadiographyXRay
+         chest_xray_pa, chest_xray_ap, chest_xray_lateral, abdomen_xray_erect
+         abdomen_xray_supine, xray_kub, xray_skull, xray_cervical_spine, xray_thoracic_spine
+         xray_lumbar_spine, xray_pelvis, xray_hip_joint, xray_knee_joint, xray_shoulder_joint
+         xray_elbow_joint, xray_wrist_joint, xray_hand, xray_foot, xray_ankle_joint
+         xray_femur, xray_tibia_fibula, xray_humerus, xray_radius_ulna, xray_pns_waters_view
+         xray_nasal_bone, xray_ivu
+
+  UltrasonographyUSG
+         usg_abdomen_whole, usg_abdomen_upper, usg_pelvis_male, usg_pelvis_female, usg_kub
+         usg_hepatobiliary, usg_pancreas, usg_spleen, usg_thyroid, usg_breast, usg_scrotum
+         usg_prostate_transabdominal, trus_prostate, usg_soft_tissue_neck, usg_guided_biopsy
+         fast_scan_trauma
+
+  ObstetricUltrasonography
+         early_pregnancy_scan, nt_scan, anomaly_scan_level_2, growth_scan_third_trimester
+         follicular_study, obstetric_doppler, biophysical_profile_bpp
+
+  DopplerStudies
+         doppler_lower_limb_arteries, doppler_lower_limb_veins, doppler_upper_limb_arteries
+         doppler_upper_limb_veins, renal_doppler, carotid_doppler, portal_vein_doppler
+         penile_doppler, transcranial_doppler
+
+  ComputedTomographyCT
+         ct_brain_plain, ct_brain_contrast, ct_chest_plain, ct_chest_contrast, ct_chest_hrct
+         ct_abdomen_plain, ct_abdomen_contrast, ct_abdomen_pelvis, ct_kub_non_contrast
+         ct_spine_cervical, ct_spine_thoracic, ct_spine_lumbar, ct_pns, ct_temporal_bone
+         ct_neck, ct_enterography, ct_colonography, ct_urography, ct_guided_biopsy
+
+  CTAngiography
+         ct_angio_brain, ct_coronary_angio, ct_pulmonary_angio, ct_aortography
+         ct_peripheral_angio, ct_renal_angio
+
+  MagneticResonanceImagingMRI
+         mri_brain_plain, mri_brain_contrast, mri_brain_mra, mri_brain_mrv
+         mri_epilepsy_protocol, mri_pituitary, mri_iac, mri_spine_cervical
+         mri_spine_thoracic, mri_spine_lumbar, mri_whole_spine, mri_knee, mri_shoulder
+         mri_hip, mri_ankle, mri_wrist, mri_elbow, mri_brachial_plexus, mri_abdomen
+         mri_pelvis, mri_liver_contrast, mrcp, mr_enterography, mr_urography
+
+  SpecializedMRI
+         mri_prostate_multiparametric, mri_breast_bilateral, mri_placenta_accreta, mri_fetal
+         cardiac_mri, mra_brain, mra_neck, mra_peripheral, mri_tumor_protocol
+
+  CardiacImaging
+         echocardiography_2d, doppler_echocardiography, stress_echocardiography, tee
+         fetal_echocardiography, cardiac_ct, cardiac_mri, coronary_angiography
+
+  NuclearMedicinePET
+         pet_ct_whole_body, pet_mri, myocardial_perfursion_spect, bone_scan_tc99m
+         thyroid_scan, renal_scan_dtpa, renal_scan_mag3, gallium_scan, renal_split_function
+
+  Mammography
+         mammography_bilateral, digital_mammography, tomosynthesis_3d
+
+  ImagingRadiologyReports
+         patient_id, doctor_id, hospital_id, report_date, plain_radiography_xray
+         ultrasonography_usg, obstetric_ultrasonography, doppler_studies
+         computed_tomography_ct, ct_angiography, magnetic_resonance_imaging_mri
+         specialized_mri, cardiac_imaging, nuclear_medicine_pet, interventional_fluoroscopy
+         mammography, bone_density_dexa
+
+  XRayDocument
+         doctor_id, patient_id, appointment_id, path, date, appointment_date
+         radiologist_name, findings, abnormalities, recommendations, diagnosis
+         confidence_score, region, notes
+
+  MRIDocument
+         doctor_id, patient_id, appointment_id, path, date, appointment_date
+         radiologist_name, findings, abnormalities, recommendations, diagnosis
+         confidence_score, region, notes
+
+  PETScanDocument
+         doctor_id, patient_id, appointment_id, path, date, appointment_date
+         radiologist_name, findings, abnormalities, recommendations, diagnosis
+         confidence_score, region, notes
+
+  EchoDocument
+         doctor_id, patient_id, appointment_id, path, date, appointment_date
+         radiologist_name, findings, abnormalities, recommendations, diagnosis
+         confidence_score, region, notes
+
+  AngiographyDocument
+         doctor_id, patient_id, appointment_id, path, date, appointment_date
+         radiologist_name, findings, abnormalities, recommendations, diagnosis
+         confidence_score, region, notes
+
+  ECGDocument
+         doctor_id, patient_id, appointment_id, path, date, appointment_date
+         radiologist_name, findings, abnormalities, recommendations, diagnosis
+         confidence_score, region, notes
+
+  MammographyDocument
+         doctor_id, patient_id, appointment_id, path, date, appointment_date
+         radiologist_name, findings, abnormalities, recommendations, diagnosis
+         confidence_score, region, notes
+
+  PETCTScanDocument
+         doctor_id, patient_id, appointment_id, path, date, appointment_date
+         radiologist_name, findings, abnormalities, recommendations, diagnosis
+         confidence_score, region, notes
+
+  FootXRayDocument
+         doctor_id, patient_id, appointment_id, path, date, appointment_date
+         radiologist_name, findings, abnormalities, recommendations, diagnosis
+         confidence_score, region, notes
+
+  Radiology
+         id, doctor_id, patient_id, appointment_id, ultrasound, xray, ct_scan, mri, pet_scan
+         echo, angiography, endoscopy, biopsy, ecg, histopathology, cytology, ctca
+         mammography, pet_ct, foot_xray
+
+
+### CLINICAL RECORDS (DEPT/SPECIALTY)  (21 models)
+------------------------------------------------------------
+  AdmissionRecords
+         admission_note, history_and_physical_examination, chief_complaint_documentation
+         presenting_illness_documentation, past_medical_history, family_history
+         social_history, medication_history, allergy_documentation
+
+  PreOperativeRecords
+         pre_operative_assessment, pre_anesthetic_evaluation, surgical_consent_form
+         pre_operative_checklist, surgical_safety_checklist_who
+         risk_assessment_and_stratification
+
+  OperativeRecords
+         operative_note, procedure_note, surgeons_report, anesthesia_record
+         intra_operative_nursing_note, implant_documentation, surgical_specimen_documentation
+
+  PostOperativeRecords
+         post_operative_note, pacu_note, recovery_room_record, post_operative_orders
+         post_operative_complications_note
+
+  InterventionalProcedures
+         cardiac_catheterization_report, coronary_angioplasty_report, stent_placement_record
+         pacemaker_implantation_record, icd_implantation_record, percutaneous_biopsy_report
+         therapeutic_endoscopy_report, dialysis_access_procedure, central_line_placement_note
+         lumbar_puncture_note, thoracentesis_note, paracentesis_note, joint_aspiration_note
+         bone_marrow_biopsy_procedure_note
+
+  SurgicalProcedureRecords
+         patient_id, doctor_id, hospital_id, report_date, pre_operative_records
+         operative_records, post_operative_records, interventional_procedures
+
+  Prescriptions
+         outpatient_prescription, discharge_prescription, controlled_substance_prescription
+         chronic_disease_prescription, electronic_prescription
+
+  CriticalCareRecords
+         icu_admission_note, daily_icu_progress_note, ventilator_settings_record
+         arterial_line_record, central_line_documentation
+         vasopressor_inotrope_titration_record, sedation_assessment
+         delirium_screening_cam_icu, code_blue_documentation, rapid_response_team_note
+
+  EmergencyCriticalCareRecords
+         patient_id, doctor_id, hospital_id, report_date, emergency_department_records
+         critical_care_records
+
+  ObstetricsRecords
+         antenatal_care_record, prenatal_visit_note, labor_and_delivery_note, partogram
+         non_stress_test_report, cardiotocography_report, biophysical_profile
+         postpartum_note, lactation_consultation
+
+  GynecologyRecords
+         gynecological_examination_note, pap_smear_report, cervical_biopsy_report
+         endometrial_biopsy_report, menstrual_history, contraception_counseling_note
+
+  PediatricsRecords
+         well_child_visit_note, growth_chart, developmental_milestone_assessment
+         immunization_record, pediatric_physical_examination, newborn_screening_results
+
+  DialysisNephrologyRecords
+         hemodialysis_session_record, peritoneal_dialysis_record, vascular_access_monitoring
+         dialysis_adequacy_kt_v_report, renal_biopsy_report
+
+  PsychiatryRecords
+         psychiatric_evaluation, mental_status_examination, psychiatric_progress_note
+         psychotherapy_note, suicide_risk_assessment, involuntary_commitment_documentation
+
+  SpecialtyDepartmentRecords
+         patient_id, doctor_id, hospital_id, report_date, obstetrics_records
+         gynecology_records, pediatrics_records, oncology_records
+         dialysis_nephrology_records, rehabilitation_records, psychiatry_records
+
+  ConsentForms
+         informed_consent_for_procedure, informed_consent_for_surgery, anesthesia_consent
+         blood_transfusion_consent, research_study_consent, photography_video_consent
+         release_of_medical_records_authorization
+
+  AdministrativeConsentForms
+         patient_id, doctor_id, hospital_id, report_date, consent_forms, administrative_forms
+         medical_legal_documents
+
+  VitalRecord
+         recorded_at, temperature, pulse, blood_pressure, respiratory_rate, spo2, weight
+         height, bmi, pain_score, ecog_status, karnofsky_score, chemo_cycle
+         weight_loss_percent, other_vitals, notes
+
+  ClinicalTriggerRequest
+         doctor_id, patient_id, feature_id, new_data
+
+  SurgicalHistory
+         previousSurgeries, surgeryType, surgeryDate
+
+  ClinicalFindings
+         vitals_analysis, complaint_analysis, history_analysis
+
+
+### PATIENT HISTORY / BACKGROUND  (18 models)
+------------------------------------------------------------
+  ConditionItem
+         id, text
+
+  ConditionItem
+         id, text
+
+  ChiefComplaints
+         firstSymptom, progression, associatedSymptoms, metastases
+
+  ComorbidityItem
+         condition, duration, medication
+
+  Comorbidities
+         hypertension, diabetes_mellitus, copd, cad_cabg, cva, tuberculosis, jaundice
+         epilepsy, hypercholesterolemia, others__specify_
+
+  HabitItem
+         uses, details
+
+  AlcoholHistory
+         abuses, details
+
+  Habits
+         tobacco, chewingTobacco, alcohol, foodHabits, sleep, appetite, bowel, bladder
+
+  PersonalHistory
+         drugAllergy, previousSurgery, habits, occupational
+
+  FamilyHistory
+         firstDegree, secondDegree, familial
+
+  FemaleHistory
+         maritalStatus, premenopausal, menarcheAge, postmenopausal, menopauseAge
+         firstChildAge, lastChildAge, contraceptiveUse, pelvicConditions, parity
+         breastfeeding, breastfeedingYears, stdHistory
+
+  MaleSTDHistory
+         hasStd, details
+
+  MaleHistory
+         maritalStatus, stdHistory
+
+  ConditionItem
+         id, text
+
+  InjurySymptoms
+         injuryType, externalBleeding, internalBleeding, fractureSuspected, burnInjury
+
+  CriticalSymptoms
+         chestPain, breathingDifficulty, lossOfConsciousness, seizures, vomiting
+         clinicalNotes
+
+  MedicalBackground
+         medicalConditions, chronicIllness, chronicIllnessDetails
+
+  Allergies
+         drugAllergies, drugAllergiesDetails, foodAllergies, foodAllergiesDetails
+         otherAllergies
+
+
+### RULES / ADMIN  (17 models)
+------------------------------------------------------------
+  MedicationAdministration
+         medication_administration_record, iv_medication_record
+         controlled_drug_administration_record, prn_medication_log
+         medication_reconciliation_form
+
+  AdministrativeForms
+         patient_registration_form, advance_directive, living_will
+         healthcare_power_of_attorney, dnr_order, polst, patient_rights_and_responsibilities
+         privacy_policy_acknowledgment_hipaa, financial_agreement
+
+  ScreeningInfo
+         id, patient_id, doctor_id, appointment_id, allergy, date, isOldCase, isNewCase
+         chiefComplaints, pastTreatment, comorbidities, personalHistory, familyHistory
+         femaleHistory, maleHistory
+
+  DoctorScreeningResult
+         appointment_id, doctor_id, HMS_Id, result, created_at
+
+  DoctorScreeningQuestions
+         doctor_id, questions
+
+  ProtocolVerification
+         guideline, compliance_score
+
+  ReportAdminRuleRequest
+         category, subcategory, values, rule_text
+
+  ReportHospitalRuleRequest
+         hospital_id, category, subcategory, values, rule_text
+
+  ContextAdminRuleRequest
+         speciality, medical_context_categories, medical_context_rule
+         current_context_categories, current_context_rule
+
+  ContextAdminRuleDoctorRequest
+         doctor_id, speciality, medical_context_categories, medical_context_rule
+         current_context_categories, current_context_rule, is_active
+
+  MedicalCurrentAdminRuleRequest
+         speciality, medical_context, current_context
+
+  SaveDoctorMedicalCurrentRuleRequest
+         doctor_id, speciality, medical_context, current_context, is_active
+
+  GuidelineItem
+         id, title, reference, explanation
+
+  SaveDoctorGuidelinesRequest
+         doctorId, specialization, guidelines
+
+  SingleDoctorAgentRuleRequest
+         doctor_id, agent, rule
+
+  SkillRawSave
+         doctor_id, patient_id, transcript
+
+  DoctorLogsPayload
+         doctor_id, data
+
+
+### PATIENT RECORDS  (16 models)
+------------------------------------------------------------
+  EmergencyDepartmentRecords
+         emergency_triage_note, ed_physician_note, trauma_documentation, fast_scan_report
+         emergency_procedure_note, ed_discharge_instructions, ama_form
+
+  DoctorTiming
+         doctor_id, timings
+
+  PatientDemoGraphic
+         sys_user_id, patient_id, hospital_id, name, date_of_birth, gender, email
+         phone_number, blood_group, marital_status, address, education, occupation
+         annual_income, family_history, hms_id
+
+  PatientInsurance
+         sys_user_id, patient_id, hospital_id, payer_scheme, country, primary_payer_name
+         primary_payer_code, primary_policy_number, primary_member_id, primary_card_bin
+         primary_coverage_plan, primary_network_tier, primary_valid_from, primary_valid_to
+         primary_relationship_to_insured, primary_sponsor_name
+         primary_emirates_id_or_national_id, primary_co_pay_percent
+         primary_deductible_amount, primary_max_annual_limit, primary_exclusions
+         primary_front_card_image_b64, primary_back_card_image_b64
+         primary_insurance_data_share, primary_claim_submission
+
+  UpdateDoctorInfoRequest
+         full_name, username, password, specialization, role, email, phone_number
+         sys_user_id
+
+  VitalsAssessment
+         heartRate, systolicBP, diastolicBP, spo2, respiratoryRate, temperature
+
+  Identification
+         idType, idNumber
+
+  PatientIntakeRequest
+         patient_id, vitals, neurological, injury, criticalSymptoms, medicalBackground
+         medications, allergies, surgicalHistory, additionalMedicalInfo, identification
+         insuranceDetails, coverageDetails, authorization, contactNotes, assessment_date
+         assessment_time
+
+  DriverInfo
+         id, name, phone, available
+
+  AmbulanceInfo
+         id, crew, distance, eta, status, facilities, priority
+
+  AmbulanceDispatchRequest
+         patient_id, patient_name, patient_phone, patient_location, patient_condition
+         ambulance, driver, dispatch_time, dispatch_date, status
+
+  RiskAnalysis
+         level, reasoning, deterioration_risk
+
+  ImmediateAction
+         priority, action, rationale, who
+
+  MonitoringPlan
+         vital_signs_frequency, specific_parameters_to_watch, escalation_triggers
+         reassessment_timing
+
+  TransferDecision
+         required, destination, reason
+
+  TriageSimpleRequest
+         patient_id, doctor_id, triage_timestamp, processing_time_ms, triage_level
+         triage_category, triage_standard_used, why_this_level, why_this_standard
+         clinical_findings, risk_analysis, immediate_actions, monitoring_plan
+         referrals_needed, transfer_decision, triage_summary, disposition_plan, raw_data
+         errors
+
+
+### CONTEXT / AGENT / LLM  (14 models)
+------------------------------------------------------------
+  MedicalContext
+         id, doctor_id, patient_id, date, known_condition
+
+  MedicalContextBulkRequest
+         doctor_id, patient_id, contexts
+
+  CurrentContextItem
+         date, current_condition
+
+  CurrentContextBulkRequest
+         doctor_id, patient_id, contexts
+
+  LongitudinalContext
+         id, date, patient_id, doctor_id, vitals, labs, radiology, medications, clinical_note
+         investigations, screening_info
+
+  ContextItem
+         date, conditions
+
+  MedicalContextRequest
+         doctor_id, patient_id, current_context
+
+  CaseContext
+
+  MedicalContextItem
+         medical_output_category, rule_text
+
+  CurrentContextItem
+         current_output_category, rule_text
+
+  MedicalContextItem
+         medical_output_category, rule_text
+
+  CurrentContextItem
+         current_output_category, rule_text
+
+  ChatRequest
+         question
+
+  SearchRAGRequest
+         doctor_id, question, top_k
+
+
+### INSURANCE / BILLING  (13 models)
+------------------------------------------------------------
+  BillingRecords
+         itemized_bill, invoice, payment_receipt, billing_statement
+         cashless_treatment_approval
+
+  InsuranceConsiderations
+         covered_services, non_covered_services, notes
+
+  InsuranceCriteria
+         overall_status, checks_passed
+
+  BillVerification
+         summary
+
+  MedicalNecessity
+         overall_score, confidence
+
+  FinalDecision
+         recommendation, confidence_score
+
+  DataCompleteness
+
+  AuditFlags
+
+  InsuranceDetails
+         insuranceAvailable, providerName, policyNumber, policyHolderName
+         relationshipToPatient
+
+  CoverageDetails
+         policyValid, emergencyCoverage, coverageLimit, cashlessFacility
+
+  Authorization
+         preAuthRequired, preAuthStatus
+
+  Referral
+         specialty, urgency, reason
+
+  ReferralLetterRequest
+         patient_id, patient_name, doctor_id, hospital_id, from_doctor_name
+         from_doctor_speciality, to_doctor_name, to_doctor_hospital, to_doctor_speciality
+         reason_for_referral, additional_notes, referred_by_nurse, nurse_signed
+         from_doctor_id, to_doctor_id, reason, date
+
+
+### TREATMENT / DIAGNOSIS  (11 models)
+------------------------------------------------------------
+  AdrenalFunctionTests
+         serum_cortisol_morning, serum_cortisol_evening, acth, aldosterone
+         plasma_renin_activity, urinary_cortisol_24_hour, metanephrines
+
+  FunctionalSpecialTests
+         patient_id, doctor_id, hospital_id, report_date, pulmonary_function_tests
+         cardiac_functional_tests, neurophysiological_tests, gastrointestinal_endoscopy
+         respiratory_endoscopy, urological_endoscopy, gynecological_endoscopy
+         joint_endoscopy, gi_motility_manometry, urodynamic_studies, sleep_studies
+         audiology_vestibular_tests, ophthalmological_tests
+         cognitive_psychological_assessment, physical_medicine_rehabilitation
+
+  PharmacyReviews
+         pharmacist_consultation_note, drug_interaction_check
+         therapeutic_drug_monitoring_report, adverse_drug_reaction_report
+         medication_therapy_management
+
+  PharmacyMedicationRecords
+         patient_id, doctor_id, hospital_id, report_date, prescriptions
+         medication_administration, pharmacy_reviews
+
+  Medication
+         id, doctor_id, patient_id, appointment_id, drug_name, brand_name, composition
+         review_after_days, dose, route, refills, frequency, duration
+
+  FunctionalOverview
+         current_status, monitoring_plan, adverse_effects, follow_up_plan
+
+  PastTreatment
+         surgery, radiotherapy, chemotherapy, recurrence, otherCancer, alternative
+
+  DiagnosisValidation
+         status, summary, documentation_validation_score
+
+  Medications
+         currentMeds, medDosage, medFrequency, lastDoseTaken
+
+  DrugSafetyRequest
+         prescribed_drugs, allergies, toxicities
+
+  DrugEntry
+         name, dose
+
+
+### ONCOLOGY  (7 models)
+------------------------------------------------------------
+  OncologyRecords
+         oncology_consultation_note, chemotherapy_protocol
+         chemotherapy_administration_record, radiation_oncology_plan
+         tumor_board_discussion_note, cancer_staging_documentation
+         minimal_residual_disease_report, molecular_tumor_profiling_report
+
+  CancerTypeEnum
+
+  OncologyVerificationRequest
+         case_number, patient_name, patient_id, hospital_id, cancer_type_display
+         cancer_stage_display, claim_amount, policy_number, hospital_name, vitals
+         ocr_extraction, diagnosis_validation, stage_mapping, protocol_verification
+         insurance_criteria, bill_verification, medical_necessity, final_decision
+         case_context, document_expectations, data_completeness, audit_flags
+         ai_confidence_score, processed_by, verification_status, verification_timestamp
+
+  RadiotherapyWorkflowStructurePayload
+         text
+
+  RadiotherapyEbrtBrachyStructurePayload
+         text, module_type
+
+  ChemoDoctorNoteStructurePayload
+         text
+
+  ChemoDrugAdminRiskPayload
+         drugs, clinical_summary
+
+
+### COMMUNICATION / MESSAGING  (7 models)
+------------------------------------------------------------
+  Conversation
+         patient_id, doctor_id, conversation
+
+  Message
+         message, date, files
+
+  WhatsAppMessage
+         number, messages
+
+  TimingSlot
+         day, from_time, to_time, interval
+
+  ConversationState
+
+  ConversationSave
+         patient_id, doctor_id, conversation
+
+  ConversationStructureRequest
+         conversation_text
+
+
+### SYSTEM / STATUS  (6 models)
+------------------------------------------------------------
+  tempdata
+         patient_id, doctor_id, documentation, vitals, medication, investigation
+
+  Result
+         question, answer
+
+  StatusEnum
+
+  StageMapping
+         summary, accuracy_score
+
+  TempDataUpdate
+         patient_id, doctor_id, vitals, documentation, medication_list, treatment_plan
+         investigation, clinical_note, procedure_note, conversation, dictation
+         chemotherapy_workflow, radiotherapy_workflow, surgery_workflow, tumor_board_plan
+
+  NeurologicalStatus
+         consciousnessLevel, gcsEye, gcsVerbal, gcsMotor, pupilReaction
+
+
+### OTHER  (2 models)
+------------------------------------------------------------
+  ClinicalSummaries
+         episode_of_care_summary, continuity_of_care_document, treatment_summary_report
+         hospital_course_summary
+
+  AdditionalMedicalInfo
+         bloodGroup, pregnancyStatus, familyHistory
+
+
+### NURSE / NURSING  (2 models)
+------------------------------------------------------------
+  UpdateNurseInfoRequest
+         full_name, username, password, doctor_id, role, email, phone_number, sys_user_id
+
+  NurseConversationRequestmobER
+         conversation_text

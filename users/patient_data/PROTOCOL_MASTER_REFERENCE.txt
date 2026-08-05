@@ -1,0 +1,315 @@
+PROTOCOL MASTER REFERENCE
+============================================================
+protocol_master.py  |  router prefix: /protocol_master  |  598 lines
+2 MongoDB collections + 1 read-only collection used  |  2 Pydantic models
+8 active endpoints (+1 commented-out/dead endpoint)  |  6 helper functions
+============================================================
+
+
+############################################################
+# 1. DATABASES & COLLECTIONS
+############################################################
+
+### MONGODB COLLECTIONS
+------------------------------------------------------------
+Format:  variable name in code  ->  actual MongoDB collection
+
+  protocol_master_collection          -> protocol_master
+  summary_collection                  -> patient_summary
+  chemotherapy_records_collection     -> chemotherapy_records
+
+Note: summary_collection (patient_summary) is only ever READ from in this
+file (find_one) - it is populated elsewhere (patientcontext.py or similar)
+and used here purely as context for diagnosis-matching and LLM adaptation.
+protocol_master and chemotherapy_records do not appear in the WhatsApp
+reference docs - they look specific to this protocol module.
+
+### DATABASE CLIENT
+------------------------------------------------------------
+  Async : AsyncIOMotorClient(MONGO_URI) -> database = mongodb_client[MONGO_DB]
+          used by all 3 collections above (no sync MongoClient in this file)
+  MONGO_DB = "doctorassistai"  (same database name as patientcontext.py /
+             watsapp.py - all three files share one Mongo database)
+
+  Note: client/collection initialization is wrapped in a bare
+  try/except that only logs the error (logger.error) and does not
+  re-raise or exit - if Mongo init fails, protocol_master_collection /
+  summary_collection / chemotherapy_records_collection would be undefined
+  and every route touching them would raise a NameError at call time
+  rather than at startup. Flagging as a latent risk, not necessarily a bug.
+
+### NEW COLLECTIONS NOT SEEN IN patientcontext.py / watsapp.py
+------------------------------------------------------------
+  protocol_master_collection          -> protocol_master
+  chemotherapy_records_collection     -> chemotherapy_records
+
+### OVERLAPPING COLLECTION (vs. patientcontext.py)
+------------------------------------------------------------
+  summary_collection -> patient_summary
+  (read-only here; if patientcontext.py also opens "patient_summary",
+  confirm the field shape - specifically doc["data"]["summary"] vs a flat
+  doc - matches what's expected before changing either file.)
+
+### NEO4J
+------------------------------------------------------------
+  Not used in this file.
+
+### CELERY
+------------------------------------------------------------
+  Not used in this file.
+
+### OTHER EXTERNAL SERVICES
+------------------------------------------------------------
+  Groq LLM API : groq_client = Groq(api_key=GROQ_API_KEY)
+                 used directly in 1 place inside a helper function
+                 (_adapt_protocol_with_llm - adapts a fixed protocol to a
+                 patient's clinical context, model "llama-3.3-70b-versatile",
+                 forced JSON response_format, temperature=0)
+  Twilio       : Not used in this file.
+
+### FILE STORAGE
+------------------------------------------------------------
+  Not used in this file (no upload dir / file endpoints).
+
+### IN-MEMORY STATE
+------------------------------------------------------------
+  None (no in-memory caches/session dicts in this file).
+
+### ENVIRONMENT VARIABLES USED
+------------------------------------------------------------
+  MONGO_URI, GROQ_API_KEY, SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_DAYS
+
+  Note: SECRET_KEY, ALGORITHM, and ACCESS_TOKEN_EXPIRE_DAYS are read via
+  os.getenv() at module load (lines 31-33) but are never referenced again
+  anywhere else in this file - dead/unused variables, likely copy-pasted
+  boilerplate from another router module (e.g. auth-related). Flagging so
+  no intent is lost, but they appear safe to remove from this file.
+
+
+############################################################
+# 2. PYDANTIC MODELS
+############################################################
+
+### DRUG SCHEDULE  (1 model)
+------------------------------------------------------------
+  DrugSchedule
+         name, dose, unit, route, day, adminType (optional), duration (optional)
+
+### PROTOCOL DEFINITION  (1 model)
+------------------------------------------------------------
+  ProtocolMaster
+         protocol_id, protocol_name, display_name
+         aliases (list, default []), disease_sites
+         histology (str or list, optional)
+         intent (list)
+         regimen_type
+         standard_cycles (optional), cycle_interval_days
+         drug_schedule (list of DrugSchedule)
+         premedications (list, default []), hydration (list, default []),
+         supportive_care (list, default [])
+         dose_adjustment_rules (dict, default {})
+         laboratory_requirements (list, default []), references (list, default [])
+         version (default "1.0"), status (default "active")
+
+  Used as both the request body for create/update endpoints and the
+  stored document shape in protocol_master_collection.
+
+### NAMES SHARED WITH OTHER FILES
+------------------------------------------------------------
+  None of the two models here (DrugSchedule, ProtocolMaster) reuse a class
+  name seen in the WhatsApp reference docs (File, Message, Result, etc.) -
+  no naming collisions to check before merging/importing.
+
+### PLAIN DICT PAYLOADS (not BaseModel)
+------------------------------------------------------------
+  POST /protocol-master/select accepts a raw `payload: dict` instead of a
+  typed model, and manually pulls out doctorId, patientId, protocolId.
+  No request-body validation beyond the manual `if not patient_id or not
+  protocol_id` check - inconsistent with the rest of the file, which uses
+  typed Pydantic bodies. Worth normalizing into a dedicated model
+  (e.g. SelectProtocolRequest) if this file is revisited.
+
+
+############################################################
+# 3. API ENDPOINTS
+############################################################
+
+Router prefix is "/protocol_master" (underscore), but every individual
+route path below uses a dash ("/protocol-master/..."). Full effective
+paths therefore look like:
+  /protocol_master/protocol-master/bulk
+  /protocol_master/protocol-master/list
+  /protocol_master/protocol-master/select
+  ...etc.
+This underscore-prefix + dash-route mismatch is almost certainly
+unintentional and worth flagging/confirming against how the frontend
+actually calls it.
+
+### PROTOCOL CRUD  (5 endpoints)
+------------------------------------------------------------
+  POST   /protocol-master/bulk
+         function : add_protocols
+         does     : Bulk upsert a list of ProtocolMaster docs. Upserts by
+                    protocol_id; returns counts of newly added vs. updated
+         touches  : protocol_master_collection
+
+  POST   /protocol-master
+         function : add_protocol
+         does     : Insert a single new protocol. Returns 409 Conflict if
+                    a protocol with the same protocol_id already exists
+         touches  : protocol_master_collection
+
+  PUT    /protocol-master/{protocol_id}
+         function : update_protocol
+         does     : Update an existing protocol (used by the "Edit
+                    Protocol" form). Returns 404 if not found. Forces
+                    protocol_id in the saved payload to match the URL
+                    param even if the request body disagrees (guards
+                    against a mismatched/edited body from a disabled
+                    client-side field)
+         touches  : protocol_master_collection
+
+  DELETE /protocol-master/{protocol_id}
+         function : delete_protocol
+         does     : Delete a single protocol by protocol_id. Returns 404
+                    if nothing was deleted
+         touches  : protocol_master_collection
+
+  DELETE /protocol-master
+         function : delete_all_protocols
+         does     : Delete ALL protocols with no confirmation step.
+                    Returns count deleted
+         touches  : protocol_master_collection
+         note     : no auth/role check visible in this file guarding this
+                    destructive endpoint - worth double-checking upstream
+                    middleware actually restricts it
+
+### PROTOCOL BROWSING / MATCHING  (3 endpoints)
+------------------------------------------------------------
+  GET    /protocol-master/list
+         function : list_protocols
+         does     : Lists protocols for the browser UI. Optional `search`
+                    does a case-insensitive regex match across
+                    protocol_name, aliases, disease_sites. Optional
+                    `patient_id` triggers diagnosis-based matching
+                    (via _get_patient_match_context +
+                    _match_protocols_by_diagnosis) to flag up to 5
+                    protocols as "recommended": true and sort them first.
+                    Strips full drug_schedule from the list response
+                    (only drug_names) to keep payload light
+         touches  : protocol_master_collection, summary_collection (read
+                    only, only when patient_id is supplied)
+
+  GET    /protocol-master/{protocol_id}
+         function : get_protocol
+         does     : Fetch a single full protocol document by protocol_id.
+                    Returns 404 if not found
+         touches  : protocol_master_collection
+
+  POST   /protocol-master/select
+         function : select_protocol
+         does     : Core "pick a protocol for a patient" flow. Requires
+                    patientId and protocolId (400 if missing). Looks up
+                    the raw protocol, builds clinical context from the
+                    patient's summary doc, calls the Groq LLM to adapt the
+                    fixed protocol to that patient (dosing notes, start
+                    date, safety flags, etc. - NOT drug list or doses,
+                    which are locked), then upserts the merged regimen
+                    into chemotherapy_records_collection keyed on
+                    (patient_id, doctor_id). Returns the raw protocol, the
+                    clinical context sent to the LLM, the raw LLM JSON,
+                    and the final merged/adapted regimen in one response
+         touches  : protocol_master_collection, summary_collection (read
+                    only), chemotherapy_records_collection
+
+### DEAD / COMMENTED-OUT CODE  (1 inactive endpoint)
+------------------------------------------------------------
+  # POST /protocol-master/seed  (commented out, lines ~44-83)
+         function : seed_protocols / seed (both commented out)
+         does     : Would have bulk-loaded a protocol_master_seed.json
+                    file from disk and upserted each entry, then created
+                    3 indexes (disease_sites, protocol_name, compound
+                    disease_sites+intent). Also has a commented
+                    `if __name__ == "__main__": asyncio.run(seed())`
+                    block for running it standalone
+         touches  : (inactive - would touch protocol_master_collection)
+         note     : entirely commented out ("###22-07-2026- Aleena"), not
+                    a live route. Flagging in case the seeding logic or
+                    the index-creation calls are still wanted (indexes on
+                    disease_sites/protocol_name/intent are NOT created
+                    anywhere else active in this file)
+
+
+############################################################
+# 4. SUPPORTING HELPER FUNCTIONS (not routes, 6 functions)
+############################################################
+------------------------------------------------------------
+  _strip_markdown(text)
+         Strips asterisk runs (bold/italic markdown) from a string and
+         trims whitespace. Used to clean diagnosis text pulled from
+         patient_summary before using it for matching/display.
+
+  _get_patient_diagnosis(patient_id)
+         Reads patient_summary, tries summary.diagnosis_header first, then
+         falls back to the first entry in summary.confirmed_diagnoses
+         (handles both plain-string and dict-shaped entries). Returns ""
+         and logs a warning if nothing usable is found. NOTE: this
+         function is defined but not called anywhere else in this file -
+         appears to be superseded by _get_patient_match_context (dead
+         code, or reserved for future use).
+
+  _get_patient_match_context(patient_id)
+         Broader version of the above - builds a wider text pool
+         (diagnosis_header + all confirmed_diagnoses + first 2000 chars of
+         full_text/paragraphs) specifically because histology-only
+         diagnosis headers often omit the anatomical site. Feeds
+         _match_protocols_by_diagnosis.
+
+  _match_protocols_by_diagnosis(match_text, limit=5)
+         Tokenizes match_text into keywords (>4 chars, minus a hardcoded
+         medical stopword list), builds a regex OR-pattern, pulls up to 50
+         candidate protocols matching on disease_sites/aliases/
+         histology/protocol_name/display_name, then ranks candidates by a
+         simple keyword-hit-count score across those same fields and
+         returns the top `limit`. Powers the "recommended" flag in
+         GET /protocol-master/list.
+
+  _build_clinical_context(summary_doc)
+         Extracts a structured context dict from a raw patient_summary
+         doc for LLM adaptation: diagnosis, first 6000 chars of full
+         clinical narrative, plus ECOG score, serum creatinine, hemoglobin,
+         and an allergy flag - each pulled by scanning the summary's
+         timeline entities for name-fragment matches (e.g. "ecog",
+         "creatinine", "hemoglobin"/"haemoglobin", "allergy"/"allergic")
+         and regex-extracting the first number from the matched evidence
+         text.
+
+  _adapt_protocol_with_llm(proto, context)
+         Sends the fixed protocol (as ground truth, explicitly instructed
+         NOT to be altered) plus the patient's clinical context to Groq
+         (model "llama-3.3-70b-versatile", JSON-forced response,
+         temperature=0). Expects back treatmentIntent, startDate,
+         doseAdjustments, concurrentTherapy, reasonForChange, safetyFlags.
+         Raises HTTP 500 on any Groq API failure. Then merges the LLM
+         output with the untouched protocol fields (drug schedule, cycle
+         count/interval, premedications, hydration, supportive care, lab
+         requirements, references, etc.) into a single `merged` dict
+         shaped for the frontend's regimen form, and returns both the raw
+         LLM JSON and the merged object.
+
+
+############################################################
+# 5. NOTES / THINGS WORTH DOUBLE-CHECKING
+############################################################
+------------------------------------------------------------
+  - Router prefix/route path mismatch (underscore vs. dash) - see Section 3.
+  - Mongo init failure is only logged, not fatal - see Section 1.
+  - SECRET_KEY / ALGORITHM / ACCESS_TOKEN_EXPIRE_DAYS are read but unused
+    in this file - see Section 1.
+  - _get_patient_diagnosis appears to be dead code, superseded by
+    _get_patient_match_context - see Section 4.
+  - DELETE /protocol-master (delete ALL protocols) has no confirmation
+    step or visible auth guard in this file - see Section 3.
+  - Commented-out /protocol-master/seed endpoint still contains the only
+    index-creation logic (disease_sites, protocol_name, disease_sites+
+    intent) in the file - those indexes are not created anywhere active.

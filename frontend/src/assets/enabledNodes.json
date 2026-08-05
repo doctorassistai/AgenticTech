@@ -1,0 +1,94 @@
+{
+  "doctor_id": "WOnZfHqOmN",
+  "dashboard_type": "consultation",
+  "enabled_nodes": [
+   
+    {
+      "node_id": "lab_results",
+      "node_name": "Lab Results",
+      "enabled": false,
+      "components": [
+        {
+          "type": "table",
+          "title": "Recent Lab Results",
+          "data": [
+           
+          ]
+        }
+        
+      ]
+    },
+    {
+      "node_id": "vitals monitoring",
+      "node_name": "vital treand",
+      "enabled": false,
+      "components": [
+        {
+          "type": "chart",
+          "title": "Blood Pressure Trend",
+          "data": [
+           
+          ]
+        }
+        
+      ]
+    },
+    {
+      "node_id": "vitals monitoring",
+      "node_name": "vital tren d",
+      "enabled": true,
+      "components": [
+        {
+          "type": "chart",
+          "title": "Blood Pressure Trend",
+          "data": [
+            
+          ]
+        }
+        
+      ]
+    },
+    {
+      "node_id": "medication",
+      "node_name": "Medications",
+      "enabled": true,
+      "components": [
+        {
+          "type": "table",
+          "title": "Current Medications",
+          "data": [
+            
+          ]
+        }
+      ]
+    },
+    {
+      "node_id": "consultation_notes",
+      "node_name": "Consultation Notes",
+      "enabled": true,
+      "components": [
+        {
+          "type": "text",
+          "title": "Recent Notes",
+          "data": [
+           
+          ]
+        }
+      ]
+    },
+      {
+      "node_id": "consultation_notes",
+      "node_name": "Consultation Notes",
+      "enabled": true,
+      "components": [
+        {
+          "type": "text",
+          "title": "Recent Notes",
+          "data": [
+           
+          ]
+        }
+      ]
+    }
+  ]
+}

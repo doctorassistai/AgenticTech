@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Optimus Medical Services - Investigation Report</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 0;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: Arial, sans-serif;
+      font-size: 10px;
+      color: #000;
+      background: #fff;
+    }
+
+    .page {
+      width: 210mm;
+      min-height: 297mm;
+      margin: 0 auto;
+      background: #fff;
+      border: 1px solid #000;
+      position: relative;
+      padding: 0 0 14mm 0;
+    }
+
+    /* ── GREEN STRIPE ── */
+    .green-stripe {
+      height: 8px;
+      background: #5a9e2f;
+      width: 100%;
+    }
+
+    /* ── HEADER ── */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 14mm 8px 14mm;
+      border-bottom: 1px solid #ddd;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .header-optimus {
+      font-size: 12px;
+      font-weight: bold;
+      color: #3a7a28;
+    }
+
+    .header-letchek-logo {
+      width: 70px;
+      height: 55px;
+      object-fit: contain;
+    }
+
+    .header-address {
+      font-size: 7.5px;
+      color: #333;
+      line-height: 1.6;
+      border-left: 1px solid #ccc;
+      padding-left: 10px;
+    }
+
+    .header-address a {
+      color: #1a6e3c;
+      text-decoration: none;
+    }
+
+    /* ── CONTENT AREA ── */
+    .content {
+      padding: 10px 14mm 0 14mm;
+    }
+
+    /* ── REPORT TITLE ── */
+    .report-title {
+      font-size: 11px;
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+
+    /* ── ALL TABLES ── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      margin-bottom: 8px;
+    }
+
+    td {
+      border: 1px solid #000;
+      padding: 3px 6px;
+      vertical-align: top;
+      font-size: 10px;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+    }
+
+    /* Section header row — bold centered, no split */
+    .sec-hdr td {
+      font-weight: bold;
+      text-align: center;
+      font-size: 10px;
+      padding: 4px 6px;
+      border: 1px solid #000;
+    }
+
+    .lbl { width: 50%; text-align: center; }
+    .val { width: 50%; }
+    .val-min { min-height: 16px; }
+
+    /* tall empty rows */
+    .tall td { min-height: 30px; }
+
+    /* ── SECTION HEADINGS (outside table) ── */
+    .section-heading {
+      font-size: 11px;
+      font-weight: bold;
+      text-align: center;
+      margin: 10px 0 6px 0;
+    }
+
+    .sub-heading {
+      font-size: 10px;
+      font-weight: bold;
+      text-align: center;
+      margin: 8px 0 4px 0;
+    }
+
+    .sub-text {
+      font-size: 10px;
+      margin: 0 0 6px 0;
+      line-height: 1.6;
+    }
+
+    /* ── IMPORTANT POINTS LIST ── */
+    .important-list {
+      margin: 4px 0 8px 20px;
+      font-size: 10px;
+      line-height: 1.8;
+    }
+
+    .important-list li {
+      font-weight: bold;
+    }
+
+    /* ── CONCLUSION / COMMENTS ── */
+    .conclusion-wrapper {
+      font-family: Arial, sans-serif;
+      font-size: 10px;
+      color: #000;
+      padding: 0;
+    }
+
+    .body-para {
+      margin: 3px 0 5px 0;
+      line-height: 1.6;
+      font-size: 10px;
+    }
+
+    .disc-item {
+      padding: 4px 8px;
+      margin: 3px 0;
+      border-radius: 3px;
+      page-break-inside: avoid;
+      border-left: 3px solid #888;
+    }
+
+    .disc-tag {
+      font-weight: bold;
+      font-size: 8px;
+      text-transform: uppercase;
+      display: inline-block;
+      margin-right: 6px;
+    }
+
+    .disc-content {
+      font-size: 10px;
+      line-height: 1.5;
+      color: #222;
+      display: inline;
+    }
+
+    .recommendation-block {
+      background: #e85d24;
+      border-radius: 3px;
+      padding: 7px 10px;
+      margin-top: 8px;
+    }
+
+    .rec-label {
+      color: #fff;
+      font-weight: bold;
+      font-size: 10px;
+      margin-bottom: 3px;
+    }
+
+    .rec-body {
+      color: #fff;
+      font-size: 10px;
+      line-height: 1.5;
+    }
+
+    /* ── DIVIDER LINE ── */
+    .divider {
+      border: none;
+      border-top: 1px solid #aaa;
+      margin: 10px 0;
+    }
+
+    /* ── STAMP ── */
+    .stamp-block {
+      margin-top: 16px;
+    }
+
+    .sig-stamp {
+      width: 90px;
+      height: 75px;
+      object-fit: contain;
+    }
+
+    @media print {
+      body  { margin: 0; background: #fff; }
+      .page { width: 100%; border: 1px solid #000; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- GREEN STRIPE -->
+  <div class="green-stripe"></div>
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-left">
+      <span class="header-optimus">Optimus Medical Services Pvt.Ltd.</span>
+      <img src="{{ header_image }}" class="header-letchek-logo" alt="Letchek Logo">
+    </div>
+    <div class="header-address">
+      #99, Second Floor, DD Milestone,<br>
+      Kadavanthra, Kochi, Kerala - 682 020<br>
+      Tel.: 755 990 4333, 0484-4069017<br>
+      E-mail: mail@letchek.in<br>
+      <a href="http://www.letchek.in">www.letchek.in</a>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- REPORT TITLE -->
+    <div class="report-title">INVESTIGATION REPORT</div>
+
+    <!-- ═══════════════════════════════════════ -->
+    <!-- TABLE 1: SUMMARY / ASSIGNMENT DETAILS   -->
+    <!-- ═══════════════════════════════════════ -->
+    {% set og = case.get('optimusDetails', {}) or {} %}
+    <table>
+      <tr class="sec-hdr"><td colspan="2">INSURED &amp; RELATED DETAILS</td></tr>
+      <tr>
+        <td class="lbl">Name of the Insured</td>
+        <td class="val val-min">{{ case.claimantName or '' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Type of claim</td>
+        <td class="val val-min">{{ case.claimMode or '' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Hospital Name</td>
+        <td class="val val-min">{{ hospital.name or '' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Claim Number</td>
+        <td class="val val-min">{{ case.insurerRef or case.caseId or '' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Hospital Name</td>
+        <td class="val val-min">{{ hospital.name or '' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Claimed Amount</td>
+        <td class="val val-min">{{ case.claimedAmount or billing.get('totalAmount','') if billing.get else '' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Location</td>
+        <td class="val val-min">{{ hospital.city or '' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Date of Investigation Assigned</td>
+        <td class="val val-min">{{ og.get('dateAssigned','') or '' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Date of Report sent</td>
+        <td class="val val-min">{{ case.reportDate or '' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Triggers</td>
+        <td class="val" style="min-height:36px;">
+          {{ og.get('triggers','to verify all details / aspects of these claims') or 'to verify all details / aspects of these claims' }}
+        </td>
+      </tr>
+    </table>
+
+    <!-- ═══════════════════════════════════════ -->
+    <!-- TABLE 2: INSURED & RELATED DETAILS       -->
+    <!-- ═══════════════════════════════════════ -->
+    <table>
+      <tr class="sec-hdr"><td colspan="2">INSURED &amp; RELATED DETAILS</td></tr>
+      <tr>
+        <td class="lbl">Name of the Insured</td>
+        <td class="val val-min">{{ case.claimantName or 'Not provided' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Name of the Patient (Insured)</td>
+        <td class="val val-min">{{ og.get('patientName','') or case.claimantName or '' }}</td>
+      </tr>
+      <tr class="tall">
+        <td class="lbl">Relation With Patient</td>
+        <td class="val">{{ og.get('relationWithPatient','') or '' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">What is the occupation / Corporate of the insured?</td>
+        <td class="val val-min">{{ og.get('occupation','Not provided') or 'Not provided' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">In Doubtful cases – How far is the insured's Residence from the Hospital?</td>
+        <td class="val val-min">{{ og.get('residenceFromHospital','Not provided') or 'Not provided' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">In Doubtful case – Reason for selecting this particular Hospital</td>
+        <td class="val val-min">{{ og.get('reasonForHospitalSelection','Not provided') or 'Not provided' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Apart from this existing policy, How many other policies does the insured have with US &amp; with other insurer</td>
+        <td class="val val-min">{{ og.get('otherPolicies','') or '' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Details of earlier claims availed from us and Importantly from other insurers?</td>
+        <td class="val val-min">{{ og.get('earlierClaims','Not provided') or 'Not provided' }}</td>
+      </tr>
+    </table>
+
+    <!-- ═══════════════════════════════════════ -->
+    <!-- TABLE 3: HOSPITAL & DOCTOR RELATED      -->
+    <!-- ═══════════════════════════════════════ -->
+    <table>
+      <tr class="sec-hdr"><td colspan="2">HOSPITAL &amp; DOCTOR RELATED</td></tr>
+      <tr>
+        <td class="lbl">How many in-patient beds does the Hospital have?</td>
+        <td class="val val-min">{{ hospital.get('bedCount','') if hospital.get else '' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Hospital Registration Number</td>
+        <td class="val val-min">{{ hospital.get('registrationNumber','') if hospital.get else '' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Is the Hospital having operation theater, attached</td>
+        <td class="val val-min">{{ og.get('hasOT','') or '' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Pathology, attached medical store and other Basic facilities?</td>
+        <td class="val val-min">{{ og.get('basicFacilities','') or '' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Qualification of the Doctor</td>
+        <td class="val val-min">{{ og.get('doctorQualification','') or hospital.get('doctorQualification','') if hospital.get else '' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Name of Treating Doctor</td>
+        <td class="val val-min">{{ hospital.doctorName or '' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">The different room rent tariff option available</td>
+        <td class="val val-min">{{ og.get('roomRentTariff','') or '' }}</td>
+      </tr>
+    </table>
+
+    <!-- ═══════════════════════════════════════ -->
+    <!-- TABLE 4: FOR DISEASE RELATED CLAIMS     -->
+    <!-- ═══════════════════════════════════════ -->
+    <table>
+      <tr class="sec-hdr"><td colspan="2">FOR DISEASE RELATED CLAIMS</td></tr>
+      <tr>
+        <td class="lbl">What were the main complaints for which the Patient was admitted?</td>
+        <td class="val val-min">{{ critical.diagnosis or og.get('mainComplaints','') or '' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Date of Hospitalization</td>
+        <td class="val val-min">{{ hospital.admissionDate or '' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Date of Discharge</td>
+        <td class="val val-min">{{ hospital.dischargeDate or '' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Diagnosis</td>
+        <td class="val val-min">{{ critical.diagnosis or '' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">In case of any surgery done, scar mark verification</td>
+        <td class="val val-min">{{ og.get('scarMarkVerification','') or '' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Was the Line of Treatment (Medical / Surgical) in order and correlating with the diagnosis?</td>
+        <td class="val val-min">{{ og.get('lineOfTreatmentInOrder','') or '' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Name of the Surgeon &amp; Anesthetist</td>
+        <td class="val val-min">{{ og.get('surgeonAnesthetist','') or medical_staff.get('surgeon','') if medical_staff.get else '' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Is the stay justified or prolonged? If prolonged the reason for the same</td>
+        <td class="val val-min">{{ og.get('stayJustified','') or '' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Any previous History of similar complaints?</td>
+        <td class="val val-min">{{ og.get('previousHistory','') or additional.get('pastHistory','') if additional.get else '' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Are the Diagnostic tests done in line with Diagnosis?</td>
+        <td class="val val-min">{{ og.get('diagnosticTestsInLine','') or '' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">In Doubtful cases – Are there any other good hospital in between the insured's residence and present hospital where he was admitted?</td>
+        <td class="val val-min">{{ og.get('otherHospitalsInBetween','Not provided') or 'Not provided' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Details of Family physician/First Consulting Doctor.</td>
+        <td class="val val-min">{{ case.familyDoctor or og.get('familyPhysician','Not provided') or 'Not provided' }}</td>
+      </tr>
+    </table>
+
+    <!-- ═══════════════════════════════════════ -->
+    <!-- TABLE 5: ACCIDENT RELATED CLAIMS        -->
+    <!-- ═══════════════════════════════════════ -->
+    <table>
+      <tr class="sec-hdr"><td colspan="2">ACCIDENT RELATED CLAIMS</td></tr>
+      <tr>
+        <td class="lbl">Exact Date and time of Accident/Injury</td>
+        <td class="val val-min">{{ accident.get('dateTime','NIL') if accident.get else og.get('accidentDateTime','NIL') or 'NIL' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Detailed narration of how the incident/injury Happened</td>
+        <td class="val val-min">{{ accident.get('narration','NIL') if accident.get else og.get('accidentNarration','NIL') or 'NIL' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Is the insured holding any PA Policy with us or with any other insurer?</td>
+        <td class="val val-min">{{ og.get('paPolicyDetails','NIL') or 'NIL' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Scar Mark Verification</td>
+        <td class="val val-min">{{ og.get('accidentScarMark','NIL') or 'NIL' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Any Alcoholism factor noted</td>
+        <td class="val val-min">{{ og.get('alcoholismFactor','NIL') or 'NIL' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Accident/ Assault/ Suicidal Attempt.</td>
+        <td class="val val-min">{{ og.get('accidentType','NIL') or 'NIL' }}</td>
+      </tr>
+    </table>
+
+    <!-- ═══════════════════════════════════════ -->
+    <!-- TABLE 6: VERIFICATION FROM HOSPITAL     -->
+    <!-- ═══════════════════════════════════════ -->
+    <table>
+      <tr class="sec-hdr"><td colspan="2">VERIFICATION FROM HOSPITAL</td></tr>
+      <tr>
+        <td class="lbl">Indoor Register verified for insured's Entry</td>
+        <td class="val val-min">{{ og.get('indoorRegisterVerified','') or '' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Any overwritten in dates</td>
+        <td class="val val-min">{{ og.get('overwrittenInDates','') or '' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">IPD papers seems to written in single stretch</td>
+        <td class="val val-min">{{ og.get('ipdSingleStretch','') or '' }}</td>
+      </tr>
+    </table>
+
+    <!-- ═══════════════════════════════════════ -->
+    <!-- TABLE 7: VERIFICATION FROM MEDICAL STORE-->
+    <!-- ═══════════════════════════════════════ -->
+    <table>
+      <tr class="sec-hdr"><td colspan="2">VERIFICATION FROM MEDICAL STORE</td></tr>
+      <tr>
+        <td class="lbl">All Medicine mentioned in IPD papers matches With Medical Bills.</td>
+        <td class="val val-min">{{ og.get('medicineMatchBills','') or '' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Any inflation of Bills.</td>
+        <td class="val val-min">{{ og.get('medicalStoreInflation','') or '' }}</td>
+      </tr>
+    </table>
+
+    <!-- ═══════════════════════════════════════ -->
+    <!-- TABLE 8: VERIFICATION FROM LAB          -->
+    <!-- ═══════════════════════════════════════ -->
+    <table>
+      <tr class="sec-hdr"><td colspan="2">VERIFICATION FROM LAB</td></tr>
+      <tr>
+        <td class="lbl">Lab Register Verified For Insured Entry</td>
+        <td class="val val-min">{{ og.get('labRegisterVerified','') or '' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Any inflation of Bills</td>
+        <td class="val val-min">{{ og.get('labInflation','') or '' }}</td>
+      </tr>
+    </table>
+
+    <!-- ═══════════════════════════════════════ -->
+    <!-- TABLE 9: NAME OF FIELD OFFICER          -->
+    <!-- ═══════════════════════════════════════ -->
+    <table>
+      <tr>
+        <td class="lbl">Name of Field Officer</td>
+        <td class="val val-min">{{ og.get('fieldOfficerName','') or '' }}</td>
+      </tr>
+    </table>
+
+    <!-- ═══════════════════════════════════════ -->
+    <!-- OBSERVATION OF THE CLAIMS               -->
+    <!-- ═══════════════════════════════════════ -->
+    <div class="section-heading">OBSERVATION OF THE CLAIMS:</div>
+
+    <div class="sub-heading">Visit to Hospital:</div>
+    <div class="sub-text">{{ og.get('visitToHospital','') or '' }}</div>
+
+    <div class="sub-heading">IMPORTNT POINTS / Trigger Replies</div>
+    <ol class="important-list">
+      <li>Admission genunity :- {{ og.get('admissionGenuinity','') or '' }}</li>
+      <li>Patient paid amount :- Rs. {{ og.get('patientPaidAmount','') or '' }}</li>
+      <li>Amount conformation :- Rs. {{ og.get('amountConfirmation','') or '' }}</li>
+    </ol>
+
+    <!-- ═══════════════════════════════════════ -->
+    <!-- VISIT TO THE MEMBER                     -->
+    <!-- ═══════════════════════════════════════ -->
+    <div class="sub-heading">VISIT TO THE MEMBER</div>
+    <div class="sub-text">{{ og.get('visitToMember','Not done.') or 'Not done.' }}</div>
+
+    <!-- ═══════════════════════════════════════ -->
+    <!-- INVESTIGATOR COMMENTS AND ADVICE        -->
+    <!-- ═══════════════════════════════════════ -->
+    <div class="sub-heading">INVESTIGATOR COMMENTS AND ADVICE</div>
+
+    <div class="sub-heading">Conclusion:</div>
+    <hr class="divider">
+
+    <div class="conclusion-wrapper">
+      {{ conclusion_html | safe }}
+    </div>
+
+    <!-- STAMP -->
+    <div class="stamp-block">
+      {% if show_stamp != false %}
+        <img src="{{ stamp_image }}" class="sig-stamp" alt="Stamp">
+      {% endif %}
+    </div>
+
+  </div><!-- /content -->
+
+  <!-- BOTTOM GREEN STRIPE -->
+  <div class="green-stripe" style="position:absolute; bottom:0; width:100%;"></div>
+
+</div>
+</body>
+</html>

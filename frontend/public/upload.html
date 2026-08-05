@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>DICOM Upload | DoctorAssist.AI</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    ::selection { background: #000; color: #fff; }
+
+    :root {
+      --bg: #ffffff;
+      --bg-alt: #fafafa;
+      --bg-tert: #f5f5f5;
+      --text: #000000;
+      --text-sec: #444444;
+      --text-muted: #888888;
+      --border: #e0e0e0;
+      --sidebar-w: 248px;
+    }
+
+    body {
+      font-family: 'Open Sans', system-ui, sans-serif;
+      font-weight: 300;
+      color: var(--text);
+      background: var(--bg);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .layout { display: flex; min-height: 100vh; }
+
+    /* ─── sidebar ─── */
+    .sidebar {
+      width: var(--sidebar-w);
+      min-height: 100vh;
+      position: fixed;
+      left: 0; top: 0;
+      background: var(--bg);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      z-index: 200;
+      overflow-y: auto;
+      transition: transform 0.3s ease;
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    .sidebar::-webkit-scrollbar { display: none; }
+
+    .sidebar-header {
+      padding: 1.5rem 1.5rem 1rem;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .brand-row { display: flex; align-items: center; gap: 10px; margin-bottom: 1.25rem; }
+    .brand-name { font-weight: 400; font-size: 0.9rem; letter-spacing: -0.01em; color: var(--text); }
+    .close-btn {
+      margin-left: auto; background: none; border: none;
+      cursor: pointer; color: var(--text); display: none; padding: 2px; align-items: center;
+    }
+    .section-label {
+      font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.18em;
+      color: var(--text-muted); font-weight: 400; display: block; margin-bottom: 0.25rem;
+    }
+    .doctor-name { font-size: 0.9rem; font-weight: 400; color: var(--text); }
+    .doctor-spec  { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; }
+
+    .menu-scroll {
+      flex: 1; overflow-y: auto; padding: 0.75rem 0;
+      -ms-overflow-style: none; scrollbar-width: none;
+    }
+    .menu-scroll::-webkit-scrollbar { display: none; }
+
+    .nav-group-label {
+      font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.15em;
+      color: var(--text-muted); font-weight: 400;
+      padding: 0.5rem 0.75rem 0.25rem 1.25rem; display: block;
+    }
+    .nav-btn {
+      width: 100%; background: transparent;
+      border: none; border-left: 2px solid transparent;
+      text-align: left; padding: 0.55rem 1.25rem;
+      font-size: 0.78rem; font-weight: 300; color: var(--text-sec);
+      cursor: pointer; display: flex; align-items: center; gap: 10px;
+      transition: all 0.15s; font-family: 'Open Sans', sans-serif;
+    }
+    .nav-btn:hover { background: var(--bg-alt); color: var(--text); }
+    .nav-btn.active {
+      background: var(--bg-alt); color: var(--text);
+      font-weight: 400; border-left: 2px solid var(--text);
+    }
+    .nav-btn svg { flex-shrink: 0; }
+
+    .sidebar-footer {
+      padding: 1rem 1.25rem; border-top: 1px solid var(--border); flex-shrink: 0;
+    }
+    .logout-btn {
+      width: 100%; background: transparent; border: 1px solid var(--border);
+      padding: 0.6rem 1rem; font-size: 0.75rem; font-weight: 400; color: var(--text-sec);
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      gap: 8px; font-family: 'Open Sans', sans-serif; transition: all 0.2s;
+    }
+    .logout-btn:hover { border-color: var(--text); color: var(--text); }
+
+    /* ─── overlay ─── */
+    .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 199; }
+    .overlay.show { display: block; }
+
+    /* ─── main ─── */
+    .main { flex: 1; margin-left: var(--sidebar-w); min-width: 0; display: flex; flex-direction: column; transition: margin-left 0.3s ease; }
+
+    /* ─── top bar ─── */
+    .top-bar {
+      position: sticky; top: 0; background: var(--bg); border-bottom: 1px solid var(--border);
+      padding: 0.875rem 2rem; display: flex; justify-content: space-between;
+      align-items: center; z-index: 100; gap: 12px;
+    }
+    .top-bar-left { display: flex; align-items: center; gap: 12px; }
+    .top-bar-title { font-size: 1rem; font-weight: 400; color: var(--text); letter-spacing: -0.01em; }
+    .top-bar-sub   { font-size: 0.72rem; color: var(--text-muted); }
+    .hamburger { display: none; background: none; border: none; cursor: pointer; color: var(--text); padding: 4px; align-items: center; }
+
+    /* ─── body ─── */
+    .body-wrap { padding: 2rem; flex: 1; }
+    .page-label {
+      font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.2em;
+      color: var(--text-muted); font-weight: 400; display: block; margin-bottom: 0.25rem;
+    }
+    .page-title { font-size: 1.4rem; font-weight: 300; letter-spacing: -0.02em; color: var(--text); margin-bottom: 1.5rem; }
+
+    /* ─── two-column layout ─── */
+    .content-grid {
+      display: grid;
+      grid-template-columns: 1fr 1.5fr;
+      gap: 1.5rem;
+      align-items: start;
+    }
+
+    /* ─── cards ─── */
+    .card {
+      border: 1px solid var(--border);
+      background: var(--bg);
+    }
+    .card-header {
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-alt);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .card-header-title {
+      font-size: 0.75rem;
+      font-weight: 400;
+      color: var(--text);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+    .card-body { padding: 1.5rem; }
+
+    /* ─── form elements ─── */
+    .field-wrap { display: flex; flex-direction: column; margin-bottom: 1rem; }
+    .field-wrap:last-child { margin-bottom: 0; }
+    .field-label {
+      font-size: 0.65rem; font-weight: 400; color: var(--text-sec);
+      margin-bottom: 0.35rem; text-transform: uppercase; letter-spacing: 0.08em;
+    }
+    .field-select,
+    .field-input-file {
+      border: 1px solid var(--border);
+      background: var(--bg);
+      padding: 0.5rem 0.75rem;
+      font-size: 0.78rem;
+      font-family: 'Open Sans', sans-serif;
+      font-weight: 300;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.15s;
+      width: 100%;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+    .field-select:focus,
+    .field-input-file:focus { border-color: var(--text); }
+
+    /* custom select arrow */
+    .select-wrap { position: relative; }
+    .select-wrap::after {
+      content: "";
+      position: absolute;
+      right: 0.75rem;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 0; height: 0;
+      border-left: 4px solid transparent;
+      border-right: 4px solid transparent;
+      border-top: 5px solid var(--text-muted);
+      pointer-events: none;
+    }
+
+    /* file input styling */
+    .file-input-wrapper {
+      border: 1px solid var(--border);
+      background: var(--bg-alt);
+      padding: 0.75rem 1rem;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: border-color 0.15s;
+    }
+    .file-input-wrapper:hover { border-color: var(--text); color: var(--text-sec); }
+    .file-input-wrapper input[type="file"] {
+      position: absolute;
+      opacity: 0;
+      width: 100%; height: 100%;
+      top: 0; left: 0;
+      cursor: pointer;
+    }
+    .file-input-outer { position: relative; }
+
+    /* ─── file list preview ─── */
+    .file-list-preview {
+      display: none;
+      margin-top: 0.75rem;
+      border: 1px solid var(--border);
+      background: var(--bg-alt);
+      padding: 0.75rem 1rem;
+      max-height: 140px;
+      overflow-y: auto;
+      font-size: 0.72rem;
+      color: var(--text-sec);
+    }
+    .file-list-preview ul { padding-left: 1rem; margin: 0.25rem 0 0; }
+    .file-list-preview ul li { padding: 2px 0; }
+
+    /* ─── progress ─── */
+    .progress-wrap {
+      display: none;
+      margin-top: 0.75rem;
+    }
+    .progress-track {
+      height: 3px;
+      background: var(--border);
+      width: 100%;
+    }
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--text);
+      transition: width 0.25s;
+    }
+    .progress-label {
+      font-size: 0.62rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+      text-align: right;
+    }
+
+    /* ─── status ─── */
+    .status-msg {
+      display: none;
+      margin-top: 0.75rem;
+      padding: 0.6rem 0.85rem;
+      font-size: 0.72rem;
+      font-weight: 400;
+      border: 1px solid var(--border);
+      color: var(--text-sec);
+    }
+    .status-msg.success { border-color: var(--text); color: var(--text); background: var(--bg-alt); }
+    .status-msg.error   { border-color: var(--text); color: var(--text); background: var(--bg-tert); }
+
+    /* ─── action buttons ─── */
+    .btn-primary {
+      padding: 0.5rem 1.25rem;
+      border: 1px solid var(--text);
+      background: var(--text);
+      color: #fff;
+      font-size: 0.72rem;
+      font-weight: 400;
+      cursor: pointer;
+      font-family: 'Open Sans', sans-serif;
+      letter-spacing: 0.05em;
+      transition: all 0.15s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-primary:hover { background: transparent; color: var(--text); }
+
+    /* ─── table ─── */
+    .table-section { border: 1px solid var(--border); background: var(--bg); }
+    .table-section-header {
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-alt);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .table-section-title {
+      font-size: 0.75rem; font-weight: 400; color: var(--text);
+      text-transform: uppercase; letter-spacing: 0.1em;
+    }
+    .table-section-meta { font-size: 0.65rem; color: var(--text-muted); }
+    .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 500px;
+    }
+    .data-table th {
+      text-align: left;
+      padding: 0.65rem 1rem;
+      font-size: 0.62rem;
+      font-weight: 400;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-alt);
+      white-space: nowrap;
+    }
+    .data-table td {
+      padding: 0.75rem 1rem;
+      font-size: 0.78rem;
+      font-weight: 300;
+      color: var(--text-sec);
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    .data-table tr:hover td { background: var(--bg-alt); }
+    .data-table tr:last-child td { border-bottom: none; }
+
+    .badge {
+      padding: 0.2rem 0.5rem;
+      font-size: 0.6rem;
+      font-weight: 400;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      border: 1px solid var(--border);
+      color: var(--text-sec);
+      display: inline-block;
+    }
+
+    /* ─── responsive ─── */
+    @media (max-width: 1024px) {
+      .content-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 767px) {
+      .sidebar { transform: translateX(-100%); }
+      .sidebar.open { transform: translateX(0); }
+      .main { margin-left: 0 !important; }
+      .hamburger { display: flex !important; }
+      .body-wrap { padding: 1rem; }
+      .top-bar { padding: 0.75rem 1rem; }
+      .close-btn { display: flex !important; }
+    }
+    @media (min-width: 768px) { .hamburger { display: none !important; } }
+  </style>
+</head>
+<body>
+<div class="layout">
+
+  <div class="overlay" id="overlay" onclick="closeSidebar()"></div>
+
+  <!-- ═══════════════ SIDEBAR ═══════════════ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="brand-row">
+        <span class="brand-name">DoctorAssist.AI</span>
+        <button class="close-btn" id="close-btn" onclick="closeSidebar()">
+          <!-- lucide X -->
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <span class="section-label">Physician</span>
+      <p class="doctor-name" id="sidebar-doctor-name">Loading…</p>
+      <p class="doctor-spec"  id="sidebar-doctor-spec">—</p>
+    </div>
+
+    <div class="menu-scroll">
+
+      <span class="nav-group-label">Overview</span>
+
+      <button class="nav-btn" onclick="navTo('dashboard')">
+        <!-- lucide Home -->
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+          <polyline points="9 22 9 12 15 12 15 22"/>
+        </svg>
+        Dashboard
+      </button>
+
+      <button class="nav-btn" onclick="navTo('appointments')">
+        <!-- lucide Settings -->
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+        Appointment
+      </button>
+
+      <button class="nav-btn" onclick="navTo('date-wise')">
+        <!-- lucide Calendar -->
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect width="18" height="18" x="3" y="4" rx="2" ry="2"/>
+          <line x1="16" x2="16" y1="2" y2="6"/>
+          <line x1="8" x2="8" y1="2" y2="6"/>
+          <line x1="3" x2="21" y1="10" y2="10"/>
+        </svg>
+        Date-wise Appointments
+      </button>
+
+      <button class="nav-btn" onclick="navTo('patient-listing')">
+        <!-- lucide Users -->
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+        Patient Listing
+      </button>
+
+      <span class="nav-group-label">Clinical</span>
+
+      <button class="nav-btn" onclick="navTo('screening')">
+        <!-- lucide Activity -->
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+        </svg>
+        Vital Screening
+      </button>
+
+      <button class="nav-btn" onclick="navTo('skills')">
+        <!-- lucide FileText -->
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="16" x2="8" y1="13" y2="13"/>
+          <line x1="16" x2="8" y1="17" y2="17"/>
+          <polyline points="10 9 9 9 8 9"/>
+        </svg>
+        Skills Settings
+      </button>
+
+      <button class="nav-btn" onclick="navTo('node-settings')">
+        <!-- lucide Settings -->
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+        Node Settings
+      </button>
+
+      <button class="nav-btn active">
+        <!-- lucide Upload (DICOM) -->
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" x2="12" y1="3" y2="15"/>
+        </svg>
+        DICOM Upload
+      </button>
+
+      <span class="nav-group-label">Communication</span>
+
+      <button class="nav-btn" onclick="navTo('communication')">
+        <!-- lucide MessageCircle -->
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+        Communication View
+      </button>
+
+      <button class="nav-btn" onclick="navTo('comm-progression')">
+        <!-- lucide Calendar -->
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect width="18" height="18" x="3" y="4" rx="2" ry="2"/>
+          <line x1="16" x2="16" y1="2" y2="6"/>
+          <line x1="8" x2="8" y1="2" y2="6"/>
+          <line x1="3" x2="21" y1="10" y2="10"/>
+        </svg>
+        Communication Progression
+      </button>
+
+      <span class="nav-group-label">Other</span>
+
+      <button class="nav-btn" onclick="navTo('register-patient')">
+        <!-- lucide UserPlus -->
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <line x1="19" x2="19" y1="8" y2="14"/>
+          <line x1="22" x2="16" y1="11" y2="11"/>
+        </svg>
+        Patient Registration
+      </button>
+
+    </div>
+
+    <div class="sidebar-footer">
+      <button class="logout-btn" onclick="handleLogout()">
+        <!-- lucide LogOut -->
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+          <polyline points="16 17 21 12 16 7"/>
+          <line x1="21" x2="9" y1="12" y2="12"/>
+        </svg>
+        Logout
+      </button>
+    </div>
+  </aside>
+
+  <!-- ═══════════════ MAIN ═══════════════ -->
+  <main class="main" id="main">
+
+    <!-- top bar -->
+    <div class="top-bar">
+      <div class="top-bar-left">
+        <button class="hamburger" onclick="openSidebar()">
+          <!-- lucide Menu -->
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="4" x2="20" y1="12" y2="12"/>
+            <line x1="4" x2="20" y1="6" y2="6"/>
+            <line x1="4" x2="20" y1="18" y2="18"/>
+          </svg>
+        </button>
+        <span class="top-bar-title">DICOM Upload</span>
+      </div>
+      <span class="top-bar-sub">Medical Imaging</span>
+    </div>
+
+    <!-- body -->
+    <div class="body-wrap">
+
+      <span class="page-label">Clinical Interface</span>
+      <h1 class="page-title">DICOM Upload Dashboard</h1>
+
+      <div class="content-grid">
+
+        <!-- ── LEFT: Upload Panel ── -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-header-title">Upload DICOM Files</span>
+          </div>
+          <div class="card-body">
+
+            <!-- Document Type -->
+            <div class="field-wrap">
+              <label class="field-label">Document Type</label>
+              <div class="select-wrap">
+                <select id="document_type" class="field-select">
+                  <option value="">— Select Type —</option>
+                  <option value="MRI">MRI</option>
+                  <option value="CT">CT</option>
+                  <option value="X-ray">X-ray</option>
+                  <option value="PET scan">PET scan</option>
+                  <option value="Echocardiogram">Echocardiogram</option>
+                  <option value="Endoscopy report">Endoscopy report</option>
+                  <option value="ecg">ECG</option>
+                  <option value="pathology">Pathology</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Pathology Subtype (hidden by default) -->
+            <div class="field-wrap" id="pathologySubtypeWrap" style="display:none;">
+              <label class="field-label">Pathology Type</label>
+              <div class="select-wrap">
+                <select id="pathology_subtype" class="field-select">
+                  <option value="">— Select Pathology Type —</option>
+                  <option value="cyto">Cytopathology</option>
+                  <option value="histo">Histopathology</option>
+                  <option value="biopsy">Biopsy</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Upload Mode -->
+            <div class="field-wrap">
+              <label class="field-label">Upload Mode</label>
+              <div class="select-wrap">
+                <select id="uploadMode" class="field-select">
+                  <option value="file">File Upload</option>
+                  <option value="folder">Folder Upload</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- File Input -->
+            <div class="field-wrap">
+              <label class="field-label">Choose Files</label>
+              <div class="file-input-outer" id="fileSelectorContainer">
+                <div class="file-input-wrapper" id="fileInputLabel">
+                  <!-- lucide Upload icon -->
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="17 8 12 3 7 8"/>
+                    <line x1="12" x2="12" y1="3" y2="15"/>
+                  </svg>
+                  <span id="fileInputText">Click to select .dcm files</span>
+                  <input type="file" id="fileInput" multiple accept=".dcm" style="position:absolute;opacity:0;width:100%;height:100%;top:0;left:0;cursor:pointer;" onchange="showSelectedFiles(this.files)">
+                </div>
+              </div>
+            </div>
+
+            <!-- File List Preview -->
+            <div class="file-list-preview" id="fileList">
+              <strong style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);">Selected Files</strong>
+              <ul id="fileListItems"></ul>
+            </div>
+
+            <!-- Progress -->
+            <div class="progress-wrap" id="progressWrap">
+              <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+              <div class="progress-label" id="progressLabel">0%</div>
+            </div>
+
+            <!-- Status -->
+            <div class="status-msg" id="status"></div>
+
+            <!-- Upload Button -->
+            <div style="margin-top:1.25rem;padding-top:1.25rem;border-top:1px solid var(--border);display:flex;justify-content:flex-end;">
+              <button class="btn-primary" id="uploadBtn">
+                <!-- lucide Upload -->
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="17 8 12 3 7 8"/>
+                  <line x1="12" x2="12" y1="3" y2="15"/>
+                </svg>
+                Upload
+              </button>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ── RIGHT: Studies Table ── -->
+        <div class="table-section">
+          <div class="table-section-header">
+            <span class="table-section-title">Uploaded Studies</span>
+            <span class="table-section-meta" id="studies-count">—</span>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table" id="studiesTable">
+              <thead>
+                <tr>
+                  <th>Study UID</th>
+                  <th>Filename</th>
+                  <th>Type</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+              <tbody id="studiesTableBody">
+                <tr>
+                  <td colspan="4" style="text-align:center;color:var(--text-muted);padding:2rem 1rem;">
+                    Loading studies…
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ═══════════════ SCRIPT ═══════════════ -->
+<script>
+  const API_BASE = "https://doctorassist.ai/api";
+  const urlParams = new URLSearchParams(window.location.search);
+  const patientId  = urlParams.get("patient_id");
+  const doctorId   = urlParams.get("doctor_id") || urlParams.get("id") || "UNKNOWN_DOCTOR";
+
+  /* ── sidebar ── */
+  function openSidebar() {
+    document.getElementById("sidebar").classList.add("open");
+    document.getElementById("overlay").classList.add("show");
+  }
+  function closeSidebar() {
+    document.getElementById("sidebar").classList.remove("open");
+    document.getElementById("overlay").classList.remove("show");
+  }
+  function navTo(key) {
+    const map = {
+      dashboard:           `/doctor-dashboard?doctor_id=${doctorId}`,
+      appointments:        `/appointments?doctor_id=${doctorId}`,
+      "date-wise":         `/date-wise-appointment-dashboard?doctor_id=${doctorId}`,
+      "patient-listing":   `/patient-listing?doctor_id=${doctorId}`,
+      screening:           `/screen.html?doctor_id=${doctorId}&patient_id=${patientId}`,
+      skills:              `/medical-current-context-rule-settings?doctor_id=${doctorId}`,
+      "node-settings":     `/settings.html?doctor_id=${doctorId}`,
+      communication:       `/appointment-dashboard1?doctor_id=${doctorId}`,
+      "comm-progression":  `/doctor-communication-dashboard?doctor_id=${doctorId}`,
+      "register-patient":  `/register-patient?doctor_id=${doctorId}`,
+    };
+    if (map[key]) window.location.href = map[key];
+  }
+  function handleLogout() {
+    fetch(`${API_BASE}/hms/users/auth/logout`, { method: "POST", credentials: "include" })
+      .finally(() => window.location.href = "/login");
+  }
+
+  /* ── load doctor details for sidebar ── */
+  async function loadDoctorDetails() {
+    try {
+      const res = await fetch(`${API_BASE}/hms/users/speciality/users/patient/get_doctor_details`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ doctor_id: doctorId })
+      });
+      const data = await res.json();
+      if (data.status === "success") {
+        document.getElementById("sidebar-doctor-name").textContent = data.doctor_name || "—";
+        document.getElementById("sidebar-doctor-spec").textContent = data.doctor_speciality || "—";
+      }
+    } catch {}
+  }
+
+  /* ── file preview ── */
+  function showSelectedFiles(files) {
+    const list  = document.getElementById("fileList");
+    const items = document.getElementById("fileListItems");
+    const label = document.getElementById("fileInputText");
+    if (!files || !files.length) { list.style.display = "none"; return; }
+    label.textContent = `${files.length} file${files.length > 1 ? "s" : ""} selected`;
+    items.innerHTML = Array.from(files).map(f => `<li>${f.webkitRelativePath || f.name}</li>`).join("");
+    list.style.display = "block";
+  }
+
+  /* ── document type change ── */
+  document.getElementById("document_type").addEventListener("change", function() {
+    const val = this.value.toLowerCase();
+    const subtypeWrap = document.getElementById("pathologySubtypeWrap");
+    const uploadMode  = document.getElementById("uploadMode");
+    const container   = document.getElementById("fileSelectorContainer");
+    const label       = document.getElementById("fileInputText");
+
+    subtypeWrap.style.display = "none";
+    uploadMode.disabled = false;
+    document.getElementById("fileList").style.display = "none";
+
+    let accept = ".dcm";
+    let labelText = "Click to select .dcm files";
+    let isFolder = false;
+
+    if (val === "ecg") {
+      accept = ".pdf"; labelText = "Click to select PDF";
+      uploadMode.value = "file"; uploadMode.disabled = true;
+    } else if (val === "pathology") {
+      accept = ".svs,.tif,.tiff,.ndpi,.scn,.mrxs,.bif,.czi,.dcm,.vms,.vmu,.svslide,.png";
+      labelText = "Click to select pathology slide";
+      uploadMode.value = "file"; uploadMode.disabled = true;
+      subtypeWrap.style.display = "flex";
+    } else if (val === "echocardiogram") {
+      accept = ".mp4,.mov,.avi,.pdf"; labelText = "Click to select video or PDF";
+      uploadMode.value = "file"; uploadMode.disabled = true;
+    }
+
+    rebuildFileInput(accept, false, labelText);
+  });
+
+  document.getElementById("uploadMode").addEventListener("change", function() {
+    const isFolder = this.value === "folder";
+    const docType  = document.getElementById("document_type").value.toLowerCase();
+    rebuildFileInput(".dcm", isFolder, isFolder ? "Click to select folder" : "Click to select .dcm files");
+  });
+
+  function rebuildFileInput(accept, isFolder, labelText) {
+    const container = document.getElementById("fileSelectorContainer");
+    const attrs = isFolder ? `webkitdirectory directory multiple` : `multiple`;
+    container.innerHTML = `
+      <div class="file-input-wrapper" id="fileInputLabel">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" x2="12" y1="3" y2="15"/>
+        </svg>
+        <span id="fileInputText">${labelText}</span>
+        <input type="file" id="fileInput" accept="${accept}" ${attrs}
+          style="position:absolute;opacity:0;width:100%;height:100%;top:0;left:0;cursor:pointer;"
+          onchange="showSelectedFiles(this.files)">
+      </div>`;
+  }
+
+  /* ── fetch studies ── */
+  async function fetchStudies() {
+    const tbody = document.getElementById("studiesTableBody");
+    const meta  = document.getElementById("studies-count");
+    try {
+      const res  = await fetch(`/api/hms/dicom/patient-documents/?patient_id=${patientId}`);
+      const data = await res.json();
+      const docs = data.documents || {};
+      const rows = [];
+      for (const [docType, files] of Object.entries(docs)) {
+        for (const file of files) {
+          const date = new Date(file.uploaded_at).toLocaleString();
+          rows.push(`
+            <tr>
+              <td style="font-family:monospace;font-size:0.7rem;">${file.study_uid || "—"}</td>
+              <td>${file.filename}</td>
+              <td><span class="badge">${docType}</span></td>
+              <td>${date}</td>
+            </tr>`);
+        }
+      }
+      tbody.innerHTML = rows.length
+        ? rows.join("")
+        : `<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:2rem 1rem;">No studies found</td></tr>`;
+      meta.textContent = `${rows.length} record${rows.length !== 1 ? "s" : ""}`;
+    } catch {
+      tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:2rem 1rem;">Error loading studies</td></tr>`;
+    }
+  }
+
+  /* ── upload handler ── */
+  document.getElementById("uploadBtn").addEventListener("click", async () => {
+    const docType = document.getElementById("document_type").value;
+    const mode    = document.getElementById("uploadMode").value;
+    const fileEl  = document.getElementById("fileInput") || document.getElementById("folderInput");
+    const files   = fileEl ? Array.from(fileEl.files) : [];
+
+    if (!files.length) { alert("Please select at least one file."); return; }
+    if (!docType)       { alert("Please select a document type."); return; }
+
+    const val = docType.toLowerCase();
+    if (val === "ecg")           { uploadECG(files); return; }
+    if (val === "pathology")     { uploadPathology(files); return; }
+    if (val === "echocardiogram"){ uploadEcho(files); return; }
+
+    // default DICOM upload
+    const formData = new FormData();
+    files.filter(f => f.name.toLowerCase().endsWith(".dcm")).forEach(f => formData.append("files", f));
+    if (!formData.has("files")) { alert("No .dcm files found."); return; }
+    formData.append("patient_id", patientId);
+    formData.append("document_type", docType);
+
+    xhrUpload("/api/hms/dicom/upload/", formData, "Uploading DICOM files…", () => fetchStudies());
+  });
+
+  /* ── XHR helper ── */
+  function xhrUpload(url, formData, loadingText, onSuccess) {
+    const statusEl   = document.getElementById("status");
+    const progressW  = document.getElementById("progressWrap");
+    const progressF  = document.getElementById("progressFill");
+    const progressL  = document.getElementById("progressLabel");
+
+    statusEl.style.display = "block";
+    statusEl.className = "status-msg";
+    statusEl.textContent = loadingText;
+    progressW.style.display = "block";
+    progressF.style.width = "0%";
+    progressL.textContent = "0%";
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", url, true);
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) {
+        const pct = Math.round((e.loaded / e.total) * 100);
+        progressF.style.width = pct + "%";
+        progressL.textContent = pct + "%";
+      }
+    };
+    xhr.onload = () => {
+      progressW.style.display = "none";
+      if (xhr.status === 200) {
+        statusEl.className = "status-msg success";
+        statusEl.textContent = "Upload successful";
+        if (onSuccess) onSuccess();
+      } else {
+        statusEl.className = "status-msg error";
+        statusEl.textContent = "Upload failed — " + xhr.statusText;
+      }
+    };
+    xhr.onerror = () => {
+      progressW.style.display = "none";
+      statusEl.className = "status-msg error";
+      statusEl.textContent = "Upload failed — network error";
+    };
+    xhr.send(formData);
+  }
+
+  /* ── ECG ── */
+  function uploadECG(files) {
+    const file = files[0];
+    if (!file.name.toLowerCase().endsWith(".pdf")) { alert("ECG requires a PDF file."); return; }
+    const fd = new FormData();
+    fd.append("pdf_file", file);
+    fd.append("patient_id", patientId);
+    fd.append("doctor_id", doctorId);
+    fd.append("timestamp", new Date().toISOString());
+    xhrUpload("https://demo.doctorassist.ai/api/hms/dicom/upload-ecg", fd, "Uploading ECG PDF…", () => fetchStudies());
+  }
+
+  /* ── Pathology ── */
+  function uploadPathology(files) {
+    const subtype = document.getElementById("pathology_subtype").value;
+    if (!subtype) { alert("Please select pathology subtype."); return; }
+    const allowed = [".svs",".tif",".tiff",".ndpi",".scn",".mrxs",".bif",".czi",".dcm",".vms",".vmu",".svslide",".png"];
+    const invalid = files.find(f => !allowed.some(ext => f.name.toLowerCase().endsWith(ext)));
+    if (invalid) { alert("Invalid pathology file type: " + invalid.name); return; }
+    const fd = new FormData();
+    fd.append("file", files[0]);
+    fd.append("patient_id", patientId);
+    fd.append("doctor_id", doctorId);
+    fd.append("pathology_type", subtype);
+    xhrUpload("https://demo.doctorassist.ai/api/hms/dicom/upload-pathology", fd, "Uploading pathology slide…");
+  }
+
+  /* ── Echo ── */
+  function uploadEcho(files) {
+    const allowed = [".mp4",".mov",".avi",".pdf"];
+    const invalid = files.find(f => !allowed.some(ext => f.name.toLowerCase().endsWith(ext)));
+    if (invalid) { alert("Invalid file type: " + invalid.name); return; }
+    const fd = new FormData();
+    files.forEach(f => { fd.append("files", f); fd.append("timestamps", new Date().toISOString()); });
+    fd.append("patient_id", patientId);
+    fd.append("doctor_id", doctorId);
+    fd.append("doctype", "echo");
+    xhrUpload("https://demo.doctorassist.ai/api/hms/dicom/upload-echo", fd, "Uploading Echocardiogram…", () => fetchStudies());
+  }
+
+  /* ── init ── */
+  document.addEventListener("DOMContentLoaded", () => {
+    loadDoctorDetails();
+    if (patientId) fetchStudies();
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,302 @@
+{
+  "_meta": {
+    "purpose": "Surgical Oncology Pre-Surgery Dashboard — key mapping from chemo.json and radio.json",
+    "sources": ["chemo.json", "radio.json"],
+    "note": "Each key shows exact dot-path from DB document root, source file, and surgical relevance"
+  },
+
+  "patient_identity": {
+    "_surgical_use": "Patient header — confirm you have the right patient before entering pre-surgery data",
+    "patientId":            { "chemo": "patientId",              "radio": "patientId",              "type": "string" },
+    "firstName":            { "chemo": "data.summary.firstName", "radio": "data.patient.firstName", "type": "string" },
+    "age":                  { "chemo": "data.summary.age",       "radio": "data.patient.pat-age",   "type": "NumberInt" },
+    "sex":                  { "chemo": "data.summary.sex",       "radio": "data.patient.sex",       "type": "string" }
+  },
+
+  "diagnosis_and_staging": {
+    "_surgical_use": "Confirms what you are operating for; drives extent of resection decision",
+    "diagnosis":            { "chemo": "data.assessment.diagnosis",                         "radio": "data.chemo_import.assessment.diagnosis",         "type": "string" },
+    "detailsDiagnosis":     { "chemo": "data.cycles.1.details.detailsDiagnosis",            "radio": "data.chemo_import.cycles.1.details.detailsDiagnosis", "type": "string" },
+    "detailsHistology":     { "chemo": "data.cycles.1.details.detailsHistology",            "radio": "data.chemo_import.cycles.1.details.detailsHistology", "type": "string" },
+    "stageTNM":             { "chemo": "data.cycles.1.details.stageTNM",                    "radio": "data.chemo_import.cycles.1.details.stageTNM",    "type": "string" },
+    "diseaseStage":         { "chemo": "data.assessment.diseaseStage",                      "radio": "data.chemo_import.assessment.diseaseStage",      "type": "string" },
+    "comorbidities":        { "chemo": "data.cycles.1.details.comorbidities",               "radio": "data.chemo_import.cycles.1.details.comorbidities", "type": "string" },
+    "tumorBoardReference":  { "chemo": "data.cycles.1.details.tumorBoardReference",         "radio": "data.chemo_import.cycles.1.details.tumorBoardReference", "type": "string" },
+    "referringPhysician":   { "chemo": "data.cycles.1.details.referringPhysician",          "radio": "data.chemo_import.cycles.1.details.referringPhysician", "type": "string" }
+  },
+
+  "performance_and_consent": {
+    "_surgical_use": "ECOG drives anaesthesia risk; consent date must pre-date surgery booking",
+    "performanceStatus":    { "chemo": "data.assessment.performanceStatus",                 "radio": "data.chemo_import.assessment.performanceStatus", "type": "string", "values": "ecog-0 to ecog-4" },
+    "consentDate":          { "chemo": "data.cycles.1.details.consentDate",                 "radio": "data.chemo_import.cycles.1.details.consentDate", "type": "date" },
+    "consentStatus":        { "chemo": null,                                                "radio": "data.chemo_import.cycles.1.details.consentStatus", "type": "string" },
+    "treatmentTypeAdj":     { "chemo": "data.cycles.1.details.treatmentTypeAdj",            "radio": "data.chemo_import.cycles.1.details.treatmentTypeAdj", "type": "boolean", "surgical_note": "true = adjuvant — confirms chemo preceded surgery" },
+    "phasePostOp":          { "chemo": "data.cycles.1.details.phasePostOp",                 "radio": "data.chemo_import.cycles.1.details.phasePostOp", "type": "boolean" },
+    "phasePreOp":           { "chemo": null,                                                "radio": "data.chemo_import.cycles.1.details.phasePreOp",  "type": "boolean" }
+  },
+
+  "anthropometrics_and_bsa": {
+    "_surgical_use": "BSA for drug dose reference; weight for fluid and anaesthetic calculations",
+    "height":               { "chemo": "data.assessment.height",                            "radio": "data.baseline.phy-height",                       "type": "string", "unit": "cm" },
+    "weight":               { "chemo": "data.assessment.weight",                            "radio": "data.baseline.phy-weight",                       "type": "string", "unit": "kg" },
+    "bsa":                  { "chemo": "data.cycles.1.prep.bsa",                            "radio": "data.baseline.bodySurfaceAreaM",                  "type": "string", "unit": "m2" },
+    "painScore":            { "chemo": null,                                                "radio": "data.baseline.phy-painscore",                    "type": "string" }
+  },
+
+  "allergy_and_drug_safety": {
+    "_surgical_use": "Must be checked before any peri-operative medication is prescribed",
+    "allergyStatus":        { "chemo": "data.assessment.allergyStatus",                     "radio": "data.chemo_import.assessment.allergyStatus",     "type": "string", "values": "no-nkda | allergy-present" },
+    "interactionCheckSource": { "chemo": "data.assessment.interactionCheckSource",          "radio": "data.chemo_import.assessment.interactionCheckSource", "type": "string" },
+    "allergyDrug":          { "chemo": null,                                                "radio": "data.chemo_import.cycles.1.details.allergyDrug", "type": "string" },
+    "allergyType":          { "chemo": null,                                                "radio": "data.chemo_import.cycles.1.details.allergyType", "type": "string" },
+    "allergySeverity":      { "chemo": null,                                                "radio": "data.chemo_import.cycles.1.details.allergySeverity", "type": "string" }
+  },
+
+  "organ_function": {
+    "_surgical_use": "Core surgical safety clearance — cardiac, renal, hepatic must be reviewed and timestamped",
+    "cardiacFunction":      { "chemo": "data.assessment.cardiacFunction",                   "radio": "data.chemo_import.assessment.cardiacFunction",   "type": "string", "surgical_note": "Check EF and date; repeat echo if cumulative anthracycline dose is significant" },
+    "renalFunction":        { "chemo": "data.assessment.renalFunction",                     "radio": "data.chemo_import.assessment.renalFunction",     "type": "string", "surgical_note": "Creatinine — recheck within 2 weeks of surgery date" },
+    "hepaticFunction":      { "chemo": "data.assessment.hepaticFunction",                   "radio": "data.chemo_import.assessment.hepaticFunction",   "type": "string" },
+    "psychosocialScreening": { "chemo": "data.assessment.psychosocialScreening",            "radio": "data.chemo_import.assessment.psychosocialScreening", "type": "string" },
+    "fertilityPreservation": { "chemo": "data.assessment.fertilityPreservation",            "radio": "data.chemo_import.assessment.fertilityPreservation", "type": "string" }
+  },
+
+  "latest_pre_chemo_labs_and_vitals": {
+    "_surgical_use": "Most recent haematology and vitals before surgery — WBC, Hb, platelets, BP are go/no-go for OR",
+    "cycleNumber":          { "chemo": "data.cycles.1.pre_chemo.cycleNumber",               "radio": "data.chemo_import.cycles.1.pre_chemo.cycleNumber", "type": "string" },
+    "currentLabs":          { "chemo": "data.cycles.1.pre_chemo.currentLabs",               "radio": "data.chemo_import.cycles.1.pre_chemo.currentLabs", "type": "string", "surgical_note": "WBC, Hb, platelets, LFT, RFT, CA 15-3" },
+    "vitals":               { "chemo": "data.cycles.1.pre_chemo.vitals",                    "radio": "data.chemo_import.cycles.1.pre_chemo.vitals",    "type": "string" },
+    "venousAccess":         { "chemo": "data.cycles.1.pre_chemo.venousAccess",              "radio": "data.chemo_import.cycles.1.pre_chemo.venousAccess", "type": "string", "surgical_note": "Port vs peripheral — informs peri-op IV access plan" },
+    "informedConsent":      { "chemo": null,                                                "radio": "data.chemo_import.cycles.1.pre_chemo.informedConsent", "type": "boolean" },
+    "safetyVerified":       { "chemo": null,                                                "radio": "data.chemo_import.cycles.1.pre_chemo.safetyVerified", "type": "string" },
+    "emergencyMeds":        { "chemo": null,                                                "radio": "data.chemo_import.cycles.1.pre_chemo.emergencyMeds", "type": "string" },
+    "vitals_structured": {
+      "_note": "Structured vitals available in radio.json admin block per cycle",
+      "tempPre":            { "radio": "data.chemo_import.cycles.1.admin.vitals.tempPre",  "type": "string" },
+      "pulsePre":           { "radio": "data.chemo_import.cycles.1.admin.vitals.pulsePre", "type": "string" },
+      "bpPre":              { "radio": "data.chemo_import.cycles.1.admin.vitals.bpPre",    "type": "string" },
+      "spo2Pre":            { "radio": "data.chemo_import.cycles.1.admin.vitals.spo2Pre",  "type": "string" },
+      "rrPre":              { "radio": "data.chemo_import.cycles.1.admin.vitals.rrPre",    "type": "string" }
+    }
+  },
+
+  "chemo_regimen": {
+    "_surgical_use": "What drugs, how many cycles, what intent — determines washout window before surgery",
+    "treatmentIntent":      { "chemo": "data.cycles.1.regimen.treatmentIntent",             "radio": "data.chemo_import.cycles.1.regimen.treatmentIntent", "type": "string", "values": "curative-adjuvant | non-curative" },
+    "selectedProtocol":     { "chemo": "data.cycles.1.regimen.selectedProtocol",            "radio": "data.chemo_import.cycles.1.regimen.selectedProtocol", "type": "string" },
+    "protocolDetails":      { "chemo": "data.cycles.1.regimen.protocolDetails",             "radio": "data.chemo_import.cycles.1.regimen.protocolDetails", "type": "string" },
+    "plannedCycles":        { "chemo": "data.regimen.plannedCycles",                        "radio": "data.chemo_import.cycles.1.regimen.plannedCycles", "type": "string" },
+    "startDate":            { "chemo": null,                                                "radio": "data.chemo_import.cycles.1.regimen.startDate",    "type": "date" },
+    "intervalDetails":      { "chemo": null,                                                "radio": "data.chemo_import.cycles.1.regimen.intervalDetails", "type": "string" },
+    "concurrentTherapy":    { "chemo": "data.cycles.1.regimen.concurrentTherapy",           "radio": "data.chemo_import.cycles.1.regimen.concurrentTherapy", "type": "string" },
+    "doseAdjustments":      { "chemo": "data.cycles.1.regimen.doseAdjustments",             "radio": "data.chemo_import.cycles.1.regimen.doseAdjustments", "type": "string", "surgical_note": "Any dose reduction history — relevant to cumulative toxicity assessment" },
+    "drugs": {
+      "_note": "Array — per drug in the cycle regimen (radio.json only has structured drug array)",
+      "id":                 { "radio": "data.chemo_import.cycles.1.regimen.drugs[].id" },
+      "name":               { "radio": "data.chemo_import.cycles.1.regimen.drugs[].name" },
+      "dose":               { "radio": "data.chemo_import.cycles.1.regimen.drugs[].dose" },
+      "unit":               { "radio": "data.chemo_import.cycles.1.regimen.drugs[].unit" },
+      "route":              { "radio": "data.chemo_import.cycles.1.regimen.drugs[].route" },
+      "adminType":          { "radio": "data.chemo_import.cycles.1.regimen.drugs[].adminType" },
+      "frequency":          { "radio": "data.chemo_import.cycles.1.regimen.drugs[].frequency" },
+      "duration":           { "radio": "data.chemo_import.cycles.1.regimen.drugs[].duration" }
+    }
+  },
+
+  "cycle_status_and_progress": {
+    "_surgical_use": "Tells you how many cycles are done and if treatment is complete — surgery must not be booked mid-cycle",
+    "plannedCycles":        { "chemo": "treatment.plannedCycles",                           "radio": null,                                             "type": "NumberInt" },
+    "currentCycle":         { "chemo": "treatment.currentCycle",                            "radio": null,                                             "type": "NumberInt" },
+    "completedCycles":      { "chemo": "treatment.completedCycles",                         "radio": null,                                             "type": "NumberInt" },
+    "treatmentStatus":      { "chemo": "treatment.status",                                  "radio": null,                                             "type": "string" },
+    "treatmentCompleted":   { "chemo": "treatment.treatmentCompleted",                      "radio": null,                                             "type": "boolean", "surgical_note": "false = do NOT schedule OR yet" },
+    "cycle_admin_summary": {
+      "_note": "Per-cycle administration summary — one block per cycle number key (1, 2, 3...)",
+      "cycleDate1":         { "chemo": "data.cycles.1.cycle_admin.cycleDate1",              "radio": "data.chemo_import.cycles.1.cycle_admin.cycleDate1", "type": "date" },
+      "courseNo1":          { "chemo": "data.cycles.1.cycle_admin.courseNo1",               "radio": "data.chemo_import.cycles.1.cycle_admin.courseNo1", "type": "string" },
+      "cycleH1":            { "chemo": "data.cycles.1.cycle_admin.cycleH1",                 "radio": "data.chemo_import.cycles.1.cycle_admin.cycleH1",  "type": "string", "surgical_note": "Haemoglobin at cycle — track anaemia trend" },
+      "cycleWbc1":          { "chemo": "data.cycles.1.cycle_admin.cycleWbc1",               "radio": "data.chemo_import.cycles.1.cycle_admin.cycleWbc1", "type": "string" },
+      "cycleAnc1":          { "chemo": null,                                                "radio": "data.chemo_import.cycles.1.cycle_admin.cycleAnc1", "type": "string", "surgical_note": "ANC — key for infection risk pre-surgery" },
+      "cyclePlatelets1":    { "chemo": "data.cycles.1.cycle_admin.cyclePlatelets1",         "radio": "data.chemo_import.cycles.1.cycle_admin.cyclePlatelets1", "type": "string", "surgical_note": "Platelets — haemostasis risk" },
+      "cycleDrugs1":        { "chemo": "data.cycles.1.cycle_admin.cycleDrugs1",             "radio": "data.chemo_import.cycles.1.cycle_admin.cycleDrugs1", "type": "string" },
+      "cycleCompleted":     { "chemo": null,                                                "radio": "data.chemo_import.cycles.1.cycle_admin.cycleCompleted", "type": "string" },
+      "evaluation":         { "chemo": "data.cycles.1.cycle_admin.evaluation",              "radio": "data.chemo_import.cycles.1.cycle_admin.evaluation", "type": "string" },
+      "remarks":            { "chemo": "data.cycles.1.cycle_admin.remarks",                 "radio": "data.chemo_import.cycles.1.cycle_admin.remarks",  "type": "string" }
+    }
+  },
+
+  "drug_preparation": {
+    "_surgical_use": "Cumulative dose reference — especially Doxorubicin for cardiac clearance before GA",
+    "bsa":                  { "chemo": "data.cycles.1.prep.bsa",                            "radio": null,                                             "type": "string" },
+    "calculatedDose":       { "chemo": "data.cycles.1.prep.calculatedDose",                 "radio": "data.chemo_import.cycles.1.prep.calculatedDose", "type": "string" },
+    "drugName":             { "chemo": null,                                                "radio": "data.chemo_import.cycles.1.prep.drugName",       "type": "string" },
+    "dosePerSqm":           { "chemo": null,                                                "radio": "data.chemo_import.cycles.1.prep.dosePerSqm",     "type": "string" },
+    "modifiedDose":         { "chemo": null,                                                "radio": "data.chemo_import.cycles.1.prep.modifiedDose",   "type": "string" },
+    "doseModified":         { "chemo": null,                                                "radio": "data.chemo_import.cycles.1.prep.doseModified",   "type": "string" },
+    "modReasons": {
+      "comorbidities":      { "radio": "data.chemo_import.cycles.1.prep.modReasons.comorbidities", "type": "boolean" },
+      "toxicity":           { "radio": "data.chemo_import.cycles.1.prep.modReasons.toxicity",      "type": "boolean" },
+      "performance":        { "radio": "data.chemo_import.cycles.1.prep.modReasons.performance",   "type": "boolean" },
+      "nutritional":        { "radio": "data.chemo_import.cycles.1.prep.modReasons.nutritional",   "type": "boolean" },
+      "general":            { "radio": "data.chemo_import.cycles.1.prep.modReasons.general",       "type": "boolean" },
+      "other":              { "radio": "data.chemo_import.cycles.1.prep.modReasons.other",         "type": "boolean" }
+    },
+    "pharmacyVerification": { "chemo": "data.cycles.1.prep.pharmacyVerification",           "radio": "data.chemo_import.cycles.1.prep.pharmacyVerification", "type": "boolean" },
+    "nurseVerification":    { "chemo": "data.cycles.1.prep.nurseVerification",              "radio": "data.chemo_import.cycles.1.prep.nurseVerification", "type": "boolean" }
+  },
+
+  "drug_administration": {
+    "_surgical_use": "Pre-medication regimen and infusion reactions inform peri-op drug safety",
+    "patientIdConfirmed":   { "chemo": "data.cycles.1.admin.patientIdConfirmed",             "radio": "data.chemo_import.cycles.1.admin.patientIdConfirmed", "type": "boolean" },
+    "regimenConfirmed":     { "chemo": "data.cycles.1.admin.regimenConfirmed",               "radio": "data.chemo_import.cycles.1.admin.regimenConfirmed", "type": "boolean" },
+    "preMedication":        { "chemo": "data.cycles.1.admin.preMedication",                  "radio": "data.chemo_import.cycles.1.admin.preMedication",  "type": "string", "surgical_note": "Dexamethasone / antihistamine / antiemetic — note steroid use pre-op" },
+    "adminRoute":           { "chemo": "data.cycles.1.admin.adminRoute",                     "radio": "data.chemo_import.cycles.1.admin.adminRoute",     "type": "string" },
+    "startTime":            { "chemo": "data.cycles.1.admin.startTime",                      "radio": "data.chemo_import.cycles.1.admin.startTime",      "type": "string" },
+    "endTime":              { "chemo": "data.cycles.1.admin.endTime",                        "radio": "data.chemo_import.cycles.1.admin.endTime",        "type": "string" },
+    "infusionObservations": { "chemo": "data.cycles.1.admin.infusionObservations",           "radio": "data.chemo_import.cycles.1.admin.infusionObservations", "type": "string" },
+    "placeOfTreatment": {
+      "casualty":           { "radio": "data.chemo_import.cycles.1.admin.placeOfTreatment.casualty",     "type": "boolean" },
+      "daycare":            { "radio": "data.chemo_import.cycles.1.admin.placeOfTreatment.daycare",      "type": "boolean" },
+      "ward":               { "radio": "data.chemo_import.cycles.1.admin.placeOfTreatment.ward",         "type": "boolean" }
+    },
+    "adminDrugs": {
+      "_note": "Array — actual drugs given during infusion session",
+      "id":                 { "radio": "data.chemo_import.cycles.1.admin.adminDrugs[].id" },
+      "name":               { "radio": "data.chemo_import.cycles.1.admin.adminDrugs[].name" },
+      "dose":               { "radio": "data.chemo_import.cycles.1.admin.adminDrugs[].dose" },
+      "given":              { "radio": "data.chemo_import.cycles.1.admin.adminDrugs[].given" },
+      "infusionReaction":   { "radio": "data.chemo_import.cycles.1.admin.adminDrugs[].infusionReaction", "surgical_note": "Any true = flag for anaesthesia" },
+      "notGivenReason":     { "radio": "data.chemo_import.cycles.1.admin.adminDrugs[].notGivenReason" }
+    }
+  },
+
+  "post_chemo_toxicity": {
+    "_surgical_use": "Residual toxicity profile — neuropathy, mucositis, fatigue affect surgical planning and post-op recovery",
+    "monitoringPeriod":     { "chemo": "data.cycles.1.post_chemo.monitoringPeriod",          "radio": "data.chemo_import.cycles.1.post_chemo.monitoringPeriod", "type": "string" },
+    "adverseEvents":        { "chemo": "data.cycles.1.post_chemo.adverseEvents",             "radio": "data.chemo_import.cycles.1.post_chemo.adverseEvents", "type": "string" },
+    "nadirLabs":            { "chemo": "data.cycles.1.post_chemo.nadirLabs",                 "radio": "data.chemo_import.cycles.1.post_chemo.nadirLabs",  "type": "string", "surgical_note": "Nadir day — surgery must not fall in nadir window" },
+    "sideEffectMgt":        { "chemo": "data.cycles.1.post_chemo.sideEffectMgt",             "radio": "data.chemo_import.cycles.1.post_chemo.sideEffectMgt", "type": "string" },
+    "doseAdjustment":       { "chemo": "data.cycles.1.post_chemo.doseAdjustment",            "radio": "data.chemo_import.cycles.1.post_chemo.doseAdjustment", "type": "string" },
+    "attribution":          { "chemo": null,                                                 "radio": "data.chemo_import.cycles.1.post_chemo.attribution", "type": "string" },
+    "postponeDays":         { "chemo": null,                                                 "radio": "data.chemo_import.cycles.1.post_chemo.postponeDays", "type": "string" },
+    "toxicities": {
+      "_note": "Array of CTCAE-graded toxicity events",
+      "id":                 { "radio": "data.chemo_import.cycles.1.post_chemo.toxicities[].id" },
+      "cycleDay":           { "radio": "data.chemo_import.cycles.1.post_chemo.toxicities[].cycleDay" },
+      "gradingSystem":      { "radio": "data.chemo_import.cycles.1.post_chemo.toxicities[].gradingSystem" },
+      "system":             { "radio": "data.chemo_import.cycles.1.post_chemo.toxicities[].system" },
+      "event":              { "radio": "data.chemo_import.cycles.1.post_chemo.toxicities[].event" },
+      "grade":              { "radio": "data.chemo_import.cycles.1.post_chemo.toxicities[].grade",  "surgical_note": "Grade 3–4 toxicities must be resolved before OR" },
+      "onset":              { "radio": "data.chemo_import.cycles.1.post_chemo.toxicities[].onset" },
+      "managementPlace":    { "radio": "data.chemo_import.cycles.1.post_chemo.toxicities[].managementPlace" }
+    }
+  },
+
+  "response_assessment": {
+    "_surgical_use": "Imaging response determines surgical intent — partial/complete response confirms neoadjuvant benefit before resection",
+    "interimImaging":       { "chemo": "data.cycles.1.response.interimImaging",              "radio": "data.chemo_import.cycles.1.response.interimImaging", "type": "string" },
+    "responseCriteria":     { "chemo": "data.cycles.1.response.responseCriteria",            "radio": "data.chemo_import.cycles.1.response.responseCriteria", "type": "string", "values": "partial-response | complete-response | stable-disease | progressive-disease | recist" },
+    "tumorBoardReview":     { "chemo": "data.cycles.1.response.tumorBoardReview",            "radio": "data.chemo_import.cycles.1.response.tumorBoardReview", "type": "string" },
+    "tumorBoardReviewDetails": { "chemo": null,                                              "radio": "data.chemo_import.cycles.1.response.tumorBoardReviewDetails", "type": "string" },
+    "treatmentPlanUpdate":  { "chemo": "data.cycles.1.response.treatmentPlanUpdate",         "radio": "data.chemo_import.cycles.1.response.treatmentPlanUpdate", "type": "string" }
+  },
+
+  "completion_and_discharge": {
+    "_surgical_use": "Confirms treatment course is truly closed before surgery is scheduled",
+    "totalCyclesCompleted": { "chemo": null,                                                 "radio": "data.chemo_import.completion.totalCyclesCompleted", "type": "string" },
+    "cumulativeDoses":      { "chemo": null,                                                 "radio": "data.chemo_import.completion.cumulativeDoses",    "type": "string", "surgical_note": "Total anthracycline dose — cardiac clearance threshold" },
+    "treatmentOutcomes":    { "chemo": null,                                                 "radio": "data.chemo_import.completion.treatmentOutcomes",  "type": "string" },
+    "residualToxicity":     { "chemo": null,                                                 "radio": "data.chemo_import.completion.residualToxicity",   "type": "string" },
+    "toleratedWell":        { "chemo": null,                                                 "radio": "data.chemo_import.completion.toleratedWell",      "type": "string" },
+    "followUpSchedule":     { "chemo": null,                                                 "radio": "data.chemo_import.completion.followUpSchedule",   "type": "date" },
+    "followUpDaycare":      { "chemo": null,                                                 "radio": "data.chemo_import.completion.followUpDaycare",    "type": "date" },
+    "watchSymptoms": {
+      "pain":               { "radio": "data.chemo_import.completion.watchSymptoms.pain",        "type": "boolean" },
+      "vomiting":           { "radio": "data.chemo_import.completion.watchSymptoms.vomiting",    "type": "boolean" },
+      "fever":              { "radio": "data.chemo_import.completion.watchSymptoms.fever",       "type": "boolean" },
+      "wbc":                { "radio": "data.chemo_import.completion.watchSymptoms.wbc",         "type": "boolean" },
+      "mouth":              { "radio": "data.chemo_import.completion.watchSymptoms.mouth",       "type": "boolean" },
+      "constipation":       { "radio": "data.chemo_import.completion.watchSymptoms.constipation", "type": "boolean" },
+      "motions":            { "radio": "data.chemo_import.completion.watchSymptoms.motions",     "type": "boolean" },
+      "indigestion":        { "radio": "data.chemo_import.completion.watchSymptoms.indigestion", "type": "boolean" }
+    },
+    "dischargeDrugs": {
+      "_note": "Array of discharge medications from last cycle — cross-check against peri-op drug list",
+      "id":                 { "radio": "data.chemo_import.completion.dischargeDrugs[].id" },
+      "name":               { "radio": "data.chemo_import.completion.dischargeDrugs[].name" },
+      "route":              { "radio": "data.chemo_import.completion.dischargeDrugs[].route" },
+      "dosage":             { "radio": "data.chemo_import.completion.dischargeDrugs[].dosage" },
+      "days":               { "radio": "data.chemo_import.completion.dischargeDrugs[].days" },
+      "remarks":            { "radio": "data.chemo_import.completion.dischargeDrugs[].remarks" }
+    },
+    "cycleCompletionDates": {
+      "_note": "Array tracking each cycle's completion date and status",
+      "id":                 { "radio": "data.chemo_import.completion.cycleCompletionDates[].id" },
+      "label":              { "radio": "data.chemo_import.completion.cycleCompletionDates[].label" },
+      "date":               { "radio": "data.chemo_import.completion.cycleCompletionDates[].date" },
+      "status":             { "radio": "data.chemo_import.completion.cycleCompletionDates[].status" }
+    }
+  },
+
+  "radiotherapy_record": {
+    "_surgical_use": "RT field, dose, and timing — critical to know if RT preceded surgery (wound healing, tissue friability)",
+    "treatmentIntent":      { "radio": "data.intent.treatmentIntent",                                  "type": "string", "values": "palliative | curative | adjuvant" },
+    "treatmentSetting":     { "radio": "data.intent.treatmentSetting",                                 "type": "string", "values": "primary | adjuvant | palliative" },
+    "simulationDate":       { "radio": "data.simulation.simulationDate",                               "type": "date",   "surgical_note": "If simulation done, RT is imminent — coordinate surgical window" },
+    "simulationType":       { "radio": "data.simulation.simulationType",                               "type": "string", "values": "ct | mri | pet" },
+    "sliceThicknessMm":     { "radio": "data.simulation.sliceThicknessMm",                             "type": "string" },
+    "contrastUsed":         { "radio": "data.simulation.contrastUsed",                                 "type": "string" },
+    "simulationNotes":      { "radio": "data.simulation.simulationNotes",                              "type": "string" },
+    "positioning":          { "radio": "data.setup.positioning",                                       "type": "string", "surgical_note": "Supine vs prone — informs patient positioning discussion with anaesthesia" },
+    "orientation":          { "radio": "data.setup.orientation",                                       "type": "string" },
+    "laserAlignmentMarks":  { "radio": "data.setup.laserAlignmentMarks",                               "type": "string" },
+    "tattooInformation":    { "radio": "data.setup.tattooInformation",                                 "type": "string" },
+    "dateOfMouldRoomVisit": { "radio": "data.setup.dateOfMouldRoomVisit",                              "type": "date" },
+    "technician":           { "radio": "data.setup.technician",                                        "type": "string" },
+    "treatmentSessions": {
+      "_note": "Array — one entry per delivered RT session",
+      "date":               { "radio": "data.sessions.treatmentSessions[].date" },
+      "machine":            { "radio": "data.sessions.treatmentSessions[].machine" },
+      "deliveredDoseGy":    { "radio": "data.sessions.treatmentSessions[].deliveredDoseGy",            "surgical_note": "Cumulative dose and last session date — assess tissue healing time before surgery" },
+      "treatmentTimeMin":   { "radio": "data.sessions.treatmentSessions[].treatmentTimeMin" },
+      "notes":              { "radio": "data.sessions.treatmentSessions[].notes" }
+    },
+    "imagingShifts": {
+      "_note": "Per-session image-guided RT correction data",
+      "date":               { "radio": "data.imaging.imagingShifts[].date" },
+      "shiftXMm":           { "radio": "data.imaging.imagingShifts[].shiftXMm" },
+      "shiftYMm":           { "radio": "data.imaging.imagingShifts[].shiftYMm" },
+      "shiftZMm":           { "radio": "data.imaging.imagingShifts[].shiftZMm" },
+      "rotation":           { "radio": "data.imaging.imagingShifts[].rotation" },
+      "residualErrorAfterShift": { "radio": "data.imaging.imagingShifts[].residualErrorAfterShift" },
+      "session":            { "radio": "data.imaging.imagingShifts[].session" },
+      "isocenterShifts":    { "radio": "data.imaging.imagingShifts[].isocenterShifts" }
+    }
+  },
+
+  "quality_audit": {
+    "_surgical_use": "Protocol adherence and incident history — any near-miss or dosing error should be visible to the surgical team",
+    "auditPeriod":          { "chemo": "data.cycles.1.qa.auditPeriod",                      "radio": "data.chemo_import.cycles.1.qa.auditPeriod",      "type": "string" },
+    "dosingAccuracy":       { "chemo": "data.cycles.1.qa.dosingAccuracy",                   "radio": "data.chemo_import.cycles.1.qa.dosingAccuracy",   "type": "string" },
+    "adverseEventRate":     { "chemo": "data.cycles.1.qa.adverseEventRate",                 "radio": "data.chemo_import.cycles.1.qa.adverseEventRate", "type": "string" },
+    "protocolAdherence":    { "chemo": "data.cycles.1.qa.protocolAdherence",                "radio": "data.chemo_import.cycles.1.qa.protocolAdherence", "type": "string" },
+    "incidentReview":       { "chemo": "data.cycles.1.qa.incidentReview",                   "radio": "data.chemo_import.cycles.1.qa.incidentReview",   "type": "string" }
+  },
+
+  "final_summary": {
+    "_surgical_use": "Oncologist's signed-off assessment — confirmation that the medical team has cleared the patient for next phase",
+    "overallAssessment":    { "chemo": "data.cycles.1.final_summary.overallAssessment",     "radio": "data.chemo_import.cycles.1.final_summary.overallAssessment", "type": "string" },
+    "recommendations":      { "chemo": "data.cycles.1.final_summary.recommendations",       "radio": "data.chemo_import.cycles.1.final_summary.recommendations",   "type": "string" },
+    "physicianSignature":   { "chemo": "data.cycles.1.final_summary.physicianSignature",    "radio": "data.chemo_import.cycles.1.final_summary.physicianSignature", "type": "string" },
+    "signatureDate":        { "chemo": "data.cycles.1.final_summary.signatureDate",         "radio": "data.chemo_import.cycles.1.final_summary.signatureDate",      "type": "date" }
+  },
+
+  "document_metadata": {
+    "_id":        { "chemo": "_id",        "radio": "_id",        "type": "ObjectId" },
+    "doctorId":   { "chemo": "doctorId",   "radio": "doctorId",   "type": "string" },
+    "patientId":  { "chemo": "patientId",  "radio": "patientId",  "type": "string" },
+    "hospitalId": { "chemo": "hospitalId", "radio": "hospitalId", "type": "string" },
+    "updatedAt":  { "chemo": "updatedAt",  "radio": "updatedAt",  "type": "ISODate" },
+    "status":     { "chemo": null,         "radio": "status",     "type": "string" }
+  }
+}

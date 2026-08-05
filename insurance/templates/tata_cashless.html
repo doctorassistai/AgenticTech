@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TATA AIG General Insurance - Investigation Report</title>
+  <style>
+    @page { size: A4; margin: 12mm 12mm; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; font-size: 10px; color: #000; background: #fff; }
+    .page { width: 186mm; margin: 0 auto; background: #fff; }
+
+    .header { text-align: center; margin-bottom: 10px; }
+    .header-main-title { font-weight: bold; font-size: 13px; margin-bottom: 4px; }
+    .header-sub-title { font-weight: bold; font-size: 11px; text-decoration: underline; }
+
+    .page-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      margin-top: 8px;
+      font-size: 9px;
+      color: #555;
+    }
+    .stamp-img { width: 90px; height: 90px; object-fit: contain; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      word-wrap: break-word;
+      margin-bottom: 0;
+    }
+    td {
+      border: 1px solid #000;
+      padding: 5px 7px;
+      vertical-align: top;
+      font-size: 10px;
+      word-wrap: break-word;
+    }
+    .sec-hdr td {
+      text-align: center;
+      font-weight: bold;
+      font-size: 10px;
+      background: #f0f0f0;
+      padding: 5px;
+    }
+    .lbl { font-weight: bold; width: 38%; }
+    .val { width: 62%; min-height: 18px; }
+    .lbl-half { font-weight: bold; width: 20%; }
+    .val-half { width: 30%; min-height: 18px; }
+    .page-break { page-break-before: always; margin-top: 10px; }
+
+    @media print {
+      body { margin: 0; }
+      .page { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- PAGE 1 -->
+  <div class="header">
+    <div class="header-main-title">TATA AIG General Insurance Co. Ltd.</div>
+    <div class="header-sub-title">Investigation Report – Cashless Claims</div>
+  </div>
+
+  <!-- CLAIM DETAILS -->
+  <table>
+    <tr class="sec-hdr"><td colspan="4">Claim Details</td></tr>
+    <tr>
+      <td class="lbl-half">Claim No.</td>
+      <td class="val-half">{{ case.insurerRef or '' }}</td>
+      <td class="lbl-half">Policy No.</td>
+      <td class="val-half">{{ case.policyNumber or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl-half">Claimed Amount</td>
+      <td class="val-half">{{ case.claimedAmount or '' }}</td>
+      <td class="lbl-half">Policy Inception Date</td>
+      <td class="val-half">{{ (case.get('policyDetails') or {}).get('inceptionDate') or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl-half">Referral Date &amp; Time</td>
+      <td class="val-half">{{ case.createdAt or '' }}</td>
+      <td class="lbl-half">Report Submission Date &amp; Time</td>
+      <td class="val-half">{{ case.reportDate or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl-half">Investigator Name</td>
+      <td colspan="3" class="val">{{ investigation.investigatorName or 'Optimus Medical Services Pvt Limited' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl-half">Triggers for Investigations</td>
+      <td colspan="3" class="val">{{ case.claimTriggers | join(', ') if case.claimTriggers else '' }}</td>
+    </tr>
+  </table>
+
+  <!-- INSURED VISIT DETAILS -->
+  <table>
+    <tr class="sec-hdr"><td colspan="4">Insured Visit Details</td></tr>
+    <tr>
+      <td class="lbl-half">Patient Name</td>
+      <td class="val-half">{{ case.claimantName or '' }}</td>
+      <td class="lbl-half">Insured Name</td>
+      <td class="val-half">{{ case.claimantName or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl-half">Address</td>
+      <td colspan="3" class="val">{{ case.claimantAddress or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl-half">Patient's DOB</td>
+      <td class="val-half">{{ (case.get('briefInsured') or {}).get('dob') or '' }}</td>
+      <td class="lbl-half">Patient's Age / Sex</td>
+      <td class="val-half">{{ case.claimantAge or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl-half">Age Proof</td>
+      <td colspan="3" class="val">{{ case.idProofType or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl-half">Any Discrepancy in Age?</td>
+      <td colspan="3" class="val">{{ (case.get('briefComments') or {}).get('dob') or 'NIL' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl-half">Occupation / Employment Details</td>
+      <td colspan="3" class="val">{{ (case.get('briefInsured') or {}).get('occupation') or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl-half">Relationship with Insured</td>
+      <td colspan="3" class="val">{{ case.relationship or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl-half">Feedback call details</td>
+      <td colspan="3" class="val">{{ (case.get('interviewDetails') or {}).get('neighbours') or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl-half" style="vertical-align:top;">Insured Statement Details</td>
+      <td colspan="3" class="val" style="min-height:50px;">{{ case.description or '' }}</td>
+    </tr>
+  </table>
+
+  <div class="page-footer">
+    <span>1 &nbsp;&nbsp;&nbsp; TATA AIG Investigation Report Format V 1.0 effective from 1<sup>st</sup> April 2024</span>
+    <span>Vendor Signature &amp;</span>
+  </div>
+  <div style="margin-top:8px;">
+    <img src="{{ stamp_image }}" class="stamp-img" alt="Stamp">
+  </div>
+
+  <!-- PAGE 2 -->
+  <div class="page-break"></div>
+
+  <!-- HOSPITAL DETAILS -->
+  <table>
+    <tr class="sec-hdr"><td colspan="4">Hospital Details</td></tr>
+    <tr>
+      <td class="lbl" colspan="4" style="font-weight:bold;">Hospital Name</td>
+    </tr>
+    <tr>
+      <td colspan="4" class="val">{{ hospital.name or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl" colspan="4" style="font-weight:bold;">Address</td>
+    </tr>
+    <tr>
+      <td colspan="4" class="val">{{ hospital.address or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl-half">No. Of Beds</td>
+      <td class="val-half">{{ hospital.get('bedCount', '') if hospital.get else '' }}</td>
+      <td class="lbl-half">Type</td>
+      <td class="val-half">{{ hospital.type or 'Primary / Secondary / Tertiary' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl-half">Hospital Registration Details</td>
+      <td colspan="3" class="val">{{ hospital.get('registrationNumber', 'NOT PROVIDED') if hospital.get else 'NOT PROVIDED' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl-half">Owner Details</td>
+      <td colspan="3" class="val">NOT PROVIDED</td>
+    </tr>
+    <tr>
+      <td class="lbl-half">Hospitalization Status</td>
+      <td colspan="3" class="val">{{ case.get('hospitalizationStatus') or 'Admitted / Discharged' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl-half">Date of Admission</td>
+      <td class="val-half">{{ hospital.admissionDate or '' }}</td>
+      <td class="lbl-half">Date of Discharge</td>
+      <td class="val-half">{{ hospital.dischargeDate or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl-half">Provision / Final Diagnosis</td>
+      <td class="val-half">{{ critical.diagnosis or '' }}</td>
+      <td class="lbl-half">Plan of Treatment</td>
+      <td class="val-half">{{ additional.get('planOfTreatment', 'Conservative / Surgical') if additional.get else 'Conservative / Surgical' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl-half">Type of Accommodation</td>
+      <td colspan="3" class="val">{{ billing.roomType or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl-half">IP Register Entry &amp; Brief Findings</td>
+      <td colspan="3" class="val">{{ additional.get('investigationsSuggestingDiagnosis', 'NOT PROVIDED') if additional.get else 'NOT PROVIDED' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl-half" style="vertical-align:top;">Indoor Case Papers</td>
+      <td colspan="3" class="val" style="min-height:50px;">{{ additional.get('initialTreatment', '') if additional.get else '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl-half">Treating Doctor</td>
+      <td colspan="3" class="val">{{ hospital.doctorName or '' }}</td>
+    </tr>
+  </table>
+
+  <div class="page-footer">
+    <span>2 &nbsp;&nbsp;&nbsp; TATA AIG Investigation Report Format V 1.0 effective from 1<sup>st</sup> April 2024</span>
+    <span>Vendor Signature &amp;</span>
+  </div>
+  <div style="margin-top:8px;">
+    <img src="{{ stamp_image }}" class="stamp-img" alt="Stamp">
+  </div>
+
+  <!-- PAGE 3 -->
+  <div class="page-break"></div>
+
+  <table>
+    <tr>
+      <td class="lbl-half">Treating Doctor Reg. No &amp; Verification Details</td>
+      <td colspan="3" class="val">{{ hospital.get('doctorRegNumber', '') if hospital.get else '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl-half" style="vertical-align:top;">Treating Doctor statement details</td>
+      <td colspan="3" class="val">{{ (case.get('interviewDetails') or {}).get('treatingDoctorStatement') or 'NOT PROVIDED' }}</td>
+    </tr>
+  </table>
+
+  <!-- IF ACCIDENTAL CASE -->
+  <table>
+    <tr class="sec-hdr"><td colspan="4">If Accidental Case</td></tr>
+    <tr>
+      <td class="lbl-half">Incidence Details</td>
+      <td colspan="3" class="val">{{ (case.get('accidentDetails') or {}).get('incidentDetails') or 'NA' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl-half">MLC Details &amp; Findings</td>
+      <td class="val-half">{{ accident.get('mlcDetails', 'NA') if accident.get else 'NA' }}</td>
+      <td class="lbl-half">Alcohol Intoxication / Drug Abuse / Self Inflicted</td>
+      <td class="val-half">{{ accident.get('alcoholDetails', 'NA') if accident.get else 'NA' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl-half">FIR Details &amp; Findings</td>
+      <td colspan="3" class="val">{{ accident.get('firDetails', 'NA') if accident.get else 'NA' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl-half">Any Discrepancies</td>
+      <td colspan="3" class="val">NA</td>
+    </tr>
+  </table>
+
+  <!-- LAB VERIFICATION -->
+  <table>
+    <tr class="sec-hdr"><td colspan="4">Lab Verification</td></tr>
+    <tr>
+      <td class="lbl-half">Pathology Lab Detail</td>
+      <td colspan="3" class="val">{{ (case.get('checklist') or {}).get('labVicinity') or 'NOT PROVIDED' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl-half">Pathologist Details</td>
+      <td class="val-half"></td>
+      <td class="lbl-half">Pathologist Registration No. &amp; Verification Status</td>
+      <td class="val-half">NA</td>
+    </tr>
+    <tr>
+      <td class="lbl-half">Is Pathology lab Inhouse?</td>
+      <td colspan="3" class="val">NA</td>
+    </tr>
+    <tr>
+      <td class="lbl-half">Verification Findings</td>
+      <td colspan="3" class="val">{{ (case.get('checklist') or {}).get('labRegistersVerified') or 'NA' }}</td>
+    </tr>
+  </table>
+
+  <!-- CHEMIST VERIFICATION -->
+  <table>
+    <tr class="sec-hdr"><td colspan="4">Chemist Verification</td></tr>
+    <tr>
+      <td class="lbl-half">Chemist Details</td>
+      <td class="val-half">{{ (case.get('checklist') or {}).get('medicinePurchases') or 'NOT PROVIDED' }}</td>
+      <td class="lbl-half">Drug License / GST Details</td>
+      <td class="val-half">NA</td>
+    </tr>
+  </table>
+
+  <div class="page-footer">
+    <span>3 &nbsp;&nbsp;&nbsp; TATA AIG Investigation Report Format V 1.0 effective from 1<sup>st</sup> April 2024</span>
+    <span>Vendor Signature &amp;</span>
+  </div>
+  <div style="margin-top:8px;">
+    <img src="{{ stamp_image }}" class="stamp-img" alt="Stamp">
+  </div>
+
+  <!-- PAGE 4 -->
+  <div class="page-break"></div>
+
+  <table>
+    <tr>
+      <td class="lbl-half">Is Chemist Inhouse?</td>
+      <td colspan="3" class="val">NA</td>
+    </tr>
+    <tr>
+      <td class="lbl-half">Verification Findings</td>
+      <td colspan="3" class="val">NA</td>
+    </tr>
+  </table>
+
+  <!-- OTHER FIELD VISITS -->
+  <table>
+    <tr class="sec-hdr"><td colspan="4">Any Other Field Visits? Pls specify</td></tr>
+    <tr>
+      <td class="lbl-half">Visit 1</td>
+      <td colspan="3" class="val" style="min-height:22px;"></td>
+    </tr>
+    <tr>
+      <td class="lbl-half">Visit 2</td>
+      <td colspan="3" class="val" style="min-height:22px;"></td>
+    </tr>
+    <tr>
+      <td class="lbl-half">Visit 3</td>
+      <td colspan="3" class="val" style="min-height:22px;"></td>
+    </tr>
+  </table>
+
+  <!-- CASE SUMMARY -->
+  <table>
+    <tr class="sec-hdr"><td colspan="4">Case Summary</td></tr>
+    <tr>
+      <td class="lbl-half">Conclusion</td>
+      <td colspan="3" class="val" style="min-height:30px;">
+        {{ conclusion_html | safe }}
+      </td>
+    </tr>
+    <tr>
+      <td class="lbl-half">Remarks</td>
+      <td colspan="3" class="val" style="min-height:22px;">{{ case.get('remarks') or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl-half">Name of Field Officer</td>
+      <td colspan="3" class="val">{{ investigation.investigatorName or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl-half">Contact No.</td>
+      <td colspan="3" class="val">{{ investigation.get('investigatorContact', 'NA') if investigation.get else 'NA' }}</td>
+    </tr>
+  </table>
+
+  <div class="page-footer">
+    <span>4 &nbsp;&nbsp;&nbsp; TATA AIG Investigation Report Format V 1.0 effective from 1<sup>st</sup> April 2024</span>
+    <span>Vendor Signature &amp;</span>
+  </div>
+  <div style="margin-top:8px;">
+    <img src="{{ stamp_image }}" class="stamp-img" alt="Stamp">
+  </div>
+
+</div>
+</body>
+</html>

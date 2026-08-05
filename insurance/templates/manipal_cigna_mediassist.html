@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ManipalCigna Investigation Report</title>
+  <style>
+    @page { size: A4; margin: 18mm 15mm; }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 11px;
+      color: #000;
+      background: #fff;
+    }
+
+    .page {
+      width: 180mm;
+      margin: 0 auto;
+      background: #fff;
+    }
+
+    /* ── Header ── */
+    .header {
+      text-align: center;
+      margin-bottom: 14px;
+    }
+    .header-logo {
+      width: 130px;
+      height: auto;
+      object-fit: contain;
+      margin-bottom: 8px;
+      display: block;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .header-line1 {
+      font-size: 12px;
+      font-weight: bold;
+      text-decoration: underline;
+      margin-bottom: 4px;
+    }
+    .header-line2 {
+      font-size: 11.5px;
+      font-weight: bold;
+      text-decoration: underline;
+      margin-bottom: 4px;
+    }
+    .header-line3 {
+      font-size: 11px;
+      font-weight: bold;
+      text-decoration: underline;
+      margin-bottom: 10px;
+    }
+
+    /* ── Tables ── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 0;
+      table-layout: fixed;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      page-break-inside: avoid;
+    }
+
+    td, th {
+      border: 1px solid #000;
+      padding: 5px 6px;
+      vertical-align: top;
+      font-size: 11px;
+      line-height: 1.5;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+    }
+
+    .lbl { font-weight: bold; background: #fff; }
+    .val { background: #fff; }
+    .center { text-align: center; }
+
+    /* ── Section heading blocks (kept together with what follows) ── */
+    .sec-block {
+      page-break-inside: avoid;
+    }
+
+    /* ── Section headings (bold underline outside table) ── */
+    .sec-heading {
+      font-size: 11px;
+      font-weight: bold;
+      text-decoration: underline;
+      margin: 12px 0 6px 0;
+    }
+
+    /* ── Outcome/Findings boxes ── */
+    .outcome-label {
+      font-size: 11px;
+      font-weight: bold;
+      text-decoration: underline;
+      margin: 10px 0 4px 0;
+    }
+
+    .findings-box {
+      border: 1px solid #000;
+      min-height: 60px;
+      padding: 6px 8px;
+      font-size: 11px;
+      line-height: 1.6;
+      margin-bottom: 4px;
+      page-break-inside: avoid;
+    }
+
+    /* No border, allowed to split across a page break if it runs long */
+    .findings-plain {
+      padding: 0;
+      font-size: 11px;
+      line-height: 1.6;
+      margin-bottom: 4px;
+      page-break-inside: auto;
+    }
+
+    /* ── Checklist tables ── */
+    .cl-num  { width: 6%;  text-align: center; }
+    .cl-text { width: 82%; }
+    .cl-yes  { width: 6%;  text-align: center; font-weight: bold; }
+    .cl-no   { width: 6%;  text-align: center; font-weight: bold; }
+
+    /* ── Conclusion / Signature ── */
+    .sig-stamp {
+      width: 90px;
+      height: auto;
+      object-fit: contain;
+      display: block;
+      margin-top: 6px;
+    }
+
+    /* Conclusion HTML wrapper */
+    .conclusion-wrapper {
+      font-size: 11px;
+      color: #000;
+      line-height: 1.6;
+    }
+
+    @media print {
+      body { background: #fff; }
+      .page { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Header -->
+  <div class="header">
+    <img src="{{ header_image }}" class="header-logo" alt="Medi Assist Logo">
+    <div class="header-line1">Medi Assist Insurance TPA Pvt Ltd.</div>
+    <div class="header-line2">Investigation Report</div>
+    <div class="header-line3">Insurer: ManipalCigna Health Insurance Company Limited</div>
+  </div>
+
+  <!-- Top info table -->
+  <table>
+    <tr>
+      <td class="lbl" style="width:55%;">Date of Investigation</td>
+      <td class="val" style="width:45%;">{{ case.reportDate or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl" colspan="1">Cashless /Reimbursement/Domiciliary:{{ case.claimMode or 'CASHLESS' }}</td>
+      <td class="lbl" style="text-align:left;">#CCN: {{ case.insurerRef or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Name of the Patient: <span style="font-weight:normal;">{{ case.claimantName or '' }}</span></td>
+      <td class="lbl">MAID: <span style="font-weight:normal;">{{ (case.get('cashlessDetails') or {}).get('maid') or case.caseId or '' }}</span></td>
+    </tr>
+    <tr>
+      <td class="lbl" style="width:55%;">
+        Age : <span style="font-weight:normal;">{{ case.claimantAge or '' }}</span>
+        &nbsp;&nbsp;&nbsp; Sex : <span style="font-weight:normal;">{{ case.claimantGender or '' }}</span>
+      </td>
+      <td class="lbl">Relationship with Insured: <span style="font-weight:normal;">{{ case.relationship or '' }}</span></td>
+    </tr>
+    <tr>
+      <td class="lbl">Main Policy Number: <span style="font-weight:normal;">{{ case.policyNumber or 'NA' }}</span></td>
+      <td class="lbl">First Year Policy : <span style="font-weight:normal;">{{ (case.get('policyDetails') or {}).get('firstYearPolicy') or 'Yes / No' }}</span></td>
+    </tr>
+    <tr>
+      <td class="lbl">Claimed Amount in Rs.</td>
+      <td class="val">{{ case.claimedAmount or 'NA' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Hospital Benefit Policy No</td>
+      <td class="val">{{ (case.get('policyDetails') or {}).get('hospitalBenefitPolicyNo') or 'NA' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl" style="vertical-align:top;">Past Claim history if any Mention #CCN<br>(Mandatory): Rejected / Approved</td>
+      <td class="val">{{ (case.get('policyDetails') or {}).get('pastClaimHistory') or 'NA' }}</td>
+    </tr>
+  </table>
+
+  <!-- Trigger for Investigation -->
+  <div class="sec-heading">Trigger for Investigation:</div>
+
+  <table>
+    <tr>
+      <th class="center" style="width:16%;">Triggered by</th>
+      <th class="center" style="width:16%;">Insurer</th>
+      <th class="center" style="width:16%;">F&amp;I tool</th>
+      <th class="center" style="width:17%;">Self-Picked</th>
+      <th class="center" style="width:18%;">Claim Processor</th>
+      <th class="center" style="width:17%;">Others</th>
+    </tr>
+    <tr>
+      <td class="center" style="height:28px;"></td>
+      <td class="center">{{ '✓' if (case.get('triggerDetails') or {}).get('triggeredBy') == 'Insurer' else '' }}</td>
+      <td class="center">{{ '✓' if (case.get('triggerDetails') or {}).get('triggeredBy') == 'F&I tool' else '' }}</td>
+      <td class="center">{{ '✓' if (case.get('triggerDetails') or {}).get('triggeredBy') == 'Self-Picked' else '' }}</td>
+      <td class="center">{{ '✓' if (case.get('triggerDetails') or {}).get('triggeredBy') == 'Claim Processor' else '' }}</td>
+      <td class="center">{{ '✓' if (case.get('triggerDetails') or {}).get('triggeredBy') == 'Others' else '' }}</td>
+    </tr>
+    <tr>
+      <td colspan="6" style="padding: 6px 8px; line-height: 1.8;">
+        <strong>Trigger :</strong> {{ case.claimTrigger or (case.get('triggerDetails') or {}).get('trigger') or '' }}<br>
+        <strong>PID :</strong> {{ (case.get('triggerDetails') or {}).get('pid') or '' }}<br>
+        <strong>POLICY TYPE - RETAIL/ GROUP/ FLOATER :</strong> {{ case.policyType or '' }}<br>
+        <strong>PORTED DETAILS:</strong> {{ (case.get('policyDetails') or {}).get('portedDetails') or '' }}
+      </td>
+    </tr>
+  </table>
+
+  <!-- Hospital Verification heading -->
+  <div class="sec-heading">Hospital Verification:</div>
+
+  {% set hv = (case.get('hospitalVerification') or {}) %}
+
+  <table>
+    <tr>
+      <td class="lbl" style="width:40%;">Name of the Hospital &amp; Address</td>
+      <td class="val" colspan="3">{{ hospital.name or '' }}{% if hospital.address %}, {{ hospital.address }}{% endif %}</td>
+    </tr>
+    <tr>
+      <td class="lbl" style="width:25%;">Date of Admission</td>
+      <td class="val" style="width:25%;">{{ hospital.admissionDate or '' }}</td>
+      <td class="lbl" style="width:25%;">Date of Discharge</td>
+      <td class="val" style="width:25%;">{{ hospital.dischargeDate or 'NA' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Network/Non Network</td>
+      <td class="val" colspan="3">{{ hospital.get('ppnStatus','NA') if hospital.get else 'NA' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Number of beds:</td>
+      <td class="val" colspan="3">{{ hospital.get('beds','') if hospital.get else '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Ailment :</td>
+      <td class="val" colspan="3" style="min-height:30px;">{{ critical.diagnosis or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Duration of Ailment:</td>
+      <td class="val" colspan="3">{{ additional.get('durationOfAilment','') if additional.get else '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl" colspan="4">Past Medical history/Personal habits and Duration/First consultation:</td>
+    </tr>
+    <tr>
+      <td class="val" colspan="4" style="min-height:32px;">{{ additional.get('pastMedicalHistory','') if additional.get else '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Procedure Done : (Surgical /Conservative):</td>
+      <td class="val" colspan="3">{{ critical.procedure or additional.get('courseInHospital','') if additional.get else critical.procedure or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Room Type &amp; Room Rent:</td>
+      <td class="val" colspan="3">{{ (case.get('billingDetails') or billing or {}).get('roomType','') }}{% if (case.get('billingDetails') or billing or {}).get('perDayRoomRent') %} / {{ (case.get('billingDetails') or billing or {}).get('perDayRoomRent') }}{% endif %}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Hospital Final Bill Amount in Rs:</td>
+      <td class="val" colspan="3">{{ (case.get('billingDetails') or billing or {}).get('finalBillAmount','NA') }}</td>
+    </tr>
+  </table>
+
+  <!-- Hospital Verification Checklist -->
+  <table style="margin-top:8px;">
+    <tr>
+      <td class="cl-num" style="font-weight:bold;background:#f0f0f0;"></td>
+      <td class="cl-text" style="font-weight:bold;background:#f0f0f0;">Checks</td>
+      <td class="cl-yes" style="background:#f0f0f0;">Yes</td>
+      <td class="cl-no" style="background:#f0f0f0;">No</td>
+    </tr>
+    {% set hvc = (case.get('hospitalVerificationChecks') or {}) %}
+    <tr><td class="cl-num">1</td><td class="cl-text">Does the hospital match policy criteria? Is the hospital well equipped with infrastructure and staff to handle this case?</td><td class="cl-yes">{{ hvc.get('q1_yes','') }}</td><td class="cl-no">{{ hvc.get('q1_no','') }}</td></tr>
+    <tr><td class="cl-num">2</td><td class="cl-text">IPD and OPD Register entry for the customer's case?</td><td class="cl-yes">{{ hvc.get('q2_yes','') }}</td><td class="cl-no">{{ hvc.get('q2_no','NA') }}</td></tr>
+    <tr><td class="cl-num">3</td><td class="cl-text">Whether treatment described by the treating doctors matches ICP records ?</td><td class="cl-yes">{{ hvc.get('q3_yes','') }}</td><td class="cl-no">{{ hvc.get('q3_no','NA') }}</td></tr>
+    <tr><td class="cl-num">4</td><td class="cl-text">Whether ICPs match nursing charts?</td><td class="cl-yes">{{ hvc.get('q4_yes','') }}</td><td class="cl-no">{{ hvc.get('q4_no','') }}</td></tr>
+    <tr><td class="cl-num">5</td><td class="cl-text">Whether ICP are in order (check for consultant's visits, same handwriting throughout, relevant symptoms to the disease.)?</td><td class="cl-yes">{{ hvc.get('q5_yes','') }}</td><td class="cl-no">{{ hvc.get('q5_no','') }}</td></tr>
+    <tr><td class="cl-num">6</td><td class="cl-text">Whether vitals are same throughout the hospitalization or in same handwriting?</td><td class="cl-yes">{{ hvc.get('q6_yes','') }}</td><td class="cl-no">{{ hvc.get('q6_no','') }}</td></tr>
+    <tr><td class="cl-num">7</td><td class="cl-text">Whether discussion with treating doctor matches patient's statement?</td><td class="cl-yes">{{ hvc.get('q7_yes','') }}</td><td class="cl-no">{{ hvc.get('q7_no','NA') }}</td></tr>
+    <tr><td class="cl-num">8</td><td class="cl-text">Whether there is referral note before hospitalization / 1st consultations paper?</td><td class="cl-yes">{{ hvc.get('q8_yes','') }}</td><td class="cl-no">{{ hvc.get('q8_no','NA') }}</td></tr>
+    <tr><td class="cl-num">9</td><td class="cl-text">Was the need of admission justified with number of days of admission?</td><td class="cl-yes">{{ hvc.get('q9_yes','') }}</td><td class="cl-no">{{ hvc.get('q9_no','') }}</td></tr>
+    <tr><td class="cl-num">10</td><td class="cl-text">Was the admission carried out for investigation purpose?</td><td class="cl-yes">{{ hvc.get('q10_yes','') }}</td><td class="cl-no">{{ hvc.get('q10_no','NA') }}</td></tr>
+    <tr><td class="cl-num">11</td><td class="cl-text">Whether hospital copy of main bill maintained?</td><td class="cl-yes">{{ hvc.get('q11_yes','') }}</td><td class="cl-no">{{ hvc.get('q11_no','NA') }}</td></tr>
+    <tr><td class="cl-num">12</td><td class="cl-text">Was carbon copy of payment receipt maintained? Duplicate copy of payment receipt maintained?</td><td class="cl-yes">{{ hvc.get('q12_yes','') }}</td><td class="cl-no">{{ hvc.get('q12_no','NA') }}</td></tr>
+    <tr><td class="cl-num">13</td><td class="cl-text">Did the hospital easily provide the ICPs or they were not able to locate?</td><td class="cl-yes">{{ hvc.get('q13_yes','') }}</td><td class="cl-no">{{ hvc.get('q13_no','') }}</td></tr>
+    <tr><td class="cl-num">14</td><td class="cl-text">Was the behavior of the hospital staff suspicious?</td><td class="cl-yes">{{ hvc.get('q14_yes','') }}</td><td class="cl-no">{{ hvc.get('q14_no','') }}</td></tr>
+    <tr><td class="cl-num">15</td><td class="cl-text">Was treating doctor's MCI registration number verified?</td><td class="cl-yes">{{ hvc.get('q15_yes','') }}</td><td class="cl-no">{{ hvc.get('q15_no','') }}</td></tr>
+  </table>
+
+  <div class="outcome-label">Findings:</div>
+  <div class="findings-plain">
+    <div class="conclusion-wrapper">{{ hospital_findings_html | safe }}</div>
+  </div>
+
+  <!-- Laboratory / Pathologist Verification -->
+  <div class="sec-heading">Laboratory/Pathologist Verification (If required):</div>
+
+  {% set lv = (case.get('labVerification') or {}) %}
+
+  <table>
+    <tr>
+      <td class="lbl" style="width:45%;">Name of the Laboratory and Address</td>
+      <td class="val" colspan="3">{{ lv.get('labName','NA') }}</td>
+    </tr>
+    <tr>
+      <td class="lbl" style="width:30%;">Name of the Pathologist</td>
+      <td class="val" style="width:20%;">{{ lv.get('pathologistName') or (case.get('medicalStaff') or {}).get('pathologistName') or 'NA' }}</td>
+      <td class="lbl" style="width:30%;">Registration number of Pathologist /Laboratory</td>
+      <td class="val" style="width:20%;">{{ lv.get('pathologistRegNo') or (case.get('medicalStaff') or {}).get('pathologistRegNo') or 'NA' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl" colspan="4">Name of the tests :{{ lv.get('testsName','NA') }}</td>
+    </tr>
+    <tr>
+      <td class="lbl" colspan="4" style="min-height:32px;"></td>
+    </tr>
+    <tr>
+      <td class="lbl" colspan="4">Lab register Verified (Yes/No) if no reason :{{ lv.get('labRegisterVerified','NA') }}</td>
+    </tr>
+  </table>
+
+  <!-- Lab Checklist -->
+  <table style="margin-top:8px;">
+    <tr>
+      <td class="cl-num" style="background:#f0f0f0;"></td>
+      <td class="cl-text" style="font-weight:bold;background:#f0f0f0;">Checks</td>
+      <td class="cl-yes" style="background:#f0f0f0;">Yes</td>
+      <td class="cl-no" style="background:#f0f0f0;">No</td>
+    </tr>
+    {% set lvc = (case.get('labVerificationChecks') or {}) %}
+    <tr><td class="cl-num">1</td><td class="cl-text">Are the lab reports signed by a pathologist?</td><td class="cl-yes">{{ lvc.get('q1_yes','') }}</td><td class="cl-no">{{ lvc.get('q1_no','NA') }}</td></tr>
+    <tr><td class="cl-num">2</td><td class="cl-text">Did the pathologist confirm his visit to the hospital and signing customer's report?</td><td class="cl-yes">{{ lvc.get('q2_yes','') }}</td><td class="cl-no">{{ lvc.get('q2_no','NA') }}</td></tr>
+    <tr><td class="cl-num">3</td><td class="cl-text">Are the reports matching the ICPs?</td><td class="cl-yes">{{ lvc.get('q3_yes','') }}</td><td class="cl-no">{{ lvc.get('q3_no','NA') }}</td></tr>
+    <tr><td class="cl-num">4</td><td class="cl-text">Are the final day reports are matching the discharge summary?</td><td class="cl-yes">{{ lvc.get('q4_yes','') }}</td><td class="cl-no">{{ lvc.get('q4_no','NA') }}</td></tr>
+    <tr><td class="cl-num">5</td><td class="cl-text">Is the chronology of reports in order as per ICPs?</td><td class="cl-yes">{{ lvc.get('q5_yes','') }}</td><td class="cl-no">{{ lvc.get('q5_no','NA') }}</td></tr>
+    <tr><td class="cl-num">6</td><td class="cl-text">Is the TLC greater than 18000 on the 1<sup>st</sup> day in case of direct admission?</td><td class="cl-yes">{{ lvc.get('q6_yes','') }}</td><td class="cl-no">{{ lvc.get('q6_no','NA') }}</td></tr>
+    <tr><td class="cl-num">7</td><td class="cl-text">Is the Pathologist MCI registration verified?</td><td class="cl-yes">{{ lvc.get('q7_yes','') }}</td><td class="cl-no">{{ lvc.get('q7_no','NA') }}</td></tr>
+  </table>
+
+  <div class="outcome-label">Outcome of Laboratory/Pathologist Verification:</div>
+  <div class="findings-box" style="min-height:50px;">{{ lvc.get('outcome','') }}</div>
+
+  <!-- Pharmacy Verification -->
+  <div class="sec-heading">Pharmacy Verification (If required):</div>
+
+  {% set pv = (case.get('pharmacyVerification') or {}) %}
+
+  <table>
+    <tr>
+      <td class="lbl" style="width:45%;">Name of the Pharmacy and Address</td>
+      <td class="val" colspan="3">{{ pv.get('pharmacyName','NA') }}</td>
+    </tr>
+    <tr>
+      <td class="lbl" style="width:35%;">GST/Registration number of Pharmacy</td>
+      <td class="val" style="width:15%;">{{ pv.get('pharmacyRegNo','NA') }}</td>
+      <td class="lbl" style="width:30%;">Name of the pharmacy Owner Name</td>
+      <td class="val" style="width:20%;">{{ pv.get('pharmacyOwnerName','NA') }}</td>
+    </tr>
+    <tr>
+      <td class="lbl" colspan="4" style="min-height:36px;">Bills Verified (Yes/No) if no reason :{{ pv.get('billsVerified','NA') }}</td>
+    </tr>
+  </table>
+
+  <!-- Pharmacy Checklist -->
+  <table style="margin-top:8px;">
+    <tr>
+      <td class="cl-num" style="background:#f0f0f0;"></td>
+      <td class="cl-text" style="font-weight:bold;background:#f0f0f0;">Checks</td>
+      <td class="cl-yes" style="background:#f0f0f0;">Yes</td>
+      <td class="cl-no" style="background:#f0f0f0;">No</td>
+    </tr>
+    {% set pvc = (case.get('pharmacyVerificationChecks') or {}) %}
+    <tr><td class="cl-num">1</td><td class="cl-text">Is the pharmacy well equipped with medicine stock?</td><td class="cl-yes">{{ pvc.get('q1_yes','') }}</td><td class="cl-no">{{ pvc.get('q1_no','NA') }}</td></tr>
+    <tr><td class="cl-num">2</td><td class="cl-text">Whether the bills generated matches pharmacy records?</td><td class="cl-yes">{{ pvc.get('q2_yes','') }}</td><td class="cl-no">{{ pvc.get('q2_no','NA') }}</td></tr>
+    <tr><td class="cl-num">3</td><td class="cl-text">Whether the bills are handwritten in spite of availability of printer?</td><td class="cl-yes">{{ pvc.get('q3_yes','') }}</td><td class="cl-no">{{ pvc.get('q3_no','NA') }}</td></tr>
+    <tr><td class="cl-num">4</td><td class="cl-text">In case of hand written bills are the previous bill numbers in order in bill book?</td><td class="cl-yes">{{ pvc.get('q4_yes','') }}</td><td class="cl-no">{{ pvc.get('q4_no','NA') }}</td></tr>
+    <tr><td class="cl-num">5</td><td class="cl-text">Whether high cost medicine bills are backed by procurement bills of pharmacy?</td><td class="cl-yes">{{ pvc.get('q5_yes','') }}</td><td class="cl-no">{{ pvc.get('q5_no','NA') }}</td></tr>
+    <tr><td class="cl-num">6</td><td class="cl-text">How was the pharmacy bill paid by customer? Proof of payment.</td><td class="cl-yes">{{ pvc.get('q6_yes','') }}</td><td class="cl-no">{{ pvc.get('q6_no','NA') }}</td></tr>
+  </table>
+
+  <div class="outcome-label">Outcome of Pharmacy Verification:</div>
+  <div class="findings-box" style="min-height:50px;">{{ pvc.get('outcome','') }}</div>
+
+  <!-- Patient Verification -->
+  <div class="sec-heading">Patient Verification (if required):</div>
+
+  {% set ptv = (case.get('patientVerification') or {}) %}
+
+  <table>
+    <tr>
+      <td class="lbl" style="width:40%;">Name and Age of the Patient</td>
+      <td class="val" colspan="3">{{ case.claimantName or '' }}{% if case.claimantAge %}, {{ case.claimantAge }}{% endif %}</td>
+    </tr>
+    <tr>
+      <td class="lbl" style="width:30%;">Name of ID Proof Verified</td>
+      <td class="val" style="width:20%;">{{ ptv.get('idProofName','') }}</td>
+      <td class="lbl" style="width:20%;">ID Proof No</td>
+      <td class="val" style="width:30%;">{{ ptv.get('idProofNo') or case.idProofNumber or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl" style="width:30%;">Name of the Patient Attender</td>
+      <td class="val" style="width:20%;">{{ ptv.get('attenderName','') }}</td>
+      <td class="lbl" style="width:20%;">Relationship</td>
+      <td class="val" style="width:30%;">{{ ptv.get('attenderRelationship','') }}</td>
+    </tr>
+    <tr>
+      <td class="lbl" style="width:35%;">Presenting complaints</td>
+      <td class="val" colspan="3">{{ additional.get('chiefComplaints','') if additional.get else '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Duration of Complaints</td>
+      <td class="val" colspan="3">{{ additional.get('durationOfAilment','') if additional.get else '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Past Medical History/Personal Habits and duration</td>
+      <td class="val" colspan="3">{{ additional.get('pastMedicalHistory','') if additional.get else '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl" colspan="2">Patient Past Medical records Verified (Yes/No) and its remarks</td>
+      <td class="val" colspan="2">{{ ptv.get('pastMedicalRecordsVerified','NA') }}</td>
+    </tr>
+    <tr>
+      <td class="lbl" colspan="2" style="min-height:32px;"></td>
+      <td colspan="2"></td>
+    </tr>
+    <tr>
+      <td class="lbl" colspan="2">Bank Account Number Verified (Yes/No) and its remarks</td>
+      <td class="val" colspan="2">{{ ptv.get('bankAccountVerified','NA') }}</td>
+    </tr>
+  </table>
+
+  <!-- Patient Verification Checklist -->
+  <table style="margin-top:8px;">
+    <tr>
+      <td class="cl-num" style="background:#f0f0f0;"></td>
+      <td class="cl-text" style="font-weight:bold;background:#f0f0f0;">Checks</td>
+      <td class="cl-yes" style="background:#f0f0f0;">Yes</td>
+      <td class="cl-no" style="background:#f0f0f0;">No</td>
+    </tr>
+    {% set ptvc = (case.get('patientVerificationChecks') or {}) %}
+    <tr><td class="cl-num">1</td><td class="cl-text">Did it take too long to arrange a visit with the admitted patient?</td><td class="cl-yes">{{ ptvc.get('q1_yes','') }}</td><td class="cl-no">{{ ptvc.get('q1_no','') }}</td></tr>
+    <tr><td class="cl-num">2</td><td class="cl-text">Does the patient's face match with the identity proof given?</td><td class="cl-yes">{{ ptvc.get('q2_yes','') }}</td><td class="cl-no">{{ ptvc.get('q2_no','') }}</td></tr>
+    <tr><td class="cl-num">3</td><td class="cl-text">Does the patient age match with the hospital records?</td><td class="cl-yes">{{ ptvc.get('q3_yes','') }}</td><td class="cl-no">{{ ptvc.get('q3_no','') }}</td></tr>
+    <tr><td class="cl-num">4</td><td class="cl-text">Whether statement of the patient matches with the doctor's statement?</td><td class="cl-yes">{{ ptvc.get('q4_yes','') }}</td><td class="cl-no">{{ ptvc.get('q4_no','') }}</td></tr>
+    <tr><td class="cl-num">5</td><td class="cl-text">Whether statement of the patient matches with the hospital ICPs?</td><td class="cl-yes">{{ ptvc.get('q5_yes','') }}</td><td class="cl-no">{{ ptvc.get('q5_no','') }}</td></tr>
+    <tr><td class="cl-num">6</td><td class="cl-text">Are consultations prior to hospitalization verified from the OPD treating doctor?</td><td class="cl-yes">{{ ptvc.get('q6_yes','') }}</td><td class="cl-no">{{ ptvc.get('q6_no','NA') }}</td></tr>
+    <tr><td class="cl-num">7</td><td class="cl-text">Do the medicines shown by the patient match the discharge medicines?</td><td class="cl-yes">{{ ptvc.get('q7_yes','') }}</td><td class="cl-no">{{ ptvc.get('q7_no','NA') }}</td></tr>
+    <tr><td class="cl-num">8</td><td class="cl-text">Proof of follow-up investigation post discharge.</td><td class="cl-yes">{{ ptvc.get('q8_yes','') }}</td><td class="cl-no">{{ ptvc.get('q8_no','NA') }}</td></tr>
+    <tr><td class="cl-num">9</td><td class="cl-text">Does the patient have multiple policies in industry?</td><td class="cl-yes">{{ ptvc.get('q9_yes','') }}</td><td class="cl-no">{{ ptvc.get('q9_no','NA') }}</td></tr>
+    <tr><td class="cl-num">10</td><td class="cl-text">Does the patient have any previous policy?</td><td class="cl-yes">{{ ptvc.get('q10_yes','') }}</td><td class="cl-no">{{ ptvc.get('q10_no','NA') }}</td></tr>
+    <tr><td class="cl-num">11</td><td class="cl-text">Did the family doctor confirm the presence of ailment?</td><td class="cl-yes">{{ ptvc.get('q11_yes','') }}</td><td class="cl-no">{{ ptvc.get('q11_no','NA') }}</td></tr>
+    <tr><td class="cl-num">12</td><td class="cl-text">Did the neighbors/vicinity check confirm the admission?</td><td class="cl-yes">{{ ptvc.get('q12_yes','') }}</td><td class="cl-no">{{ ptvc.get('q12_no','NA') }}</td></tr>
+    <tr><td class="cl-num">13</td><td class="cl-text">Could the customer recall treating doctor's name?</td><td class="cl-yes">{{ ptvc.get('q13_yes','') }}</td><td class="cl-no">{{ ptvc.get('q13_no','') }}</td></tr>
+    <tr><td class="cl-num">14</td><td class="cl-text">Did the patient confirm how many times blood collected? How many times other tests done?</td><td class="cl-yes">{{ ptvc.get('q14_yes','') }}</td><td class="cl-no">{{ ptvc.get('q14_no','NA') }}</td></tr>
+    <tr><td class="cl-num">15</td><td class="cl-text">Did the patient confirm the bed of hospital admitted with Oxygen? Monitor? Catheter? Etc.</td><td class="cl-yes">{{ ptvc.get('q15_yes','') }}</td><td class="cl-no">{{ ptvc.get('q15_no','NA') }}</td></tr>
+  </table>
+
+  <div class="findings-box" style="min-height:32px; margin-top:4px;">{{ ptvc.get('findings','NA') }}</div>
+
+  <div class="outcome-label">Outcome of Patient Verification:</div>
+  <div class="findings-plain">
+    <div class="conclusion-wrapper">{{ member_findings_html | safe }}</div>
+  </div>
+
+  <!-- Conclusion -->
+  <div class="sec-heading" style="margin-top:14px;">Conclusion</div>
+  <div class="outcome-label">Findings:</div>
+  <div class="findings-plain">
+    <div class="conclusion-wrapper">{{ overall_findings_html | safe }}</div>
+  </div>
+
+  <!-- Outcome of Investigation — Genuine -->
+  <div class="outcome-label">Outcome of Investigation (Please highlight the reason)</div>
+
+  {% set oi = (case.get('outcomeOfInvestigation') or {}) %}
+
+  <table>
+    <tr>
+      <td class="lbl" rowspan="4" style="width:35%; vertical-align:middle;">If Genuine Please specify the reason</td>
+      <td class="lbl" style="width:40%;">Admission Verified</td>
+      <td class="val" style="width:25%;">{{ oi.get('admissionVerified','NA') }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Bills Verified</td>
+      <td class="val">{{ oi.get('billsVerified','NA') }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">ICP Verified</td>
+      <td class="val">{{ oi.get('icpVerified','NA') }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Others (specify)</td>
+      <td class="val">{{ oi.get('genuineOthers','NA') }}</td>
+    </tr>
+  </table>
+
+  <!-- Non-Genuine Reasons -->
+  <table style="margin-top:8px;">
+    <tr>
+      <td class="lbl" rowspan="8" style="width:35%; vertical-align:middle;">If Non Genuine Please Specify the reason</td>
+      <td class="lbl" style="width:40%;font-weight:bold;">Fictitious Admission</td>
+      <td class="val" style="width:25%;">{{ oi.get('fictitiousAdmission','NA') }}</td>
+    </tr>
+    <tr>
+      <td class="lbl" style="font-weight:bold;">Inflated Bills</td>
+      <td class="val">{{ oi.get('inflatedBills','NA') }}</td>
+    </tr>
+    <tr>
+      <td class="lbl" style="font-weight:bold;">Manipulation of Documents</td>
+      <td class="val">{{ oi.get('manipulationOfDocuments','NA') }}</td>
+    </tr>
+    <tr>
+      <td class="lbl" style="font-weight:bold;">Suppression of PED</td>
+      <td class="val">{{ oi.get('suppressionOfPed','NA') }}</td>
+    </tr>
+    <tr>
+      <td class="lbl" style="font-weight:bold;">Tampering of Genuine Bills</td>
+      <td class="val">{{ oi.get('tamperingOfBills','NA') }}</td>
+    </tr>
+    <tr>
+      <td class="lbl" style="font-weight:bold;">Conversion of Exclusion</td>
+      <td class="val">{{ oi.get('conversionOfExclusion','NA') }}</td>
+    </tr>
+    <tr>
+      <td class="lbl" style="font-weight:bold;">Misrepresentation/suppression of facts</td>
+      <td class="val">{{ oi.get('misrepresentation','NA') }}</td>
+    </tr>
+    <tr>
+      <td class="lbl" style="font-weight:bold;">Others (specify)</td>
+      <td class="val">{{ oi.get('nonGenuineOthers','NA') }}</td>
+    </tr>
+  </table>
+
+  <!-- List of Documents collected -->
+  <div class="sec-heading" style="margin-top:12px;">List of Documents collected</div>
+
+  {% set docs = (case.get('documentsCollected') or {}) %}
+
+  <table style="page-break-inside: auto;">
+    <tr style="page-break-inside: avoid;"><td class="lbl" style="width:70%;">Patient Statement</td><td class="val">{{ docs.get('patientStatement','YES') }}</td></tr>
+    <tr style="page-break-inside: avoid;"><td class="lbl">ID Proof of Patient</td><td class="val">{{ docs.get('idProofOfPatient','YES') }}</td></tr>
+    <tr style="page-break-inside: avoid;"><td class="lbl">Hospital Registration certificate copy</td><td class="val">{{ docs.get('hospitalRegistrationCert','NA') }}</td></tr>
+    <tr style="page-break-inside: avoid;"><td class="lbl">Treating Doctor statement</td><td class="val">{{ docs.get('treatingDoctorStatement','NA') }}</td></tr>
+    <tr style="page-break-inside: avoid;"><td class="lbl">Indoor Case Paper copies</td><td class="val">{{ docs.get('indoorCasePapers','YES') }}</td></tr>
+    <tr style="page-break-inside: avoid;"><td class="lbl">MLC Copy/AR copy/FIR Copy</td><td class="val">{{ docs.get('mlcCopy','NA') }}</td></tr>
+    <tr style="page-break-inside: avoid;"><td class="lbl">Verified copy of Bills/Receipts</td><td class="val">{{ docs.get('verifiedBills','NA') }}</td></tr>
+    <tr style="page-break-inside: avoid;"><td class="lbl">Bank Details</td><td class="val">{{ docs.get('bankDetails','NA') }}</td></tr>
+    <tr style="page-break-inside: avoid;"><td class="lbl">Undelivered Register Post</td><td class="val">{{ docs.get('undeliveredRegisterPost','NA') }}</td></tr>
+    <tr style="page-break-inside: avoid;"><td class="lbl">Lab register copies</td><td class="val">{{ docs.get('labRegisterCopies','NA') }}</td></tr>
+    <tr style="page-break-inside: avoid;"><td class="lbl">Pharmacy bill Back up</td><td class="val">{{ docs.get('pharmacyBillBackup','NA') }}</td></tr>
+    <tr style="page-break-inside: avoid;"><td class="lbl">Photographs/Audio/Video</td><td class="val">{{ docs.get('photographs','NA') }}</td></tr>
+    <tr style="page-break-inside: avoid;"><td class="lbl">Letter from hospital/lab/Pharmacy</td><td class="val">{{ docs.get('letterFromHospital','NA') }}</td></tr>
+    <tr style="page-break-inside: avoid;"><td class="lbl">Others</td><td class="val">{{ docs.get('others','NA') }}</td></tr>
+  </table>
+
+  <!-- Submission details -->
+  <table style="margin-top:10px;">
+    <tr>
+      <td class="lbl" style="width:50%;">Date and Time of Case Assignment</td>
+      <td class="val">{{ (case.get('submissionDetails') or {}).get('caseAssignmentDateTime') or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Date and Time of Report Submission</td>
+      <td class="val">{{ (case.get('submissionDetails') or {}).get('reportSubmissionDateTime') or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Report Preparation Time</td>
+      <td class="val">{{ (case.get('submissionDetails') or {}).get('reportPreparationTime') or '40MIN' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Name of the field officer</td>
+      <td class="val">{{ investigation.investigatorName or (case.get('submissionDetails') or {}).get('fieldOfficerName') or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Final Report Done By:</td>
+      <td class="val">{{ case.reportMadeBy or 'DR ANJANA R MOHAN' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Post QC Done By:</td>
+      <td class="val">{{ (case.get('submissionDetails') or {}).get('postQcBy') or case.reportMadeBy or 'DR ANJANA R MOHAN' }}</td>
+    </tr>
+  </table>
+
+  <!-- Stamp -->
+  {% if show_stamp != false %}
+  <div style="margin-top: 14px;">
+    <img src="{{ stamp_image }}" class="sig-stamp" alt="Stamp">
+  </div>
+  {% endif %}
+
+</div>
+</body>
+</html>

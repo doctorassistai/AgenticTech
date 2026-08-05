@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Procedure to CPT Mapping Results</title>
+    <!-- DataTables CSS for search, sort, and pagination -->
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/2.0.8/css/dataTables.dataTables.min.css">
+    <!-- Basic styling for readability -->
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1 );
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        table.dataTable {
+            width: 100% !important;
+        }
+        .confidence-low { color: #d9534f; font-weight: bold; } /* Red */
+        .confidence-moderate { color: #f0ad4e; font-weight: bold; } /* Orange */
+        .confidence-high { color: #5cb85c; font-weight: bold; } /* Green */
+    </style>
+
+    <script>$('#mappingTable').DataTable({
+    processing: true,
+    serverSide: true,
+    ajax: {
+        url: '/api/cpt-mapping-data',
+        type: 'GET',
+        dataSrc: function(json) {
+            // Filter only Rank 1 or 2
+            const filtered = json.data.filter(item => item.Rank <= 2);
+            json.recordsFiltered = filtered.length;
+            json.data = filtered;
+            return json.data;
+        }
+    },
+    columns: [
+        { data: 'Source Procedure Name', name: 'Source Procedure Name' },
+        { data: 'Rank', name: 'Rank' },
+        { 
+            data: 'Confidence Score (Cosine Similarity)', 
+            name: 'Confidence Score (Cosine Similarity)',
+            render: function(data, type, row) {
+                if (type === 'display') {
+                    let className = 'confidence-low';
+                    if (data >= 0.8) className = 'confidence-high';
+                    else if (data >= 0.6) className = 'confidence-moderate';
+                    return '<span class="' + className + '">' + data.toFixed(4) + '</span>';
+                }
+                return data;
+            }
+        },
+        { data: 'CPT Code', name: 'CPT Code' },
+        { data: 'CPT Description', name: 'CPT Description' }
+    ],
+    paging: true,
+    searching: true,
+    ordering: true,
+    info: true,
+    responsive: true,
+    pageLength: 100,
+    lengthMenu: [ [10, 50, 100, 500, -1], [10, 50, 100, 500, "All"] ],
+    order: [[0, 'asc'], [1, 'asc']]
+});
+</script>
+</head>
+<body>
+
+
+
+    <div class="container">
+        <h1>Procedure to CPT Mapping Results</h1>
+        <p>This table shows the top 5 CPT code matches for each procedure from the "General Procedure List" using semantic similarity.The ranking of the CPT match (1 being the best match).Confidence Score Interpretation:
+Strong Match: Score > 0.8
+Moderate Match: Score > 0.6
+Weak Match: Score < 0.6 Data is loaded securely via server-side processing.</p>
+        
+        <!-- The table structure remains the same -->
+        <table id="mappingTable" class="display" style="width:100%">
+            <thead>
+                <tr>
+                    <th>Source Procedure Name</th>
+                    <th>Rank</th>
+                    <th>Confidence Score</th>
+                    <th>CPT Code</th>
+                    <th>CPT Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Data will be populated by DataTables -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- jQuery and DataTables JS -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script type="text/javascript" src="https://cdn.datatables.net/2.0.8/js/dataTables.min.js"></script>
+    
+    <script>
+        $(document ).ready(function() {
+            // Function to format the confidence score with color
+            function formatConfidence(score) {
+                let className = 'confidence-low';
+                if (score >= 0.8) {
+                    className = 'confidence-high';
+                } else if (score >= 0.6) {
+                    className = 'confidence-moderate';
+                }
+                return '<span class="' + className + '">' + score.toFixed(4) + '</span>';
+            }
+
+            // Initialize DataTable with Server-Side Processing
+            $('#mappingTable').DataTable({
+                // --- SERVER-SIDE CONFIGURATION ---
+                processing: true,
+                serverSide: true,
+                ajax: {
+                    url: '/api/cpt-mapping-data', // The new FastAPI endpoint
+                    type: 'GET'
+                },
+                // --- COLUMN DEFINITIONS (MUST MATCH BACKEND MAPPING) ---
+                columns: [
+                    { data: 'Source Procedure Name', name: 'Source Procedure Name' },
+                    { data: 'Rank', name: 'Rank' },
+                    { 
+                        data: 'Confidence Score (Cosine Similarity)', 
+                        name: 'Confidence Score (Cosine Similarity)',
+                        render: function(data, type, row) {
+                            if (type === 'display') {
+                                return formatConfidence(data);
+                            }
+                            return data; // For sorting and filtering, use the raw number
+                        }
+                    },
+                    { data: 'CPT Code', name: 'CPT Code' },
+                    { data: 'CPT Description', name: 'CPT Description' }
+                ],
+                // --- DISPLAY CONFIGURATION ---
+                paging: true,
+                searching: true,
+                ordering: true,
+                info: true,
+                responsive: true,
+                // Show 100 entries by default, as requested
+                pageLength: 100,
+                lengthMenu: [ [10, 50, 100, 500, -1], [10, 50, 100, 500, "All"] ],
+                // Order by Source Procedure Name, then by Rank
+                order: [[0, 'asc'], [1, 'asc']]
+            });
+        });
+    </script>
+</body>
+</html>

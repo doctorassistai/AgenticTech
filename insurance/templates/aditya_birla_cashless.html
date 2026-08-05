@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Investigation Report - Cashless</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 20px;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background: #fff;
+      font-family: Arial, Helvetica, sans-serif;
+      color: #222;
+      font-size: 13px;
+    }
+
+    .page {
+      width: 794px;
+      margin: 0 auto;
+      background: white;
+      padding: 0 26px 25px;
+      box-sizing: border-box;
+    }
+
+    /* ── Header ── */
+    .header-image {
+      width: 100%;
+      display: block;
+      margin-bottom: 20px;
+    }
+
+    /* ── Main title ── */
+    .main-title {
+      text-align: center;
+      font-size: 18px;
+      font-weight: 700;
+      text-decoration: underline;
+      margin-bottom: 20px;
+    }
+
+    /* ── Section title box (centred, bordered, underlined) ── */
+    .section-title {
+      width: 420px;
+      margin: 20px auto 14px auto;
+      border: 1px solid #444;
+      text-align: center;
+      font-size: 14px;
+      font-weight: 700;
+      text-decoration: underline;
+      padding: 4px 0;
+      background: #f7f7f7;
+      letter-spacing: 0.3px;
+    }
+
+    /* ── Tables ── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 16px;
+      table-layout: fixed;
+    }
+
+    tr {
+      page-break-inside: avoid;
+    }
+
+    td {
+      border: 1px solid #555;
+      padding: 8px 10px;
+      vertical-align: middle;
+      font-size: 13px;
+      line-height: 1.5;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+    }
+
+    .label {
+      font-weight: 700;
+      background: #f7f7f7;
+      text-align: left;
+    }
+
+    .value {
+      text-align: left;
+      font-weight: 500;
+    }
+
+    .center {
+      text-align: center;
+    }
+
+    .narrative-box {
+      padding-top: 10px;
+      padding-bottom: 10px;
+      vertical-align: top;
+      line-height: 1.7;
+    }
+
+    /* ── Signature ── */
+    .signature-box {
+      height: 130px;
+      position: relative;
+      vertical-align: top;
+      overflow: hidden;
+    }
+
+    .real-stamp {
+      width: 110px;
+      position: absolute;
+      top: 15px;
+      left: 20px;
+      object-fit: contain;
+    }
+
+    /* ── Section block (page-break protection) ── */
+    .section-block {
+      page-break-inside: avoid;
+      break-inside: avoid;
+      margin-bottom: 0;
+    }
+
+    /* ── Conclusion / Investigation Outcome ── */
+    .conclusion-wrapper {
+      font-family: Arial, sans-serif;
+      font-size: 13px;
+      color: #000;
+      padding: 0;
+    }
+
+    @media print {
+      body { background: white; }
+      .page { margin: 0; width: 100%; min-height: auto; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!-- PAGE 1                                                      -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<div class="page">
+
+  <!-- Header banner -->
+  <img src="{{ header_image }}" class="header-image" alt="Header">
+
+  <!-- Report title -->
+  <div class="main-title">Investigation Report- Cashless</div>
+
+  <!-- ── Claim Details ── -->
+  <div class="section-title">Claim Details</div>
+
+  <table>
+    <tr>
+      <td class="label" style="width:22%;">Claim No</td>
+      <td class="value">{{ case.insurerRef or '' }}</td>
+    </tr>
+    <tr>
+      <td class="label">Policy No</td>
+      <td class="value">{{ case.policyNumber or '' }}</td>
+    </tr>
+    <tr>
+      <td class="label">Patient Name</td>
+      <td class="value">{{ case.claimantName or '' }}</td>
+    </tr>
+  </table>
+
+  <!-- ABHICL Trigger -->
+  <table>
+    <tr>
+      <td class="label" style="width:22%;">ABHICL Trigger</td>
+      <td class="value">{{ case.claimTrigger or '' }}</td>
+    </tr>
+  </table>
+
+  <!-- Policy Start Date -->
+  <table>
+    <tr>
+      <td class="label" style="width:22%;">Policy Start Date</td>
+      <td class="value">{{ (case.get('policyDetails') or {}).get('startDate') or '' }}</td>
+    </tr>
+  </table>
+
+  <!-- Date of Intimation | Date of Visit -->
+  <table>
+    <tr>
+      <td class="label" style="width:22%;">Date of Intimation</td>
+      <td class="value" style="width:28%;">{{ (case.get('cashlessDetails') or {}).get('intimationDate') or case.dateOfIncident or '' }}</td>
+      <td class="label" style="width:22%;">Date of Visit</td>
+      <td class="value" style="width:28%;">{{ (case.get('cashlessDetails') or {}).get('dateOfVisit') or case.reportDate or '' }}</td>
+    </tr>
+  </table>
+
+  <!-- ── Hospital Details ── -->
+  <div class="section-title">Hospital Details</div>
+
+  <table>
+    <tr>
+      <td class="label" style="width:22%;">Hospital Name</td>
+      <td class="value">{{ hospital.name or '' }}</td>
+    </tr>
+    <tr>
+      <td class="label">Hospital Address</td>
+      <td class="value">{{ hospital.address or '' }}</td>
+    </tr>
+  </table>
+
+  <!-- Beds / OT / ICU / Staff / Room Type / Per Day Room Rent -->
+  <table>
+    <colgroup>
+      <col style="width:22%">
+      <col style="width:28%">
+      <col style="width:22%">
+      <col style="width:28%">
+    </colgroup>
+    <tr>
+      <td class="label">Beds</td>
+      <td class="value">{{ hospital.get('beds','') if hospital.get else '' }}</td>
+      <td class="label">OT</td>
+      <td class="value">{{ hospital.get('ot','NA') if hospital.get else 'NA' }}</td>
+    </tr>
+    <tr>
+      <td class="label">ICU</td>
+      <td class="value">{{ hospital.get('icu','NA') if hospital.get else 'NA' }}</td>
+      <td class="label">Staff</td>
+      <td class="value">{{ hospital.get('staff','NA') if hospital.get else 'NA' }}</td>
+    </tr>
+    <tr>
+      <td class="label">Room Type</td>
+      <td class="value">{{ (case.get('billingDetails') or billing or {}).get('roomType','') }}</td>
+      <td class="label">Per Day Room Rent</td>
+      <td class="value">{{ (case.get('billingDetails') or billing or {}).get('perDayRoomRent','NA') }}</td>
+    </tr>
+  </table>
+
+  <!-- Hospitalisation Status -->
+  <table>
+    <tr>
+      <td class="label" style="width:22%;">Hospitalisation Status</td>
+      <td class="value">{{ case.hospitalisationStatus or '' }}</td>
+    </tr>
+  </table>
+
+  <!-- Date of Admission | Expected Date of Discharge -->
+  <table>
+    <colgroup>
+      <col style="width:22%">
+      <col style="width:28%">
+      <col style="width:25%">
+      <col style="width:25%">
+    </colgroup>
+    <tr>
+      <td class="label">Date of Admission</td>
+      <td class="value">{{ hospital.admissionDate or '' }}</td>
+      <td class="label">Expected Date of discharge</td>
+      <td class="value">{{ hospital.dischargeDate or (case.get('cashlessDetails') or {}).get('expectedDischargeDate') or '' }}</td>
+    </tr>
+  </table>
+
+  <!-- Diagnosis -->
+  <table>
+    <tr>
+      <td class="label" style="width:22%;">Diagnosis</td>
+      <td class="value narrative-box">{{ critical.diagnosis or '' }}</td>
+    </tr>
+  </table>
+
+  <!-- Medical Verification block -->
+  <table>
+    <tr>
+      <td class="label" style="width:22%;">IP Register</td>
+      <td class="value">{{ case.ipRegister or 'NOT VERIFIED' }}</td>
+    </tr>
+    <tr>
+      <td class="label">ICPs</td>
+      <td class="value">{{ case.icps or 'VERIFIED' }}</td>
+    </tr>
+    <tr>
+      <td class="label">Plan of treatment</td>
+      <td class="value narrative-box">{{ additional.courseInHospital or critical.procedure or '' }}</td>
+    </tr>
+    <tr>
+      <td class="label">Discrepancy</td>
+      <td class="value">{{ case.discrepancy or 'NA' }}</td>
+    </tr>
+    <tr>
+      <td class="label">PED</td>
+      <td class="value">{{ (case.get('policyDetails') or {}).get('preExistingDisease') or case.ped or '' }}</td>
+    </tr>
+  </table>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!-- PAGE 2                                                      -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<div class="page">
+
+  <!-- ── Insured Details ── -->
+  <div class="section-block">
+    <div class="section-title">Insured Details</div>
+    <table>
+      <tr>
+        <td class="label" style="width:22%;">Insured Statement</td>
+        <td class="value narrative-box">{{ case.insuredStatement or 'As per member' }}</td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- ── Doctor Details ── -->
+  <div class="section-block">
+    <div class="section-title">Doctor Details</div>
+    <table>
+      <tr>
+        <td class="label" style="width:22%;">Treating Doctor Details</td>
+        <td class="value">{{ case.treatingDoctor or hospital.doctorName or '' }}</td>
+      </tr>
+      <tr>
+        <td class="label">Family Doctor Details</td>
+        <td class="value">{{ case.familyDoctor or '' }}</td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- ── Observations, Findings and Recommendation ── -->
+  <div class="section-block">
+    <div class="section-title">Observations, Findings and Recommendation</div>
+    <table>
+      <tr>
+        <td class="label" style="width:22%;">On Field Observations</td>
+        <td class="value narrative-box">{{ case.onFieldObservations or 'Investigated by Optimus Medical Services Pvt Limited' }}</td>
+      </tr>
+      <tr>
+        <td class="label">Other Findings</td>
+        <td class="value narrative-box">{{ additional.localExamination or '' }}</td>
+      </tr>
+      <tr>
+        <td class="label">Final Recommendation</td>
+        <td class="value narrative-box">{{ additional.investigatorHospitalOpinion or '' }}</td>
+      </tr>
+      <tr>
+        <td class="label">Reasons for Recommendation</td>
+        <td class="value narrative-box">
+          <div class="conclusion-wrapper">
+            {{ conclusion_html | safe }}
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="label">Pre-Existing Disease</td>
+        <td class="value">{{ (case.get('policyDetails') or {}).get('preExistingDisease') or case.ped or '' }}</td>
+      </tr>
+      <tr>
+        <td class="label">Fraud</td>
+        <td class="value">{{ case.fraud or 'NA' }}</td>
+      </tr>
+      <tr>
+        <td class="label">Exclusion</td>
+        <td class="value">{{ case.exclusion or 'NA' }}</td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- ── Enclosures ── -->
+  <div class="section-block">
+    <div class="section-title">Enclosures</div>
+    <table>
+      <tr>
+        <td class="value narrative-box">{{ case.enclosures or '' }}</td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- ── Vendor Details ── -->
+  <div class="section-block">
+    <div class="section-title">Vendor Details</div>
+    <table>
+      <tr>
+        <td class="label" style="width:22%;">Name Of Investigator</td>
+        <td class="value">{{ investigation.investigatorName or '' }}</td>
+      </tr>
+      <tr>
+        <td class="label">Report Date</td>
+        <td class="value">{{ case.reportDate or '' }}</td>
+      </tr>
+      <tr>
+        <td class="label">Report made by</td>
+        <td class="value">{{ case.reportMadeBy or 'DR ANJANA R MOHAN' }}</td>
+      </tr>
+      <tr>
+        <td class="label">Name of Vendor</td>
+        <td class="value">{{ case.vendorName or 'OPTIMUS MEDICAL SERVICES PVT LIMITED' }}</td>
+      </tr>
+      <tr>
+        <td class="label signature-box">Signature and Stamp</td>
+        <td class="signature-box">
+          {% if show_stamp != false %}
+            <img src="{{ stamp_image }}" class="real-stamp" alt="Stamp">
+          {% endif %}
+        </td>
+      </tr>
+    </table>
+  </div>
+
+</div>
+
+</body>
+</html>
