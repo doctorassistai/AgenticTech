@@ -102,6 +102,7 @@ from Agentic.discharge_summary_synoptic import router as discharge_summary_synop
 from Agentic.Synoptic import router as Synoptic
 from Agentic.longitudinal_summary import router as longitudinal_summary
 from Agentic.oncology_case_view_service import router as case_view_router
+from Agentic.Insurance_claim_validation import router as Insurance_claim_validation
 
 load_dotenv()
 
@@ -384,3 +385,4 @@ app.include_router(discharge_summary_synoptic)
 app.include_router(Synoptic)
 app.include_router(longitudinal_summary)
 app.include_router(case_view_router)
+app.include_router(Insurance_claim_validation)

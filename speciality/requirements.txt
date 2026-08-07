@@ -51,6 +51,8 @@ python-jose[cryptography]
 pika
 
 sentence-transformers
+chromadb==0.5.23
+rank_bm25
 faiss-cpu
 openpyxl
 llama_cloud

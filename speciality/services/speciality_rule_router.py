@@ -42,6 +42,9 @@ from datetime import datetime, timedelta
 from fastapi.encoders import jsonable_encoder
 from typing import Optional, Literal
 from pydantic import BaseModel
+import chromadb
+from rank_bm25 import BM25Okapi
+
 
 
 
@@ -53,6 +56,14 @@ api_key = os.getenv("GROQ_API_KEY")
 
 groq_client = Groq(api_key=api_key)
 
+import pathlib
+
+_CHROMA_DIR = pathlib.Path(__file__).resolve().parent / "patient_rag"
+_CHROMA_DIR.mkdir(parents=True, exist_ok=True)
+
+chroma_client = chromadb.PersistentClient(
+    path=str(_CHROMA_DIR)
+)
 
 
 router = APIRouter(
@@ -99,6 +110,8 @@ patient_user_collection = db["patient_users"]
 patient_vitals_collection = database["patient_vitals"]
 #PRE
 temp_documents_collection = database["temp_documents"]
+
+processed_documents_collection = database["processed_documents"]
 
 @router.post("/pre-save-clinical-configuration")
 async def save_clinical_configuration(payload: dict):
@@ -221,7 +234,7 @@ async def get_clinical_configuration(doctor_id: str, consultation_phase: str):
             detail="No clinical configuration found for this doctor"
         )
 
-    # Clean Mongo ObjectId for frontend
+    # Clean Mongo ObjectId for fronte
     def clean_doc(doc):
         doc["_id"] = str(doc["_id"])
         return doc
@@ -2358,3 +2371,965 @@ async def proxy_upload(
             status_code=500,
             detail=f"Upload failed: {str(e)}",
         )
+
+
+
+
+
+################################################### RAG FLOW BY ALWIN ################################
+
+MAX_ENTITY_GROUP_SIZE = 5
+
+
+def _dedupe_and_cap_entities(entities: list) -> list:
+    """
+    Upstream extraction can occasionally produce runaway duplicate
+    entities that share the same entity_type/entity_name but
+    increment a counter in entity_value (e.g. "cycle 1 of 4" through
+    "cycle 415 of 4" for what should be a 4-cycle regimen). Left
+    unfiltered these drown out real clinical entities and blow up
+    chunk size. Cap each (entity_type, entity_name) group to a small
+    sample instead of dropping by length, since legitimate entities
+    (e.g. "ER: Positive") are often short and must not be filtered.
+    """
+    if not entities:
+        return entities
+
+    groups: dict = {}
+    order: list = []
+
+    for e in entities:
+        key = (e.get("entity_type"), e.get("entity_name"))
+        if key not in groups:
+            groups[key] = []
+            order.append(key)
+        groups[key].append(e)
+
+    result = []
+    for key in order:
+        group = groups[key]
+        if len(group) <= MAX_ENTITY_GROUP_SIZE:
+            result.extend(group)
+        else:
+            kept = group[:2] + group[-1:]
+            result.extend(kept)
+            entity_type, entity_name = key
+            result.append({
+                "entity_type": entity_type,
+                "entity_name": entity_name,
+                "entity_value": f"(+{len(group) - len(kept)} more similar entries omitted)"
+            })
+
+    return result
+
+
+def _is_narrative_string(value) -> bool:
+    """
+    Heuristic for 'this is a prose sentence' vs 'this is a code,
+    id, date, or structured field value' — used to pull real
+    clinical narrative out of embedded JSON without dragging in
+    the surrounding structural noise (lab order codes, drug lists,
+    device ids, beam parameters, etc).
+    """
+    return (
+        isinstance(value, str)
+        and len(value) >= 30
+        and value.count(" ") >= 4
+    )
+
+
+def _humanize_key(key) -> str:
+    """tumor_size_leftBreast -> 'tumor size left breast' (so BM25's
+    whitespace tokenizer can actually match on individual words)."""
+    if not key:
+        return ""
+    s = re.sub(r"[_\-]+", " ", str(key))
+    s = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", " ", s)
+    return s.strip().lower()
+
+
+def _extract_narrative_from_json(data) -> str:
+    """
+    Recursively walk a parsed JSON structure and pull out narrative
+    free-text strings (doctor notes, transcripts, AI summaries) in
+    full, and short structured leaf values (tumor size, staging,
+    lab values, dates, numbers, booleans, etc.) tagged with a
+    humanized key name so they stay searchable — without dragging
+    in raw JSON syntax or bulky structured sub-trees (labOrderFields,
+    beamParameters, etc.).
+    """
+    found = []
+
+    def walk(node, key_hint=None):
+        if isinstance(node, dict):
+            for k, value in node.items():
+                walk(value, key_hint=k)
+        elif isinstance(node, list):
+            for item in node:
+                walk(item, key_hint=key_hint)
+        elif node is None:
+            return
+        elif isinstance(node, bool):
+            if key_hint:
+                found.append(f"{_humanize_key(key_hint)}: {node}")
+        elif isinstance(node, (int, float)):
+            if key_hint:
+                found.append(f"{_humanize_key(key_hint)}: {node}")
+        elif isinstance(node, str) and node.strip():
+            if _is_narrative_string(node):
+                found.append(node)
+            elif key_hint:
+                found.append(f"{_humanize_key(key_hint)}: {node.strip()}")
+
+    walk(data)
+
+    # Preserve order but drop exact duplicate sentences (the source
+    # data repeats the same narrative under multiple nested paths).
+    seen = set()
+    deduped = []
+    for s in found:
+        if s not in seen:
+            seen.add(s)
+            deduped.append(s)
+
+    return "\n".join(deduped)
+
+
+def _normalize_section_content(content) -> str:
+    """
+    Section content shows up in three shapes across different doc
+    sources/specialties:
+      1. plain prose (str)                  -> use as-is
+      2. a JSON string embedding nested data -> json.loads, extract
+      3. an already-parsed dict/list (Mongo stores nested docs
+         natively - this is common, not an edge case) -> extract
+         directly
+    Previously only case 2 was handled - a native dict/list fell
+    through to str(content), embedding raw Python repr instead of
+    the actual field values (tumor size, staging, labs, etc.).
+    """
+    if isinstance(content, (dict, list)):
+        narrative = _extract_narrative_from_json(content)
+        return narrative if narrative else (str(content) if content else "")
+
+    if not isinstance(content, str):
+        return str(content) if content else ""
+
+    stripped = content.strip()
+
+    if stripped.startswith("{") or stripped.startswith("["):
+        try:
+            parsed = json.loads(stripped)
+        except (json.JSONDecodeError, ValueError):
+            return content
+        narrative = _extract_narrative_from_json(parsed)
+        return narrative if narrative else content
+
+    return content
+
+
+async def get_patient_processed_documents(
+    doctor_id: str,
+    patient_id: str
+):
+    """
+    Fetch all processed documents
+    belonging to one patient and doctor
+    """
+
+    query = {
+        "doctor_id": doctor_id,
+        "patient_id": patient_id
+    }
+
+
+    documents = await processed_documents_collection.find(
+        query
+    ).to_list(None)
+
+
+    return documents
+
+
+
+async def extract_patient_documents_text(
+    doctor_id: str,
+    patient_id: str
+):
+
+
+    documents = await get_patient_processed_documents(
+        doctor_id,
+        patient_id
+    )
+
+
+    if not documents:
+        return []
+
+
+    rag_documents = []
+
+
+    for doc in documents:
+
+
+        document_id = str(doc.get("_id"))
+
+
+        text_parts = []
+
+
+        # -------------------
+        # Raw markdown
+        # -------------------
+
+        raw_markdown = doc.get(
+            "raw_markdown",
+            ""
+        )
+
+
+        if raw_markdown:
+            text_parts.append(
+                "DOCUMENT CONTENT:\n"
+                + raw_markdown
+            )
+
+
+        # -------------------
+        # Sections (handle both dict and list shapes)
+        # -------------------
+
+        sections_field = doc.get("sections", {})
+
+        if isinstance(sections_field, dict):
+            sections = sections_field.get("sections", [])
+            tables = sections_field.get("tables", [])
+        elif isinstance(sections_field, list):
+            # legacy/alternate shape: "sections" itself is the list of section dicts
+            sections = sections_field
+            tables = []
+        else:
+            sections = []
+            tables = []
+
+        for section in sections:
+
+            if not isinstance(section, dict):
+                continue
+
+            heading = section.get(
+                "heading",
+                ""
+            )
+
+            content = _normalize_section_content(
+                section.get("content", "")
+            )
+
+
+            text_parts.append(
+                f"""
+SECTION:
+{heading}
+
+{content}
+"""
+            )
+
+        # Tables were parsed above but never included - this is
+        # where structured measurements (tumor size, staging, lab
+        # panels, dosage tables, etc.) often live, across every
+        # specialty, not something to special-case per document type.
+        for table in tables:
+            table_text = _table_to_text(table)
+            if table_text:
+                text_parts.append(
+                    f"""
+TABLE:
+{table_text}
+"""
+                )
+
+        final_text = "\n\n".join(
+            text_parts
+        )
+
+
+        rag_documents.append(
+            {
+                "id":
+                f"{patient_id}_{document_id}",
+
+
+                "patient_id":
+                patient_id,
+
+
+                "doctor_id":
+                doctor_id,
+
+
+                "document_id":
+                document_id,
+
+
+                "text":
+                final_text
+            }
+        )
+
+
+    return rag_documents
+
+
+async def chunk_patient_documents(
+    documents
+):
+
+
+    chunks=[]
+
+
+    MAX_CHARS = 15000
+
+
+    for doc in documents:
+
+
+        text = doc["text"]
+
+
+        for i in range(
+            0,
+            len(text),
+            MAX_CHARS
+        ):
+
+
+            chunk=text[
+                i:i+MAX_CHARS
+            ]
+
+
+            chunks.append(
+                {
+
+                "id":
+                f"{doc['id']}_{i}",
+
+
+                "patient_id":
+                doc["patient_id"],
+
+
+                "doctor_id":
+                doc["doctor_id"],
+
+
+                "text":
+                chunk
+
+                }
+            )
+
+
+    return chunks
+
+
+
+OPENROUTER_API_KEY = os.getenv("OPENAI_API_ROUTER_KEY", "")
+OPENROUTER_EMBED_URL = "https://openrouter.ai/api/v1/embeddings"
+EMBEDDING_MODEL = "openai/text-embedding-3-large"
+EMBEDDING_DIMENSION = 3072
+
+
+# Keep well under OpenRouter's 300,000 token/request cap.
+# Uses a rough chars/4 ~ tokens heuristic with headroom, since we
+# don't have an exact tokenizer for text-embedding-3-large wired up.
+EMBED_MAX_TOKENS_PER_REQUEST = 250_000
+EMBED_CHARS_PER_TOKEN_ESTIMATE = 4
+EMBED_MAX_ITEMS_PER_REQUEST = 100  # extra safety net regardless of size
+
+
+def _estimate_tokens(text: str) -> int:
+    return max(1, len(text) // EMBED_CHARS_PER_TOKEN_ESTIMATE)
+
+
+def _batch_texts_for_embedding(texts: list[str]) -> list[list[str]]:
+
+    batches = []
+    current_batch = []
+    current_tokens = 0
+
+    max_tokens = EMBED_MAX_TOKENS_PER_REQUEST
+
+    for text in texts:
+
+        text_tokens = _estimate_tokens(text)
+
+        # A single text alone exceeds the budget - send it solo
+        # rather than looping forever trying to batch it with others.
+        if text_tokens >= max_tokens:
+            if current_batch:
+                batches.append(current_batch)
+                current_batch = []
+                current_tokens = 0
+            batches.append([text])
+            continue
+
+        would_exceed_tokens = (
+            current_tokens + text_tokens > max_tokens
+        )
+        would_exceed_items = (
+            len(current_batch) + 1 > EMBED_MAX_ITEMS_PER_REQUEST
+        )
+
+        if current_batch and (would_exceed_tokens or would_exceed_items):
+            batches.append(current_batch)
+            current_batch = []
+            current_tokens = 0
+
+        current_batch.append(text)
+        current_tokens += text_tokens
+
+    if current_batch:
+        batches.append(current_batch)
+
+    return batches
+
+
+async def _embed_texts_batch(texts: list[str]) -> list[list[float]]:
+
+    headers = {
+        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+        "Content-Type": "application/json",
+    }
+
+    payload = {
+        "model": EMBEDDING_MODEL,
+        "input": texts,
+    }
+
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        response = await client.post(
+            OPENROUTER_EMBED_URL,
+            headers=headers,
+            json=payload,
+        )
+
+    print("Status Code:", response.status_code)
+    print("Response:", response.text)
+
+    response.raise_for_status()
+
+    data = response.json()
+
+    if "data" not in data:
+        raise Exception(f"Embedding API Error: {data}")
+
+    return [item["embedding"] for item in data["data"]]
+
+
+async def embed_texts(texts: list[str]) -> list[list[float]]:
+
+    if not texts:
+        return []
+
+    batches = _batch_texts_for_embedding(texts)
+
+    all_embeddings: list[list[float]] = []
+
+    for batch in batches:
+        batch_embeddings = await _embed_texts_batch(batch)
+        all_embeddings.extend(batch_embeddings)
+
+    return all_embeddings
+
+
+async def generate_patient_embeddings(
+    doctor_id,
+    patient_id
+):
+
+
+    documents = await extract_patient_documents_text(
+        doctor_id,
+        patient_id
+    )
+
+
+    chunks = await chunk_patient_documents(
+        documents
+    )
+
+
+    texts=[
+        c["text"]
+        for c in chunks
+    ]
+
+
+    embeddings = await embed_texts(
+        texts
+    )
+
+
+    for chunk, embedding in zip(
+        chunks,
+        embeddings
+    ):
+
+        chunk["embedding"]=embedding
+
+
+    return chunks
+
+
+import hashlib
+
+
+async def store_patient_rag(
+    doctor_id,
+    patient_id
+):
+
+
+    collection_key = (
+        f"{doctor_id}_{patient_id}"
+    )
+
+
+    collection_hash = hashlib.md5(
+        collection_key.encode()
+    ).hexdigest()
+
+
+
+    collection_name = (
+        f"patient_{collection_hash}"
+    )
+
+
+
+    # Drop any stale collection so we never serve chunks that were
+    # built with an older/lossy extraction pipeline.
+    try:
+        chroma_client.delete_collection(name=collection_name)
+    except Exception:
+        pass
+
+    collection = (
+        chroma_client
+        .get_or_create_collection(
+            name=collection_name
+        )
+    )
+
+
+
+    documents = await generate_patient_embeddings(
+        doctor_id,
+        patient_id
+    )
+
+
+
+    if not documents:
+
+        return {
+            "status":"error",
+            "message":
+            "No documents found"
+        }
+
+
+
+    collection.upsert(
+
+        ids=[
+            d["id"]
+            for d in documents
+        ],
+
+
+        documents=[
+            d["text"]
+            for d in documents
+        ],
+
+
+        embeddings=[
+            d["embedding"]
+            for d in documents
+        ],
+
+
+        metadatas=[
+
+            {
+                "patient_id":
+                d["patient_id"],
+
+
+                "doctor_id":
+                d["doctor_id"]
+
+            }
+
+            for d in documents
+
+        ]
+
+    )
+
+
+
+    return {
+
+        "status":"success",
+
+        "collection":
+        collection_name,
+
+        "chunks":
+        len(documents)
+
+    }
+
+
+def _call_llm_sync(prompt: str) -> str:
+
+    response = groq_client.chat.completions.create(
+        model="llama-3.1-8b-instant",
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are an expert oncology clinical assistant. "
+                    "Answer only using the provided clinical context. "
+                    "Do not make up facts. "
+                    "If the answer is not present in the context, reply: "
+                    "'I could not find enough information in the available patient summaries.'"
+                )
+            },
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ],
+        temperature=0.2,
+        max_tokens=5000
+    )
+
+    return response.choices[0].message.content.strip()
+
+
+async def call_llm(prompt: str) -> str:
+    return await asyncio.to_thread(_call_llm_sync, prompt)
+
+
+def _tokenize(text: str) -> list[str]:
+    return re.findall(r"[a-z0-9]+", text.lower())
+
+
+def _build_bm25_index(chunk_texts: list[str]):
+    tokenized = [_tokenize(t) for t in chunk_texts]
+    return BM25Okapi(tokenized)
+
+
+def _bm25_rank(bm25: BM25Okapi, chunk_ids: list[str], query: str) -> list[str]:
+    scores = bm25.get_scores(_tokenize(query))
+    ranked = sorted(zip(chunk_ids, scores), key=lambda x: x[1], reverse=True)
+    return [cid for cid, _ in ranked]
+
+
+def _reciprocal_rank_fusion(rank_lists: list[list[str]], k: int = 60) -> list[str]:
+    scores: dict[str, float] = {}
+    for ranked_ids in rank_lists:
+        for rank, doc_id in enumerate(ranked_ids):
+            scores[doc_id] = scores.get(doc_id, 0.0) + 1.0 / (k + rank + 1)
+    fused = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+    return [doc_id for doc_id, _ in fused]
+
+
+
+async def search_patient_rag(
+    doctor_id,
+    patient_id,
+    question,
+    top_k=5,
+    fetch_k=30
+):
+
+
+    collection_key = f"{doctor_id}_{patient_id}"
+
+    collection_hash = hashlib.md5(
+        collection_key.encode()
+    ).hexdigest()
+
+    collection_name = f"patient_{collection_hash}"
+
+    all_ids = []
+    all_texts = []
+
+    try:
+        collection = (
+            chroma_client
+            .get_collection(
+                name=collection_name
+            )
+        )
+
+        all_data = collection.get(include=["documents"])
+        all_ids = all_data["ids"]
+        all_texts = all_data["documents"]
+
+        # Collection exists but is empty (e.g. a previous build
+        # failed partway) - treat same as "not built yet".
+        if not all_ids:
+            raise ValueError("Empty collection")
+
+    except Exception:
+
+        # Not built yet (or empty/corrupt) - build it now instead
+        # of requiring a separate /patient-rag/build call.
+        build_result = await store_patient_rag(
+            doctor_id,
+            patient_id
+        )
+
+        if build_result.get("status") != "success":
+            return {
+                "patient_id": patient_id,
+                "answer": (
+                    "I could not find enough information in the "
+                    "available patient summaries."
+                )
+            }
+
+        collection = (
+            chroma_client
+            .get_collection(
+                name=collection_name
+            )
+        )
+
+        all_data = collection.get(include=["documents"])
+        all_ids = all_data["ids"]
+        all_texts = all_data["documents"]
+
+    bm25 = _build_bm25_index(all_texts)
+    bm25_ranked_ids = _bm25_rank(bm25, all_ids, question)[:fetch_k]
+
+
+    query_embedding = (
+        await embed_texts(
+            [question]
+        )
+    )[0]
+
+
+
+    dense_results = collection.query(
+
+        query_embeddings=[
+            query_embedding
+        ],
+
+        n_results=fetch_k
+
+    )
+
+    dense_ranked_ids = dense_results.get("ids", [[]])[0]
+
+    fused_ids = _reciprocal_rank_fusion(
+        [bm25_ranked_ids, dense_ranked_ids]
+    )[:top_k]
+
+    id_to_text = dict(zip(all_ids, all_texts))
+    top_texts = [id_to_text[i] for i in fused_ids if i in id_to_text]
+
+
+    context="\n\n".join(
+        top_texts
+    )
+
+
+
+    prompt=f"""
+
+You are a clinical assistant.
+
+Answer only from patient records.
+
+Patient Clinical Data:
+
+{context}
+
+
+Question:
+
+{question}
+
+"""
+
+
+    answer = await call_llm(
+        prompt
+    )
+
+
+    return {
+
+        "patient_id":
+        patient_id,
+
+
+        "answer":
+        answer
+
+    }
+
+@router.post(
+"/patient-rag/build/{doctor_id}/{patient_id}"
+)
+async def build_patient_rag(
+    doctor_id:str,
+    patient_id:str
+):
+
+    return await store_patient_rag(
+        doctor_id,
+        patient_id
+    )
+
+
+@router.get(
+"/patient-rag/debug/{doctor_id}/{patient_id}"
+)
+async def debug_patient_rag(
+    doctor_id: str,
+    patient_id: str,
+    keyword: str = "tumor"
+):
+    """
+    Temporary diagnostic endpoint - traces a keyword through
+    Mongo -> extraction -> Chroma to find exactly which layer
+    is dropping the data. Remove once the underlying bug is fixed.
+    """
+    kw = keyword.lower()
+    result = {"keyword": keyword}
+
+    # 1. Raw Mongo docs
+    docs = await get_patient_processed_documents(doctor_id, patient_id)
+    result["mongo_doc_count"] = len(docs)
+
+    mongo_findings = []
+    for d in docs:
+        entry = {"doc_id": str(d.get("_id"))}
+
+        rm = d.get("raw_markdown", "") or ""
+        entry["raw_markdown_has_keyword"] = kw in rm.lower()
+
+        sf = d.get("sections", {})
+        entry["sections_field_type"] = str(type(sf))
+        secs = (
+            sf.get("sections", []) if isinstance(sf, dict)
+            else sf if isinstance(sf, list)
+            else []
+        )
+        tabs = sf.get("tables", []) if isinstance(sf, dict) else []
+        entry["num_sections"] = len(secs)
+        entry["num_tables"] = len(tabs)
+
+        section_hits = []
+        for s in secs:
+            if not isinstance(s, dict):
+                continue
+            c = s.get("content", "")
+            blob = c if isinstance(c, str) else json.dumps(c, default=str)
+            if kw in blob.lower():
+                section_hits.append({
+                    "heading": s.get("heading"),
+                    "content_type": str(type(c)),
+                    "snippet": blob[:500]
+                })
+        entry["section_hits"] = section_hits
+
+        table_hits = []
+        for t in tabs:
+            blob = json.dumps(t, default=str)
+            if kw in blob.lower():
+                table_hits.append(blob[:500])
+        entry["table_hits"] = table_hits
+
+        mongo_findings.append(entry)
+
+    result["mongo_findings"] = mongo_findings
+
+    # 2. What extraction actually produces
+    extracted = await extract_patient_documents_text(doctor_id, patient_id)
+    result["extracted"] = [
+        {
+            "document_id": e["document_id"],
+            "has_keyword": kw in e["text"].lower(),
+            "text_len": len(e["text"]),
+            "snippet_around_keyword": (
+                e["text"][max(0, e["text"].lower().find(kw) - 100):e["text"].lower().find(kw) + 200]
+                if kw in e["text"].lower() else None
+            )
+        }
+        for e in extracted
+    ]
+
+    # 3. What's actually stored in Chroma right now
+    collection_hash = hashlib.md5(f"{doctor_id}_{patient_id}".encode()).hexdigest()
+    collection_name = f"patient_{collection_hash}"
+    chroma_info = {"collection_name": collection_name}
+    try:
+        collection = chroma_client.get_collection(name=collection_name)
+        data = collection.get(include=["documents"])
+        chroma_info["total_chunks"] = len(data["documents"])
+        hits = [t for t in data["documents"] if kw in t.lower()]
+        chroma_info["chunks_with_keyword"] = len(hits)
+        chroma_info["sample_hits"] = [h[:500] for h in hits[:2]]
+    except Exception as ex:
+        chroma_info["error"] = str(ex)
+
+    result["chroma"] = chroma_info
+
+    return result
+
+
+
+class PatientRAGRequest(BaseModel):
+
+    doctor_id:str
+    patient_id:str
+    question:str
+    top_k:int=5
+
+
+
+@router.post(
+"/patient-rag/search"
+)
+async def patient_rag_search(
+    request:PatientRAGRequest
+):
+
+
+    return await search_patient_rag(
+
+        request.doctor_id,
+
+        request.patient_id,
+
+        request.question,
+
+        request.top_k
+
+    )

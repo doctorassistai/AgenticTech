@@ -164,6 +164,7 @@ const AiInHospitals       = lazy(() => import("./webpage/AiInHospitals"));
 const AuthRedirect        = lazy(() => import("./components/Authredirect"));
 const OncologyDashboard = lazy(() => import("./dashboard/OncologyDashboard"));
 const DoctorChat           = lazy(() => import("./components/Chat"));
+const PatientRAGTest       = lazy(() => import("./components/TestChat"));
 
 
 
@@ -312,6 +313,7 @@ const App = memo(function App() {
       <Route path="/ai-in-hospitals"          element={<R component={AiInHospitals} />} />
       <Route path="/auth-redirect"            element={<R component={AuthRedirect} />} />
       <Route path="/onco-dashboard"       element={<R component={OncologyDashboard} />} />
+      <Route path="/patient-rag-test"         element={<R component={PatientRAGTest} />} />
     </Routes>
   );
 });

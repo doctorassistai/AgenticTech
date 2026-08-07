@@ -20,8 +20,13 @@ from uuid import uuid4
 from pymongo import ReturnDocument
 from Agentic.client import send_document_task, send_mongo_document_task,send_patient_summary_task
 from Agentic.enhanced_knowledge_graph import EnhancedMedicalKnowledgeGraph, Evidence
+from Agentic.clinical_knowledge_graph import (
+    StructuredClinicalGraph,
+    push_to_structured_graph,
+)
 from Agentic.oncology_case_view_service import generate_longitudinal_case_view
-
+from Agentic.clinical_reasoning_engine import ClinicalReasoningEngine
+from Agentic.build_visit_timeline_task import build_timeline_incremental
 # ==============================
 # ROUTER
 # ==============================
@@ -70,7 +75,18 @@ knowledge_graph = EnhancedMedicalKnowledgeGraph(
 )
 
 
+structured_graph = StructuredClinicalGraph(
+    uri=neo4j_uri,
+    user=neo4j_user,
+    password=neo4j_password,
+)
 
+
+reasoning_engine = ClinicalReasoningEngine(
+    uri=neo4j_uri,
+    user=neo4j_user,
+    password=neo4j_password
+)
 
 class DoclingCallbackRequest(BaseModel):
     patient_id: str
@@ -297,7 +313,7 @@ def extract_sections(markdown_text: str):
 # ===========================
 # ENTITY EXTRACTION
 # ==============================
-def extract_document_date(document):
+async def extract_document_date(document, sys_user_id):
     # ============================================
     # Priority 1: Lab Report Date
     # ============================================
@@ -349,28 +365,36 @@ def extract_document_date(document):
         pass
 
     # ============================================
-    # Priority 3: Dictation Date
+    # Priority 3: Latest Appointment Date
     # ============================================
     try:
-        dictation = document.get("dictation", {})
+        appointment_doc = await patient_appointments_collection.find_one(
+            {"sys_user_id": sys_user_id},
+            {
+                "appointments": 1,
+                "_id": 0
+            }
+        )
 
-        if isinstance(dictation, dict):
-            data = dictation.get("data")
+        if appointment_doc:
+            appointments = appointment_doc.get("appointments", [])
 
-            if isinstance(data, list):
-                for item in data:
-                    if isinstance(item, dict):
-                        date = item.get("date")
-                        if date:
-                            return date
+            if appointments:
+                # Sort by date descending and take latest
+                latest_appointment = max(
+                    appointments,
+                    key=lambda x: x.get("date", "")
+                )
 
-            elif isinstance(data, dict):
-                date = data.get("date")
-                if date:
-                    return date
+                appointment_date = latest_appointment.get("date")
+                if appointment_date:
+                    logger.info(
+                        f"Using latest appointment date: {appointment_date}"
+                    )
+                    return appointment_date
 
-    except Exception:
-        pass
+    except Exception as e:
+        logger.exception(f"Failed to fetch latest appointment date: {e}")
 
     # ============================================
     # Priority 4: created_at
@@ -396,9 +420,18 @@ async def process_mongo_document(patient_id, doctor_id, document, file_name=None
 
     entities, llm_date = await extract_entities_llm(text, file_name=base_name)
     entities = await validate_entities_llm(text, entities, file_name=base_name)
-    mongo_date = extract_document_date(document)
+    for e in entities:
+        logger.info(f"TYPE={e.entity_type}, NAME={e.entity_name}, VALUE={e.entity_value}")
+    mongo_date = await extract_document_date(document, patient_id)
 
     document_date = mongo_date or llm_date
+    logger.info(f"appointment:{document_date}")
+    appointment_id = await get_appointment_id_for_document(
+        patient_id=patient_id,
+        document_date=document_date,
+    )
+    logger.info(f"appointment_id:{appointment_id}")
+    logger.info(f"appointment:{document_date}")
     logger.info(f"thomas entity:{document_date}")
     file_hash = hashlib.sha256(text.encode()).hexdigest()
     document_id = f"doc_{file_hash[:10]}"
@@ -425,13 +458,209 @@ async def process_mongo_document(patient_id, doctor_id, document, file_name=None
         visit_date=datetime.utcnow().isoformat()
     )
 
-    await push_entities_to_graph(
-        patient_id,
-        document_id,
-        entities,
-        metadata,
-        document_date
+    await structured_graph.create_patient_node(
+        patient_id=patient_id,
+        demographics=demographics,
+        visit_date=document_date,
     )
+    
+    
+    
+    appointment_id = await get_appointment_id_for_document(
+        patient_id=patient_id,
+        document_date=document_date,
+    )
+
+    if appointment_id:
+        try:
+            await build_timeline_incremental(
+                patient_id=patient_id,
+                doctor_id=doctor_id,
+                appointment_id=appointment_id,
+                document_id=document_id,
+                report_date=str(document_date),
+                report_content=text,
+                file_name=file_name_with_ts,
+            )
+        except Exception as e:
+            logger.exception(
+                f"Timeline update failed for document_id={document_id}: {e}"
+            )
+    else:
+        logger.warning(
+            f"No appointment found for patient {patient_id}, "
+            f"timeline update skipped."
+        )
+        await push_entities_to_graph(
+            patient_id,
+            document_id,
+            entities,
+            metadata,
+            document_date
+        )
+    await push_to_structured_graph(
+        scg=structured_graph,
+        patient_id=patient_id,
+        document_id=document_id,
+        entities=entities,
+        metadata=metadata,
+        document_date=document_date,
+    )
+    # ==========================================================
+    # Generate Synthetic Clinical Reasoning
+    # ==========================================================
+
+    # Group entities by type
+    vital_entities = [
+        e for e in entities
+        if e.entity_type.lower() == "vital sign"
+    ]
+
+    lab_entities = [
+        e for e in entities
+        if e.entity_type.lower() == "lab result"
+    ]
+
+    med_entities = [
+        e for e in entities
+        if e.entity_type.lower() == "medication"
+    ]
+
+    symptom_entities = [
+        e for e in entities
+        if e.entity_type.lower() == "symptom"
+    ]
+
+    condition_entities = [
+        e for e in entities
+        if e.entity_type.lower() == "diagnosis"
+    ]
+
+    procedure_entities = [
+        e for e in entities
+        if e.entity_type.lower() == "procedure"
+    ]
+
+    # Convert to structured dictionaries
+    vitals_input = [
+        {
+            "type": e.entity_name,
+            "value": e.entity_value,
+            "timestamp": str(document_date)
+        }
+        for e in vital_entities
+    ]
+
+    labs_input = [
+        {
+            "test": e.entity_name,
+            "value": e.entity_value,
+            "timestamp": str(document_date)
+        }
+        for e in lab_entities
+    ]
+
+    meds_input = [
+        {
+            "name": e.entity_name,
+            "value": e.entity_value,
+            "timestamp": str(document_date)
+        }
+        for e in med_entities
+    ]
+
+    conditions_input = [
+        {
+            "name": e.entity_name,
+            "value": e.entity_value
+        }
+        for e in condition_entities
+    ]
+
+    symptoms_input = [
+        {
+            "name": e.entity_name,
+            "value": e.entity_value
+        }
+        for e in symptom_entities
+    ]
+
+    # Generate vital sign reasoning
+    if vitals_input:
+        logger.info("Generating vital indications...")
+
+        await reasoning_engine.generate_vital_indications(
+            patient_id=patient_id,
+            vitals=vitals_input,
+            conditions=conditions_input,
+            medications=meds_input,
+            demographics=demographics
+        )
+
+    # Generate lab interpretations
+    if labs_input:
+        logger.info("Generating lab interpretations...")
+
+        await reasoning_engine.generate_lab_interpretations(
+            patient_id=patient_id,
+            labs=labs_input,
+            conditions=conditions_input,
+            medications=meds_input,
+            previous_labs=[]
+        )
+
+    # Generate medication effectiveness
+    if meds_input:
+        logger.info("Generating medication effectiveness...")
+
+        await reasoning_engine.generate_medication_effectiveness(
+            patient_id=patient_id,
+            medications=meds_input,
+            vitals=vitals_input,
+            labs=labs_input,
+            symptoms=symptoms_input,
+            conditions=conditions_input
+        )
+
+    # Generate recovery trajectories
+    for proc in procedure_entities:
+        logger.info(f"Generating recovery plan for {proc.entity_name}")
+
+        await reasoning_engine.generate_procedure_recovery(
+            patient_id=patient_id,
+            procedure={
+                "name": proc.entity_name,
+                "value": proc.entity_value
+            },
+            patient_profile=demographics,
+            vitals=vitals_input,
+            labs=labs_input
+        )
+
+    # Generate cross correlations
+    all_entities = [
+        {
+            "type": e.entity_type,
+            "name": e.entity_name,
+            "value": e.entity_value
+        }
+        for e in entities
+    ]
+
+    logger.info("Generating cross correlations...")
+
+    await reasoning_engine.generate_cross_correlations(
+        patient_id=patient_id,
+        all_entities=all_entities
+    )
+
+    logger.info(
+        f"✅ Synthetic reasoning completed for patient {patient_id}"
+    )
+
+    # ==========================================================
+    # End Synthetic Clinical Reasoning
+    # ==========================================================
     # Generate / Update Longitudinal Case View
     await generate_longitudinal_case_view(
         patient_id=patient_id,
@@ -1946,3 +2175,74 @@ async def _call_gpt_entities(prompt: str) -> str:
         raise Exception(f"OpenRouter entity extraction failed: {response.status_code} | {response.text}")
     result = response.json()
     return result["choices"][0]["message"]["content"]
+
+
+
+
+
+
+@router.get("/patient/{patient_id}/synthetic-insights")
+async def get_patient_synthetic_insights(patient_id: str):
+    insights = await reasoning_engine.get_synthetic_insights(patient_id)
+
+    return {
+        "status": "success",
+        "count": len(insights),
+        "insights": insights
+    }
+    
+from datetime import datetime
+from typing import Optional   
+    
+async def get_appointment_id_for_document(
+    patient_id: str,
+    document_date,
+) -> Optional[str]:
+    """
+    Returns the appointment_id that this document belongs to.
+
+    Rules:
+    - Report before first appointment -> first appointment
+    - Report between appointments -> previous appointment
+    - Report after last appointment -> last appointment
+    """
+
+    patient_doc = await patient_appointments_collection.find_one(
+        {"sys_user_id": patient_id},
+        {"appointments": 1, "_id": 0},
+    )
+
+    if not patient_doc:
+        logger.warning(f"No appointments found for patient {patient_id}")
+        return None
+
+    appointments = patient_doc.get("appointments", [])
+
+    if not appointments:
+        return None
+
+    appointments.sort(
+        key=lambda x: datetime.fromisoformat(x["date"])
+    )
+
+    report_date = (
+        document_date
+        if isinstance(document_date, datetime)
+        else datetime.fromisoformat(str(document_date))
+    )
+
+    # Before first appointment
+    first_date = datetime.fromisoformat(appointments[0]["date"])
+    if report_date <= first_date:
+        return appointments[0]["appointment_id"]
+
+    # Between appointments
+    for i in range(len(appointments) - 1):
+        current_date = datetime.fromisoformat(appointments[i]["date"])
+        next_date = datetime.fromisoformat(appointments[i + 1]["date"])
+
+        if current_date <= report_date < next_date:
+            return appointments[i]["appointment_id"]
+
+    # After last appointment
+    return appointments[-1]["appointment_id"]

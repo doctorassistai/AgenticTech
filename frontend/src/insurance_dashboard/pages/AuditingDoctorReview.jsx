@@ -517,6 +517,19 @@ export default function AuditingDoctorReview() {
   // mounted, so "Extracting…" and the finished ✓/✕ badge both stay accurate
   // even if the doctor left this page and came back.
   const { activeCaseIds, eventsByCaseId } = useExtractionEvents();
+  const [creditWarning, setCreditWarning] = useState(null);
+
+  useEffect(() => {
+    const checkCredits = () => {
+      fetch(`${b}/insurance/web/llama-credit-status`)
+        .then((r) => r.json())
+        .then((d) => setCreditWarning(d.warning ? d : null))
+        .catch(() => {});
+    };
+    checkCredits();
+    const interval = setInterval(checkCredits, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     fetch(`${BASE_URL}insurance/web/doctor/my-cases`, {
@@ -601,6 +614,17 @@ export default function AuditingDoctorReview() {
             Sign Out
           </button>
         </div>
+
+        {creditWarning && (
+          <div style={{
+            padding: "8px 20px", fontSize: 12, fontWeight: 600,
+            background: "color-mix(in srgb, #ed6c02 12%, transparent)",
+            borderBottom: "1px solid color-mix(in srgb, #ed6c02 35%, transparent)",
+            color: T.warning,
+          }}>
+            ⚠️ Document parsing credits running low ({creditWarning.credits_used}/{creditWarning.credit_budget} used, {creditWarning.percent_used}%). Extraction may fail until the next reset.
+          </div>
+        )}
 
         <div style={{ display: "flex", height: "calc(100vh - 52px)" }}>
           {/* Left panel */}

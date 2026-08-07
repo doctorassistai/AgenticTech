@@ -195,9 +195,9 @@ const ModalText = ({ children, bold }) => (
 // ─── Clinical Action Card ─────────────────────────────────────────────────────
 const ClinicalCard = ({ action, onView }) => {
   const isAI = action.action_type === 'approved';
-  const suggestions = action.ai_suggestion?.suggestions || {};
+  const ai = action.ai_suggestion || {};
   const preview = isAI
-    ? (suggestions.single_most_critical_action_right_now || suggestions.sbar_summary?.assessment || '')
+    ? (ai.triage?.rationale || ai.sbar_summary?.text || ai.clinical_impression?.impression || '')
     : (action.voice_dictation || action.notes || '');
 
   return (
@@ -224,8 +224,8 @@ const ClinicalCard = ({ action, onView }) => {
         <Badge label={isAI ? 'AI Approved' : 'Doctor Suggestion'} dark={isAI} />
       </div>
 
-      {/* Patient Snapshot */}
-      {isAI && suggestions.patient_snapshot && (
+      {/* Triage / Impression Snapshot */}
+      {isAI && (ai.triage || ai.clinical_impression) && (
         <div style={{
           padding: '10px 14px',
           borderBottom: '1px solid #f0f0f0',
@@ -235,10 +235,8 @@ const ClinicalCard = ({ action, onView }) => {
           gap: 12,
         }}>
           {[
-            { label: 'Triage', value: suggestions.patient_snapshot.triage_colour },
-            { label: 'Criticality', value: `${suggestions.patient_snapshot.criticality_score}/10` },
-            { label: 'Risk', value: suggestions.patient_snapshot.overall_risk },
-            { label: 'Consciousness', value: suggestions.patient_snapshot.consciousness },
+            { label: 'Triage', value: ai.triage?.colour },
+            { label: 'Impression', value: ai.clinical_impression?.impression },
           ].filter(x => x.value).map((item, idx) => (
             <div key={idx} style={{ flex: 1, minWidth: 80 }}>
               <div style={{ fontSize: 9, color: '#aaa', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{item.label}</div>
@@ -248,43 +246,15 @@ const ClinicalCard = ({ action, onView }) => {
         </div>
       )}
 
-      {/* Most Critical Action */}
-      {isAI && suggestions.single_most_critical_action_right_now && (
-        <div style={{
-          padding: '10px 14px',
-          display: 'flex', gap: 8, alignItems: 'flex-start',
-          borderBottom: '1px solid #f0f0f0',
-          background: '#fffef8',
-        }}>
-          <span style={{ fontSize: 14, marginTop: 1 }}>⚠</span>
-          <div>
-            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '1px', color: '#aaa', marginBottom: 4, textTransform: 'uppercase' }}>
-              Most Critical Action
-            </div>
-            <span style={{ fontSize: 12, color: '#222', lineHeight: 1.6 }}>
-              {suggestions.single_most_critical_action_right_now}
-            </span>
-          </div>
-        </div>
-      )}
+     
 
-      {/* SBAR Summary */}
-      {isAI && suggestions.sbar_summary && (
+  {/* SBAR Summary */}
+      {isAI && ai.sbar_summary?.text && (
         <div style={{ padding: '10px 14px', borderBottom: '1px solid #f0f0f0' }}>
           <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '1px', color: '#aaa', marginBottom: 8, textTransform: 'uppercase' }}>
             SBAR Summary
           </div>
-          {[
-            { label: 'Situation', value: suggestions.sbar_summary.situation },
-            { label: 'Background', value: suggestions.sbar_summary.background },
-            { label: 'Assessment', value: suggestions.sbar_summary.assessment },
-            { label: 'Recommendation', value: suggestions.sbar_summary.recommendation },
-          ].filter(x => x.value).map((item, idx) => (
-            <div key={idx} style={{ marginBottom: 6 }}>
-              <span style={{ fontSize: 10, fontWeight: 700, color: '#888' }}>{item.label}:</span>
-              <span style={{ fontSize: 11, color: '#555', marginLeft: 6 }}>{truncate(item.value, 100)}</span>
-            </div>
-          ))}
+          <p style={{ fontSize: 11, color: '#555', lineHeight: 1.6 }}>{truncate(ai.sbar_summary.text, 220)}</p>
         </div>
       )}
 
@@ -632,7 +602,7 @@ const PatientJourneyTimeline = ({ patient, notes, doctorNotes, clinicalActions, 
       type: isAI ? 'ai_approved' : 'doctor_suggestion', timestamp: ts,
       rawDate: ts.toLocaleString('en-IN', { year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }),
       text: isAI
-        ? (a.ai_suggestion?.suggestions?.single_most_critical_action_right_now || a.ai_suggestion?.suggestions?.sbar_summary?.assessment || 'AI suggestion approved')
+        ? (a.ai_suggestion?.triage?.rationale || a.ai_suggestion?.sbar_summary?.text || a.ai_suggestion?.clinical_impression?.impression || 'AI suggestion approved')
         : (a.voice_dictation || a.notes || 'Doctor clinical note'),
     });
   });
@@ -1251,7 +1221,7 @@ if (zenzoB64) {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7.5);
     doc.setTextColor(150, 150, 150);
-    doc.text('EMERGENCY DEPARTMENT — FINAL SUMMARY REPORT', marginL, 52);
+    doc.text('EMERGENCY DEPARTMENT — PATIENT TRANSFER SUMMARY REPORT', marginL, 52);
 
     const pName = finalSummary.section_1_patient_information?.full_name || patientName || 'Patient';
     doc.setFont('helvetica', 'bold');
@@ -2842,9 +2812,29 @@ const timeline = [
       .map((action) => ({
         type: 'doctor',
         timestamp: new Date(action.client_created_at),
-        text: action.voice_dictation || action.notes || action.ai_suggestion?.suggestions?.single_most_critical_action_right_now || 'Clinical update',
+        text: action.voice_dictation || action.notes || action.ai_suggestion?.triage?.rationale || action.ai_suggestion?.sbar_summary?.text || 'Clinical update',
         rawDate: new Date(action.client_created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
       })),
+    // Approved AI suggestions — shown as ONE consolidated entry per
+    // approval, not split across every section it contains. The raw action
+    // is kept on the entry (rawAction) so clicking it can open the same
+    // full-detail modal used elsewhere for approved AI suggestions.
+    ...(clinicalActions || [])
+      .filter((action) => action.action_type === 'approved')
+      .map((action) => {
+        const ai = action.ai_suggestion || {};
+        const drugs = (ai.treatment_plan?.items || []).map((it) => it.drug_or_treatment).filter(Boolean);
+        const summary = drugs.length
+          ? `Approved: ${drugs.join(', ')}${ai.triage?.colour ? ` · Triage ${ai.triage.colour}` : ''}`
+          : ai.sbar_summary?.text || ai.triage?.rationale || ai.clinical_impression?.impression || 'AI suggestion approved';
+        return {
+          type: 'approved',
+          timestamp: new Date(action.client_created_at),
+          text: summary,
+          rawDate: new Date(action.client_created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
+          rawAction: action,
+        };
+      }),
     ...(doctorNotes || []).map((note) => ({
       type: 'doctornote',
       // ✅ FIX: Use date and time from API instead of timestamp
@@ -3339,14 +3329,8 @@ const Tab = ({ id, label, count }) => (
 
    if (modal.type === 'clinical') {
   const action = modal.data;
-  const isAI   = action.action_type === 'approved';
-const s      = action.ai_suggestion?.suggestions || {};
-  const snap   = s.patient_snapshot;
-  const immediate = action.ai_suggestion?.immediate_actions || s.immediate_actions || {};
-  const risk = action.ai_suggestion?.risk_stratification || s.risk_stratification || {};
-  const hospital = action.ai_suggestion?.hospital_prep || s.hospital_prep || {};
-  const vitals = action.ai_suggestion?.vitals_comparison || s.vitals_comparison || {};
-  const precautions = action.ai_suggestion?.precautions || s.precautions || {};
+  const isAI = action.action_type === 'approved';
+  const ai = action.ai_suggestion || {};
 
   return (
     <Modal visible title={isAI ? 'AI Suggestion Details' : 'Voice Clinical Note'} onClose={closeModal}>
@@ -3361,286 +3345,171 @@ const s      = action.ai_suggestion?.suggestions || {};
 
       {isAI && (
         <>
-          {/* Patient Snapshot */}
-          {snap && (
-            <ModalSection title="Patient Snapshot">
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 6 }}>
-                <div><div style={{ fontSize: 10, color: '#aaa' }}>Age/Gender</div><ModalText bold>{snap.age_gender || 'N/A'}</ModalText></div>
-                <div><div style={{ fontSize: 10, color: '#aaa' }}>Mechanism</div><ModalText bold>{snap.mechanism || 'N/A'}</ModalText></div>
-                <div><div style={{ fontSize: 10, color: '#aaa' }}>Triage Colour</div><ModalText bold>{snap.triage_colour || 'N/A'}</ModalText></div>
-                <div><div style={{ fontSize: 10, color: '#aaa' }}>Criticality Score</div><ModalText bold>{snap.criticality_score || 'N/A'}/10</ModalText></div>
-                <div><div style={{ fontSize: 10, color: '#aaa' }}>Overall Risk</div><ModalText bold>{snap.overall_risk || 'N/A'}</ModalText></div>
-                <div><div style={{ fontSize: 10, color: '#aaa' }}>Consciousness</div><ModalText bold>{snap.consciousness || 'N/A'}</ModalText></div>
+          {ai.sufficient_data === false && (
+            <ModalSection title="Not Enough Information">
+              <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 4, padding: 12 }}>
+                <ModalText>The notes available didn't give enough to safely assess this patient when this was generated.</ModalText>
+                {ai.missing_information?.map((item, i) => <ModalText key={i}>• {item}</ModalText>)}
               </div>
             </ModalSection>
           )}
 
-          {/* Most Critical Action */}
-          {s.single_most_critical_action_right_now && (
-            <ModalSection title="⚠ Most Critical Action">
-              <div style={{ background: '#fffdf0', border: '1px solid #f0e0a0', borderRadius: 4, padding: 12 }}>
-                <ModalText bold>{s.single_most_critical_action_right_now}</ModalText>
-              </div>
-            </ModalSection>
-          )}
-
-          {/* SBAR Summary */}
-          {s.sbar_summary && (
-            <ModalSection title="SBAR Summary">
-              {[
-                ['Situation', s.sbar_summary.situation],
-                ['Background', s.sbar_summary.background],
-                ['Assessment', s.sbar_summary.assessment],
-                ['Recommendation', s.sbar_summary.recommendation]
-              ].map(([l, v]) => v && (
-                <div key={l} style={{ marginBottom: 12 }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', color: '#aaa', marginBottom: 4 }}>{l}</div>
-                  <ModalText>{v}</ModalText>
-                </div>
-              ))}
-            </ModalSection>
-          )}
-
-          {/* Immediate Actions - Timestamp Anchored Actions */}
-          {immediate.timestamp_anchored_actions?.length > 0 && (
-            <ModalSection title="Immediate Actions (Timestamped)">
-              {immediate.timestamp_anchored_actions.map((item, idx) => (
-                <div key={idx} style={{ marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid #f0f0f0' }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: '#000', marginBottom: 6 }}>
-                    {item.label} ({item.time_window})
-                  </div>
-                  {item.actions?.map((act, actIdx) => (
-                    <div key={actIdx} style={{ marginLeft: 10, marginBottom: 10 }}>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: '#333' }}>• {act.action}</div>
-                      {act.why_for_this_patient && <div style={{ fontSize: 11, color: '#666', marginLeft: 12 }}>Why: {act.why_for_this_patient}</div>}
-                      {act.method && <div style={{ fontSize: 11, color: '#666', marginLeft: 12 }}>Method: {act.method}</div>}
-                      {act.success_indicator && <div style={{ fontSize: 11, color: '#2e7d32', marginLeft: 12 }}>Success: {act.success_indicator}</div>}
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </ModalSection>
-          )}
-
-          {/* Timeline Response Plan */}
-          {s.timestamp_based_response_plan?.length > 0 && (
-            <ModalSection title="Timeline Response Plan">
-              {s.timestamp_based_response_plan.map((item, i) => (
-                <div key={i} style={{ marginBottom: 16, paddingBottom: 14, borderBottom: '1px solid #f0f0f0' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: '#000' }}>{item.clock_label}</span>
-                    <span style={{ fontSize: 11, color: '#888' }}>{item.phase}</span>
-                  </div>
-                  {item.priority_actions?.map((a, j) => (
-                    <div key={j} style={{ display: 'flex', gap: 8, marginBottom: 5, marginLeft: 8 }}>
-                      <span style={{ color: '#ccc', fontSize: 14 }}>•</span>
-                      <ModalText>{a}</ModalText>
-                    </div>
-                  ))}
-                  {item.monitoring?.length > 0 && (
-                    <div style={{ marginLeft: 16, marginTop: 6, padding: '6px 10px', borderLeft: '2px solid #eee' }}>
-                      <div style={{ fontSize: 10, color: '#aaa', fontWeight: 600, marginBottom: 4, textTransform: 'uppercase' }}>Monitor</div>
-                      {item.monitoring.map((m, k) => <div key={k} style={{ fontSize: 11, color: '#888' }}>· {m}</div>)}
+          {ai.triage && (
+            <ModalSection title="Triage">
+              {ai.triage.data_available !== false ? (
+                <>
+                  <ModalText bold>{ai.triage.colour || 'Unknown'}</ModalText>
+                  <ModalText>{ai.triage.rationale}</ModalText>
+                  {ai.triage.safety_net_breaches?.length > 0 && (
+                    <div style={{ marginTop: 8, padding: 8, background: '#ffebee', borderRadius: 4 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#c62828', textTransform: 'uppercase', marginBottom: 4 }}>Automated Safety Net Triggered</div>
+                      {ai.triage.safety_net_breaches.map((b, i) => <ModalText key={i}>⚠ {b}</ModalText>)}
                     </div>
                   )}
-                </div>
-              ))}
-            </ModalSection>
-          )}
-
-          {/* Risk Stratification */}
-          {risk.criticality_score && (
-            <ModalSection title="Risk Stratification">
-              <div style={{ background: '#fff5f0', padding: 12, borderRadius: 4, marginBottom: 12 }}>
-                <div style={{ fontSize: 12, fontWeight: 700 }}>Criticality Score: {risk.criticality_score.score}/10</div>
-                <div style={{ fontSize: 11, color: '#555', marginTop: 4 }}>{risk.criticality_score.rationale}</div>
-                <div style={{ fontSize: 11, fontWeight: 600, marginTop: 8 }}>Overall Risk Level: {risk.overall_risk_level}</div>
-              </div>
-              {risk.life_threats_ranked?.length > 0 && (
-                <>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: '#aaa', marginBottom: 8, textTransform: 'uppercase' }}>Ranked Life Threats</div>
-                  {risk.life_threats_ranked.map((threat, idx) => (
-                    <div key={idx} style={{ marginBottom: 10, padding: 8, background: '#fafafa', borderRadius: 4 }}>
-                      <div style={{ fontSize: 12, fontWeight: 700 }}>{threat.rank}. {threat.threat}</div>
-                      <div style={{ fontSize: 11, color: '#666' }}>Time to harm: {threat.time_to_harm_minutes} min | Action: {threat.immediate_action}</div>
-                    </div>
-                  ))}
                 </>
-              )}
-              {risk.shock_risk?.present && (
-                <div style={{ marginTop: 8, padding: 8, background: '#ffe0e0', borderRadius: 4 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: '#c62828' }}>Shock Risk: {risk.shock_risk.type} - {risk.shock_risk.stage}</div>
-                  <div style={{ fontSize: 11 }}>Action: {risk.shock_risk.action}</div>
-                </div>
+              ) : (
+                <ModalText>Not enough data for triage{ai.triage.reason_if_unavailable ? ` — ${ai.triage.reason_if_unavailable}` : '.'}</ModalText>
               )}
             </ModalSection>
           )}
 
-          {/* Hospital Preparation */}
-          {hospital.trauma_bay_activation && (
-            <ModalSection title="Hospital Preparation">
-              <div style={{ marginBottom: 12 }}>
-                <div style={{ fontSize: 11, fontWeight: 700 }}>Trauma Bay: {hospital.trauma_bay_activation.level}</div>
-                <div style={{ fontSize: 11, color: '#555' }}>{hospital.trauma_bay_activation.rationale}</div>
-              </div>
-              {hospital.personnel_to_alert?.length > 0 && (
+          {ai.clinical_impression && (
+            <ModalSection title="Clinical Impression">
+              {ai.clinical_impression.data_available !== false ? (
                 <>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: '#aaa', marginTop: 8, textTransform: 'uppercase' }}>Personnel to Alert</div>
-                  {hospital.personnel_to_alert.map((p, idx) => (
-                    <div key={idx} style={{ fontSize: 11, marginLeft: 10 }}>• {p.role} ({p.urgency})</div>
-                  ))}
+                  <ModalText bold>{ai.clinical_impression.impression}</ModalText>
+                  {ai.clinical_impression.supporting_findings?.map((f, i) => <ModalText key={i}>• {f}</ModalText>)}
+                  {ai.clinical_impression.differential?.length > 0 && (
+                    <>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#aaa', textTransform: 'uppercase', marginTop: 8, marginBottom: 4 }}>Differential</div>
+                      {ai.clinical_impression.differential.map((d, i) => <ModalText key={i}>• {d}</ModalText>)}
+                    </>
+                  )}
                 </>
-              )}
-              {hospital.imaging_to_book?.length > 0 && (
-                <>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: '#aaa', marginTop: 8, textTransform: 'uppercase' }}>Imaging Required</div>
-                  {hospital.imaging_to_book.map((img, idx) => (
-                    <div key={idx} style={{ fontSize: 11, marginLeft: 10 }}>• {img.imaging} - {img.priority}</div>
-                  ))}
-                </>
-              )}
-              {hospital.specialist_teams_to_notify?.length > 0 && (
-                <>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: '#aaa', marginTop: 8, textTransform: 'uppercase' }}>Specialist Teams</div>
-                  {hospital.specialist_teams_to_notify.map((spec, idx) => (
-                    <div key={idx} style={{ fontSize: 11, marginLeft: 10 }}>• {spec.specialty} ({spec.urgency})</div>
-                  ))}
-                </>
+              ) : (
+                <ModalText>Not enough data for a clinical impression{ai.clinical_impression.reason_if_unavailable ? ` — ${ai.clinical_impression.reason_if_unavailable}` : '.'}</ModalText>
               )}
             </ModalSection>
           )}
 
-          {/* Clinical Progression */}
-          {s.progression && (
-            <ModalSection title="Clinical Progression">
-              <div style={{ background: '#fafafa', border: '1px solid #eee', borderRadius: 4, padding: 12, marginBottom: 14 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#000', marginBottom: 6 }}>Overall Trend: {s.progression.overall_trend}</div>
-                <div style={{ fontSize: 12, color: '#555', lineHeight: 1.7 }}>{s.progression.trend_summary}</div>
-              </div>
-              <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 8 }}>Current Status</div>
-              <ModalText>{s.progression.current_status}</ModalText>
-              {s.progression.milestones?.map((m, i) => (
-                <div key={i} style={{ marginTop: 12, padding: 10, background: '#f5f5f5', borderRadius: 4 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700 }}>Note #{m.entry_number} - {m.source}</div>
-                  <div style={{ fontSize: 11, color: '#888' }}>{fmtDate(m.timestamp_ist)}</div>
-                  <div style={{ fontSize: 12, marginTop: 6 }}>{m.status_at_this_time}</div>
-                  <div style={{ fontSize: 11, marginTop: 4, color: m.change_from_previous === 'Improved' ? '#2e7d32' : '#d32f2f' }}>
-                    Change: {m.change_from_previous}
+          {ai.treatment_plan && (
+            <ModalSection title="Treatment Plan">
+              {ai.treatment_plan.data_available !== false && ai.treatment_plan.items?.length > 0 ? (
+                ai.treatment_plan.items.map((x, i) => (
+                  <div key={i} style={{ marginBottom: 10 }}>
+                    <ModalText bold>{x.drug_or_treatment}{x.dose ? `  ·  ${x.dose}` : ''}</ModalText>
+                    <ModalText>{x.reason}</ModalText>
                   </div>
-                </div>
-              ))}
-            </ModalSection>
-          )}
-{/* Vitals Comparison */}
-{vitals.vital_signs_comparison && vitals.vital_signs_comparison.length > 0 && (
-  <ModalSection title="Vitals Comparison">
-    <div style={{ overflowX: 'auto' }}>
-      <table style={{ width: '100%', fontSize: 11, borderCollapse: 'collapse' }}>
-        <thead>
-          <tr><th style={{ textAlign: 'left', padding: 6, borderBottom: '1px solid #eee' }}>Parameter</th>
-            <th style={{ textAlign: 'left', padding: 6, borderBottom: '1px solid #eee' }}>Monitor</th>
-            <th style={{ textAlign: 'left', padding: 6, borderBottom: '1px solid #eee' }}>Voice</th>
-            <th style={{ textAlign: 'left', padding: 6, borderBottom: '1px solid #eee' }}>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {vitals.vital_signs_comparison.slice(0, 5).map((v, idx) => (
-            <tr key={idx}>
-              <td style={{ padding: 6, borderBottom: '1px solid #f5f5f5' }}><b>{v.vital_parameter}</b></td>
-              <td style={{ padding: 6, borderBottom: '1px solid #f5f5f5' }}>{v.image_monitor_value || '—'}</td>
-              <td style={{ padding: 6, borderBottom: '1px solid #f5f5f5' }}>{v.voice_reported_value || '—'}</td>
-              <td style={{ padding: 6, borderBottom: '1px solid #f5f5f5' }}>
-                <span style={{
-                  background: v.agreement === 'Confirmed' ? '#e8f5e9' : '#fff3e0',
-                  color: v.agreement === 'Confirmed' ? '#2e7d32' : '#e65100',
-                  padding: '2px 6px', borderRadius: 3, fontSize: 10
-                }}>{v.agreement || '—'}</span>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-    {vitals.overall_clinical_impression && (
-      <div style={{ marginTop: 12, padding: 8, background: '#e8f5e9', borderRadius: 4 }}>
-        <div style={{ fontSize: 11, fontWeight: 700 }}>Overall Impression</div>
-        <div style={{ fontSize: 11 }}>{vitals.overall_clinical_impression.current_status_based_on_combined_data}</div>
-      </div>
-    )}
-  </ModalSection>
-)}
-
-{/* Infusion Pump Data */}
-{vitals.infusion_pump_data?.pump_details?.length > 0 && (
-  <ModalSection title="Infusion Pumps">
-    {vitals.infusion_pump_data.pump_details.map((pump, idx) => (
-      <div key={idx} style={{ marginBottom: 8, padding: 8, background: '#f5f5f5', borderRadius: 4 }}>
-        <div style={{ fontSize: 11, fontWeight: 700 }}>{pump.pump_id}</div>
-        <div style={{ fontSize: 11 }}>Flow: {pump.flow_rate_ml_per_hr} ml/hr | Infused: {pump.infused_ml} ml</div>
-      </div>
-    ))}
-    <div style={{ fontSize: 11, marginTop: 8 }}>Total Infused: {vitals.infusion_pump_data.total_fluid_infused_ml} ml</div>
-  </ModalSection>
-)}
-
-{/* Deterioration Watch */}
-{s.deterioration_watch && (
-  <ModalSection title="Deterioration Watch">
-    {s.deterioration_watch.early_warning_signs?.length > 0 && (
-      <>
-        <div style={{ fontSize: 10, fontWeight: 700, color: '#c62828', marginTop: 8, textTransform: 'uppercase' }}>Early Warning Signs</div>
-        {s.deterioration_watch.early_warning_signs.map((sign, idx) => (
-          <div key={idx} style={{ fontSize: 11, marginLeft: 10 }}>⚠ {sign}</div>
-        ))}
-      </>
-    )}
-    {s.deterioration_watch.immediate_escalation_triggers?.length > 0 && (
-      <>
-        <div style={{ fontSize: 10, fontWeight: 700, color: '#d32f2f', marginTop: 8, textTransform: 'uppercase' }}>Immediate Escalation Triggers</div>
-        {s.deterioration_watch.immediate_escalation_triggers.map((trigger, idx) => (
-          <div key={idx} style={{ fontSize: 11, marginLeft: 10 }}>🚨 {trigger}</div>
-        ))}
-      </>
-    )}
-  </ModalSection>
-)}
-
-{/* Full Precautions */}
-{precautions.critical_do_not_list?.length > 0 && (
-  <ModalSection title="Critical Do Not List">
-    {precautions.critical_do_not_list.map((item, idx) => (
-      <div key={idx} style={{ marginBottom: 10, padding: 8, background: '#ffebee', borderRadius: 4 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: '#c62828' }}>⛔ {item.do_not}</div>
-        <div style={{ fontSize: 10, color: '#555', marginTop: 2 }}>{item.applies_because}</div>
-        <div style={{ fontSize: 10, color: '#d32f2f' }}>Severity: {item.severity}</div>
-      </div>
-    ))}
-  </ModalSection>
-)}{console.log('Vitals Comparison:', vitals)}
-{console.log('Vitals Signs:', vitals?.vital_signs_comparison)}
-{console.log('Infusion Pumps:', vitals?.infusion_pump_data)}
-          {/* Critical Precautions */}
-          {s.top_3_precautions_summary?.length > 0 && (
-            <ModalSection title="Critical Precautions">
-              {s.top_3_precautions_summary.map((p, i) => (
-                <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8, padding: 8, background: '#fff5f5', borderRadius: 4 }}>
-                  <span style={{ color: '#dc2626', fontSize: 14 }}>⚠</span>
-                  <ModalText>{p}</ModalText>
-                </div>
-              ))}
+                ))
+              ) : (
+                <ModalText>Not enough data for a treatment plan{ai.treatment_plan.reason_if_unavailable ? ` — ${ai.treatment_plan.reason_if_unavailable}` : '.'}</ModalText>
+              )}
             </ModalSection>
           )}
 
-          {/* ED Handover Brief */}
-          {s.ed_handover_brief && (
-            <ModalSection title="ED Handover Brief">
-              <div style={{ background: '#f0f7ff', borderRadius: 4, padding: 12 }}>
-                <ModalText>{s.ed_handover_brief}</ModalText>
-              </div>
+          {ai.investigations && (
+            <ModalSection title="Investigations Needed">
+              {ai.investigations.data_available !== false && ai.investigations.items?.length > 0 ? (
+                ai.investigations.items.map((x, i) => (
+                  <div key={i} style={{ marginBottom: 10 }}>
+                    <ModalText bold>{x.investigation}{x.status ? `  ·  ${x.status.replace(/_/g, ' ')}` : ''}</ModalText>
+                    {x.finding_if_completed && <ModalText>Finding: {x.finding_if_completed}</ModalText>}
+                    <ModalText>{x.justification}</ModalText>
+                  </div>
+                ))
+              ) : (
+                <ModalText>Not enough data for investigations{ai.investigations.reason_if_unavailable ? ` — ${ai.investigations.reason_if_unavailable}` : '.'}</ModalText>
+              )}
             </ModalSection>
           )}
 
-          
+          {ai.procedures && (
+            <ModalSection title="Procedures">
+              {ai.procedures.data_available !== false && ai.procedures.items?.length > 0 ? (
+                ai.procedures.items.map((x, i) => (
+                  <div key={i} style={{ marginBottom: 10 }}>
+                    <ModalText bold>{x.procedure}{x.timing ? `  ·  ${x.timing.replace(/_/g, ' ')}` : ''}</ModalText>
+                    <ModalText>{x.reason}</ModalText>
+                  </div>
+                ))
+              ) : (
+                <ModalText>Not enough data for procedures{ai.procedures.reason_if_unavailable ? ` — ${ai.procedures.reason_if_unavailable}` : '.'}</ModalText>
+              )}
+            </ModalSection>
+          )}
+
+          {ai.sbar_summary && (
+            <ModalSection title="SBAR Summary">
+              {ai.sbar_summary.data_available !== false && ai.sbar_summary.text ? (
+                <ModalText>{ai.sbar_summary.text}</ModalText>
+              ) : (
+                <ModalText>Not enough data for an SBAR summary{ai.sbar_summary.reason_if_unavailable ? ` — ${ai.sbar_summary.reason_if_unavailable}` : '.'}</ModalText>
+              )}
+            </ModalSection>
+          )}
+
+          {ai.referrals && (
+            <ModalSection title="Referral Departments">
+              {ai.referrals.data_available !== false && ai.referrals.items?.length > 0 ? (
+                ai.referrals.items.map((x, i) => (
+                  <div key={i} style={{ marginBottom: 10 }}>
+                    <ModalText bold>{x.specialty}</ModalText>
+                    <ModalText>{x.reason}</ModalText>
+                  </div>
+                ))
+              ) : (
+                <ModalText>Not enough data for referrals{ai.referrals.reason_if_unavailable ? ` — ${ai.referrals.reason_if_unavailable}` : '.'}</ModalText>
+              )}
+            </ModalSection>
+          )}
+
+          {ai.complications && (
+            <ModalSection title="Anticipated Complications">
+              {ai.complications.data_available !== false && ai.complications.items?.length > 0 ? (
+                ai.complications.items.map((x, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                    <span style={{ color: '#ca8a04' }}>⚠</span>
+                    <div>
+                      <ModalText bold>{x.complication}</ModalText>
+                      <ModalText>{x.reason}</ModalText>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <ModalText>Not enough data for anticipated complications{ai.complications.reason_if_unavailable ? ` — ${ai.complications.reason_if_unavailable}` : '.'}</ModalText>
+              )}
+            </ModalSection>
+          )}
+
+          {ai.contraindications && (
+            <ModalSection title="Contraindication Checks">
+              {ai.contraindications.data_available !== false && ai.contraindications.items?.length > 0 ? (
+                ai.contraindications.items.map((x, i) => (
+                  <div key={i} style={{ marginBottom: 10 }}>
+                    <ModalText bold>{x.treatment_or_medication}</ModalText>
+                    <ModalText>{x.contraindication_assessment}</ModalText>
+                  </div>
+                ))
+              ) : (
+                <ModalText>Not enough data for contraindication checks{ai.contraindications.reason_if_unavailable ? ` — ${ai.contraindications.reason_if_unavailable}` : '.'}</ModalText>
+              )}
+            </ModalSection>
+          )}
+
+          {ai.precautions && (
+            <ModalSection title="Precautions">
+              {ai.precautions.data_available !== false && ai.precautions.items?.length > 0 ? (
+                ai.precautions.items.map((x, i) => (
+                  <div key={i} style={{ marginBottom: 10 }}>
+                    <ModalText bold>{x.precaution}</ModalText>
+                    <ModalText>{x.reason}</ModalText>
+                  </div>
+                ))
+              ) : (
+                <ModalText>Not enough data for precautions{ai.precautions.reason_if_unavailable ? ` — ${ai.precautions.reason_if_unavailable}` : '.'}</ModalText>
+              )}
+            </ModalSection>
+          )}
         </>
       )}
     </Modal>
@@ -4055,12 +3924,7 @@ const s      = action.ai_suggestion?.suggestions || {};
 
               {/* Voice Notes + Doctor Note + Notes + DataProcessing — always shown */}
               <div style={{ marginTop: 24 }}>
-                <div style={{ marginBottom: 16, padding: '10px 16px', background: '#fff5f5', border: '1px solid #fecaca', borderRadius: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 16 }}>🔴</span>
-                  <span style={{ fontSize: 12, color: '#dc2626', fontWeight: 500, fontFamily: "'DM Sans', sans-serif", lineHeight: 1.5 }}>
-                                 If you do not want AI processing, you can directly suggest to EMT using the voice notes below By Clicking Submit Voice Suggestion.
-                  </span>
-                </div>
+                
 
                 <div ref={voiceSectionRef} style={{ marginBottom: 24, border: '1px solid #e8e8e8', borderRadius: 6, overflow: 'hidden' }}>
                   <div style={{ padding: '14px 20px', background: '#fafafa', borderBottom: '1px solid #e8e8e8', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -4077,7 +3941,7 @@ const s      = action.ai_suggestion?.suggestions || {};
                         mediaRecorder.onstop = async () => { const b = new Blob(audioChunksRef.current, { type: 'audio/webm' }); await transcribeAudio(new File([b], 'voice-note.webm', { type: 'audio/webm' })); streamRef.current?.getTracks().forEach(t => t.stop()); };
                         mediaRecorder.start(); setIsRecording(true);
                       } catch (err) { console.error(err); alert('Microphone permission denied'); }
-                    }} disabled={transcribeLoading} style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0 }}>
+                    }} disabled={transcribeLoading || incidentCompleted} style={{ border: 'none', background: 'transparent', cursor: (transcribeLoading || incidentCompleted) ? 'not-allowed' : 'pointer', padding: 0, opacity: incidentCompleted ? 0.5 : 1 }}>
                       {transcribeLoading ? <Spinner size={30} /> : isRecording ? (
                         <div style={{ width: 50, height: 50, borderRadius: '50%', background: '#dc3545', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', animation: 'pulse 1.5s infinite' }}>
                           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="3" width="12" height="16" rx="2" /></svg>
@@ -4094,11 +3958,11 @@ const s      = action.ai_suggestion?.suggestions || {};
                     <textarea value={dictationText} onChange={(e) => setDictationText(e.target.value)} placeholder="Enter additional clinical instructions or record voice/doctor notes..." style={{ width: '100%', minHeight: 140, border: '1px solid #e8e8e8', padding: 16, fontSize: 14, borderRadius: 6, resize: 'vertical', outline: 'none', lineHeight: 1.7, fontFamily: "'DM Sans', sans-serif" }} />
                     <div style={{ display: 'flex', gap: 12, marginTop: 16, flexWrap: 'wrap' }}>
                       <div>
-                        <button onClick={handleVoiceSubmit} disabled={voiceSubmitLoading} style={{ background: '#dc2626', color: '#fff', border: 'none', padding: '11px 22px', borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>{voiceSubmitLoading ? 'Sending to EMT…' : ' Send to EMT App Now'}</button>
+                        <button onClick={handleVoiceSubmit} disabled={voiceSubmitLoading || incidentCompleted} style={{ background: '#dc2626', color: '#fff', border: 'none', padding: '11px 22px', borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: (voiceSubmitLoading || incidentCompleted) ? 'not-allowed' : 'pointer', opacity: incidentCompleted ? 0.5 : 1, fontFamily: "'DM Sans', sans-serif" }}>{incidentCompleted ? 'Incident Completed' : voiceSubmitLoading ? 'Sending to EMT…' : ' Send to EMT App Now'}</button>
                         
                       </div>
                       <div>
-                        <button onClick={handleDoctorNoteSubmit} disabled={doctorNoteSubmitLoading} style={{ background: '#fff', color: '#1d4ed8', border: '1.5px solid #1d4ed8', padding: '11px 22px', borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>{doctorNoteSubmitLoading ? 'Saving…' : ' Save Note for AI Only'}</button>
+                        <button onClick={handleDoctorNoteSubmit} disabled={doctorNoteSubmitLoading || incidentCompleted} style={{ background: '#fff', color: '#1d4ed8', border: '1.5px solid #1d4ed8', padding: '11px 22px', borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: (doctorNoteSubmitLoading || incidentCompleted) ? 'not-allowed' : 'pointer', opacity: incidentCompleted ? 0.5 : 1, fontFamily: "'DM Sans', sans-serif" }}>{incidentCompleted ? 'Incident Completed' : doctorNoteSubmitLoading ? 'Saving…' : ' Save Note for AI Only'}</button>
                         
                       </div>
                     </div>
@@ -4111,22 +3975,33 @@ const s      = action.ai_suggestion?.suggestions || {};
                       <button onClick={fetchNotes} style={{ background: '#000', color: '#fff', border: 'none', padding: '5px 12px', borderRadius: 4, cursor: 'pointer', fontSize: 10, fontWeight: 600, fontFamily: "'DM Sans', sans-serif" }}>Reload</button>
                     </div>
                     <div style={{ display: 'flex', gap: 8, marginBottom: 16, paddingBottom: 10, borderBottom: '1px solid #f0f0f0', flexWrap: 'wrap' }}>
-                      {[['all', `All (${mergedTimeline.length + (notesExtractedData?.length || 0)})`], ['paramedic', `Emergency Crew (${mergedTimeline.filter(i => i.type === 'patient').length})`], ['doctor', `Doctor (${mergedTimeline.filter(i => i.type === 'doctor' || i.type === 'doctornote').length})`], ['extracted', `Extracted Data (${notesExtractedData?.length || 0})`]].map(([val, lbl]) => (
+                      {[['all', `All (${mergedTimeline.length + (notesExtractedData?.length || 0)})`], ['paramedic', `Emergency Crew (${mergedTimeline.filter(i => i.type === 'patient').length})`], ['doctor', `Doctor (${mergedTimeline.filter(i => i.type === 'doctor' || i.type === 'doctornote' || i.type === 'approved').length})`], ['extracted', `Extracted Data (${notesExtractedData?.length || 0})`]].map(([val, lbl]) => (
                         <button key={val} onClick={() => { setNotesFilter(val); if (val === 'extracted') fetchExtractedDataForNotes(); }} style={{ background: notesFilter === val ? '#000' : '#f5f5f5', color: notesFilter === val ? '#fff' : '#666', border: 'none', padding: '6px 14px', borderRadius: 20, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>{lbl}</button>
                       ))}
                     </div>
                     {notesFilter !== 'extracted' ? (() => {
-                      let itemsToShow = notesFilter === 'all' ? [...mergedTimeline, ...notesExtractedData.map(item => ({ ...item, type: 'extracted', rawDate: item.timestamp_iso ? new Date(item.timestamp_iso).toLocaleString('en-IN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }) : 'N/A', text: item.extracted_text || item.suggestion_text || 'No content' }))].sort((a, b) => new Date(b.timestamp_iso || b.timestamp) - new Date(a.timestamp_iso || a.timestamp)) : notesFilter === 'paramedic' ? mergedTimeline.filter(i => i.type === 'patient') : mergedTimeline.filter(i => i.type === 'doctor' || i.type === 'doctornote');
+                      let itemsToShow = notesFilter === 'all' ? [...mergedTimeline, ...notesExtractedData.map(item => ({ ...item, type: 'extracted', rawDate: item.timestamp_iso ? new Date(item.timestamp_iso).toLocaleString('en-IN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }) : 'N/A', text: item.extracted_text || item.suggestion_text || 'No content' }))].sort((a, b) => new Date(b.timestamp_iso || b.timestamp) - new Date(a.timestamp_iso || a.timestamp)) : notesFilter === 'paramedic' ? mergedTimeline.filter(i => i.type === 'patient') : mergedTimeline.filter(i => i.type === 'doctor' || i.type === 'doctornote' || i.type === 'approved');
                       return itemsToShow.length === 0 ? <div style={{ textAlign: 'center', color: '#aaa', padding: 40 }}>No Notes Found</div> : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                           {itemsToShow.map((item, index) => (
-                            <div key={index} style={{ border: '1px solid #e8e8e8', borderRadius: 6, overflow: 'hidden', background: item.type === 'doctor' ? '#fffef8' : item.type === 'doctornote' ? '#eff6ff' : item.type === 'extracted' ? '#f0fdf4' : '#fafafa' }}>
+                            <div
+                              key={index}
+                              onClick={item.type === 'approved' ? () => openClinicalModal(item.rawAction) : undefined}
+                              style={{
+                                border: '1px solid #e8e8e8', borderRadius: 6, overflow: 'hidden',
+                                background: item.type === 'doctor' ? '#fffef8' : item.type === 'doctornote' ? '#eff6ff' : item.type === 'extracted' ? '#f0fdf4' : item.type === 'approved' ? '#faf5ff' : '#fafafa',
+                                cursor: item.type === 'approved' ? 'pointer' : 'default',
+                              }}
+                            >
                               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: '#fff', borderBottom: '1px solid #f0f0f0' }}>
-                                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.8px', textTransform: 'uppercase', background: item.type === 'doctor' ? '#000' : item.type === 'doctornote' ? '#1d4ed8' : item.type === 'extracted' ? '#16a34a' : '#f0f0f0', color: item.type === 'doctor' || item.type === 'doctornote' || item.type === 'extracted' ? '#fff' : '#555', padding: '3px 8px', borderRadius: 3 }}>{item.type === 'doctornote' ? 'Doctor Note' : item.type === 'doctor' ? 'Doctor Suggestion' : item.type === 'extracted' ? 'Extracted Data' : 'Emergency Crew'}</span>
+                                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.8px', textTransform: 'uppercase', background: item.type === 'doctor' ? '#000' : item.type === 'doctornote' ? '#1d4ed8' : item.type === 'extracted' ? '#16a34a' : item.type === 'approved' ? '#7c3aed' : '#f0f0f0', color: item.type === 'doctor' || item.type === 'doctornote' || item.type === 'extracted' || item.type === 'approved' ? '#fff' : '#555', padding: '3px 8px', borderRadius: 3 }}>{item.type === 'doctornote' ? 'Doctor Note' : item.type === 'doctor' ? 'Doctor Suggestion' : item.type === 'extracted' ? 'Extracted Data' : item.type === 'approved' ? 'AI Approved' : 'Emergency Crew'}</span>
                                 <span style={{ fontSize: 11, color: '#999' }}>{item.rawDate}</span>
                               </div>
                               <div style={{ padding: '14px 16px' }}>
                                 <div style={{ fontSize: 13, lineHeight: 1.6, color: '#333' }}>{item.type === 'extracted' ? (item.text || '').replace(/\n/g, ' ').replace(/\s+/g, ' ').trim() : item.text}</div>
+                                {item.type === 'approved' && (
+                                  <div style={{ fontSize: 11, color: '#7c3aed', fontWeight: 600, marginTop: 8, textDecoration: 'underline' }}>View full details →</div>
+                                )}
                               </div>
                             </div>
                           ))}
@@ -4151,16 +4026,17 @@ const s      = action.ai_suggestion?.suggestions || {};
                 )}
    {/* ── PROCESS PATIENT DATA BUTTON ── */}
 <button onClick={() => {
+  if (incidentCompleted) return;
   const hasNotes = (notes && notes.length > 0) || (doctorNotes && doctorNotes.length > 0);
   if (!hasNotes) { alert('⚠️ No paramedic voice notes & Doctor notes available for AI processing.'); return; }
   setShowDataProcessing(false);
   setTimeout(() => { setShowDataProcessing(true); setTimeout(() => { dataProcessingRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 200); }, 50);
-}} style={{ marginTop: 16, background: '#000', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: 6, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-  Process Patient Data →
+}} disabled={incidentCompleted} style={{ marginTop: 16, background: incidentCompleted ? '#999' : '#000', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: 6, fontSize: 14, fontWeight: 600, cursor: incidentCompleted ? 'not-allowed' : 'pointer', opacity: incidentCompleted ? 0.6 : 1, fontFamily: "'DM Sans', sans-serif", display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+  {incidentCompleted ? 'Incident Completed' : 'Process Patient Data →'}
 </button>
 {showDataProcessing && (
   <div ref={dataProcessingRef} style={{ marginTop: 30 }}>
-    <DataProcessingInline patientData={patient} notes={notes} />
+    <DataProcessingInline patientData={patient} notes={notes} incidentCompleted={incidentCompleted} />
   </div>
 )}
 
@@ -4178,10 +4054,11 @@ const s      = action.ai_suggestion?.suggestions || {};
   }}>
     Clinical Images from Ambulance
   </div>
- <AmbulanceImagePhotography
+<AmbulanceImagePhotography
     key={imageRefreshKey}
     patientId={patient?.patient_id}
     patientName={patient?.fullName}
+    incidentCompleted={incidentCompleted}
   />
 </div>
 {/* ── STRUCTURED NOTE SECTION ── */}
@@ -4192,7 +4069,7 @@ const s      = action.ai_suggestion?.suggestions || {};
     cursor: 'pointer', background: '#f8f8f8',
   }} onClick={() => setShowStructuredNote(prev => !prev)}>
     <span style={{  fontSize: 13, fontWeight: 800, color: '#000', textTransform: 'uppercase', letterSpacing: '1.2px' }}>
-      Structured Note
+      Discharge Summary
     </span>
     <span style={{ fontSize: 18, color: '#000', transition: 'transform 0.2s', transform: showStructuredNote ? 'rotate(90deg)' : 'rotate(0deg)' }}>›</span>
   </div>
@@ -4238,7 +4115,7 @@ const s      = action.ai_suggestion?.suggestions || {};
       textTransform: 'uppercase',
       letterSpacing: '1.2px'
     }}>
-      Final Summary
+      Patient Transfer Summary
     </div>
     <span style={{ fontSize: 18, color: '#000', transition: 'transform 0.2s', transform: showFinalSummary ? 'rotate(90deg)' : 'rotate(0deg)' }}>›</span>
   </div>
@@ -4249,7 +4126,7 @@ const s      = action.ai_suggestion?.suggestions || {};
         const loadingDiv = document.createElement('div');
         loadingDiv.id = 'final-summary-loading-popup';
         loadingDiv.style.cssText = `position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:10000;`;
-        loadingDiv.innerHTML = `<div style="background:white;padding:32px 48px;border-radius:8px;text-align:center;box-shadow:0 20px 40px rgba(0,0,0,0.2);min-width:300px;"><div style="margin-bottom:16px;"><div style="display:inline-block;width:40px;height:40px;border:3px solid #f0f0f0;border-top-color:#000;border-radius:50%;animation:spin 0.8s linear infinite;"></div></div><div style="font-size:16px;font-weight:600;color:#000;margin-bottom:8px;">Generating Final Summary</div><div style="font-size:13px;color:#666;">Please wait while AI processes patient data...</div></div>`;
+        loadingDiv.innerHTML = `<div style="background:white;padding:32px 48px;border-radius:8px;text-align:center;box-shadow:0 20px 40px rgba(0,0,0,0.2);min-width:300px;"><div style="margin-bottom:16px;"><div style="display:inline-block;width:40px;height:40px;border:3px solid #f0f0f0;border-top-color:#000;border-radius:50%;animation:spin 0.8s linear infinite;"></div></div><div style="font-size:16px;font-weight:600;color:#000;margin-bottom:8px;">Generating Patient Transfer Summary</div><div style="font-size:13px;color:#666;">Please wait while AI processes patient data...</div></div>`;
         document.body.appendChild(loadingDiv);
         try {
           const response = await fetch(`https://doctorassist.ai/api/hms/users/ai-legacy/ed-summary/generate/${patient.patient_id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
@@ -4257,7 +4134,7 @@ const s      = action.ai_suggestion?.suggestions || {};
           document.body.removeChild(loadingDiv);
           const successDiv = document.createElement('div');
           successDiv.style.cssText = `position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:10000;`;
-          successDiv.innerHTML = `<div style="background:white;padding:32px 48px;border-radius:8px;text-align:center;box-shadow:0 20px 40px rgba(0,0,0,0.2);min-width:320px;"><div style="font-size:48px;margin-bottom:16px;"></div><div style="font-size:18px;font-weight:700;color:#000;margin-bottom:12px;">Summary Generated!</div><div style="font-size:13px;color:#666;margin-bottom:24px;">Final ED Summary has been created successfully.</div><button id="success-ok-btn" style="background:#000;color:#fff;border:none;padding:10px 32px;border-radius:4px;font-size:14px;font-weight:600;cursor:pointer;">OK</button></div>`;
+          successDiv.innerHTML = `<div style="background:white;padding:32px 48px;border-radius:8px;text-align:center;box-shadow:0 20px 40px rgba(0,0,0,0.2);min-width:320px;"><div style="font-size:48px;margin-bottom:16px;"></div><div style="font-size:18px;font-weight:700;color:#000;margin-bottom:12px;">Summary Generated!</div><div style="font-size:13px;color:#666;margin-bottom:24px;">Patient Transfer Summary has been created successfully.</div><button id="success-ok-btn" style="background:#000;color:#fff;border:none;padding:10px 32px;border-radius:4px;font-size:14px;font-weight:600;cursor:pointer;">OK</button></div>`;
           document.body.appendChild(successDiv);
           document.getElementById('success-ok-btn')?.addEventListener('click', async () => {
             document.body.removeChild(successDiv);
@@ -4268,13 +4145,13 @@ const s      = action.ai_suggestion?.suggestions || {};
           alert('Failed to generate final summary. Please try again.');
         }
       }} style={{ border: 'none', background: '#000', color: '#fff', padding: '8px 16px', borderRadius: 4, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", display: 'flex', alignItems: 'center', gap: 6, letterSpacing: '0.3px' }}>
-        + Generate Final Summary
+        + Generate Patient Transfer Summary
       </button>
     </div>
     {finalSummaryLoading ? (
       <div style={{ display: 'flex', justifyContent: 'center', padding: '40px 0' }}><Spinner size={32} /></div>
     ) : !finalSummary ? (
-      <div style={{ textAlign: 'center', color: '#999', padding: '40px 0' }}>No Final Summary Available. Click "Generate Final Summary" to create one.</div>
+      <div style={{ textAlign: 'center', color: '#999', padding: '40px 0' }}>No Patient Transfer Summary Available. Click "Generate Patient Transfer Summary" to create one.</div>
     ) : (
       <FinalSummaryContent
         finalSummary={finalSummary}
@@ -4324,7 +4201,7 @@ const s      = action.ai_suggestion?.suggestions || {};
               {finalSummaryLoading ? (
                 <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><Spinner size={32} /></div>
               ) : !finalSummary ? (
-                <div style={{ textAlign: 'center', color: '#999', padding: 40 }}>No Final Summary Available</div>
+                <div style={{ textAlign: 'center', color: '#999', padding: 40 }}>No Patient Transfer Summary Available</div>
               ) : (
                 <FinalSummaryContent
                   finalSummary={finalSummary}
@@ -4407,7 +4284,7 @@ const s      = action.ai_suggestion?.suggestions || {};
                         console.error(err);
                         alert('Microphone permission denied');
                       }
-                    }} disabled={transcribeLoading} style={{ border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
+                    }} disabled={transcribeLoading || incidentCompleted} style={{ border: 'none', background: 'transparent', cursor: (transcribeLoading || incidentCompleted) ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, opacity: incidentCompleted ? 0.5 : 1 }}>
                       {transcribeLoading ? <Spinner size={30} /> : isRecording ? (
   <div style={{ width: 60, height: 60, borderRadius: '50%', background: '#dc3545', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', animation: 'pulse 1.5s infinite' }}>
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -4435,20 +4312,20 @@ const s      = action.ai_suggestion?.suggestions || {};
                     />
                     <div style={{ display: 'flex', gap: 12, marginTop: 20, flexWrap: 'wrap', alignItems: 'flex-start' }}>
                       <div>
-                        <button onClick={handleVoiceSubmit} disabled={voiceSubmitLoading} style={{
+                        <button onClick={handleVoiceSubmit} disabled={voiceSubmitLoading || incidentCompleted} style={{
                           background: '#dc2626', color: '#fff', border: 'none', padding: '12px 24px',
-                          borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif",
+                          borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: (voiceSubmitLoading || incidentCompleted) ? 'not-allowed' : 'pointer', opacity: incidentCompleted ? 0.5 : 1, fontFamily: "'DM Sans', sans-serif",
                         }}>
-                          {voiceSubmitLoading ? 'Sending to EMT…' : '📡 Send to EMT App Now'}
+                          {incidentCompleted ? 'Incident Completed' : voiceSubmitLoading ? 'Sending to EMT…' : '📡 Send to EMT App Now'}
                         </button>
                         <div style={{ fontSize: 10, color: '#dc2626', marginTop: 4, maxWidth: 220, lineHeight: 1.4 }}>Goes live to the ambulance crew's phone immediately — not used for AI analysis.</div>
                       </div>
                       <div>
-                        <button onClick={handleDoctorNoteSubmit} disabled={doctorNoteSubmitLoading} style={{
+                        <button onClick={handleDoctorNoteSubmit} disabled={doctorNoteSubmitLoading || incidentCompleted} style={{
                           background: '#fff', color: '#1d4ed8', border: '1.5px solid #1d4ed8', padding: '12px 24px',
-                          borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif",
+                          borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: (doctorNoteSubmitLoading || incidentCompleted) ? 'not-allowed' : 'pointer', opacity: incidentCompleted ? 0.5 : 1, fontFamily: "'DM Sans', sans-serif",
                         }}>
-                          {doctorNoteSubmitLoading ? 'Saving…' : '📝 Save Note for AI Only'}
+                          {incidentCompleted ? 'Incident Completed' : doctorNoteSubmitLoading ? 'Saving…' : '📝 Save Note for AI Only'}
                         </button>
                         <div style={{ fontSize: 10, color: '#1d4ed8', marginTop: 4, maxWidth: 220, lineHeight: 1.4 }}>Saved for AI analysis only — the EMT app never sees this.</div>
                       </div>
@@ -4553,7 +4430,7 @@ const s      = action.ai_suggestion?.suggestions || {};
           cursor: 'pointer',
         }}
       >
-        Doctor ({mergedTimeline.filter(i => i.type === 'doctor' || i.type === 'doctornote').length})
+        Doctor ({mergedTimeline.filter(i => i.type === 'doctor' || i.type === 'doctornote' || i.type === 'approved').length})
       </button>
       <button
         onClick={() => { setNotesFilter('extracted'); fetchExtractedDataForNotes(); }}
@@ -4593,7 +4470,7 @@ const s      = action.ai_suggestion?.suggestions || {};
     } else if (notesFilter === 'paramedic') {
       itemsToShow = mergedTimeline.filter(item => item.type === 'patient');
     } else if (notesFilter === 'doctor') {
-      itemsToShow = mergedTimeline.filter(item => item.type === 'doctor' || item.type === 'doctornote');
+      itemsToShow = mergedTimeline.filter(item => item.type === 'doctor' || item.type === 'doctornote' || item.type === 'approved');
     } else {
       itemsToShow = mergedTimeline;
     }
@@ -4603,14 +4480,22 @@ const s      = action.ai_suggestion?.suggestions || {};
     ) : (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         {itemsToShow.map((item, index) => (
-          <div key={index} style={{ border: '1px solid #e8e8e8', borderRadius: 6, overflow: 'hidden', background: item.type === 'doctor' ? '#fffef8' : item.type === 'doctornote' ? '#eff6ff' : item.type === 'extracted' ? '#f0fdf4' : '#fafafa' }}>
+          <div
+            key={index}
+            onClick={item.type === 'approved' ? () => openClinicalModal(item.rawAction) : undefined}
+            style={{
+              border: '1px solid #e8e8e8', borderRadius: 6, overflow: 'hidden',
+              background: item.type === 'doctor' ? '#fffef8' : item.type === 'doctornote' ? '#eff6ff' : item.type === 'extracted' ? '#f0fdf4' : item.type === 'approved' ? '#faf5ff' : '#fafafa',
+              cursor: item.type === 'approved' ? 'pointer' : 'default',
+            }}
+          >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: '#fff', borderBottom: '1px solid #f0f0f0' }}>
               <span style={{
                 fontSize: 10, fontWeight: 700, letterSpacing: '0.8px', textTransform: 'uppercase',
-                background: item.type === 'doctor' ? '#000' : item.type === 'doctornote' ? '#1d4ed8' : item.type === 'extracted' ? '#16a34a' : '#f0f0f0',
-                color: item.type === 'doctor' ? '#fff' : item.type === 'doctornote' ? '#fff' : item.type === 'extracted' ? '#fff' : '#555',
+                background: item.type === 'doctor' ? '#000' : item.type === 'doctornote' ? '#1d4ed8' : item.type === 'extracted' ? '#16a34a' : item.type === 'approved' ? '#7c3aed' : '#f0f0f0',
+                color: item.type === 'doctor' ? '#fff' : item.type === 'doctornote' ? '#fff' : item.type === 'extracted' ? '#fff' : item.type === 'approved' ? '#fff' : '#555',
                 padding: '3px 8px', borderRadius: 3,
-              }}>{item.type === 'doctornote' ? 'Doctor Note' : item.type === 'doctor' ? 'Doctor Suggestion' : item.type === 'extracted' ? 'Extracted Data' : 'Emergency Crew'}</span>
+              }}>{item.type === 'doctornote' ? 'Doctor Note' : item.type === 'doctor' ? 'Doctor Suggestion' : item.type === 'extracted' ? 'Extracted Data' : item.type === 'approved' ? 'AI Approved' : 'Emergency Crew'}</span>
               <span style={{ fontSize: 11, color: '#999' }}>{item.rawDate}</span>
             </div>
             <div style={{ padding: '14px 16px' }}>
@@ -4619,6 +4504,9 @@ const s      = action.ai_suggestion?.suggestions || {};
     ? (typeof item.text === 'string' ? (item.text || '').replace(/\n/g, ' ').replace(/\s+/g, ' ').trim() : 'No content')
     : (typeof item.text === 'string' ? item.text : JSON.stringify(item.text))}
 </div>
+            {item.type === 'approved' && (
+              <div style={{ fontSize: 11, color: '#7c3aed', fontWeight: 600, marginTop: 8, textDecoration: 'underline' }}>View full details →</div>
+            )}
             </div>
           </div>
         ))}
@@ -4658,6 +4546,7 @@ const s      = action.ai_suggestion?.suggestions || {};
 {/* Check if paramedic notes exist before showing DataProcessing */}
 <button 
 onClick={() => {
+  if (incidentCompleted) return;
   const hasParamedicNotes = (notes && notes.length > 0) || (doctorNotes && doctorNotes.length > 0);
 
 if (!hasParamedicNotes) {
@@ -4671,27 +4560,29 @@ if (!hasParamedicNotes) {
       setTimeout(() => { dataProcessingRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 200);
     }, 50);
   }}
+  disabled={incidentCompleted}
   style={{
-    background: '#000',
+    background: incidentCompleted ? '#999' : '#000',
     color: '#fff',
     border: 'none',
     padding: '10px 20px',
     borderRadius: '6px',
     fontSize: '14px',
     fontWeight: '600',
-    cursor: 'pointer',
+    cursor: incidentCompleted ? 'not-allowed' : 'pointer',
+    opacity: incidentCompleted ? 0.6 : 1,
     fontFamily: "'DM Sans', sans-serif",
     display: 'inline-flex',
     alignItems: 'center',
     gap: '8px'
   }}
 >
-  Process Patient Data →
+  {incidentCompleted ? 'Incident Completed' : 'Process Patient Data →'}
 </button>
               
               {showDataProcessing && (
   <div ref={dataProcessingRef} style={{ marginTop: 30 }}>
-    <DataProcessingInline patientData={patient} notes={notes} />
+    <DataProcessingInline patientData={patient} notes={notes} incidentCompleted={incidentCompleted} />
   </div>
 )}
             </div>

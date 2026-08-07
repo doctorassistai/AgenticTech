@@ -1899,6 +1899,13 @@ const TumorBoard = ({ doctorId, patientId, doctorSpeciality, doctorName, patient
   const [caseBriefHistoryOpen, setCaseBriefHistoryOpen]   = useState(false);
   const [caseBriefHistoryLoading, setCaseBriefHistoryLoading] = useState(false);
 
+  // ── Ask About Patient (RAG Q&A) state ──
+  const [patientQuestion, setPatientQuestion]             = useState("");
+  const [patientAnswer, setPatientAnswer]                 = useState("");
+  const [patientAnswerLoading, setPatientAnswerLoading]   = useState(false);
+  const [patientAnswerError, setPatientAnswerError]       = useState("");
+  const [patientQaAskedAt, setPatientQaAskedAt]           = useState(null);
+
    const effectiveSpeciality = doctorSpeciality || fetchedSpeciality;
 
   const isOncology = oncologySpecialties.some(
@@ -2111,6 +2118,47 @@ useEffect(() => {
       setSnackbar({ open: true, message: "Network error. Failed to generate case brief.", severity: "error" });
     } finally {
       setCaseBriefLoading(false);
+    }
+  };
+
+  // POST /patient-rag/search — backend auto-builds the RAG index on first
+  // call for this patient (see search_patient_rag), so there's no separate
+  // "build" step needed here; the doctor just asks and gets an answer.
+  const handleAskPatientQuestion = async () => {
+    if (!doctorId || !patientId) {
+      setSnackbar({ open: true, message: "Missing doctor or patient information", severity: "warning" });
+      return;
+    }
+    if (!patientQuestion.trim()) {
+      setSnackbar({ open: true, message: "Please enter a question", severity: "warning" });
+      return;
+    }
+    setPatientAnswerLoading(true);
+    setPatientAnswerError("");
+    try {
+      const res  = await fetch(`${API_BASE_URL}hms/users/speciality/patient-rag/search`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          doctor_id: doctorId,
+          patient_id: patientId,
+          question: patientQuestion.trim(),
+          top_k: 5,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data?.answer) {
+        setPatientAnswer(data.answer);
+        setPatientQaAskedAt(new Date().toISOString());
+      } else {
+        const msg = data?.message || data?.detail || "Could not find an answer for that question.";
+        setPatientAnswerError(msg);
+      }
+    } catch (err) {
+      console.error("Failed to search patient RAG:", err);
+      setPatientAnswerError("Network error. Failed to get an answer.");
+    } finally {
+      setPatientAnswerLoading(false);
     }
   };
 
@@ -2640,6 +2688,114 @@ useEffect(() => {
                   {caseBriefHistory.map((item, idx) => (
                     <CaseBriefHistoryItem key={item._id || `${item.generated_at}_${idx}`} item={item} />
                   ))}
+                </Box>
+              )}
+            </Box>
+
+            <Box sx={{ mx: 2.5, my: 3, height: 1, background: C.border }} />
+
+            {/* ── Ask About Patient (RAG Q&A) ── */}
+            <Box sx={{ px: 2.5, pb: 0 }}>
+              <Box sx={{ mb: 2 }}>
+                <Typography sx={{ ...labelStyle, mb: 0.5 }}>AI Generated</Typography>
+                <Typography sx={{ fontSize: 15, fontWeight: FW_NORMAL, fontFamily: FONT, color: C.textPrimary, letterSpacing: "-0.01em" }}>
+                  Ask About This Patient
+                </Typography>
+              </Box>
+
+              <Box sx={{ display: "flex", gap: 1, alignItems: "flex-start", flexWrap: "wrap" }}>
+                <TextField
+                  fullWidth
+                  placeholder="Example: Give histopathology details for patient"
+                  value={patientQuestion}
+                  onChange={e => setPatientQuestion(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleAskPatientQuestion(); } }}
+                  disabled={patientAnswerLoading}
+                  sx={{
+                    flex: "1 1 320px",
+                    "& .MuiOutlinedInput-root": {
+                      borderRadius: 0, fontFamily: FONT, fontSize: 13,
+                      "& fieldset": { borderColor: C.border },
+                      "&:hover fieldset": { borderColor: C.black },
+                      "&.Mui-focused fieldset": { borderColor: C.black, borderWidth: 1 },
+                    },
+                  }}
+                />
+                <Button
+                  variant="contained"
+                  onClick={handleAskPatientQuestion}
+                  disabled={patientAnswerLoading}
+                  sx={{
+                    borderRadius: 0, textTransform: "none", fontFamily: FONT, fontWeight: FW_LIGHT,
+                    fontSize: 12.5, px: 2.5, py: 1.1, background: C.black, color: C.white,
+                    border: `1px solid ${C.black}`,
+                    "&:hover": { background: C.white, color: C.black },
+                    "&.Mui-disabled": { background: C.bgTertiary, color: C.textMuted },
+                  }}
+                >
+                  {patientAnswerLoading
+                    ? <CircularProgress size={14} sx={{ mr: 0.75, color: "inherit" }} />
+                    : <SendRounded sx={{ mr: 0.5, fontSize: 15 }} />
+                  }
+                  {patientAnswerLoading ? "Searching..." : "Ask"}
+                </Button>
+              </Box>
+
+              {/* Loading (first ask) */}
+              {patientAnswerLoading && !patientAnswer && (
+                <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", py: 5, gap: 1.5, mt: 2, border: `1px solid ${C.border}` }}>
+                  <CircularProgress size={22} sx={{ color: C.black }} />
+                  <Typography sx={{ fontSize: 12, color: C.textMuted, fontFamily: FONT, fontWeight: FW_LIGHT }}>
+                    Searching the patient record for an answer...
+                  </Typography>
+                </Box>
+              )}
+
+              {/* Error */}
+              {!patientAnswerLoading && patientAnswerError && (
+                <Alert severity="error" sx={{ borderRadius: 0, fontFamily: FONT, fontSize: 13, mt: 2 }}>
+                  {patientAnswerError}
+                </Alert>
+              )}
+
+              {/* Answer */}
+              {!patientAnswerLoading && patientAnswer && (
+                <Card sx={{ mt: 2, mb: 0, background: C.bgPrimary, borderRadius: 0, boxShadow: "none", border: `1px solid ${C.border}` }}>
+                  <CardContent sx={{ p: 2 }}>
+                    <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1.5, flexWrap: "wrap", gap: 1 }}>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                        <Box sx={{ width: 28, height: 28, background: C.black, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <CommentRounded sx={{ fontSize: 15, color: C.white }} />
+                        </Box>
+                        <Typography sx={{ fontSize: 12.5, fontWeight: FW_NORMAL, fontFamily: FONT, color: C.textPrimary }}>
+                          Answer
+                        </Typography>
+                      </Box>
+                      {patientQaAskedAt && (
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.4 }}>
+                          <AccessTimeRounded sx={{ fontSize: 12, color: C.textMuted }} />
+                          <Typography sx={{ fontSize: 10.5, color: C.textMuted, fontFamily: FONT }}>
+                            {new Date(patientQaAskedAt).toLocaleString()}
+                          </Typography>
+                        </Box>
+                      )}
+                    </Box>
+                    <Typography sx={{
+                      fontSize: 13, fontFamily: FONT, fontWeight: FW_LIGHT,
+                      lineHeight: 1.8, color: C.textSecond, whiteSpace: "pre-wrap",
+                    }}>
+                      {patientAnswer}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Empty state */}
+              {!patientAnswerLoading && !patientAnswerError && !patientAnswer && (
+                <Box sx={{ textAlign: "center", py: 3, px: 2, mt: 2, border: `1px solid ${C.border}` }}>
+                  <Typography sx={{ fontSize: 12, color: C.textMuted, fontFamily: FONT, fontWeight: FW_LIGHT }}>
+                    Ask a question about this patient's records — e.g. histopathology, staging, or treatment history.
+                  </Typography>
                 </Box>
               )}
             </Box>

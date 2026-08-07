@@ -56,7 +56,7 @@ IST = timezone(timedelta(hours=5, minutes=30))
 MONGO_URI = os.getenv("MONGO_URI")
 
 DROPDOWN_ONLY = {"insurer", "claimMode", "claimSubtype", "tags", "claimTrigger"}
-
+CREDITS_PER_PAGE = int(os.getenv("LLAMA_CREDITS_PER_PAGE", "1"))
 
 # ─────────────────────────────────────────────────────────────────────────
 # DB-coupled helpers — re-implemented here (not imported) so they use THIS
@@ -277,7 +277,7 @@ async def _process_advanced_upload(
 
         await llama_stats_col.update_one(
             {"_id": "global_total"},
-            {"$inc": {"total_pages_parsed": page_count}},
+            {"$inc": {"total_pages_parsed": page_count, "credits_used": page_count * CREDITS_PER_PAGE}},
             upsert=True,
         )
 
@@ -459,3 +459,19 @@ def process_advanced_upload(
             supervisor_id=supervisor_id,
         )
     )
+    
+@celery_app.task(name="llama_credits.reset")
+def reset_llama_credits():
+    async def _reset():
+        client = AsyncIOMotorClient(MONGO_URI)
+        try:
+            db_ = client["doctorassistai"]
+            await db_["llama_usage_stats"].update_one(
+                {"_id": "global_total"},
+                {"$set": {"credits_used": 0}},
+                upsert=True,
+            )
+            logger.info("Monthly LlamaCloud credit counter reset to 0.")
+        finally:
+            client.close()
+    asyncio.run(_reset())

@@ -559,7 +559,7 @@ const ExtractionHeader = ({ extractionResult, editedTexts, setEditedTexts }) => 
   );
 };
 // ─── Editable Extraction Panel ────────────────────────────────────────────────
-const ExtractionPanel = ({ extractionResult, onProceed }) => {
+const ExtractionPanel = ({ extractionResult, onProceed, incidentCompleted = false }) => {
   const [editedTexts, setEditedTexts] = useState({});
 
   useEffect(() => {
@@ -667,17 +667,19 @@ const ExtractionPanel = ({ extractionResult, onProceed }) => {
         </span>
         <button
           onClick={handleProceed}
+          disabled={incidentCompleted}
           style={{
-            background: '#111', color: '#fff', border: 'none',
+            background: incidentCompleted ? '#999' : '#111', color: '#fff', border: 'none',
             padding: '11px 28px', borderRadius: 6, fontSize: 13, fontWeight: 700,
-            cursor: 'pointer', fontFamily: "'DM Sans', sans-serif",
+            cursor: incidentCompleted ? 'not-allowed' : 'pointer', fontFamily: "'DM Sans', sans-serif",
             letterSpacing: '0.3px', display: 'flex', alignItems: 'center', gap: 8,
+            opacity: incidentCompleted ? 0.6 : 1,
             transition: 'background 0.15s',
           }}
-          onMouseEnter={e => e.currentTarget.style.background = '#333'}
-          onMouseLeave={e => e.currentTarget.style.background = '#111'}
+          onMouseEnter={e => { if (!incidentCompleted) e.currentTarget.style.background = '#333'; }}
+          onMouseLeave={e => e.currentTarget.style.background = incidentCompleted ? '#999' : '#111'}
         >
-          <span>↓</span> Proceed to Voice Notes
+          {incidentCompleted ? 'Incident Completed' : <><span>↓</span> Proceed to Voice Notes</>}
         </button>
       </div>
     </div>
@@ -685,8 +687,8 @@ const ExtractionPanel = ({ extractionResult, onProceed }) => {
 };
 
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
-const AmbulanceImagePhotography = ({ patientId, patientName, patientData }) => {
-  const navigate = useNavigate();
+const AmbulanceImagePhotography = ({ patientId, patientName, patientData, incidentCompleted = false }) => {
+    const navigate = useNavigate();
 
   const [images, setImages]   = useState([]);
   const [loading, setLoading] = useState(false);
@@ -1266,20 +1268,22 @@ const handleProcessData = async () => {
                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
                   <button
                     onClick={() => handleAddNote(latestImage, 0)}
-                    disabled={extractionLoading}
+                    disabled={extractionLoading || incidentCompleted}
                     style={{
-                      background: '#000', color: '#fff', border: 'none',
+                      background: incidentCompleted ? '#999' : '#000', color: '#fff', border: 'none',
                       padding: '11px 26px', borderRadius: 6, fontSize: 13, fontWeight: 700,
-                      cursor: extractionLoading ? 'not-allowed' : 'pointer',
+                      cursor: (extractionLoading || incidentCompleted) ? 'not-allowed' : 'pointer',
                       fontFamily: "'DM Sans', sans-serif",
                       display: 'flex', alignItems: 'center', gap: 8,
-                      opacity: extractionLoading ? 0.75 : 1,
+                      opacity: (extractionLoading || incidentCompleted) ? 0.6 : 1,
                       transition: 'background 0.15s',
                     }}
-                    onMouseEnter={e => { if (!extractionLoading) e.currentTarget.style.background = '#333'; }}
-                    onMouseLeave={e => e.currentTarget.style.background = '#000'}
+                    onMouseEnter={e => { if (!extractionLoading && !incidentCompleted) e.currentTarget.style.background = '#333'; }}
+                    onMouseLeave={e => e.currentTarget.style.background = incidentCompleted ? '#999' : '#000'}
                   >
-                    {extractionLoading
+                    {incidentCompleted
+                      ? 'Incident Completed'
+                      : extractionLoading
                       ? <><Spinner size={14} color="#fff" /> Extracting…</>
                       : <><span style={{ fontSize: 16 }}>+</span> Add Image For Processing</>
                     }
@@ -1303,6 +1307,7 @@ const handleProcessData = async () => {
     <ExtractionPanel
       extractionResult={extractionResult}
       onProceed={handleProceedToVoice}
+      incidentCompleted={incidentCompleted}
     />
   </div>
 )}
@@ -1339,8 +1344,8 @@ const handleProcessData = async () => {
                   <button
                     type="button"
                     onClick={handleMic}
-                    disabled={transcribing}
-                    style={{ border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 0 }}
+                    disabled={transcribing || incidentCompleted}
+                    style={{ border: 'none', background: 'transparent', cursor: (transcribing || incidentCompleted) ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', padding: 0, opacity: incidentCompleted ? 0.5 : 1 }}
                   >
                     {transcribing ? <Spinner size={30} /> : isRecording ? (
                       <div style={{
@@ -1401,14 +1406,14 @@ const handleProcessData = async () => {
                   <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
                     <button
                       onClick={handleVoiceSubmit}
-                      disabled={voiceSubmitLoading}
+                      disabled={voiceSubmitLoading || incidentCompleted}
                       style={{
-                        background: '#111', color: '#fff', border: 'none',
+                        background: incidentCompleted ? '#999' : '#111', color: '#fff', border: 'none',
                         padding: '11px 22px', borderRadius: 6, fontSize: 13,
-                        fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif",
+                        fontWeight: 600, cursor: (voiceSubmitLoading || incidentCompleted) ? 'not-allowed' : 'pointer', opacity: incidentCompleted ? 0.6 : 1, fontFamily: "'DM Sans', sans-serif",
                       }}
                     >
-                      {voiceSubmitLoading ? 'Submitting…' : 'Submit Suggestion'}
+                      {incidentCompleted ? 'Incident Completed' : voiceSubmitLoading ? 'Submitting…' : 'Submit Suggestion'}
                     </button>
                     <button
                       onClick={() => {
@@ -1526,19 +1531,21 @@ const handleProcessData = async () => {
   
   <button
     onClick={handleProcessData}
-    disabled={processingLoading}
+    disabled={processingLoading || incidentCompleted}
     style={{
-      background: '#111', color: '#fff', border: 'none',
+      background: incidentCompleted ? '#999' : '#111', color: '#fff', border: 'none',
       padding: '11px 26px', borderRadius: 6, fontSize: 13,
-      fontWeight: 700, cursor: processingLoading ? 'not-allowed' : 'pointer',
+      fontWeight: 700, cursor: (processingLoading || incidentCompleted) ? 'not-allowed' : 'pointer',
       fontFamily: "'DM Sans', sans-serif",
       display: 'flex', alignItems: 'center', gap: 8,
-      opacity: processingLoading ? 0.75 : 1,
+      opacity: (processingLoading || incidentCompleted) ? 0.6 : 1,
     }}
-    onMouseEnter={e => { if (!processingLoading) e.currentTarget.style.background = '#333'; }}
-    onMouseLeave={e => e.currentTarget.style.background = '#111'}
+    onMouseEnter={e => { if (!processingLoading && !incidentCompleted) e.currentTarget.style.background = '#333'; }}
+    onMouseLeave={e => e.currentTarget.style.background = incidentCompleted ? '#999' : '#111'}
   >
-    {processingLoading
+    {incidentCompleted
+      ? 'Incident Completed'
+      : processingLoading
       ? <><Spinner size={14} color="#fff" /> Processing AI Analysis…</>
       : <>Process Image Data →</>
     }
@@ -1610,6 +1617,7 @@ const handleProcessData = async () => {
         }, 300);
       }}
       hideDataProcessing={activeTab !== 'latest'}  // optional, but safe to add
+      incidentCompleted={incidentCompleted}
     />
   </div>
 )}

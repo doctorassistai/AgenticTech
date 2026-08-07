@@ -1,5 +1,6 @@
 import os
 from celery import Celery
+from celery.schedules import crontab
 from kombu import Exchange, Queue
 
 # ==================================================
@@ -70,6 +71,13 @@ celery_app.conf.update(
     broker_heartbeat=60,
     worker_heartbeat=60,
     broker_connection_retry_on_startup=True,
+
+    beat_schedule={
+        "reset-llama-credits-monthly": {
+            "task": "llama_credits.reset",
+            "schedule": crontab(hour=0, minute=5, day_of_month=15),
+        },
+    },
 )
 
 # ==================================================

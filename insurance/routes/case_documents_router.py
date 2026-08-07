@@ -35,6 +35,8 @@ GROQ_API_KEY     = os.getenv("GROQ_API_KEY")
 SECRET_KEY       = os.getenv("SECRET_KEY")
 ALGORITHM        = os.getenv("ALGORITHM", "HS256")
 LLAMA_API_KEY = os.getenv("LLAMA_API_KEY")
+LLAMA_CREDIT_BUDGET = int(os.getenv("LLAMA_CREDIT_BUDGET", "45000"))
+CREDITS_PER_PAGE = int(os.getenv("LLAMA_CREDITS_PER_PAGE", "1"))  # 1 for cost_effective, 10 for agentic
 
 #1HAGjDZaXymvAvRMg6ovKGELFwxwfpWFnpaa1vavO6kRt3K4"
 PROXY_UPLOAD_URL = os.getenv(
@@ -1159,7 +1161,7 @@ async def _llamacloud_parse(
             uploaded_file = client.files.create(file=tmp_path, purpose="parse")
             result = client.parsing.parse(
                 file_id=uploaded_file.id,
-                tier="agentic",
+                tier="cost_effective",
                 version="latest",
                 expand=["markdown"],
                 agentic_options={
@@ -1361,6 +1363,24 @@ async def upload_document(
     doc_number    = updated["doc_counter"]
     display_label = f"Document {doc_number}"
 
+    # ── Credit budget precheck (no page selection on this path — estimate
+    # from the full file) ───────────────────────────────────────────────────
+    is_pdf_claim_doc = file.filename.lower().endswith(".pdf")
+    estimated_pages = _get_pdf_page_count(content) if is_pdf_claim_doc else 1
+    estimated_credits = estimated_pages * CREDITS_PER_PAGE
+    stats_doc = await llama_stats_col.find_one({"_id": "global_total"}) or {}
+    credits_used_so_far = stats_doc.get("credits_used", 0)
+    if credits_used_so_far + estimated_credits > LLAMA_CREDIT_BUDGET:
+        raise HTTPException(
+            status_code=402,
+            detail=(
+                f"LlamaCloud credit budget nearly exhausted "
+                f"({credits_used_so_far}/{LLAMA_CREDIT_BUDGET} used). "
+                f"This extraction needs ~{estimated_credits} credits. "
+                f"Please top up credits or contact admin."
+            ),
+        )
+
     # Upload to storage proxy
     # Upload directly to storage (same pattern as advanced_upload_document)
     stored_url: Optional[str]      = None
@@ -1407,6 +1427,12 @@ async def upload_document(
     except Exception as exc:
         logger.error("LlamaCloud parse failed for claim document '%s': %s", file.filename, exc)
         raise HTTPException(status_code=502, detail=f"Document parsing failed: {exc}")
+
+    await llama_stats_col.update_one(
+        {"_id": "global_total"},
+        {"$inc": {"total_pages_parsed": _page_count, "credits_used": _page_count * CREDITS_PER_PAGE}},
+        upsert=True,
+    )
 
     document_text = (document_text or "").strip()
     if not document_text:
@@ -1827,6 +1853,21 @@ async def advanced_upload_extract_pages(request: Request):
                 "Selected-pages upload exception for doc_id=%s: %s — keeping full-doc URL.",
                 doc_id, exc,
             )
+
+    pages_to_bill = len(selected_pages) if selected_pages is not None else 1
+    estimated_credits = pages_to_bill * CREDITS_PER_PAGE
+    stats_doc = await llama_stats_col.find_one({"_id": "global_total"}) or {}
+    credits_used_so_far = stats_doc.get("credits_used", 0)
+    if credits_used_so_far + estimated_credits > LLAMA_CREDIT_BUDGET:
+        raise HTTPException(
+            status_code=402,
+            detail=(
+                f"LlamaCloud credit budget nearly exhausted "
+                f"({credits_used_so_far}/{LLAMA_CREDIT_BUDGET} used). "
+                f"This extraction needs ~{estimated_credits} credits. "
+                f"Please top up credits or contact admin."
+            ),
+        )
 
     now     = datetime.now(IST)
     task_id = f"advadv_{uuid.uuid4().hex}"
@@ -2459,6 +2500,18 @@ async def check_advanced_processed(case_id: str, filename: str, request: Request
                 "fields_found": doc.get("fields_found", 0),
             }
     return {"found": False}
+
+@router.get("/web/llama-credit-status")
+async def get_llama_credit_status():
+    stats_doc = await llama_stats_col.find_one({"_id": "global_total"}) or {}
+    used = stats_doc.get("credits_used", 0)
+    percent = round((used / LLAMA_CREDIT_BUDGET) * 100, 1) if LLAMA_CREDIT_BUDGET else 0
+    return {
+        "credits_used": used,
+        "credit_budget": LLAMA_CREDIT_BUDGET,
+        "percent_used": percent,
+        "warning": percent >= 90,
+    }
     
 @router.get("/web/check-file-ingested/{case_id}")
 async def check_file_ingested(case_id: str, filename: str, request: Request):

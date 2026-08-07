@@ -31064,3 +31064,170 @@ async def get_patient_timeline(
         "total_visits": len(visits),
         "visits": visits,
     }
+    
+    
+import httpx
+
+async def trigger_hospital_integrator_claim(document, doctor_id, patient_id):
+
+    try:
+
+        logger.info("🚀 Starting hospital integrator trigger")
+        logger.info(f"📌 Incoming doctor_id: {doctor_id}")
+        logger.info(f"📌 Incoming patient_id: {patient_id}")
+
+        # ======================================================
+        # 1. FIND DOCTOR
+        # ======================================================
+        logger.info("🔍 Finding doctor details")
+
+        doctor = await doctor_user_c.find_one(
+            {"sys_user_id": doctor_id},
+            {"_id": 0, "hospital_id": 1, "doctor_id": 1}
+        )
+
+        if not doctor:
+            logger.warning(f"❌ Doctor not found: {doctor_id}")
+            return
+
+        logger.info(f"✅ Doctor found: {doctor}")
+
+        hospital_id = doctor.get("hospital_id")
+        actual_doctor_id = doctor.get("doctor_id")
+
+        if not hospital_id:
+            logger.warning(f"❌ No hospital_id for doctor: {doctor_id}")
+            return
+
+        # ======================================================
+        # 2. FIND PATIENT
+        # ======================================================
+        logger.info("🔍 Finding patient details")
+
+        patient = await patient_user_collec.find_one(
+            {"sys_user_id": patient_id},
+            {"_id": 0, "patient_id": 1}
+        )
+
+        if not patient:
+            logger.warning(f"❌ Patient not found: {patient_id}")
+            return
+
+        logger.info(f"✅ Patient found: {patient}")
+
+        actual_patient_id = patient.get("patient_id")
+
+        # ======================================================
+        # 3. FIND HOSPITAL
+        # ======================================================
+        logger.info("🔍 Finding hospital")
+
+        hospital = await hospital_user_c.find_one(
+            {"sys_user_id": hospital_id},
+            {"_id": 0, "sys_user_id": 1}
+        )
+
+        if not hospital:
+            logger.warning(f"❌ Hospital not found: {hospital_id}")
+            return
+
+        sys_user_id = hospital.get("sys_user_id")
+
+        # ======================================================
+        # 4. GET SAVE API
+        # ======================================================
+        logger.info("🔍 Finding save API")
+
+        api_doc = await integrator_save_api_c.find_one(
+            {"sys_user_id": sys_user_id},
+            {"_id": 0, "save_api": 1}
+        )
+
+        if not api_doc:
+            logger.warning(f"❌ No save API configured")
+            return
+
+        save_api = api_doc.get("save_api")
+
+        if not save_api:
+            logger.warning("❌ save_api is empty")
+            return
+
+        logger.info(f"🌐 save_api: {save_api}")
+
+        # ======================================================
+        # 5. PREPARE PAYLOAD
+        # ======================================================
+        payload = {
+            "tag": "insurance_claim",
+            "patient_id": actual_patient_id,
+            "doctor_id": actual_doctor_id,
+            "data": document
+        }
+
+        logger.info(f"📦 Payload: {payload}")
+
+        # ======================================================
+        # 6. SEND TO HOSPITAL
+        # ======================================================
+        async with httpx.AsyncClient(timeout=20.0) as client:
+
+            response = await client.post(
+                save_api,
+                json=payload
+            )
+
+            logger.info(f"Status: {response.status_code}")
+            logger.info(f"Response: {response.text}")
+
+        logger.info("🎉 Insurance claim sent successfully")
+
+    except Exception as e:
+
+        logger.error(
+            f"💥 Hospital integrator failed: {str(e)}",
+            exc_info=True
+        )
+        
+        
+        
+@router.post("/finalize-claim-validation")
+async def finalize_claim_validation(payload: dict):
+
+    try:
+        logger.info("✅ Insurance claim finalized")
+
+        # =========================
+        # HOSPITAL INTEGRATOR
+        # =========================
+        try:
+
+            await trigger_hospital_integrator_claim(
+                payload.get("claim"),
+                payload.get("doctor_id"),
+                payload.get("patient_id")
+            )
+
+        except Exception as integrator_error:
+
+            logger.error(
+                f"Hospital integrator failed: {str(integrator_error)}",
+                exc_info=True
+            )
+
+        return {
+            "success": True,
+            "message": "Insurance claim finalized successfully"
+        }
+
+    except Exception as e:
+
+        logger.error(
+            f"Finalize insurance claim failed: {str(e)}",
+            exc_info=True
+        )
+
+        return {
+            "success": False,
+            "message": str(e)
+        }

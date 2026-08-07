@@ -904,20 +904,51 @@ function DoctorDashboard() {
     verifyAuth();
   }, [navigate, doctorId]);
 
-  useEffect(() => {
-    if (!doctorId) return;
-    (async () => {
-      try {
-        setLoadingAppointments(true);
-        const res = await fetch(
-          `${API_BASE_URL}hms/users/doctors/doctor_today_appointments/${doctorId}`
-        );
-        const data = await res.json();
-        setTodayAppointments(data.status === "success" ? data.appointments || [] : []);
-      } catch { setTodayAppointments([]); }
-      finally { setLoadingAppointments(false); }
-    })();
-  }, [doctorId]);
+
+    useEffect(() => {
+        if (!doctorId) return;
+
+        (async () => {
+            try {
+                setLoadingAppointments(true);
+
+                const res = await fetch(
+                    `${API_BASE_URL}hms/users/doctors/doctor_all_appointments/${doctorId}`
+                );
+
+                const data = await res.json();
+
+                console.log("ALL APPOINTMENTS:", data);
+
+                const appointments =
+                    data.status === "success"
+                        ? data.appointments || []
+                        : [];
+
+                // Latest appointment date/time first
+                const sortedAppointments = [...appointments].sort((a, b) => {
+                    const dateA = new Date(
+                        `${a.date || ""} ${a.scheduled_time || ""}`
+                    );
+
+                    const dateB = new Date(
+                        `${b.date || ""} ${b.scheduled_time || ""}`
+                    );
+
+                    return dateB - dateA;
+                });
+
+                setTodayAppointments(sortedAppointments);
+
+            } catch (error) {
+                console.error("Appointment fetch error:", error);
+                setTodayAppointments([]);
+            } finally {
+                setLoadingAppointments(false);
+            }
+        })();
+    }, [doctorId]);
+
 
   useEffect(() => {
     if (!doctorId) return;
@@ -1314,47 +1345,157 @@ function DoctorDashboard() {
                     <table style={S.table}>
                       <thead>
                         <tr>
-                          {["Patient Name", "Mobile", "Age", "Time", "Status", "Chief Complaint", "Report/Upload", "DICOM","Preventivescreening", "Actions"].map(h => (
-                            <th key={h} style={S.th}>{h}</th>
-                          ))}
+                            {[
+                                "Patient Name",
+                                "Mobile",
+                                "Age",
+                                "Appointment Date",
+                                "Time",
+                                "Status",
+                                "Chief Complaint",
+                                "Report/Upload",
+                                "DICOM",
+                                "Preventivescreening",
+                                "Actions"
+                            ].map(h => (
+                                <th key={h} style={S.th}>{h}</th>
+                            ))}
                         </tr>
-                      </thead>
-                      <tbody>
+                    </thead>
+
+                    <tbody>
                         {loadingAppointments ? (
-                          <tr><td colSpan={9} style={{ ...S.td, textAlign: "center", padding: "2rem", color: T.textMuted }}>Loading appointments…</td></tr>
+                            <tr>
+                                <td
+                                    colSpan={11}
+                                    style={{
+                                        ...S.td,
+                                        textAlign: "center",
+                                        padding: "2rem",
+                                        color: T.textMuted
+                                    }}
+                                >
+                                    Loading appointments…
+                                </td>
+                            </tr>
                         ) : todayAppointments.length === 0 ? (
-                          <tr><td colSpan={9} style={{ ...S.td, textAlign: "center", padding: "2rem", color: T.textMuted }}>No appointments for today</td></tr>
-                        ) : todayAppointments.map((appt, i) => (
-                          <tr key={i} className="da-tbl-row">
-                            <td style={S.tdLink} onClick={() => doctorId && navigate(`/dashboard?doctor_id=${doctorId}&patient_id=${appt.sys_user_id}`)}>
-                              {appt.patient_name}
-                            </td>
-                            <td style={S.td}>{appt.patient_phone}</td>
-                            <td style={S.td}>{calcAge(appt.patient_dob)}</td>
-                            <td style={S.td}>{appt.scheduled_time}</td>
-                            <td style={S.td}><span style={{ ...S.badge, borderColor: T.border, color: T.textSec }}>Scheduled</span></td>
-                            <td style={S.td}>{appt.chief_complaint || "—"}</td>
-                            <td style={S.td}>
-                              <button className="da-outline-btn" style={S.outlineBtn}
-                                onClick={() => doctorId && navigate(`/report-upload?doctor_id=${doctorId}&patient_id=${appt.sys_user_id}`)}>
-                                Upload
-                              </button>
-                            </td>
-                            <td style={S.td}>
-                              <a href={`/upload.html?doctor_id=${doctorId}&patient_id=${appt.sys_user_id}`} className="da-action-btn" style={S.actionBtn}>Upload</a>
-                            </td>
-                            <td style={S.td}>
-                              <button className="da-outline-btn" style={S.outlineBtn}
-                                onClick={() => doctorId && navigate(`/Preventivescreening?doctor_id=${doctorId}&patient_id=${appt.sys_user_id}`)}>
-                                Preventivescreening
-                              </button>
-                            </td>
-                            <td style={S.td}>
-                              <a href={`/screen.html?doctor_id=${doctorId}&patient_id=${appt.sys_user_id}`} className="da-action-btn" style={S.actionBtn}>Start →</a>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
+                            <tr>
+                                <td
+                                    colSpan={11}
+                                    style={{
+                                        ...S.td,
+                                        textAlign: "center",
+                                        padding: "2rem",
+                                        color: T.textMuted
+                                    }}
+                                >
+                                    No appointments
+                                </td>
+                            </tr>
+                        ) : (
+                            todayAppointments.map((appt, i) => (
+                                <tr key={i} className="da-tbl-row">
+
+                                    <td
+                                        style={S.tdLink}
+                                        onClick={() =>
+                                            doctorId &&
+                                            navigate(
+                                                `/dashboard?doctor_id=${doctorId}&patient_id=${appt.sys_user_id}`
+                                            )
+                                        }
+                                    >
+                                        {appt.patient_name}
+                                    </td>
+
+                                    <td style={S.td}>
+                                        {appt.patient_phone}
+                                    </td>
+
+                                    <td style={S.td}>
+                                        {calcAge(appt.patient_dob)}
+                                    </td>
+
+                                    {/* APPOINTMENT DATE */}
+                                    <td style={S.td}>
+                                        {appt.date || "—"}
+                                    </td>
+
+                                    {/* APPOINTMENT TIME */}
+                                    <td style={S.td}>
+                                        {appt.scheduled_time || "—"}
+                                    </td>
+
+                                    <td style={S.td}>
+                                        <span
+                                            style={{
+                                                ...S.badge,
+                                                borderColor: T.border,
+                                                color: T.textSec
+                                            }}
+                                        >
+                                            Scheduled
+                                        </span>
+                                    </td>
+
+                                    <td style={S.td}>
+                                        {appt.chief_complaint || "—"}
+                                    </td>
+
+                                    <td style={S.td}>
+                                        <button
+                                            className="da-outline-btn"
+                                            style={S.outlineBtn}
+                                            onClick={() =>
+                                                doctorId &&
+                                                navigate(
+                                                    `/report-upload?doctor_id=${doctorId}&patient_id=${appt.sys_user_id}`
+                                                )
+                                            }
+                                        >
+                                            Upload
+                                        </button>
+                                    </td>
+
+                                    <td style={S.td}>
+                                        <a
+                                            href={`/upload.html?doctor_id=${doctorId}&patient_id=${appt.sys_user_id}`}
+                                            className="da-action-btn"
+                                            style={S.actionBtn}
+                                        >
+                                            Upload
+                                        </a>
+                                    </td>
+
+                                    <td style={S.td}>
+                                        <button
+                                            className="da-outline-btn"
+                                            style={S.outlineBtn}
+                                            onClick={() =>
+                                                doctorId &&
+                                                navigate(
+                                                    `/Preventivescreening?doctor_id=${doctorId}&patient_id=${appt.sys_user_id}`
+                                                )
+                                            }
+                                        >
+                                            Preventivescreening
+                                        </button>
+                                    </td>
+
+                                    <td style={S.td}>
+                                        <a
+                                            href={`/screen.html?doctor_id=${doctorId}&patient_id=${appt.sys_user_id}`}
+                                            className="da-action-btn"
+                                            style={S.actionBtn}
+                                        >
+                                            Start →
+                                        </a>
+                                    </td>
+
+                                </tr>
+                            ))
+                        )}
+                    </tbody>
                     </table>
                   </div>
                 </div>

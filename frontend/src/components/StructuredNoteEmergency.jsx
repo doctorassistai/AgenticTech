@@ -985,7 +985,7 @@ function downloadPDF(structuredNote, showToast) {
   doc.rect(M, y - 14, usableW, 22, "F");
   font("bold", 13);
   doc.setTextColor(255, 255, 255);
-  doc.text("EMERGENCY STRUCTURED NOTE", M + 10, y);
+  doc.text("EMERGENCY DISCHARGE SUMMARY", M + 10, y);
   y += 8;
   doc.setDrawColor(0, 0, 0);
   doc.setLineWidth(0.5);
@@ -1060,7 +1060,7 @@ function downloadPDF(structuredNote, showToast) {
     doc.setFillColor(0, 0, 0); doc.rect(M, pageH - 28, usableW, 1, "F");
     font("normal", 8); doc.setTextColor(136, 136, 136);
     doc.text(`Page ${i} of ${totalPages}`, pageW - M, pageH - 16, { align: "right" });
-    doc.text("Emergency Structured Note — Confidential", M, pageH - 16);
+    doc.text("EMERGENCY DISCHARGE SUMMARY — Confidential", M, pageH - 16);
   }
 
   doc.save("emergency-structured-note.pdf");
@@ -1133,7 +1133,7 @@ function StructuredNoteEmergency({ doctorId, patientId, onRefresh, onLoadingChan
         const note = data.finaloutput || data.structured_note || data.data;
         setStructuredNote(note);
         setHasFetched(true);
-        showToast("Structured note generated successfully");
+        showToast("Discharge summary generated successfully");
         if (onRefresh) onRefresh(note);
       } else {
         const msg = data.detail || data.message || "Failed to generate note";
@@ -1141,7 +1141,7 @@ function StructuredNoteEmergency({ doctorId, patientId, onRefresh, onLoadingChan
         showToast(msg, "⚠");
       }
     } catch (err) {
-      console.error("Error generating emergency structured note:", err);
+      console.error("Error generating Emergency Discharge Summary:", err);
       const msg = "Network error. Please try again.";
       setError(msg);
       showToast(msg, "⚠");
@@ -1214,7 +1214,7 @@ function StructuredNoteEmergency({ doctorId, patientId, onRefresh, onLoadingChan
         {/* TOP BAR */}
         <div className="snp-topbar">
           <p className="snp-heading">
-            Emergency <span>Structured Note</span>
+            Emergency <span>Discharge Summary</span>
           </p>
           <div className="snp-topbar-actions">
             {structuredNote && (
@@ -1229,7 +1229,7 @@ function StructuredNoteEmergency({ doctorId, patientId, onRefresh, onLoadingChan
             <button className="snp-btn" onClick={generate} disabled={loading}>
               {loading
                 ? <><span className="snp-spinner" />Generating…</>
-                : <><span>✦</span>Generate Note</>}
+                : <><span>✦</span>Generate Discharge Summary</>}
             </button>
           </div>
         </div>
@@ -1242,7 +1242,7 @@ function StructuredNoteEmergency({ doctorId, patientId, onRefresh, onLoadingChan
               <div className="snp-error-title">Generation Failed</div>
               <div className="snp-error-text">{error}</div>
               <div className="snp-error-text" style={{ marginTop: 6 }}>
-                Ensure clinical data exists for this patient in the system, then click "generate Note".
+                Ensure clinical data exists for this patient in the system, then click "Generate Discharge Summary"..
               </div>
             </div>
           </div>
@@ -1281,7 +1281,7 @@ function StructuredNoteEmergency({ doctorId, patientId, onRefresh, onLoadingChan
           ) : (
             <div className="snp-empty">
               <div className="snp-empty-icon">📋</div>
-              <p className="snp-empty-text">Note was generated but all fields are empty. The patient may have insufficient clinical data on record.</p>
+              <p className="snp-empty-text">Discharge summary was generated but all fields are empty. The patient may have insufficient clinical data on record.</p>
             </div>
           )
         ) : (
@@ -1289,8 +1289,7 @@ function StructuredNoteEmergency({ doctorId, patientId, onRefresh, onLoadingChan
             <div className="snp-empty">
               <div className="snp-empty-icon">🚑</div>
               <p className="snp-empty-text">
-                Loading the structured note for this patient. If nothing appears, click "generate Note".
-              </p>
+Loading the discharge summary for this patient. If nothing appears, click "Generate Discharge Summary".              </p>
             </div>
           )
         )}

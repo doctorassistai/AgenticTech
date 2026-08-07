@@ -58,6 +58,7 @@ from fastapi.encoders import jsonable_encoder
 from requests.auth import HTTPBasicAuth
 from dotenv import load_dotenv
 import os
+from httpx import AsyncClient, ConnectError, ConnectTimeout, ReadTimeout, TimeoutException
 
 load_dotenv()
 api_base_url = os.getenv("VITE_BACKEND_URL")
@@ -111,6 +112,8 @@ documentation_treatment_plan_collection = database["documentation-treatment-plan
 documentation_investigation_notes_collection = database["documentation-investigation-notes"]
 documentation_medication_analysis_collection = database["documentation-medication-analysis"]
 documentation_clinical_notes_collection = database["documentation-clinical-notes"]
+patient_visit_history_collection = database["patientVisitHistory"]
+integration_lab_reports_collection = database["integration_lab_reports"]
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -3169,65 +3172,6 @@ async def widget_login(request: Request):
             detail=str(e)
         )
 
-
-
-async def process_single_lab_report(
-    patient_id,
-    doctor_id,
-    report
-):
-
-    try:
-
-        logger.info(
-            f"Processing Lab Report | "
-            f"Patient: {patient_id} | "
-            f"Doctor: {doctor_id}"
-        )
-
-        logger.info(
-            f"Report Data: {report}"
-        )
-
-
-        # -----------------------------------------
-        # SIMULATE PROCESSING TIME
-        # -----------------------------------------
-        await asyncio.sleep(3)
-
-
-        # Here later you can add:
-        # - AI analysis
-        # - Mongo save
-        # - Celery trigger
-        # - Report extraction
-
-
-        logger.info(
-            f"Completed Report Processing : "
-            f"{report.get('report_name')}"
-        )
-
-
-        return {
-            "status": "success",
-            "report_name": report.get("report_name")
-        }
-
-
-    except Exception as e:
-
-        logger.error(
-            f"Lab report processing failed : {str(e)}"
-        )
-
-        return {
-            "status": "failed",
-            "error": str(e)
-        }
-
-
-
 # ============================================================
 # MAIN ENDPOINT
 # ============================================================
@@ -3375,69 +3319,146 @@ async def process_lab_reports(request: Request):
 
 
     # -----------------------------------------
-    # PROCESS REPORTS ONE BY ONE
+    # BUILD ALL REPORT RECORDS AT ONCE
     # -----------------------------------------
 
-    processed_reports = []
+    report_records = []
 
 
     for report in reports:
 
-
-        result = await process_single_lab_report(
-
-            patient_id=patient_sys_user_id,
-
-            doctor_id=doctor_sys_user_id,
-
-            report=report
-
+        report_records.append(
+            {
+                "report_name": report.get("report_name"),
+                "report_date": report.get("report_date"),
+                "parameters": report.get("parameters", []),
+                "created_at": datetime.utcnow()
+            }
         )
 
 
-        if result["status"] != "success":
+    # -----------------------------------------
+    # SAVE ALL REPORTS UNDER PATIENT_ID + DOCTOR_ID
+    # NO DUPLICATE PATIENT+DOCTOR DOC, PUSH INTO ARRAY
+    # -----------------------------------------
+
+    try:
+
+        await integration_lab_reports_collection.update_one(
+            {
+                "patient_id": patient_sys_user_id,
+                "doctor_id": doctor_sys_user_id
+            },
+            {
+                "$push": {
+                    "reports": {"$each": report_records}
+                },
+                "$setOnInsert": {
+                    "patient_id": patient_sys_user_id,
+                    "doctor_id": doctor_sys_user_id,
+                    "created_at": datetime.utcnow()
+                },
+                "$set": {
+                    "updated_at": datetime.utcnow()
+                }
+            },
+            upsert=True
+        )
+
+        logger.info(
+            f"Saved {len(report_records)} lab reports | "
+            f"Patient: {patient_sys_user_id} | Doctor: {doctor_sys_user_id}"
+        )
+
+    except Exception as e:
+
+        logger.error(
+            f"Failed to save lab reports: {str(e)}"
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to save lab reports: {str(e)}"
+        )
+
+
+    processed_reports = [
+        {"status": "success", "report_name": r["report_name"], "report_date": r["report_date"]}
+        for r in report_records
+    ]
+
+
+    # -----------------------------------------
+    # SAVE ALL REPORTS TO TEMP IN ONE CALL
+    # -----------------------------------------
+
+    temp_payload = {
+        "patient_id": patient_sys_user_id,
+        "doctor_id": doctor_sys_user_id,
+        "lab_reports": [
+            {
+                "report_name": r.get("report_name"),
+                "report_date": r.get("report_date"),
+                "parameters": r.get("parameters", [])
+            }
+            for r in reports
+        ]
+    }
+
+    try:
+        async with AsyncClient() as client:
+            temp_response = await client.post(
+                "https://doctorassist.ai/api/hms/users/data/context/general/temp/save",
+                json=temp_payload,
+                timeout=30
+            )
+
+    except (ConnectError, ConnectTimeout, ReadTimeout, TimeoutException) as e:
+
+        logger.error(
+            f"Temp save unreachable for lab reports: {str(e)}"
+        )
+
+        raise HTTPException(
+            status_code=503,
+            detail=f"doctorassist.ai temp save service unavailable: {str(e)}"
+        )
+
+    except Exception as e:
+
+        logger.exception(
+            f"Unexpected error saving lab reports to temp: {str(e)}"
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail=f"Unexpected error saving lab reports to temp storage: {str(e)}"
+        )
+
+    if temp_response.status_code != 200:
+
+        logger.error(
+            f"Temp save failed for lab reports: "
+            f"{temp_response.status_code} - {temp_response.text}"
+        )
+
+        if 400 <= temp_response.status_code < 500:
 
             raise HTTPException(
                 status_code=500,
-                detail=f"Failed processing report {report.get('report_name')}"
-            )
-
-
-        processed_reports.append(result)
-
-        # -----------------------------------------
-        # SAVE CURRENT REPORT TO TEMP
-        # -----------------------------------------
-        temp_payload = {
-            "patient_id": patient_sys_user_id,
-            "doctor_id": doctor_sys_user_id,
-            "lab_reports": [
-                {
-                    "report_name": report.get("report_name"),
-                    "report_date": report.get("report_date"),
-                    "parameters": report.get("parameters", [])
-                }
-            ]
-        }
-
-        try:
-            async with AsyncClient() as client:
-                response = await client.post(
-                    "https://doctorassist.ai/api/hms/users/data/context/general/temp/save",
-                    json=temp_payload,
-                    timeout=30
+                detail=(
+                    f"Temp save rejected our request for lab reports "
+                    f"(upstream {temp_response.status_code}): {temp_response.text}"
                 )
-
-                if response.status_code != 200:
-                    logger.error(
-                        f"Temp save failed for {report.get('report_name')}: "
-                        f"{response.status_code} - {response.text}"
-                    )
-
-        except Exception as e:
-            logger.exception(
-                f"Error saving temp data for report {report.get('report_name')}: {str(e)}"
             )
+
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                f"Temp save upstream failure for lab reports "
+                f"(upstream {temp_response.status_code}): {temp_response.text}"
+            )
+        )
 
 
 
@@ -3862,10 +3883,18 @@ async def process_single_patient_visit(
 
 
         # =====================================================
-        # SIMULATE PROCESSING TIME
+        # SAVE TO PATIENT VISIT HISTORY (no duplicates per date)
         # =====================================================
 
-        await asyncio.sleep(3)
+        history_result = await save_visit_to_patient_history(
+            patient_sys_user_id=patient_sys_user_id,
+            doctor_sys_user_id=doctor_sys_user_id,
+            visit_data=visit_data
+        )
+
+        logger.info(
+            f"History save result: {history_result}"
+        )
 
 
 
@@ -3903,6 +3932,90 @@ async def process_single_patient_visit(
             "error":
                 str(e)
 
+        }
+
+
+async def save_visit_to_patient_history(
+    patient_sys_user_id,
+    doctor_sys_user_id,
+    visit_data
+):
+    try:
+
+        visit_date = visit_data.get("visit_date")
+
+        if not visit_date:
+            logger.warning(
+                f"Skipping history save, visit_date missing | "
+                f"Patient: {patient_sys_user_id} | Doctor: {doctor_sys_user_id}"
+            )
+            return {"status": "skipped", "reason": "visit_date missing"}
+
+        visit_record = {
+            "visit_date": visit_date,
+            "visit_summary": visit_data.get("visit_summary"),
+            "presenting_complaint": visit_data.get("presenting_complaint"),
+            "duration_of_presenting_complaint": visit_data.get("duration_of_presenting_complaint"),
+            "family_history": visit_data.get("family_history"),
+            "medication_history": visit_data.get("medication_history"),
+            "recent_abnormal_values": visit_data.get("recent_abnormal_values", []),
+            "primary_diagnosis": visit_data.get("primary_diagnosis"),
+            "doctor_notes": visit_data.get("doctor_notes"),
+            "investigations": visit_data.get("investigations", []),
+            "procedures": visit_data.get("procedures", []),
+            "medication": visit_data.get("medication", []),
+            "saved_at": datetime.utcnow()
+        }
+
+        existing = await patient_visit_history_collection.find_one(
+            {
+                "patient_id": patient_sys_user_id,
+                "doctor_id": doctor_sys_user_id,
+                "visits.visit_date": visit_date
+            },
+            {"_id": 1}
+        )
+
+        if existing:
+            logger.info(
+                f"Duplicate visit skipped | Date: {visit_date} | "
+                f"Patient: {patient_sys_user_id} | Doctor: {doctor_sys_user_id}"
+            )
+            return {"status": "duplicate_skipped", "visit_date": visit_date}
+
+        await patient_visit_history_collection.update_one(
+            {
+                "patient_id": patient_sys_user_id,
+                "doctor_id": doctor_sys_user_id
+            },
+            {
+                "$push": {"visits": visit_record},
+                "$setOnInsert": {
+                    "patient_id": patient_sys_user_id,
+                    "doctor_id": doctor_sys_user_id,
+                    "created_at": datetime.utcnow()
+                },
+                "$set": {"updated_at": datetime.utcnow()}
+            },
+            upsert=True
+        )
+
+        logger.info(
+            f"Visit saved to history | Date: {visit_date} | "
+            f"Patient: {patient_sys_user_id} | Doctor: {doctor_sys_user_id}"
+        )
+
+        return {"status": "success", "visit_date": visit_date}
+
+    except Exception as e:
+
+        logger.error(
+            f"Failed to save visit to patient history: {str(e)}"
+        )
+
+        return {
+            "status": "failed",
+            "error": str(e)
         }
 @router.post("/add_patient_visit_history")
 async def add_patient_visit_history(request: Request):
@@ -4074,7 +4187,7 @@ async def add_patient_visit_history(request: Request):
 
             raise HTTPException(
                 status_code=500,
-                detail="Visit processing failed"
+                detail=f"Visit processing failed for {visit.get('visit_date')}: {result.get('error')}"
             )
 
 
@@ -4086,34 +4199,75 @@ async def add_patient_visit_history(request: Request):
         temp_payload = {
             "patient_id": patient_sys_user_id,
             "doctor_id": doctor_sys_user_id,
-            "visit_summary": [
-                {
-                    "visit_date": visit.get("visit_date"),
-                    "visit_summary": visit.get("visit_summary"),
-                    "presenting_complaint": visit.get("presenting_complaint"),
-                    "duration_of_presenting_complaint": visit.get("duration_of_presenting_complaint"),
-                    "family_history": visit.get("family_history"),
-                    "medication_history": visit.get("medication_history"),
-                    "recent_abnormal_values": visit.get("recent_abnormal_values", []),
-                    "primary_diagnosis": visit.get("primary_diagnosis"),
-                    "doctor_notes": visit.get("doctor_notes"),
-                    "investigations": visit.get("investigations", []),
-                    "procedures": visit.get("procedures", []),
-                    "medication": visit.get("medication", [])
-                }
-            ]
+            "visit_summary": {
+                "visit_date": visit.get("visit_date"),
+                "visit_summary": visit.get("visit_summary"),
+                "presenting_complaint": visit.get("presenting_complaint"),
+                "duration_of_presenting_complaint": visit.get("duration_of_presenting_complaint"),
+                "family_history": visit.get("family_history"),
+                "medication_history": visit.get("medication_history"),
+                "recent_abnormal_values": visit.get("recent_abnormal_values", []),
+                "primary_diagnosis": visit.get("primary_diagnosis"),
+                "doctor_notes": visit.get("doctor_notes"),
+                "investigations": visit.get("investigations", []),
+                "procedures": visit.get("procedures", []),
+                "medication": visit.get("medication", [])
+            }
         }
 
         try:
             async with AsyncClient() as client:
-                await client.post(
+                temp_response = await client.post(
                     "https://doctorassist.ai/api/hms/users/data/context/general/temp/save",
                     json=temp_payload,
                     timeout=30
                 )
+
+        except (ConnectError, ConnectTimeout, ReadTimeout, TimeoutException) as e:
+
+            logger.error(
+                f"Temp save unreachable for visit {visit.get('visit_date')}: {str(e)}"
+            )
+
+            raise HTTPException(
+                status_code=503,
+                detail=f"doctorassist.ai temp save service unavailable for visit {visit.get('visit_date')}: {str(e)}"
+            )
+
         except Exception as e:
+
             logger.exception(
-                f"Failed to save visit {visit.get('visit_date')} to temp: {str(e)}"
+                f"Unexpected error saving visit {visit.get('visit_date')} to temp: {str(e)}"
+            )
+
+            raise HTTPException(
+                status_code=500,
+                detail=f"Unexpected error saving visit {visit.get('visit_date')} to temp storage: {str(e)}"
+            )
+
+        if temp_response.status_code != 200:
+
+            logger.error(
+                f"Temp save failed for visit {visit.get('visit_date')}: "
+                f"{temp_response.status_code} - {temp_response.text}"
+            )
+
+            if 400 <= temp_response.status_code < 500:
+
+                raise HTTPException(
+                    status_code=500,
+                    detail=(
+                        f"Temp save rejected our request for visit {visit.get('visit_date')} "
+                        f"(upstream {temp_response.status_code}): {temp_response.text}"
+                    )
+                )
+
+            raise HTTPException(
+                status_code=502,
+                detail=(
+                    f"Temp save upstream failure for visit {visit.get('visit_date')} "
+                    f"(upstream {temp_response.status_code}): {temp_response.text}"
+                )
             )
 
 
@@ -4142,3 +4296,4 @@ async def add_patient_visit_history(request: Request):
             processed_visits
 
     }
+

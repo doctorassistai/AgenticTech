@@ -21,6 +21,8 @@ from common.llm.build_visit_timeline_task import build_timeline_incremental
 from pdf2image import convert_from_bytes
 from pymongo import MongoClient
 from motor.motor_asyncio import AsyncIOMotorClient
+from common.llm.oncology_case_view_service import generate_longitudinal_case_view
+
 
 
 # ------------------- CONFIG -------------------
@@ -689,6 +691,14 @@ async def run_full_async_pipeline(
             report_date=entry_date,
             report_content=entry_content,
             file_name=file_name,
+        )
+        await generate_longitudinal_case_view(
+            patient_id=patient_id,
+            doctor_id=doctor_id,
+            document_text=entry_content,
+            document_date=entry_date,
+            file_name=file_name,
+            document_id=document_id
         )
         for e in validated_entities:
             all_entities_with_date.append((e, entry_date))

@@ -41,7 +41,8 @@ export default defineConfig(() => {
     documenttreatmentplan:
       "src/components/document-treatmentplan-widget-entry.jsx",
 
-    
+    insuranceclaimvalidation:
+      "src/components/insuranceclaimvalidation-widget-entry.jsx",
 
     savesession:
       "src/components/save-session-widget-entry.jsx",
@@ -84,6 +85,8 @@ export default defineConfig(() => {
 
     investigation:
       "InvestigationWidget",
+    insuranceclaimvalidation:
+      "InsuranceClaimValidationWidget",
 
     clinicalnotes:
       "ClinicalNotesWidget",
@@ -131,6 +134,9 @@ export default defineConfig(() => {
 
     medication:
       "medication-widget.js",
+
+    insuranceclaimvalidation:
+      "insurance-claim-validation-widget.js",
 
     investigation:
       "investigation-widget.js",

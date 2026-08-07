@@ -2013,6 +2013,108 @@ async def get_todays_appointments_for_doctor(doctor_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/doctor_all_appointments/{doctor_id}")
+async def get_all_appointments_for_doctor(doctor_id: str):
+    try:
+        logger.info(
+            "Fetching all appointments for doctor_id=%s",
+            doctor_id
+        )
+
+        cursor = patient_appointments_collection.find(
+            {
+                "appointments": {
+                    "$elemMatch": {
+                        "doctor_id": doctor_id
+                    }
+                }
+            },
+            {
+                "_id": 0,
+                "sys_user_id": 1,
+                "patient_id": 1,
+                "appointments": 1
+            }
+        )
+
+        appointments_all = []
+
+        for doc in cursor:
+            for appt in doc.get("appointments", []):
+
+                # Match this doctor
+                if appt.get("doctor_id") != doctor_id:
+                    continue
+
+                # Exclude IP appointments
+                if appt.get("visit_type") == "IP":
+                    continue
+
+                patient = patient_user_collection.find_one(
+                    {
+                        "sys_user_id": doc.get("sys_user_id")
+                    }
+                )
+
+                patient_name = (
+                    patient.get("name")
+                    if patient
+                    else "Unknown"
+                )
+
+                patient_dob = (
+                    patient.get("date_of_birth")
+                    if patient
+                    else "Unknown"
+                )
+
+                patient_phone = (
+                    patient.get("phone_number")
+                    if patient
+                    else "Unknown"
+                )
+
+                appointments_all.append({
+                    "appointment_id": appt.get("appointment_id"),
+                    "patient_id": doc.get("patient_id"),
+                    "sys_user_id": doc.get("sys_user_id"),
+                    "date": appt.get("date"),
+                    "scheduled_time": appt.get("scheduled_time"),
+                    "visit_type": appt.get("visit_type"),
+                    "updated_at": appt.get("updated_at"),
+                    "chief_complaint": appt.get("chief_complaint"),
+                    "patient_name": patient_name,
+                    "patient_dob": patient_dob,
+                    "patient_phone": patient_phone
+                })
+
+        logger.info(
+            "Found %s appointments for doctor_id=%s",
+            len(appointments_all),
+            doctor_id
+        )
+
+        return {
+            "status": "success",
+            "doctor_id": doctor_id,
+            "total_appointments": len(appointments_all),
+            "appointments": appointments_all
+        }
+
+    except Exception as e:
+        logger.exception(
+            "Failed to fetch all appointments for doctor %s: %s",
+            doctor_id,
+            str(e)
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
+
+
+
 
 
 @router.get("/doctor_today_ip_appointments/{doctor_id}")

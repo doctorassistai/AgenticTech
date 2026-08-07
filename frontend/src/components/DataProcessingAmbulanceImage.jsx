@@ -139,8 +139,8 @@ const BulletList = ({ text, isEditing, onChange, rows = 6 }) => {
 };
 
 // ── Main Component ─────────────────────────────────────────────────────────────
-const DataProcessingAmbulanceImage = ({ processingData, onApprove, onNotApprove }) => {
-  const {
+const DataProcessingAmbulanceImage = ({ processingData, onApprove, onNotApprove, incidentCompleted = false }) => {
+    const {
     patientData,
     selectedImage,
     voiceText: incomingVoice = '',
@@ -777,41 +777,52 @@ const DataProcessingAmbulanceImage = ({ processingData, onApprove, onNotApprove 
               {/* Once approved, this record is history — the decision is made,
                   so we don't show the action buttons anymore. */}
               {approvalStatus !== 'approved' && (
-                <div style={{ display: 'flex', gap: 16, marginTop: 36, flexWrap: 'wrap' }}>
-                  <button
-                    onClick={handleApprove}
-                    disabled={approveLoading}
-                    style={{
-                      background: approveLoading ? '#555' : '#000',
-                      color: '#fff', border: 'none',
-                      padding: '15px 36px', borderRadius: 8, fontSize: 14,
-                      fontWeight: 700, cursor: approveLoading ? 'not-allowed' : 'pointer',
-                      fontFamily: "'DM Sans', sans-serif",
-                      display: 'flex', alignItems: 'center', gap: 8, minWidth: 220,
-                      transition: 'background 0.15s',
-                    }}
-                    onMouseEnter={e => { if (!approveLoading) e.currentTarget.style.background = '#222'; }}
-                    onMouseLeave={e => { if (!approveLoading) e.currentTarget.style.background = '#000'; }}
-                  >
-                    {approveLoading
-                      ? <><Spinner size={14} color="#fff" /> Approving…</>
-                      : '✓ Approve AI Analysis'}
-                  </button>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 36 }}>
+                  {incidentCompleted && (
+                    <p style={{ fontSize: 12, color: '#dc2626', fontWeight: 600 }}>
+                      Incident completed — this AI analysis can no longer be approved or discarded.
+                    </p>
+                  )}
+                  <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                    <button
+                      onClick={handleApprove}
+                      disabled={approveLoading || incidentCompleted}
+                      style={{
+                        background: (approveLoading || incidentCompleted) ? '#555' : '#000',
+                        color: '#fff', border: 'none',
+                        padding: '15px 36px', borderRadius: 8, fontSize: 14,
+                        fontWeight: 700, cursor: (approveLoading || incidentCompleted) ? 'not-allowed' : 'pointer',
+                        fontFamily: "'DM Sans', sans-serif",
+                        display: 'flex', alignItems: 'center', gap: 8, minWidth: 220,
+                        opacity: incidentCompleted ? 0.6 : 1,
+                        transition: 'background 0.15s',
+                      }}
+                      onMouseEnter={e => { if (!approveLoading && !incidentCompleted) e.currentTarget.style.background = '#222'; }}
+                      onMouseLeave={e => { if (!approveLoading && !incidentCompleted) e.currentTarget.style.background = '#000'; }}
+                    >
+                      {incidentCompleted
+                        ? 'Incident Completed'
+                        : approveLoading
+                        ? <><Spinner size={14} color="#fff" /> Approving…</>
+                        : '✓ Approve AI Analysis'}
+                    </button>
 
-                  <button
-                    onClick={handleNotApprove}
-                    disabled={voiceSubmitted}
-                    style={{
-                      background: '#fff', color: '#000',
-                      border: '2px solid #ddd',
-                      padding: '15px 32px', borderRadius: 8, fontSize: 14,
-                      fontWeight: 700, cursor: voiceSubmitted ? 'not-allowed' : 'pointer',
-                      fontFamily: "'DM Sans', sans-serif", minWidth: 220,
-                      transition: 'background 0.15s, color 0.15s',
-                    }}
-                    onMouseEnter={e => { if (!voiceSubmitted) { e.currentTarget.style.background = '#f5f5f5'; e.currentTarget.style.color = '#000'; } }}
-                    onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.color = '#000'; }}
-                  >✕ Not Approve</button>
+                    <button
+                      onClick={handleNotApprove}
+                      disabled={voiceSubmitted || incidentCompleted}
+                      style={{
+                        background: '#fff', color: '#000',
+                        border: '2px solid #ddd',
+                        padding: '15px 32px', borderRadius: 8, fontSize: 14,
+                        fontWeight: 700, cursor: (voiceSubmitted || incidentCompleted) ? 'not-allowed' : 'pointer',
+                        fontFamily: "'DM Sans', sans-serif", minWidth: 220,
+                        opacity: incidentCompleted ? 0.6 : 1,
+                        transition: 'background 0.15s, color 0.15s',
+                      }}
+                      onMouseEnter={e => { if (!voiceSubmitted && !incidentCompleted) { e.currentTarget.style.background = '#f5f5f5'; e.currentTarget.style.color = '#000'; } }}
+                      onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.color = '#000'; }}
+                    >{incidentCompleted ? 'Incident Completed' : '✕ Not Approve'}</button>
+                  </div>
                 </div>
               )}
 

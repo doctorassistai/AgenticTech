@@ -524,12 +524,24 @@ export default function CaseDocumentUpload({ formData, setFormData, BASE_URL, ca
   const [expanded, setExpanded]       = useState(true)
   const [triggerText, setTriggerText] = useState("")
   const [fetching, setFetching]       = useState(false)
-  const [lastExtractedTrigger, setLastExtractedTrigger] = useState(null)
-
+const [lastExtractedTrigger, setLastExtractedTrigger] = useState(null)
+  const [creditWarning, setCreditWarning] = useState(null)
   const creatingCase = useRef(false)
   const caseIdRef    = useRef(null)
 
   const totalFound = claimDocs.reduce((sum, d) => sum + (d.fieldsFound || 0), 0)
+
+  React.useEffect(() => {
+    const checkCredits = () => {
+      fetch(`${(BASE_URL || "").replace(/\/$/, "")}/insurance/web/llama-credit-status`)
+        .then(r => r.json())
+        .then(d => setCreditWarning(d.warning ? d : null))
+        .catch(() => {})
+    }
+    checkCredits()
+    const interval = setInterval(checkCredits, 60000)
+    return () => clearInterval(interval)
+  }, [BASE_URL])
 
   const updateClaimDoc   = (id, patch) => setClaimDocs(prev => prev.map(d => d.id === id ? { ...d, ...patch } : d))
   const updateSupportDoc = (id, patch) => setSupportDocs(prev => prev.map(d => d.id === id ? { ...d, ...patch } : d))
@@ -928,6 +940,17 @@ export default function CaseDocumentUpload({ formData, setFormData, BASE_URL, ca
 
         {expanded && (
           <div className="panel-body" style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+
+            {creditWarning && (
+              <div style={{
+                padding: "10px 14px", borderRadius: 8, fontSize: 12,
+                background: "color-mix(in srgb, var(--amber,#f59e0b) 12%, transparent)",
+                border: "1px solid color-mix(in srgb, var(--amber,#f59e0b) 35%, transparent)",
+                color: "var(--amber,#f59e0b)", fontWeight: 600,
+              }}>
+                ⚠️ Document parsing credits running low ({creditWarning.credits_used}/{creditWarning.credit_budget} used, {creditWarning.percent_used}%). Extraction may fail until the next reset.
+              </div>
+            )}
 
             {/* ── SECTION A: Claim Detail Documents ───────────────────── */}
             <div>

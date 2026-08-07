@@ -141,6 +141,11 @@
 
   </div>
 
+
+  <div class="widget-container">
+  <h3>Insurance Claim Validation</h3>
+  <div id="insurance-claim-validation-widget"></div>
+</div>
   <!-- ===================================== -->
   <!-- SAVE SESSION -->
   <!-- ===================================== -->
@@ -220,6 +225,7 @@
   <script src="https://doctorassist.ai/widgets/patient-onboarding-widget.js?v=1.0"></script>
 
   <script src="https://doctorassist.ai/widgets/diagnosis-widget.js?v=1.0"></script>
+  <script src="https://doctorassist.ai/widgets/insurance-claim-validation-widget.js?v=7.0"></script>
 
   <script src="https://doctorassist.ai/widgets/treatmentplan-widget.js?v=1.0"></script>
 
@@ -261,7 +267,7 @@
           "https://doctorassist.ai/api/hms/integration/system/validate-widget-session";
 
         const bearerToken =
-          "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJJTlQtZmQ5NmNiOGEtMDYyOC00Yjk5LWE2NTEtMzg3YTVkYmMzZjM4Iiwicm9sZSI6ImludGVncmF0b3IiLCJzY29wZXMiOltdLCJleHAiOjE3ODU1NDY4MzB9.bB7_MnyDAd7JhwP0VW4EsNaibfqT6HM__3luImj9Nic";
+          "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJJTlQtNTk3MTI2OGEtYWFhYy00Yzc4LWJlNTUtN2U2MzUzZWVhYzA4Iiwicm9sZSI6ImludGVncmF0b3IiLCJzY29wZXMiOltdLCJleHAiOjE3ODU5NTM1Nzd9.CWUez9FVNUInG0Vz0CELhIAOxl-KTIJbAKRXikdYs4A";
 
         // =====================================
         // REQUEST PAYLOAD
@@ -270,15 +276,15 @@
         const payload = {
 
           hospital_id:
-            "xDDt2uQrmi",
+            "JE3Xl2Jaeb",
 
           // doctor_id:
           //   "DOC_999877",
              doctor_id:
-            "2FFvzVVIgP",
+            "DOC_999877",
 
           patient_id:
-            "HMS-PAT-@2292925"
+            "HMS-PAT-00988"
         };
 
         // =====================================
@@ -346,7 +352,24 @@
             err
           );
         }
+        // Insurance Claim Validation Widget
+try {
+  const data = await validateSession();
 
+  window.InsuranceClaimValidationWidget?.init({
+    containerId: "insurance-claim-validation-widget",
+    doctorId: data.doctor.doctor_sys_user_id,
+    patientId: data.patient.patient_sys_user_id,
+  });
+
+  console.log("✅ Insurance Claim Validation initialized");
+
+} catch (err) {
+  console.error(
+    "❌ Insurance Claim Validation failed",
+    err
+  );
+}
         // =====================================
         // TRANSCRIPTION WIDGET
         // =====================================
@@ -624,12 +647,12 @@ try {
 
       // ✅ Use the same valid token as the first block
       const bearerToken =
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJJTlQtZmQ5NmNiOGEtMDYyOC00Yjk5LWE2NTEtMzg3YTVkYmMzZjM4Iiwicm9sZSI6ImludGVncmF0b3IiLCJzY29wZXMiOltdLCJleHAiOjE3ODU1NDY4MzB9.bB7_MnyDAd7JhwP0VW4EsNaibfqT6HM__3luImj9Nic";
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJJTlQtNTk3MTI2OGEtYWFhYy00Yzc4LWJlNTUtN2U2MzUzZWVhYzA4Iiwicm9sZSI6ImludGVncmF0b3IiLCJzY29wZXMiOltdLCJleHAiOjE3ODU5NTM1Nzd9.CWUez9FVNUInG0Vz0CELhIAOxl-KTIJbAKRXikdYs4A";
 
       const payload = {
-        hospital_id: "xDDt2uQrmi",
-        doctor_id: "2FFvzVVIgP",
-        patient_id: "HMS-PAT-@2292925"
+        hospital_id: "JE3Xl2Jaeb",
+        doctor_id: "DOC_999877",
+        patient_id: "HMS-PAT-00988"
       };
 
       async function validateSession() {

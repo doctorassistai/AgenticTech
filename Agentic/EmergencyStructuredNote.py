@@ -737,14 +737,24 @@ Do NOT use these vitals/status for the current vital_signs block.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 [SOURCE 3] ED CLINICAL ACTIONS
-IMPORTANT: entries with type != "ai_approved" were NOT approved by a
-doctor. Their ai_suggested_case_type / ai_suggested_is_trauma /
-situation_suggested_by_ai fields (if present) are a REJECTED AI opinion,
-not confirmed clinical fact — do not let them override the CASE
-CLASSIFICATION given above, and do not build provisional_diagnosis,
-presenting_complaints, or disposition primarily from a rejected
-suggestion's content unless it is corroborated by an approved source or
-the voice/doctor notes.
+IMPORTANT — this source mixes several different kinds of entry; treat each
+according to its "type" field:
+  • type == "doctor_direct_dictation": the DOCTOR'S OWN spoken instruction,
+    sent directly to the EMT app. This is NOT an AI suggestion and was NOT
+    rejected by anyone — treat its "text" as authoritative clinical input,
+    the same weight as a doctor voice note (SOURCE 4), and incorporate it
+    into provisional_diagnosis, treatment_provided, disposition, and
+    clinical_summary wherever relevant. See its "authority_note" field.
+  • type == "ai_approved": an AI-generated suggestion whose ACTION the
+    doctor approved — see its "approval_note" for how much weight to give it.
+  • any other type where an "ai_suggestion_summary" field is present: this
+    IS a genuinely rejected AI opinion. Its ai_suggested_case_type /
+    ai_suggested_is_trauma / situation_suggested_by_ai fields are NOT
+    confirmed clinical fact — do not let them override the CASE
+    CLASSIFICATION given above, and do not build provisional_diagnosis,
+    presenting_complaints, or disposition primarily from a rejected
+    suggestion's content unless it is corroborated by an approved source or
+    the voice/doctor notes.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 {clinical_actions_json}
 
@@ -1421,12 +1431,33 @@ def _build_prompt_payloads(
                 or d.get("content")
                 or ""
             )
+            # FIX (Requirement 1): a doctor's direct "Send to EMT" dictation
+            # is saved with the SAME action_type ("not_approved") as a
+            # rejected AI suggestion, so downstream code/prompt could not
+            # tell them apart and was treating the doctor's own words as
+            # an untrustworthy rejected AI opinion. The only reliable
+            # signal is: does this entry actually HAVE an ai_suggestion
+            # object attached? If not, and there's a voice_dictation, it's
+            # the doctor's own direct clinical input, not an AI suggestion
+            # of any kind.
+            is_direct_doctor_dictation = bool(d.get("voice_dictation")) and not d.get("ai_suggestion")
             entry_obj: Dict[str, Any] = {
                 "entry":     entry_lbl,
                 "timestamp": d.get("_ts", ""),
-                "type":      action_type or "voice_note",
+                "type":      "doctor_direct_dictation" if is_direct_doctor_dictation else (action_type or "voice_note"),
                 "text":      text,
             }
+            if is_direct_doctor_dictation:
+                entry_obj["authority_note"] = (
+                    "This is the doctor's OWN direct voice instruction, dictated "
+                    "and sent straight to the EMT app. It is NOT an AI-generated "
+                    "suggestion and was NOT rejected by anyone — it is authoritative "
+                    "clinical input, equivalent in weight to a doctor voice note "
+                    "(SOURCE 4). Its 'text' field MUST be incorporated into "
+                    "provisional_diagnosis, treatment_provided, disposition, and "
+                    "clinical_summary wherever clinically relevant, the same way "
+                    "you would use a doctor voice note."
+                )
             # FIX: previously the FULL ai_suggestion object (complete SBAR,
             # hospital_prep, risk_stratification, specialist_alerts — often
             # thousands of words) was injected verbatim for a REJECTED

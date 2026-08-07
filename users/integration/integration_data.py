@@ -119,6 +119,10 @@ dictation_collection = database["dictation"]
 
 documentation_investigation_notes_collection = database["documentation-investigation-notes"]
 documentation_medication_analysis_collection = database["documentation-medication-analysis"]
+patient_visit_history_collection = database["patientVisitHistory"]
+integration_lab_reports_collection = database["integration_lab_reports"]
+
+
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -3074,3 +3078,67 @@ async def get_all_medication_analysis():
             detail="Failed to fetch medication analysis data"
 
         )
+
+@router.get("/get_all_patient_visit_history")
+async def get_all_patient_visit_history():
+
+    try:
+
+        records = await patient_visit_history_collection.find(
+            {},
+            {"_id": 0}
+        ).to_list(length=None)
+
+    except Exception as e:
+
+        logger.error(
+            f"Failed to fetch visit history: {str(e)}"
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch visit history: {str(e)}"
+        )
+
+
+    return {
+
+        "status": "success",
+
+        "total_records": len(records),
+
+        "data": records
+
+    }
+
+@router.get("/get_all_patient_lab_reports")
+async def get_all_patient_lab_reports():
+
+    try:
+
+        records = await integration_lab_reports_collection.find(
+            {},
+            {"_id": 0}
+        ).to_list(length=None)
+
+    except Exception as e:
+
+        logger.error(
+            f"Failed to fetch lab reports: {str(e)}"
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch lab reports: {str(e)}"
+        )
+
+
+    return {
+
+        "status": "success",
+
+        "total_records": len(records),
+
+        "data": records
+
+    }
