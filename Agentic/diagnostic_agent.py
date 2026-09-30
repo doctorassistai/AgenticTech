@@ -142,6 +142,69 @@ diagnosis_data_collection = database["diagnosis_data"]
 documentation_treatment_plan_collection = database["documentation-treatment-plan"]
 
 patient_appointments_collection = db["patient_appointments"]
+
+# =====================================================================
+# TOKEN USAGE — fire-and-forget POSTs to the standalone token endpoints
+# =====================================================================
+
+LOG_TOKENS_URL = "https://doctorassist.ai/api/hms/users/data/context/log-tokens"
+
+
+async def _post_token_log(url: str, payload: dict):
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            await client.post(url, json=payload)
+    except Exception as e:
+        logger.warning(f"⚠️ Fire-and-forget token log POST to {url} failed (non-blocking): {e}")
+
+
+def fire_and_forget_token_log(doctor_id: str, feature: str, model: str, input_tokens: int, output_tokens: int):
+    """
+    Fires a single combined POST to /log-tokens (input + output tokens together,
+    one call/entry) without blocking or awaiting the result.
+    """
+    if not doctor_id:
+        logger.warning("fire_and_forget_token_log: no doctor_id — skipping token log")
+        return
+
+    payload = {
+        "doctor_id": doctor_id,
+        "feature": feature,
+        "model": model,
+        "input_tokens": input_tokens,
+        "output_tokens": output_tokens,
+    }
+
+    try:
+        loop = asyncio.get_running_loop()
+        loop.create_task(_post_token_log(LOG_TOKENS_URL, payload))
+    except RuntimeError:
+        threading.Thread(target=lambda: asyncio.run(_post_token_log(LOG_TOKENS_URL, payload)), daemon=True).start()
+
+
+def _extract_token_usage(response) -> tuple:
+    """Best-effort (input_tokens, output_tokens) extraction from a ChatGroq/AIMessage response."""
+    try:
+        usage = getattr(response, "usage_metadata", None)
+        if usage:
+            return int(usage.get("input_tokens", 0) or 0), int(usage.get("output_tokens", 0) or 0)
+    except Exception:
+        pass
+    try:
+        token_usage = (getattr(response, "response_metadata", {}) or {}).get("token_usage", {})
+        return int(token_usage.get("prompt_tokens", 0) or 0), int(token_usage.get("completion_tokens", 0) or 0)
+    except Exception:
+        pass
+    return 0, 0
+
+
+def _track_usage(state: dict, response) -> None:
+    """Accumulates one LLM call's token usage into state's running totals."""
+    in_tok, out_tok = _extract_token_usage(response)
+    state["total_input_tokens"] = state.get("total_input_tokens", 0) + in_tok
+    state["total_output_tokens"] = state.get("total_output_tokens", 0) + out_tok
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # ENUMS & CONSTANTS
 # ──────────────────────────────────────────────────────────────────────────────
@@ -462,6 +525,8 @@ class DiagnosticState(TypedDict):
     error:                     Optional[str]
     warnings:                  List[str]
     followup_analysis: Optional[Dict[str, Any]]
+    total_input_tokens:        int
+    total_output_tokens:       int
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -593,6 +658,7 @@ OUTPUT (JSON only, no markdown):
                 SystemMessage(content="Medical NLP extraction engine. Output only valid JSON."),
                 HumanMessage(content=prompt),
             ])
+            _track_usage(state, response)
             result = _parse_json(response.content)
             dh = result.get("doctor_hypothesis")
 
@@ -738,6 +804,7 @@ Return JSON only.
                 SystemMessage(content="Generate clinical differential diagnoses."),
                 HumanMessage(content=prompt),
             ])
+            _track_usage(state, response)
             parsed  = _parse_json(response.content)
             state["candidate_diseases"] = parsed.get("differentials", [])
             logger.info(f"Differentials: {state['candidate_diseases']}")
@@ -952,6 +1019,7 @@ Return JSON only:
                     SystemMessage(content="Return disease characterization."),
                     HumanMessage(content=prompt),
                 ])
+                _track_usage(state, response)
                 parsed = _parse_json(response.content)
                 diag.disease_type = parsed.get("type")
                 diag.stage        = parsed.get("stage")
@@ -989,6 +1057,7 @@ Return JSON: {{"severity": "mild | moderate | severe | critical"}}"""
                 SystemMessage(content="Clinical severity scoring."),
                 HumanMessage(content=prompt),
             ])
+            _track_usage(state, response)
             parsed        = _parse_json(response.content)
             primary.severity = parsed.get("severity")
         except Exception as e:
@@ -1150,6 +1219,7 @@ Return ONLY valid JSON:
                 )),
                 HumanMessage(content=prompt),
             ])
+            _track_usage(state, response)
             parsed = _parse_json(response.content)
 
             reasoning = HypothesisReasoningOutput(
@@ -1259,6 +1329,7 @@ Return ONLY valid JSON:
                 SystemMessage(content="Follow-up reasoning engine. If symptoms are completely different from previous diagnosis, diagnose NEW condition and set diagnosis_action='replace'."),
                 HumanMessage(content=prompt)
             ])
+            _track_usage(state, response)
 
             parsed = _parse_json(response.content)
             logger.info(f"FollowUp agent result: {parsed}")
@@ -1712,6 +1783,7 @@ OUTPUT — Return ONLY valid JSON
                 )),
                 HumanMessage(content=prompt),
             ])
+            _track_usage(state, response)
             parsed   = _parse_json(response.content)
             mappings = parsed.get("pathway_mappings", [])
 
@@ -1829,6 +1901,7 @@ Return JSON only:
                     SystemMessage(content="Return clinical guideline matches."),
                     HumanMessage(content=prompt),
                 ])
+                _track_usage(state, response)
                 parsed = _parse_json(response.content)
                 diagnosis.guideline_sources = parsed.get("guidelines", [])
             except Exception as e:
@@ -1965,6 +2038,7 @@ Return ONLY valid JSON:
                 )),
                 HumanMessage(content=prompt),
             ])
+            _track_usage(state, response)
             parsed = _parse_json(response.content)
             investigations_raw = parsed.get("investigations", [])
 
@@ -2070,6 +2144,7 @@ Return JSON only:
                 SystemMessage(content="Generate missing investigations list. Output only JSON."),
                 HumanMessage(content=prompt),
             ])
+            _track_usage(state, response)
             parsed = _parse_json(response.content)
             missing_raw = parsed.get("missing_investigations", [])
             state["missing_investigations"] = [
@@ -2148,6 +2223,7 @@ OUTPUT JSON:
                 SystemMessage(content="Analyze disease progression. Return only JSON."),
                 HumanMessage(content=prompt),
             ])
+            _track_usage(state, response)
             state["longitudinal_progression"] = _parse_json(response.content)
         except Exception as e:
             logger.error(f"Longitudinal analysis failed: {e}")
@@ -2194,6 +2270,7 @@ If none: {{"red_flags": []}}"""
                 SystemMessage(content="Detect dangerous clinical patterns."),
                 HumanMessage(content=prompt),
             ])
+            _track_usage(state, response)
             parsed      = _parse_json(response.content)
             raw_flags = parsed.get("red_flags", [])
 
@@ -2282,6 +2359,9 @@ class DiagnosticReportGenerator:
             longitudinal_risk_predictions = state.get("longitudinal_progression"),
         )
 
+        report._total_input_tokens = state.get("total_input_tokens", 0)
+        report._total_output_tokens = state.get("total_output_tokens", 0)
+
         state["diagnostic_report"] = report
         logger.info(f"Report: {primary.disease} (p={primary.probability:.2f})")
         return state
@@ -2316,6 +2396,7 @@ Do NOT output JSON. Return explanation text only."""
                 SystemMessage(content="Generate concise diagnostic reasoning."),
                 HumanMessage(content=prompt),
             ])
+            _track_usage(state, response)
             return response.content.strip()
         except:
             return f"{primary.disease} is the leading diagnosis based on available evidence."
@@ -2425,6 +2506,8 @@ async def run_diagnostic_reasoning(
             "diagnostic_report":        None,
             "error":                    None,
             "warnings":                 [],
+            "total_input_tokens":       0,
+            "total_output_tokens":      0,
         }
         final_state = await workflow.ainvoke(initial_state)
 
@@ -2636,7 +2719,7 @@ def build_patient_context(summary: dict) -> str:
 #         )
 
 #         llm = ChatGroq(
-#             model         = "llama-3.1-8b-instant",
+#             model         = "openai/gpt-oss-20b",
 #             groq_api_key  = os.getenv("GROQ_API_KEY"),
 #             temperature   = 0.2,
 #             max_tokens=4000,
@@ -3099,7 +3182,7 @@ The previous diagnosis should ONLY be considered if:
         )
 
         llm = ChatGroq(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             groq_api_key=os.getenv("GROQ_API_KEY"),
             temperature=0.2,
             max_tokens=4000,
@@ -3112,6 +3195,15 @@ The previous diagnosis should ONLY be considered if:
             neo4j_user=os.getenv("NEO4J_USER"),
             neo4j_password=os.getenv("NEO4J_PASSWORD"),
         )
+
+        fire_and_forget_token_log(
+            doctor_id=doctor_id,
+            feature="diagnostic_reasoning",
+            model=getattr(llm, "model_name", "openai/gpt-oss-20b"),
+            input_tokens=getattr(report, "_total_input_tokens", 0),
+            output_tokens=getattr(report, "_total_output_tokens", 0),
+        )
+        logger.info(f"📤 Fired token usage log: input={getattr(report, '_total_input_tokens', 0)} output={getattr(report, '_total_output_tokens', 0)} doctor={doctor_id}")
 
         primary = report.primary_hypothesis
 

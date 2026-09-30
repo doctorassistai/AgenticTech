@@ -57,3 +57,5 @@ openpyxl
 celery==5.3.6
 
 
+zxing-cpp
+xlrd >= 2.0.1

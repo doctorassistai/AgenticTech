@@ -59,14 +59,14 @@ education_col = mongo_db["patient_education"]
 # ============================================================
 
 llm = ChatGroq(
-    model="llama-3.1-8b-instant",
+    model="openai/gpt-oss-20b",
     temperature=0.2,
     max_tokens=4000,
     groq_api_key=GROQ_API_KEY,
 )
 
 llm_synthesis = ChatGroq(
-    model="llama-3.3-70b-versatile",
+    model="openai/gpt-oss-120b",
     temperature=0.15,
     max_tokens=5000,
     groq_api_key=GROQ_API_KEY,

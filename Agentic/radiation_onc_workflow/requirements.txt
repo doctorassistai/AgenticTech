@@ -1,0 +1,6 @@
+# Core is pure-Python stdlib. These enable the live/optional paths:
+fastapi>=0.110        # api.py router
+uvicorn>=0.29         # dev server
+pydantic>=2.0         # request models
+motor>=3.3            # live async MongoDB reads (RT_MONGO_URI)
+groq>=0.11            # optional narrative synthesis (GROQ_API_KEY)

@@ -45,6 +45,36 @@ celery_app.conf.task_routes = {
         "exchange": "advanced_upload",
         "routing_key": "advanced_upload",
     },
+    "claim_detail_upload.process_document": {
+        "queue": "advanced_upload_queue",
+        "exchange": "advanced_upload",
+        "routing_key": "advanced_upload",
+    },
+    "regenerate_findings.run": {
+        "queue": "advanced_upload_queue",
+        "exchange": "advanced_upload",
+        "routing_key": "advanced_upload",
+    },
+    "generate_conclusion.run": {
+        "queue": "advanced_upload_queue",
+        "exchange": "advanced_upload",
+        "routing_key": "advanced_upload",
+    },
+    "doctor_pattern.analyze": {
+        "queue": "advanced_upload_queue",
+        "exchange": "advanced_upload",
+        "routing_key": "advanced_upload",
+    },
+    "claims_rag_upload.process_file": {
+        "queue": "advanced_upload_queue",
+        "exchange": "advanced_upload",
+        "routing_key": "advanced_upload",
+    },
+    "field_investigation_parse.run": {
+        "queue": "advanced_upload_queue",
+        "exchange": "advanced_upload",
+        "routing_key": "advanced_upload",
+    },
 }
 
 # ==================================================
@@ -92,3 +122,9 @@ celery_app.conf.update(
 celery_app.autodiscover_tasks(["celery_worker"])
 
 from . import advanced_upload_task  # noqa
+from . import claim_detail_upload_task  # noqa
+from . import regenerate_findings_task  # noqa
+from . import generate_conclusion_task  # noqa
+from . import claims_rag_upload_task  # noqa
+from . import field_investigation_parse  # noqa
+from . import doctor_pattern_task  # noqa

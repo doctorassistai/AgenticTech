@@ -153,7 +153,7 @@ async def proxy_to_agentic(
                 "X-User-Role": current_user["role"],
             })
 
-        # --------------------------------------------------
+        # ---------------------------------------
         # Call agentic service
         # --------------------------------------------------
         timeout = httpx.Timeout(connect=5.0, read=120.0, write=30.0, pool=5.0)

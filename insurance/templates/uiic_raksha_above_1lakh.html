@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Raksha Health Insurance TPA - United India Insurance Investigation Report</title>
+<style>
+  @page { size: A4; margin: 15mm 15mm; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: Arial, sans-serif; font-size: 10px; color: #000; background: #fff; }
+  .page { width: 180mm; margin: 0 auto; }
+
+  .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .header-logo { height: 46px; object-fit: contain; }
+  .header-title { text-align: center; font-size: 12px; font-weight: bold; flex: 1; line-height: 1.5; }
+  .header-title .sub { font-size: 10px; }
+
+  .ref-line { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 6px; }
+  .insurer-line { font-weight: bold; text-decoration: underline; margin-bottom: 10px; }
+
+  .section-title { font-weight: bold; text-decoration: underline; margin: 12px 0 4px; font-size: 10.5px; }
+
+  table { width: 100%; border-collapse: collapse; margin-bottom: 8px; table-layout: fixed; }
+  td, th { border: 1px solid #000; padding: 4px 6px; vertical-align: top; font-size: 9.5px; word-wrap: break-word; }
+  th { font-weight: bold; text-align: center; background: #f0f0f0; }
+
+  /* 2-col label/value tables */
+  .lbl { font-weight: bold; width: 42%; }
+  .val { width: 58%; }
+
+  /* Brief-of-the-case 5-col compare table */
+  .brief-table col.c-lbl   { width: 24%; }
+  .brief-table col.c-ins   { width: 19%; }
+  .brief-table col.c-inv   { width: 19%; }
+  .brief-table col.c-ver   { width: 14%; }
+  .brief-table col.c-cmt   { width: 24%; }
+  .brief-table th, .brief-table td { text-align: left; }
+  .brief-table .ver-cell { text-align: center; }
+
+  /* checklist table */
+  .chk-table col.c-no  { width: 6%; }
+  .chk-table col.c-desc{ width: 74%; }
+  .chk-table col.c-yes { width: 10%; }
+  .chk-table col.c-no2 { width: 10%; }
+  .chk-table td { text-align: left; }
+  .chk-table .center { text-align: center; }
+
+  ul.doc-list { margin-left: 16px; margin-bottom: 6px; }
+  ul.doc-list li { margin-bottom: 2px; }
+
+  .signoff-table td { height: 36px; }
+
+  .stamp-area { margin-top: 18px; display: flex; align-items: flex-end; gap: 20px; }
+  .stamp-img { width: 85px; height: 85px; object-fit: contain; }
+
+  .page-break { page-break-before: always; margin-top: 16px; }
+  .asterisks { text-align: center; letter-spacing: 1px; margin-top: 16px; font-size: 10px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+{% set bi  = case.get('briefInsured') or {} %}
+{% set biv = case.get('briefInvestigation') or {} %}
+{% set bv  = case.get('briefVerification') or {} %}
+{% set bc  = case.get('briefComments') or {} %}
+{% set cd  = case.get('cashlessDetails') or {} %}
+{% set chk = case.get('checklist') or {} %}
+
+<!-- HEADER -->
+<div class="header">
+  {% if header_image %}<img src="{{ header_image }}" class="header-logo" alt="Raksha Logo">{% endif %}
+  <div class="header-title">
+    RAKSHA HEALTH INSURANCE TPA PVT LTD.<br>
+    <span class="sub">INVESTIGATION REPORT (Annexure 3)</span>
+  </div>
+</div>
+
+<div class="ref-line">
+  <span>Ref: {{ case.insurerRef or '' }}</span>
+  <span>Date: {{ case.reportDate or '' }}</span>
+</div>
+
+<div class="insurer-line">Insurer: United India Insurance Company Limited</div>
+
+<!-- POLICY DETAILS / BRIEF OF THE CASE -->
+<div class="section-title">Policy Details :</div>
+<table class="brief-table">
+  <colgroup>
+    <col class="c-lbl"><col class="c-ins"><col class="c-inv"><col class="c-ver"><col class="c-cmt">
+  </colgroup>
+  <tr>
+    <th>Brief of the Case</th>
+    <th>As per Insured</th>
+    <th>As per Investigation</th>
+    <th>Verified or Not</th>
+    <th>If No, Comments</th>
+  </tr>
+  <tr>
+    <td>Name of the Insured Patient</td>
+    <td>{{ bi.get('patientName','') }}</td>
+    <td>{{ case.claimantName or '' }}</td>
+    <td class="ver-cell">{{ bv.get('patientName','') }}</td>
+    <td>{{ bc.get('patientName','') }}</td>
+  </tr>
+  <tr>
+    <td>Date of Birth / Age</td>
+    <td>{{ bi.get('dob','') }}</td>
+    <td>{{ case.claimantAge or '' }}</td>
+    <td class="ver-cell">{{ bv.get('dob','') }}</td>
+    <td>{{ bc.get('dob','') }}</td>
+  </tr>
+  <tr>
+    <td>Age Proof</td>
+    <td>{{ bi.get('ageProof','') }}</td>
+    <td>{{ biv.get('ageProof','') }}</td>
+    <td class="ver-cell">{{ bv.get('ageProof','') }}</td>
+    <td>{{ bc.get('ageProof','') }}</td>
+  </tr>
+  <tr>
+    <td>Occupation</td>
+    <td>{{ bi.get('occupation','') }}</td>
+    <td>{{ biv.get('occupation','') }}</td>
+    <td class="ver-cell">{{ bv.get('occupation','') }}</td>
+    <td>{{ bc.get('occupation','') }}</td>
+  </tr>
+  <tr><td>Policy No.</td><td colspan="4">{{ case.policyNumber or '' }}</td></tr>
+  <tr><td>CCN /PA #</td><td colspan="4">{{ case.insurerRef or '' }}</td></tr>
+  <tr>
+    <td>Policy Holder Name &amp; Relation</td>
+    <td colspan="4">{{ case.policyHolderName or '' }}{% if case.relationWithInsured %} ({{ case.relationWithInsured }}){% endif %}</td>
+  </tr>
+  <tr><td>Policy Type</td><td colspan="4">{{ case.policyType or '' }}</td></tr>
+</table>
+
+<!-- CLAIM DETAILS -->
+<div class="section-title">Claim Details :</div>
+<table>
+  <tr><td class="lbl">Date &amp; Time of Admission</td><td class="val">{{ hospital.admissionDate or '' }}</td></tr>
+  <tr><td class="lbl">Date &amp; Time of Discharge</td><td class="val">{{ hospital.dischargeDate or '' }}</td></tr>
+  <tr><td class="lbl">ICU Admission Details</td><td class="val">{{ cd.get('icuDetails','') }}</td></tr>
+  <tr><td class="lbl">Cashless / Non Cashless</td><td class="val">{{ case.claimMode or '' }}</td></tr>
+  <tr>
+    <td class="lbl">Pre Auth Details (Amount Authorized, Estimate, Medical History etc.) (Attach copy of pre Auth Documents)</td>
+    <td class="val">
+      {% if cd.get('amountAuthorized') %}Amount Authorized: {{ cd.get('amountAuthorized') }}<br>{% endif %}
+      {% if cd.get('estimatedCost') %}Estimate: {{ cd.get('estimatedCost') }}{% endif %}
+    </td>
+  </tr>
+  <tr><td class="lbl">Diagnosis:</td><td class="val">{{ critical.diagnosis or '' }}</td></tr>
+  <tr><td class="lbl">Treatment</td><td class="val">{{ additional.courseInHospital or '' }}</td></tr>
+  <tr><td class="lbl">Hospital Name &amp; Address</td><td class="val">{{ hospital.name or '' }}{% if hospital.address %}, {{ hospital.address }}{% endif %}</td></tr>
+  <tr><td class="lbl">Registration &amp; other details (attach hospital Information sheet &amp; related Documents)</td><td class="val">{{ hospital.registrationNumber or '' }}</td></tr>
+</table>
+
+<!-- AILMENT DETAILS -->
+<div class="section-title">Ailment Details :</div>
+<table>
+  <tr><td class="lbl">Onset of Symptoms</td><td class="val">{{ additional.onsetOfSymptoms or '' }}</td></tr>
+  <tr><td class="lbl">1st Consultation</td><td class="val">{{ additional.firstConsultationDate or '' }}</td></tr>
+  <tr><td class="lbl">Referral Doctor Details</td><td class="val">{{ case.familyDoctor or '' }}</td></tr>
+  <tr><td class="lbl">Initial Treatment Details</td><td class="val">{{ additional.initialTreatment or '' }}</td></tr>
+  <tr><td class="lbl">Pre Hosp. Inv &amp; Treatment Details</td><td class="val">{{ additional.preHospitalisationDetails or '' }}</td></tr>
+  <tr><td class="lbl">Post Hosp. Inv &amp; Treatment Details</td><td class="val">{{ additional.postHospitalisationDetails or '' }}</td></tr>
+  <tr><td class="lbl">Investigations Suggesting Diagnosis (Attach Relevant Copies)</td><td class="val">{{ additional.investigationsSuggestingDiagnosis or '' }}</td></tr>
+  <tr><td class="lbl">Outcome:</td><td class="val"></td></tr>
+</table>
+
+<!-- PAGE 2 -->
+<div class="page-break"></div>
+
+<!-- CHECKLIST -->
+<div class="section-title">CHECKLIST:</div>
+<table class="chk-table">
+  <colgroup><col class="c-no"><col class="c-desc"><col class="c-yes"><col class="c-no2"></colgroup>
+  <tr><th>Sl. No.</th><th>Checklist for Verification</th><th>Yes</th><th>No</th></tr>
+  {% set chk_items = [
+    ("1",  "Inpatient Verification Report",                                   chk.get('inpatientVerification','')),
+    ("2",  "ID Proof",                                                        chk.get('idProofInsured','')),
+    ("3",  "Copies of IPD Records",                                           chk.get('copyOfICP','')),
+    ("4",  "Whether the hospital is Registered or Not",                       chk.get('hospitalExistence','')),
+    ("5",  "MLC Register check (for medico legal cases)",                     chk.get('mlcRegisterCheck','')),
+    ("6",  "Copy of the MLC Registration",                                    chk.get('mlcRegistrationCopy','')),
+    ("7",  "Check Bills & Receipts",                                          chk.get('billsReceipts','')),
+    ("8",  "Place of Lab (whether in vicinity of the hospital or Not)",       chk.get('labVicinity','')),
+    ("9",  "Checking of Lab Register",                                        chk.get('labRegistersVerified','')),
+    ("10", "Photocopy of the Lab Register",                                   chk.get('labRegisterPhotocopy','')),
+    ("11", "Place of Pharmacy (whether in vicinity of the hospital or Not)",  chk.get('pharmacyVicinity','')),
+    ("12", "Checking of Receipt book of Medicines",                           chk.get('medicineReceiptBook','')),
+    ("13", "Photocopy of the Receipt book",                                   chk.get('receiptBookPhotocopy','')),
+    ("14", "Check Tests done at the Hospital",                                chk.get('testsAtHospital','')),
+    ("15", "Check Test done at the Diagnostic Centre",                        chk.get('testsAtDiagnostic','')),
+    ("16", "Check Medicines Dispensed from Hospital",                         chk.get('medicinesDispensedHosp','')),
+    ("17", "Check Medicines purchased from Pharmacy (outside)",               chk.get('medicinesPurchasedPharm','')),
+    ("18", "Check Patient's Signature - Verified",                            chk.get('patientSignatureVerified','')),
+    ("19", "Copy of OT Register Taken",                                       chk.get('otRegisterTaken','')),
+    ("20", "Hospital's Lab Register Verified",                                chk.get('hospLabRegVerified','')),
+    ("22", "Centre's Lab Register Verified",                                  chk.get('centreLabRegVerified','')),
+    ("23", "Copy of Bills at Hospital verified",                              chk.get('billsHospVerified','')),
+    ("24", "Copy of Bills verified at the Pharmacy verified (Close to Hospital)", chk.get('billsPharmVerified','')),
+    ("25", "Verification of treating Doctor's credentials",                   chk.get('doctorCredentials','')),
+    ("26", "Whether Signature Matching of \u2013 Doctor / Claimant / Life Insured", chk.get('signatureMatching','')),
+  ] %}
+  {% for num, desc, ans in chk_items %}
+  <tr>
+    <td class="center">{{ num }}</td>
+    <td>{{ desc }}</td>
+    <td class="center">{{ '\u2713' if ans|lower == 'yes' else '' }}</td>
+    <td class="center">{{ '\u2713' if ans|lower == 'no' else '' }}</td>
+  </tr>
+  {% endfor %}
+</table>
+
+<!-- ADDRESS / INTERVIEW / OPINION -->
+<div class="section-title">Insured's Address Details :</div>
+<div class="section-title" style="margin-top:2px;">Address:</div>
+<table>
+  <tr><td style="min-height:40px;">{{ case.claimantAddress or '' }}</td></tr>
+</table>
+
+<div class="section-title">Insured's Interview :</div>
+<table>
+  <tr><td style="min-height:30px;">{{ case.insuredStatement or '' }}</td></tr>
+</table>
+
+<div class="section-title">Opinion:</div>
+<table>
+  <tr><td style="min-height:24px;">{{ additional.investigatorHospitalOpinion or '' }}</td></tr>
+</table>
+
+<!-- DOCUMENTS COLLECTED -->
+<div class="section-title">List of Documents Collected :</div>
+{% if case.enclosures %}
+  <div style="white-space: pre-line; margin-bottom: 8px;">{{ case.enclosures }}</div>
+{% else %}
+  <ul class="doc-list">
+    <li>Photography / Copy of Pan Card / Voter ID of the Claimant.</li>
+    <li>Copy of Different Pathological tests etc.</li>
+    <li>Copy of Indoor case papers / investigation papers / discharge summary.</li>
+  </ul>
+{% endif %}
+
+<!-- SIGN-OFF -->
+<table class="signoff-table">
+  <tr><td colspan="3"><strong>REPORT GENERATED BY :</strong> {{ investigation.investigatorName or '' }}</td></tr>
+  <tr>
+    <td><strong>Signature :</strong></td>
+    <td><strong>Date :</strong> {{ case.reportDate or '' }}</td>
+    <td><strong>Place :</strong> {{ hospital.city or 'Kochi' }}</td>
+  </tr>
+</table>
+
+{% if show_stamp %}
+<div class="stamp-area">
+  {% if stamp_image %}<img src="{{ stamp_image }}" class="stamp-img" alt="Stamp">{% endif %}
+</div>
+{% endif %}
+
+<div class="asterisks">****************************************************************************************************</div>
+
+</div>
+</body>
+</html>

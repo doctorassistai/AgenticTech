@@ -1,6 +1,6 @@
 """
 Ambulance Image Medical Data Extraction API
-FastAPI backend endpoint using Groq Llama-4-Scout vision model
+FastAPI backend endpoint using Groq Llama-4-Scout vision mod
 """
 
 from fastapi import APIRouter, HTTPException, Path
@@ -79,14 +79,114 @@ CRITICAL RULES:
 - Output nothing except the JSON object.
 """
 
-# ── Response Models ────────────────────────────────────────────────────────────
+CLASSIFICATION_PROMPT = """
+You are looking at a single photo captured by an ambulance emergency crew on
+their phone. Your ONLY job is to classify what the photo shows. Do not
+describe clinical findings yet — only classify.
+
+Respond with ONLY a single valid JSON object — no prose, no reasoning, no
+markdown fences, no <think> tags. Match this exact schema:
+
+{"category": "monitor_data", "reasoning": "short phrase"}
+
+The "category" value MUST be exactly one of:
+- "monitor_data"     → a patient monitor, ECG, ventilator, infusion pump, or
+                        any medical device screen/display showing vitals or
+                        numeric readings
+- "wound_injury"      → a photo of a wound, burn, laceration, fracture,
+                        bleeding, or other visible injury on a person
+- "accident_scene"    → a photo of the incident/accident scene, vehicle,
+                        environment, or surroundings (not focused on the
+                        patient's body)
+- "document_id"       → a photo of a document, ID card, insurance card,
+                        prescription, or written paperwork
+- "other_clinical"    → any other clinically relevant photo that does not
+                        fit the categories above (e.g. patient's general
+                        appearance, positioning, equipment used)
+- "unclear"           → the image is blurry, dark, obstructed, or otherwise
+                        not clearly identifiable
+
+Pick exactly one category. If you are not confident, use "unclear" — do NOT
+guess a specific category you are not sure about.
+Output nothing except the JSON object.
+"""
+
+CLINICAL_PHOTO_PROMPT = """
+You are reading a clinical photo captured by an ambulance crew. This is NOT
+a monitor screenshot — it may show an injury, the accident scene, a
+document, or something else entirely.
+
+Describe ONLY what is visibly present in the image. Do NOT diagnose, do NOT
+guess measurements, do NOT infer a mechanism of injury, and do NOT invent
+any detail that is not clearly visible. If something is ambiguous, ill-lit,
+partially obstructed, or you are not sure, say so explicitly instead of
+guessing.
+
+Respond with ONLY a single valid JSON object — no prose, no reasoning, no
+markdown fences, no <think> tags. Match this exact schema:
+
+{
+  "visible_findings": [
+    "short factual observation 1",
+    "short factual observation 2"
+  ],
+  "body_region_or_location": "e.g. left forearm / vehicle interior / not applicable",
+  "unclear_aspects": [
+    "anything in the image that is not clear enough to describe confidently"
+  ],
+  "summary": "1-2 sentence plain-language summary of exactly what is shown"
+}
+
+CRITICAL RULES:
+- "visible_findings" must list only concrete, directly observable details
+  (e.g. "laceration approximately 5cm on left shin with visible bleeding",
+  "deployed airbag", "patient wearing cervical collar"). Do not estimate
+  clinical severity or add interpretation beyond what is visibly there.
+- If nothing clinically relevant is visible, return an empty list for
+  "visible_findings" and explain why in "summary".
+- "unclear_aspects" should list anything you cannot confidently describe —
+  do not fill this with guesses; state that it is not clear.
+- Output nothing except the JSON object.
+"""
+
+# ── EMT-tagged image types — must match the ids sent by CameraScreen.jsx ──
+IMAGE_TYPE_LABELS = {
+    "rpm_monitor":      "RPM Monitor",
+    "fall":              "Fall",
+    "burn":              "Burn",
+    "wound_laceration":  "Wound / Laceration",
+    "trauma_fracture":   "Trauma / Fracture",
+    "ecg_strip":         "ECG Strip",
+    "vitals_screen":     "Vitals Screen",
+    "medication_label":  "Medication / Drug Label",
+    "id_insurance":      "ID / Insurance Card",
+    "scene_accident":    "Scene / Accident Site",
+    "other":             "Other",
+}
+MONITOR_IMAGE_TYPES = {"rpm_monitor", "ecg_strip", "vitals_screen"}
+
+# Maps EMT-tagged image types to the classification categories used by
+# format_extracted_data_as_text() for the "IMAGE TYPE:" line — so a
+# doctor-facing extraction draft reflects the EMT's own tag instead of
+# being hardcoded to "other_clinical" for every non-monitor type.
+EMT_TYPE_TO_CATEGORY = {
+    "wound_laceration": "wound_injury",
+    "trauma_fracture":  "wound_injury",
+    "burn":             "wound_injury",
+    "fall":             "wound_injury",
+    "scene_accident":   "accident_scene",
+    "id_insurance":     "document_id",
+    "medication_label": "other_clinical",
+}
 class ImageExtractionResult(BaseModel):
-    image_id:       Optional[str]
-    image_url:      str
-    extracted_text: str            # ← restored, human-readable, for legacy consumers
-    extracted_data: dict           # structured, for future UI
-    timestamp_iso:  Optional[str] = None
-    driver_name:    Optional[str] = None
+    image_id:         Optional[str]
+    image_url:        str
+    extracted_text:   str            # ← restored, human-readable, for legacy consumers
+    extracted_data:   dict           # structured, for future UI
+    timestamp_iso:    Optional[str] = None
+    driver_name:      Optional[str] = None
+    image_type:       Optional[str] = None   # ← NEW — EMT-tagged type id
+    image_type_label: Optional[str] = None   # ← NEW — human-readable label
 
 class ExtractionResponse(BaseModel):
     status:      str
@@ -103,11 +203,40 @@ class ApproveRequest(BaseModel):
     doctor_id:     Optional[str] = ""
     processing_id: str
 
-
-# ── Image fetch & extraction ───────────────────────────────────────────────────
 def format_extracted_data_as_text(data: dict) -> str:
     """Convert structured extraction JSON into a clean readable string
     for legacy consumers (frontend textarea, AI analysis prompt, etc.)"""
+
+    # Non-monitor clinical photo (wound/injury, accident scene, document, etc.)
+    if "visible_findings" in data or "unclear_aspects" in data:
+        lines = []
+        category = data.get("category")
+        if category:
+            lines.append(f"IMAGE TYPE: {category.replace('_', ' ').title()}")
+
+        region = data.get("body_region_or_location")
+        if region:
+            lines.append(f"LOCATION: {region}")
+
+        findings = data.get("visible_findings", [])
+        if findings:
+            lines.append("VISIBLE FINDINGS:")
+            for f in findings:
+                lines.append(f"  • {f}")
+
+        unclear = data.get("unclear_aspects", [])
+        if unclear:
+            lines.append("NOT CLEAR:")
+            for u in unclear:
+                lines.append(f"  • {u}")
+
+        summary = data.get("summary", "")
+        if summary:
+            lines.append(f"SUMMARY: {summary}")
+
+        return "\n".join(lines) if lines else "No clinically relevant details visible in this image."
+
+    # Monitor data (existing behaviour, unchanged)
     lines = []
 
     vitals = data.get("vitals", [])
@@ -142,7 +271,7 @@ def format_extracted_data_as_text(data: dict) -> str:
         lines.append(f"SUMMARY: {summary}")
 
     return "\n".join(lines) if lines else "No clinical monitor data visible in this image."
-
+    
 def strip_reasoning(text: str) -> str:
     """Remove <think>...</think> blocks some models prepend to their output.
 
@@ -170,7 +299,7 @@ async def fetch_patient_images(patient_id: str) -> dict:
         raise HTTPException(status_code=404, detail="No images found for patient")
     return data
 
-async def extract_from_image(image_url: str) -> dict:
+async def extract_monitor_data(image_url: str) -> dict:
     payload = {
         "model": GROQ_MODEL,
         "temperature": 0,
@@ -239,6 +368,157 @@ async def extract_from_image(image_url: str) -> dict:
     return parsed
 
 
+async def classify_image(image_url: str) -> dict:
+    """Stage 1: classify what kind of photo this is before extracting anything."""
+    payload = {
+        "model": GROQ_MODEL,
+        "temperature": 0,
+        "max_tokens": 2000,
+        "reasoning_effort": "none",
+        "top_p": 1,
+        "stream": False,
+        "messages": [{
+            "role": "user",
+            "content": [
+                {"type": "text",      "text": CLASSIFICATION_PROMPT},
+                {"type": "image_url", "image_url": {"url": image_url}},
+            ]
+        }],
+        "response_format": {"type": "json_object"},
+    }
+    headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
+    try:
+        async with httpx.AsyncClient(timeout=60) as client:
+            resp = await client.post(GROQ_API_URL, json=payload, headers=headers)
+            if resp.status_code != 200:
+                logger.error(f"Classification Groq error {resp.status_code}: {resp.text}")
+                return {"category": "unclear", "reasoning": "Classification request failed."}
+            result = resp.json()
+    except httpx.HTTPError as e:
+        logger.error(f"Classification request failed: {e}")
+        return {"category": "unclear", "reasoning": "Classification request failed."}
+
+    try:
+        raw_content = result["choices"][0]["message"]["content"].strip()
+    except (KeyError, IndexError):
+        return {"category": "unclear", "reasoning": "Unexpected classification response."}
+
+    cleaned = strip_reasoning(raw_content)
+    cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"\s*```$", "", cleaned).strip()
+
+    valid_categories = {"monitor_data", "wound_injury", "accident_scene", "document_id", "other_clinical", "unclear"}
+    try:
+        parsed = json.loads(cleaned)
+        category = str(parsed.get("category", "unclear")).strip().lower()
+        if category not in valid_categories:
+            category = "unclear"
+        return {"category": category, "reasoning": parsed.get("reasoning", "")}
+    except json.JSONDecodeError as e:
+        logger.error(f"Classification JSON parse failed ({e}). cleaned={cleaned[:300]}")
+        return {"category": "unclear", "reasoning": "Classification output unparseable."}
+
+async def extract_clinical_photo(image_url: str, type_hint: Optional[str] = None) -> dict:
+    """Stage 2 (non-monitor branch): describe only what's visible in a
+    wound/injury, accident-scene, document, or other non-monitor photo.
+    type_hint, when given, is the EMT's own tag (e.g. "Burn") — injected as
+    context so the model knows what to look for, without being told to
+    invent findings that aren't visible."""
+    prompt_text = CLINICAL_PHOTO_PROMPT
+    if type_hint:
+        prompt_text = (
+            f"The ambulance crew has tagged this image as: {type_hint}.\n"
+            "Use that as context for what kind of finding to expect, but "
+            "still describe ONLY what is visibly present — do not assume "
+            "the tag is correct if the image clearly shows something else.\n\n"
+            + CLINICAL_PHOTO_PROMPT
+        )
+    payload = {
+        "model": GROQ_MODEL,
+        "temperature": 0,
+        "max_tokens": 16000,
+        "reasoning_effort": "none",
+        "top_p": 1,
+        "stream": False,
+        "messages": [{
+            "role": "user",
+            "content": [
+                {"type": "text",      "text": prompt_text},
+                {"type": "image_url", "image_url": {"url": image_url}},
+            ]
+        }],
+        "response_format": {"type": "json_object"},
+    }
+    headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
+    try:
+        async with httpx.AsyncClient(timeout=60) as client:
+            resp = await client.post(GROQ_API_URL, json=payload, headers=headers)
+            if resp.status_code != 200:
+                raise HTTPException(status_code=502, detail=f"Groq API error {resp.status_code}: {resp.text}")
+            result = resp.json()
+    except httpx.HTTPError as e:
+        raise HTTPException(status_code=502, detail=f"Groq request failed: {e}")
+
+    try:
+        raw_content = result["choices"][0]["message"]["content"].strip()
+    except (KeyError, IndexError) as e:
+        raise HTTPException(status_code=502, detail=f"Unexpected Groq response structure: {e}")
+
+    cleaned = strip_reasoning(raw_content)
+    cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"\s*```$", "", cleaned).strip()
+
+    try:
+        parsed = json.loads(cleaned)
+    except json.JSONDecodeError as e:
+        logger.error(
+            f"Clinical photo JSON parse failed ({e}). raw_content_length={len(raw_content)} "
+            f"cleaned_length={len(cleaned)}\n"
+            f"--- RAW (pre-strip) last 1000 chars ---\n{raw_content[-1000:]}\n"
+            f"--- CLEANED (post-strip) full ---\n{cleaned}"
+        )
+        parsed = {
+            "visible_findings": [],
+            "body_region_or_location": "",
+            "unclear_aspects": [],
+            "summary": "Extraction returned unparseable output.",
+            "_raw": cleaned[:500],
+        }
+
+    return parsed
+
+async def extract_from_image(image_url: str, image_type: Optional[str] = None) -> dict:
+    """
+    Orchestrator. If the EMT already tagged the image (image_type), trust
+    it and skip the classification call entirely — faster and more precise
+    than guessing, and lets us feed the tag into the clinical prompt as
+    context. Falls back to AI classification only when there's no usable
+    tag (untagged, or tagged "Other").
+    """
+    normalized_type = (image_type or "").strip().lower()
+
+    if normalized_type and normalized_type in IMAGE_TYPE_LABELS and normalized_type != "other":
+        type_label = IMAGE_TYPE_LABELS[normalized_type]
+        if normalized_type in MONITOR_IMAGE_TYPES:
+            extracted = await extract_monitor_data(image_url)
+            category = "monitor_data"
+        else:
+            extracted = await extract_clinical_photo(image_url, type_hint=type_label)
+            category = EMT_TYPE_TO_CATEGORY.get(normalized_type, "other_clinical")
+        extracted["category"] = category
+        extracted["emt_tagged_type"] = type_label
+        return extracted
+
+    # No usable tag — fall back to existing AI classification behaviour
+    classification = await classify_image(image_url)
+    category = classification.get("category", "unclear")
+    if category == "monitor_data":
+        extracted = await extract_monitor_data(image_url)
+    else:
+        extracted = await extract_clinical_photo(image_url)
+    extracted["category"] = category
+    return extracted
+
 # ── Main Image Extraction Endpoint ─────────────────────────────────────────────
 @router.post(
     "/extraction-ambulance-emt/ambulance/image/extract-medical-values/{patient_id}",
@@ -254,31 +534,33 @@ async def extract_medical_values(
         raise HTTPException(status_code=404, detail="No images available for this patient")
 
     images_sorted = sorted(images, key=lambda x: x.get("timestamp_iso", ""), reverse=True)
-
     extractions: list[ImageExtractionResult] = []
     for img in images_sorted:
         image_url = img.get("image_url", "")
+        image_type = img.get("image_type")  # ← EMT-tagged type, if present
         if not image_url:
             continue
         try:
-            extracted_data = await extract_from_image(image_url)   # ← was: extracted_text = await extract_from_image(image_url)
+            extracted_data = await extract_from_image(image_url, image_type=image_type)
         except Exception as e:
             detail = e.detail if isinstance(e, HTTPException) else str(e)
             logger.error(f"Extraction failed for image {img.get('image_id')} url={image_url}: {detail}")
-            extracted_data = {                                      # ← was: extracted_text = "[Extraction failed for this image]"
+            extracted_data = {
                 "vitals": [], "infusion_pumps": [], "alarms": [],
                 "abnormal_findings": [],
                 "summary": "[Extraction failed for this image]",
             }
-        extracted_text = format_extracted_data_as_text(extracted_data)   # ← restored string
+        extracted_text = format_extracted_data_as_text(extracted_data)
 
         extractions.append(ImageExtractionResult(
-            image_id       = img.get("image_id"),
-            image_url      = image_url,
-            extracted_text = extracted_text,      # ← ADD THIS LINE
-            extracted_data = extracted_data,                        # ← was: extracted_text = extracted_text
-            timestamp_iso  = img.get("timestamp_iso"),
-            driver_name    = img.get("driver_name"),
+            image_id         = img.get("image_id"),
+            image_url        = image_url,
+            extracted_text   = extracted_text,
+            extracted_data   = extracted_data,
+            timestamp_iso    = img.get("timestamp_iso"),
+            driver_name      = img.get("driver_name"),
+            image_type       = img.get("image_type"),         # ← NEW
+            image_type_label = img.get("image_type_label"),   # ← NEW
         ))
 
     return ExtractionResponse(

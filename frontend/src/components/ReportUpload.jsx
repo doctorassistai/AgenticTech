@@ -498,7 +498,849 @@ const IMAGE_TYPES = [
   { value: "ultrasound", label: "Ultrasound" },
   { value: "other_image", label: "Other Image" },
 ];
-
+const REPORT_TYPE_CATEGORIES = [
+  {
+    name: "Consultation",
+    subcategories: [
+      "General Consultation Report",
+      "Specialist Consultation Report",
+      "Pre-operative Consultation Report",
+      "Second Opinion Report",
+      "Pre-anesthesia Consultation Report",
+      "Follow-up Consultation Report",
+    ],
+  },
+  {
+    name: "Assessment",
+    subcategories: [
+      "Initial Assessment Report",
+      "Pre-operative Assessment Report",
+      "Pre-anesthesia Assessment Report",
+      "Clinical Assessment Report",
+      "Risk Assessment Report",
+      "Functional Assessment Report",
+      "Nutritional Assessment Report",
+      "Psychological Assessment Report",
+    ],
+  },
+  {
+    name: "Laboratory",
+    subcategories: [
+      "Hematology",
+      "Biochemistry",
+      "Clinical Chemistry",
+      "Coagulation",
+      "Immunology",
+      "Serology",
+      "Microbiology",
+      "Bacteriology",
+      "Virology",
+      "Parasitology",
+      "Mycology",
+      "Endocrinology",
+      "Hormone Testing",
+      "Urinalysis",
+      "Stool Examination",
+      "Toxicology",
+      "Therapeutic Drug Monitoring",
+      "Blood Bank",
+      "Transfusion Medicine",
+      "Genetic Testing",
+      "Molecular Diagnostics",
+      "Point-of-Care Testing",
+    ],
+  },
+  {
+    name: "Radiology",
+    subcategories: [
+      "X-Ray",
+      "CT",
+      "MRI",
+      "Ultrasound",
+      "Doppler",
+      "Mammography",
+      "PET-CT",
+      "PET-MRI",
+      "Nuclear Medicine",
+      "Bone Scan",
+      "Fluoroscopy",
+      "Angiography",
+      "Interventional Radiology",
+      "Radiology Procedure",
+      "Radiology Follow-up",
+    ],
+  },
+  {
+    name: "Cardiology",
+    subcategories: [
+      "ECG",
+      "Echocardiography",
+      "Stress Test",
+      "Holter Monitoring",
+      "Ambulatory Blood Pressure Monitoring",
+      "Cardiac CT",
+      "Cardiac MRI",
+      "Coronary Angiography",
+      "Cardiac Catheterization",
+      "Electrophysiology",
+      "Pacemaker Evaluation",
+      "ICD Evaluation",
+      "Cardiology Consultation",
+      "Cardiology Follow-up",
+    ],
+  },
+  {
+    name: "Pulmonology",
+    subcategories: [
+      "Pulmonary Function Test",
+      "Spirometry",
+      "Bronchoscopy",
+      "Bronchoscopy Biopsy",
+      "Pleural Fluid Analysis",
+      "Sleep Study",
+      "Sleep Apnea Study",
+      "Pulmonology Consultation",
+      "Pulmonology Follow-up",
+    ],
+  },
+  {
+    name: "Neurology",
+    subcategories: [
+      "EEG",
+      "Video EEG",
+      "EMG",
+      "Nerve Conduction Study",
+      "Evoked Potential",
+      "Neurological Assessment",
+      "Neurology Consultation",
+      "Neurology Follow-up",
+    ],
+  },
+  {
+    name: "Neurosurgery",
+    subcategories: [
+      "Neurosurgical Consultation",
+      "Pre-operative Neurosurgical Assessment",
+      "Neurosurgical Operative Report",
+      "Post-operative Neurosurgical Report",
+      "Neurosurgical Procedure Report",
+      "Neurosurgical Follow-up",
+    ],
+  },
+  {
+    name: "Gastroenterology",
+    subcategories: [
+      "Upper GI Endoscopy",
+      "Colonoscopy",
+      "Sigmoidoscopy",
+      "ERCP",
+      "EUS",
+      "Capsule Endoscopy",
+      "GI Biopsy",
+      "GI Procedure Report",
+      "Gastroenterology Consultation",
+      "Gastroenterology Follow-up",
+    ],
+  },
+  {
+    name: "Endoscopy",
+    subcategories: [
+      "Upper GI Endoscopy Report",
+      "Colonoscopy Report",
+      "Bronchoscopy Report",
+      "Cystoscopy Report",
+      "Hysteroscopy Report",
+      "Arthroscopy Report",
+      "Laryngoscopy Report",
+      "ERCP Report",
+      "EUS Report",
+      "Endoscopic Procedure Report",
+    ],
+  },
+  {
+    name: "Pathology",
+    subcategories: [
+      "Surgical Pathology",
+      "Histopathology",
+      "Biopsy",
+      "Cytology",
+      "Fine Needle Aspiration",
+      "Frozen Section",
+      "Immunohistochemistry",
+      "Molecular Pathology",
+      "Molecular/Genetic Testing",
+      "Biomarker Testing",
+      "Tumor Grade",
+      "Margin Assessment",
+      "Lymph Node Pathology",
+    ],
+  },
+  {
+    name: "Surgery",
+    subcategories: [
+      "Operative Report",
+      "Procedure Note",
+      "Pre-operative Report",
+      "Post-operative Report",
+      "Surgical Discharge Summary",
+      "Surgical Follow-up",
+      "Surgical Complication Report",
+      "Re-operation Report",
+      "Surgical Pathology",
+    ],
+  },
+  {
+    name: "Anesthesia",
+    subcategories: [
+      "Pre-anesthesia Assessment",
+      "Anesthesia Record",
+      "Intraoperative Anesthesia Record",
+      "Post-anesthesia Care Report",
+      "Regional Anesthesia Report",
+      "General Anesthesia Report",
+      "Anesthesia Complication Report",
+      "Pain Procedure Report",
+    ],
+  },
+  {
+    name: "Obstetrics",
+    subcategories: [
+      "Antenatal Assessment",
+      "Obstetric Ultrasound",
+      "Fetal Monitoring",
+      "Non-Stress Test",
+      "Biophysical Profile",
+      "Delivery Report",
+      "Cesarean Section Report",
+      "Postpartum Report",
+      "Obstetric Procedure Report",
+    ],
+  },
+  {
+    name: "Gynecology",
+    subcategories: [
+      "Gynecology Consultation",
+      "Gynecological Examination",
+      "Pap Smear",
+      "Colposcopy",
+      "Hysteroscopy",
+      "Gynecological Ultrasound",
+      "Gynecological Procedure",
+      "Gynecology Operative Report",
+      "Gynecology Follow-up",
+    ],
+  },
+  {
+    name: "Pediatrics",
+    subcategories: [
+      "Pediatric Consultation",
+      "Pediatric Assessment",
+      "Pediatric Procedure",
+      "Pediatric Imaging",
+      "Pediatric Follow-up",
+      "Neonatal Assessment",
+    ],
+  },
+  {
+    name: "Neonatology",
+    subcategories: [
+      "Neonatal Assessment",
+      "NICU Progress Report",
+      "Neonatal Procedure Report",
+      "Neonatal Discharge Summary",
+      "Neonatal Follow-up",
+    ],
+  },
+  {
+    name: "Oncology",
+    subcategories: [
+      "Oncology Consultation",
+      "Cancer Assessment",
+      "Cancer Treatment Plan",
+      "Chemotherapy",
+      "Immunotherapy",
+      "Targeted Therapy",
+      "Hormonal Therapy",
+      "Radiation Therapy",
+      "Tumor Staging",
+      "TNM Staging",
+      "Treatment Response",
+      "Tumor Board",
+      "Cancer Follow-up",
+      "Disease Progression",
+      "Cancer Recurrence",
+      "Remission",
+      "Survivorship",
+    ],
+  },
+  {
+    name: "Radiation Therapy",
+    subcategories: [
+      "Radiation Treatment Planning",
+      "CT Simulation",
+      "Radiation Prescription",
+      "EBRT",
+      "IMRT",
+      "VMAT",
+      "IGRT",
+      "SRS",
+      "SBRT",
+      "SABR",
+      "Brachytherapy",
+      "Radiation On-Treatment Visit",
+      "Radiation Completion",
+      "Radiation Toxicity",
+      "Radiation Follow-up",
+    ],
+  },
+  {
+    name: "Chemotherapy",
+    subcategories: [
+      "Chemotherapy Assessment",
+      "Chemotherapy Administration",
+      "Treatment Cycle",
+      "Chemotherapy Response",
+      "Chemotherapy Toxicity",
+      "Chemotherapy Follow-up",
+    ],
+  },
+  {
+    name: "Dialysis",
+    subcategories: [
+      "Hemodialysis Report",
+      "Peritoneal Dialysis Report",
+      "Dialysis Treatment Record",
+      "Dialysis Access Report",
+      "Dialysis Progress Report",
+      "Dialysis Complication Report",
+    ],
+  },
+  {
+    name: "Nephrology",
+    subcategories: [
+      "Nephrology Consultation",
+      "Renal Assessment",
+      "Renal Function Report",
+      "Kidney Biopsy Report",
+      "Nephrology Procedure",
+      "Nephrology Follow-up",
+    ],
+  },
+  {
+    name: "Urology",
+    subcategories: [
+      "Urology Consultation",
+      "Cystoscopy",
+      "Urodynamic Study",
+      "Urology Ultrasound",
+      "Urology Operative Report",
+      "Urology Procedure",
+      "Urology Follow-up",
+    ],
+  },
+  {
+    name: "Orthopedics",
+    subcategories: [
+      "Orthopedic Consultation",
+      "Orthopedic Assessment",
+      "Fracture Report",
+      "Joint Replacement Report",
+      "Arthroscopy Report",
+      "Orthopedic Operative Report",
+      "Orthopedic Procedure",
+      "Orthopedic Follow-up",
+    ],
+  },
+  {
+    name: "Dermatology",
+    subcategories: [
+      "Dermatology Consultation",
+      "Skin Examination",
+      "Dermatology Biopsy",
+      "Dermatopathology",
+      "Dermatology Procedure",
+      "Dermatology Follow-up",
+    ],
+  },
+  {
+    name: "Ophthalmology",
+    subcategories: [
+      "Eye Examination",
+      "Visual Field Test",
+      "OCT",
+      "Fundus Photography",
+      "Slit Lamp Examination",
+      "Tonometry",
+      "Ophthalmic Ultrasound",
+      "Ophthalmology Procedure",
+      "Ophthalmology Operative Report",
+      "Ophthalmology Follow-up",
+    ],
+  },
+  {
+    name: "ENT",
+    subcategories: [
+      "ENT Consultation",
+      "Audiometry",
+      "Tympanometry",
+      "Nasal Endoscopy",
+      "Laryngoscopy",
+      "ENT Procedure",
+      "ENT Operative Report",
+      "ENT Follow-up",
+    ],
+  },
+  {
+    name: "Dentistry",
+    subcategories: [
+      "Dental Examination",
+      "Dental X-Ray",
+      "Dental CT",
+      "Dental Procedure",
+      "Dental Operative Report",
+      "Dental Follow-up",
+    ],
+  },
+  {
+    name: "Rehabilitation",
+    subcategories: [
+      "Physiotherapy Assessment",
+      "Physiotherapy Progress Report",
+      "Occupational Therapy Report",
+      "Speech Therapy Report",
+      "Physical Rehabilitation Report",
+      "Rehabilitation Discharge Report",
+    ],
+  },
+  {
+    name: "Psychiatry",
+    subcategories: [
+      "Psychiatric Consultation",
+      "Psychiatric Assessment",
+      "Mental Health Assessment",
+      "Psychological Assessment",
+      "Psychiatric Progress Report",
+      "Psychiatric Follow-up",
+    ],
+  },
+  {
+    name: "Nutrition",
+    subcategories: [
+      "Nutrition Assessment",
+      "Dietitian Consultation",
+      "Diet Plan",
+      "Nutrition Follow-up",
+      "Nutritional Support Report",
+    ],
+  },
+  {
+    name: "Emergency",
+    subcategories: [
+      "Emergency Assessment",
+      "Emergency Consultation",
+      "Emergency Procedure",
+      "Trauma Assessment",
+      "Emergency Progress Report",
+      "Emergency Discharge Summary",
+    ],
+  },
+  {
+    name: "Critical Care",
+    subcategories: [
+      "ICU Admission Report",
+      "ICU Progress Report",
+      "Critical Care Assessment",
+      "Ventilator Report",
+      "Critical Care Procedure",
+      "ICU Discharge Summary",
+    ],
+  },
+  {
+    name: "Transplantation",
+    subcategories: [
+      "Transplant Assessment",
+      "Transplant Evaluation",
+      "Transplant Procedure",
+      "Transplant Surgery Report",
+      "Transplant Follow-up",
+      "Transplant Rejection Assessment",
+    ],
+  },
+  {
+    name: "Infectious Disease",
+    subcategories: [
+      "Infectious Disease Consultation",
+      "Infection Assessment",
+      "Culture Report",
+      "Antimicrobial Susceptibility",
+      "Infectious Disease Follow-up",
+    ],
+  },
+  {
+    name: "Discharge",
+    subcategories: [
+      "Discharge Summary",
+      "Surgical Discharge Summary",
+      "ICU Discharge Summary",
+      "Emergency Discharge Summary",
+      "Neonatal Discharge Summary",
+      "Discharge Instructions",
+    ],
+  },
+  {
+    name: "Follow-up",
+    subcategories: [
+      "Specialist Follow-up",
+      "Post-operative Follow-up",
+      "Treatment Follow-up",
+      "Procedure Follow-up",
+      "Chronic Disease Follow-up",
+    ],
+  },
+  {
+    name: "Progress",
+    subcategories: [
+      "Daily Progress Note",
+      "Clinical Progress Report",
+      "Treatment Progress Report",
+      "Specialist Progress Report",
+    ],
+  },
+  {
+    name: "Treatment Response",
+    subcategories: [
+      "Treatment Response Assessment",
+      "Response Evaluation Report",
+      "Treatment Response Imaging",
+      "Therapy Response Report",
+    ],
+  },
+  {
+    name: "Complications",
+    subcategories: [
+      "Procedure Complication Report",
+      "Surgical Complication Report",
+      "Treatment Complication Report",
+      "Medication Adverse Effect Report",
+      "Radiation Toxicity Report",
+    ],
+  },
+  {
+    name: "Multidisciplinary Review",
+    subcategories: [
+      "Tumor Board",
+      "Multidisciplinary Team Report",
+      "Case Review",
+      "Treatment Plan Recommendation",
+      "Pre-treatment Case Discussion",
+      "Post-treatment Case Review",
+    ],
+  },
+  {
+    name: "Palliative Care",
+    subcategories: [
+      "Palliative Care Consultation",
+      "Pain Management",
+      "Symptom Management",
+      "Palliative Treatment Plan",
+      "End-of-Life Care",
+    ],
+  },
+  {
+    name: "Supportive Care",
+    subcategories: [
+      "Pain Management",
+      "Nutrition Support",
+      "Psychological Support",
+      "Rehabilitation",
+      "Social Work Assessment",
+    ],
+  },
+  {
+    name: "Medical Records",
+    subcategories: [
+      "Medical History",
+      "Clinical Summary",
+      "Patient Summary",
+      "Referral Letter",
+      "Transfer Summary",
+      "Case Summary",
+    ],
+  },
+  {
+    name: "Procedure",
+    subcategories: [
+      "Procedure Report",
+      "Minor Procedure Report",
+      "Interventional Procedure Report",
+      "Bedside Procedure Report",
+      "Procedure Follow-up",
+    ],
+  },
+  {
+    name: "Monitoring",
+    subcategories: [
+      "Vital Signs Monitoring",
+      "Cardiac Monitoring",
+      "Continuous Monitoring",
+      "Post-procedure Monitoring",
+      "Treatment Monitoring",
+    ],
+  },
+  {
+    name: "Staging",
+    subcategories: [
+      "Cancer Staging",
+      "TNM Staging",
+      "Disease Staging",
+      "Metastatic Disease Assessment",
+    ],
+  },
+  {
+    name: "Genetic Testing",
+    subcategories: [
+      "Genetic Test Report",
+      "Molecular Genetic Testing",
+      "Cytogenetics",
+      "Chromosomal Analysis",
+      "Genomic Testing",
+    ],
+  },
+  {
+    name: "Disability & Functional Assessment",
+    subcategories: [
+      "Functional Capacity Assessment",
+      "Disability Assessment",
+      "Mobility Assessment",
+      "Activities of Daily Living Assessment",
+      "Occupational Assessment",
+    ],
+  },
+  {
+    name: "End-of-Treatment",
+    subcategories: [
+      "Treatment Completion Summary",
+      "End-of-Treatment Report",
+      "Treatment Discharge Summary",
+      "Survivorship Report",
+    ],
+  },
+  {
+    name: "End-of-Life",
+    subcategories: [
+      "End-of-Life Care Summary",
+      "Hospice Referral",
+      "Hospice Summary",
+      "Death Summary",
+    ],
+  },
+  {
+    name: "Endocrinology",
+    subcategories: [
+      "Endocrinology Consultation",
+      "Diabetes Assessment",
+      "Thyroid Function Assessment",
+      "Adrenal Function Assessment",
+      "Hormone Replacement Therapy Report",
+      "Endocrinology Follow-up",
+    ],
+  },
+  {
+    name: "Rheumatology",
+    subcategories: [
+      "Rheumatology Consultation",
+      "Joint Assessment",
+      "Autoimmune Disease Assessment",
+      "Rheumatology Procedure",
+      "Rheumatology Follow-up",
+    ],
+  },
+  {
+    name: "Hematology (Clinical)",
+    subcategories: [
+      "Hematology Consultation",
+      "Anemia Assessment",
+      "Bleeding Disorder Assessment",
+      "Bone Marrow Biopsy Report",
+      "Hemoglobinopathy Assessment",
+      "Hematology Follow-up",
+    ],
+  },
+  {
+    name: "Allergy & Immunology",
+    subcategories: [
+      "Allergy Consultation",
+      "Allergy Testing Report",
+      "Immunodeficiency Assessment",
+      "Immunotherapy Report",
+      "Allergy Follow-up",
+    ],
+  },
+  {
+    name: "Vascular Surgery",
+    subcategories: [
+      "Vascular Surgery Consultation",
+      "Vascular Assessment",
+      "Vascular Operative Report",
+      "Vascular Procedure Report",
+      "Vascular Surgery Follow-up",
+    ],
+  },
+  {
+    name: "Plastic Surgery",
+    subcategories: [
+      "Plastic Surgery Consultation",
+      "Reconstructive Procedure Report",
+      "Cosmetic Procedure Report",
+      "Plastic Surgery Operative Report",
+      "Plastic Surgery Follow-up",
+    ],
+  },
+  {
+    name: "Pain Medicine",
+    subcategories: [
+      "Pain Medicine Consultation",
+      "Pain Assessment Report",
+      "Nerve Block Procedure Report",
+      "Interventional Pain Procedure",
+      "Pain Medicine Follow-up",
+    ],
+  },
+  {
+    name: "Sports Medicine",
+    subcategories: [
+      "Sports Medicine Consultation",
+      "Sports Injury Assessment",
+      "Return-to-Play Assessment",
+      "Sports Medicine Follow-up",
+    ],
+  },
+  {
+    name: "Geriatrics",
+    subcategories: [
+      "Geriatric Consultation",
+      "Geriatric Assessment",
+      "Fall Risk Assessment",
+      "Cognitive Assessment",
+      "Geriatric Follow-up",
+    ],
+  },
+  {
+    name: "Occupational Medicine",
+    subcategories: [
+      "Occupational Health Assessment",
+      "Fitness for Duty Report",
+      "Workplace Injury Report",
+      "Pre-employment Medical Report",
+      "Occupational Medicine Follow-up",
+    ],
+  },
+  {
+    name: "Preventive Medicine",
+    subcategories: [
+      "Wellness Examination Report",
+      "Health Screening Report",
+      "Immunization Record",
+      "Executive Health Checkup Report",
+      "Preventive Care Follow-up",
+    ],
+  },
+  {
+    name: "Home Health Care",
+    subcategories: [
+      "Home Health Assessment",
+      "Home Nursing Progress Report",
+      "Home Health Discharge Summary",
+      "Home Health Follow-up",
+    ],
+  },
+  {
+    name: "Hospice",
+    subcategories: [
+      "Hospice Assessment",
+      "Hospice Progress Report",
+      "Hospice Discharge Summary",
+      "Hospice Family Conference Note",
+    ],
+  },
+  {
+    name: "Pharmacy",
+    subcategories: [
+      "Medication Reconciliation Report",
+      "Pharmacy Consultation",
+      "Drug Interaction Report",
+      "Medication Therapy Review",
+      "Adverse Drug Reaction Report",
+    ],
+  },
+  {
+    name: "Wound Care",
+    subcategories: [
+      "Wound Assessment Report",
+      "Wound Care Procedure Report",
+      "Wound Progress Report",
+      "Pressure Ulcer Assessment",
+      "Wound Care Follow-up",
+    ],
+  },
+  {
+    name: "Sleep Medicine",
+    subcategories: [
+      "Sleep Medicine Consultation",
+      "Polysomnography Report",
+      "Sleep Apnea Titration Study",
+      "Home Sleep Test Report",
+      "Sleep Medicine Follow-up",
+    ],
+  },
+  {
+    name: "Reproductive Medicine",
+    subcategories: [
+      "Fertility Assessment",
+      "IVF Procedure Report",
+      "Andrology Report",
+      "Reproductive Endocrinology Consultation",
+      "Reproductive Medicine Follow-up",
+    ],
+  },
+  {
+    name: "Toxicology (Clinical)",
+    subcategories: [
+      "Poisoning Assessment",
+      "Toxicology Screen Report",
+      "Overdose Management Report",
+      "Occupational Exposure Assessment",
+    ],
+  },
+  {
+    name: "Forensic Medicine",
+    subcategories: [
+      "Forensic Examination Report",
+      "Medico-Legal Report",
+      "Autopsy Report",
+      "Sexual Assault Examination Report",
+    ],
+  },
+  {
+    name: "Insurance & Administrative",
+    subcategories: [
+      "Insurance Claim Report",
+      "Fitness Certificate",
+      "Medical-Legal Evaluation",
+      "Independent Medical Examination",
+      "Disability Claim Report",
+    ],
+  },
+  {
+    name: "Telemedicine",
+    subcategories: [
+      "Telehealth Consultation",
+      "Remote Patient Monitoring Report",
+      "Virtual Follow-up",
+      "E-Prescription Report",
+    ],
+  },
+];
 /* ─── MAIN COMPONENT ─── */
 const ReportUpload = () => {
   const navigate = useNavigate();
@@ -530,6 +1372,9 @@ const ReportUpload = () => {
   const [hospitalRules, setHospitalRules] = useState([]);
   const [categories, setCategories] = useState([]);
   const [subcategories, setSubcategories] = useState([]);
+  const [reportTiming, setReportTiming] = useState("current");
+    const [reportTypeCategory, setReportTypeCategory] = useState("");
+  const [reportTypeSubcategory, setReportTypeSubcategory] = useState("");
   const [hospitalId, setHospitalId] = useState("");
   const [processingStatus, setProcessingStatus] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -778,11 +1623,14 @@ const fetchPendingInvestigations = async () => {
     formData.append("patient_id", patientId);
     formData.append("appointment_id", appointmentId);
     formData.append("hospital_id", hospitalId);
+    formData.append("report_timing", reportTiming);
     if (categoryKey === "insurance" || categoryKey === "other") formData.append("doc_type", categoryKey);
     formData.append("report_date", reportDate);
     formData.append("upload_mode", uploadMode);
     formData.append("file", file);
     if (categoryKey && subcategoryKey) { formData.append("category", categoryKey); formData.append("subcategory", subcategoryKey); }
+    if (reportTypeCategory) formData.append("report_category", reportTypeCategory);
+    if (reportTypeSubcategory) formData.append("report_type", reportTypeSubcategory);
     try {
       setLoading(true); setMessage(null); setAlerts([]); setShowAlerts(false);
       const res = await fetch(`${API_BASE_URL}hms/users/cm/storage/proxy/upload`, { method: "POST", body: formData });
@@ -793,6 +1641,7 @@ const fetchPendingInvestigations = async () => {
       setMessage({ type: "info", text: data.message || "File uploaded successfully! Processing started..." });
       startProcessingPolling();
       setFile(null); setFileName(""); setReportDate(""); setDocType(uploadMode === "image" ? "x_ray" : "lab_report");
+      setReportTypeCategory(""); setReportTypeSubcategory("");
     } catch (err) { setMessage({ type: "error", text: err.message || "Upload failed. Please try again." }); }
     finally { setLoading(false); }
   };
@@ -862,6 +1711,8 @@ const fetchPendingInvestigations = async () => {
     setFile(null);
     setFileName("");
     setMessage(null);
+    setReportTypeCategory("");
+    setReportTypeSubcategory("");
   };;
 
   const handleLogout = async () => {
@@ -876,7 +1727,8 @@ const fetchPendingInvestigations = async () => {
   });
 
   const docTypes = ["all", ...new Set(documents.map((d) => d.doc_type || "document").filter(Boolean))];
-
+  const availableReportTypeSubcategories =
+    REPORT_TYPE_CATEGORIES.find((c) => c.name === reportTypeCategory)?.subcategories || [];
   const formatDate = (s) => {
     if (!s) return "—";
     return new Date(s).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
@@ -940,7 +1792,7 @@ const fetchPendingInvestigations = async () => {
         <div style={S.sidebarHeader}>
           <div style={S.brandRow}>
             
-            <span style={S.brandName}>DoctorAssist.AI</span>
+            <span style={S.brandName}>EMR Module</span>
           </div>
           <span style={S.sectionLabel}>Physician</span>
           <p style={S.doctorNameStyle}>{doctorName || "Loading…"}</p>
@@ -1214,19 +2066,68 @@ const fetchPendingInvestigations = async () => {
 
                     {/* category / subcategory */}
                     {uploadMode === "document" && (
-                      <>
-                        {subcategories.length > 0 && (
-                          <div style={{ marginBottom: "1rem" }}>
-                            <label style={S.label}>Report Subcategory</label>
-                            <select value={subcategoryKey} onChange={(e) => setSubcategoryKey(e.target.value)} style={S.select} required>
-                              <option value="" hidden>Select Subcategory</option>
-                              {subcategories.map((sub) => <option key={sub} value={sub}>{sub.replace(/_/g, " ")}</option>)}
-                            </select>
-                          </div>
-                        )}
-                      </>
+                      <div style={{ marginBottom: "1rem" }}>
+                        <label style={S.label}>Report Timing</label>
+                        <div style={{ display: "flex", gap: "1.25rem", padding: "0.4rem 0" }}>
+                          <label style={{ display: "flex", alignItems: "center", gap: "0.4rem", cursor: "pointer" }}>
+                            <input
+                              type="radio"
+                              name="reportTiming"
+                              value="current"
+                              checked={reportTiming === "current"}
+                              onChange={() => setReportTiming("current")}
+                            />
+                            <span style={{ fontSize: "0.78rem", fontWeight: 300, color: T.textSec, fontFamily: "'Open Sans', sans-serif" }}>
+                              Current Report
+                            </span>
+                          </label>
+                          <label style={{ display: "flex", alignItems: "center", gap: "0.4rem", cursor: "pointer" }}>
+                            <input
+                              type="radio"
+                              name="reportTiming"
+                              value="previous"
+                              checked={reportTiming === "previous"}
+                              onChange={() => setReportTiming("previous")}
+                            />
+                            <span style={{ fontSize: "0.78rem", fontWeight: 300, color: T.textSec, fontFamily: "'Open Sans', sans-serif" }}>
+                              Previous Report
+                            </span>
+                          </label>
+                        </div>
+                      </div>
                     )}
+{/* optional report category + type */}
+                    {uploadMode === "document" && (
+                      <div style={{ marginBottom: "1rem" }}>
+                        <label style={S.label}>Report Category (Optional)</label>
+                        <select
+                          value={reportTypeCategory}
+                          onChange={(e) => { setReportTypeCategory(e.target.value); setReportTypeSubcategory(""); }}
+                          style={{ ...S.select, marginBottom: reportTypeCategory ? "0.75rem" : 0 }}
+                        >
+                          <option value="">Select Category</option>
+                          {REPORT_TYPE_CATEGORIES.map((cat) => (
+                            <option key={cat.name} value={cat.name}>{cat.name}</option>
+                          ))}
+                        </select>
 
+                        {reportTypeCategory && (
+                          <>
+                            <label style={S.label}>Report Type (Optional)</label>
+                            <select
+                              value={reportTypeSubcategory}
+                              onChange={(e) => setReportTypeSubcategory(e.target.value)}
+                              style={S.select}
+                            >
+                              <option value="">Select Report Type</option>
+                              {availableReportTypeSubcategories.map((sub) => (
+                                <option key={sub} value={sub}>{sub}</option>
+                              ))}
+                            </select>
+                          </>
+                        )}
+                      </div>
+                    )}
                     {/* file area */}
                     <div style={{ marginBottom: "1rem" }}>
                       <label style={S.label}>{uploadMode === "image" ? "Select Image" : "Select File"}</label>

@@ -483,11 +483,53 @@ function RenderValue({ value, keyName = "" }) {
     </div>
   );
 }
-
 /* ─── TRIAGE CARD ─────────────────────────────────────────────────────────── */
-function TriageCard({ value, onEdit, editing, draftText, setDraftText, onSave, onCancel }) {
+/* FIX — editing used to go through NoteCard's generic saveEdit, which
+   converts the value to plain text (toPlainText) then tries JSON.parse on
+   save. That parse always fails for triage's "key: value" text shape, so
+   the catch branch saved the raw STRING as the entire triage_assessment
+   object — collapsing it, after which SectionBody's
+   `case "triage_assessment": return null` meant nothing rendered at all.
+   Fix: TriageCard is now fully self-contained with its own structured
+   fields and its own save handler that always writes back a real object,
+   so it can never collapse into a string. */
+function TriageCard({ value, onSave }) {
+  const [editing, setEditing] = useState(false);
+  const [fields, setFields] = useState({
+    triage_colour: value.triage_colour || "",
+    triage_category: value.triage_category || "",
+    criticality_score: value.criticality_score ?? "",
+    risk_level: value.risk_level || "",
+    triage_rationale: value.triage_rationale || "",
+  });
+
+  const startEdit = () => {
+    setFields({
+      triage_colour: value.triage_colour || "",
+      triage_category: value.triage_category || "",
+      criticality_score: value.criticality_score ?? "",
+      risk_level: value.risk_level || "",
+      triage_rationale: value.triage_rationale || "",
+    });
+    setEditing(true);
+  };
+  const cancelEdit = () => setEditing(false);
+  const saveEdit = () => {
+    onSave("triage_assessment", {
+      ...value,
+      triage_colour: fields.triage_colour,
+      triage_category: fields.triage_category,
+      criticality_score: fields.criticality_score === "" ? null : fields.criticality_score,
+      risk_level: fields.risk_level,
+      triage_rationale: fields.triage_rationale,
+    });
+    setEditing(false);
+  };
+
   const key = (value.triage_colour || "").toLowerCase();
   const color = TRIAGE_COLORS[key] || TRIAGE_COLORS.blue;
+  const fieldLabelStyle = { fontSize: 10.5, fontWeight: 600, color: "#888", textTransform: "uppercase", display: "block" };
+  const fieldInputStyle = { display: "block", width: "100%", marginTop: 4, padding: "6px 8px", border: "1px solid #000", fontFamily: "'Open Sans', sans-serif", fontSize: 12, background: "#fafafa" };
 
   return (
     <div className={`snp-card wide${editing ? " editing" : ""}`}>
@@ -497,20 +539,49 @@ function TriageCard({ value, onEdit, editing, draftText, setDraftText, onSave, o
         <div className="snp-card-actions">
           {editing ? (
             <>
-              <button className="snp-icon-btn save" onClick={onSave} title="Save">✓</button>
-              <button className="snp-icon-btn cancel" onClick={onCancel} title="Cancel">✕</button>
+              <button className="snp-icon-btn save" onClick={saveEdit} title="Save">✓</button>
+              <button className="snp-icon-btn cancel" onClick={cancelEdit} title="Cancel">✕</button>
             </>
           ) : (
-            <button className="snp-icon-btn" onClick={onEdit} title="Edit">✎</button>
+            <button className="snp-icon-btn" onClick={startEdit} title="Edit">✎</button>
           )}
         </div>
       </div>
       <div className="snp-card-bd">
         {editing ? (
-          <>
-            <textarea className="snp-edit-textarea" value={draftText} onChange={(e) => setDraftText(e.target.value)} />
-            <p className="snp-edit-hint">Edit in plain text. Save with ✓ or cancel with ✕.</p>
-          </>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <label style={fieldLabelStyle}>
+              Triage Colour
+              <select
+                value={fields.triage_colour}
+                onChange={(e) => setFields((f) => ({ ...f, triage_colour: e.target.value }))}
+                style={fieldInputStyle}
+              >
+                <option value="">—</option>
+                <option value="Red">Red</option>
+                <option value="Yellow">Yellow</option>
+                <option value="Green">Green</option>
+                <option value="Black">Black</option>
+              </select>
+            </label>
+            <label style={fieldLabelStyle}>
+              Triage Category
+              <input type="text" value={fields.triage_category} onChange={(e) => setFields((f) => ({ ...f, triage_category: e.target.value }))} style={fieldInputStyle} />
+            </label>
+            <label style={fieldLabelStyle}>
+              Criticality Score
+              <input type="text" value={fields.criticality_score} onChange={(e) => setFields((f) => ({ ...f, criticality_score: e.target.value }))} style={fieldInputStyle} />
+            </label>
+            <label style={fieldLabelStyle}>
+              Risk Level
+              <input type="text" value={fields.risk_level} onChange={(e) => setFields((f) => ({ ...f, risk_level: e.target.value }))} style={fieldInputStyle} />
+            </label>
+            <label style={fieldLabelStyle}>
+              Triage Rationale
+              <textarea className="snp-edit-textarea" style={{ marginTop: 4 }} value={fields.triage_rationale} onChange={(e) => setFields((f) => ({ ...f, triage_rationale: e.target.value }))} />
+            </label>
+            <p className="snp-edit-hint">Edit each field directly. Save with ✓ or cancel with ✕.</p>
+          </div>
         ) : (
           <div>
             <span className="snp-triage" style={{ background: color.bg, color: color.text, borderColor: color.border }}>
@@ -529,7 +600,6 @@ function TriageCard({ value, onEdit, editing, draftText, setDraftText, onSave, o
     </div>
   );
 }
-
 /* ─── DISCREPANCY TABLE ───────────────────────────────────────────────────── */
 function DiscrepancyTable({ rows }) {
   if (!rows || !rows.length) return null;
@@ -849,7 +919,10 @@ function SectionBody({ section, value }) {
 
   switch (section) {
     case "triage_assessment":
-      return null; // handled by TriageCard above
+      // Fallback only — TriageCard is the primary renderer (see NoteCard).
+      // This prevents the box from disappearing entirely if TriageCard's
+      // own truthy-check on triage_colour ever fails to match.
+      return <RenderValue value={cleaned} keyName={section} />;
 
     case "monitor_vs_clinical_discrepancies":
       return Array.isArray(cleaned) ? <DiscrepancyTable rows={cleaned} /> : <RenderValue value={cleaned} keyName={section} />;
@@ -895,19 +968,16 @@ function NoteCard({ section, value, onSave }) {
     setEditing(false);
   };
 
-  // Special triage card
-  if (section === "triage_assessment" && value && value.triage_colour) {
-    return (
-      <TriageCard
-        value={value}
-        editing={editing}
-        draftText={draftText}
-        setDraftText={setDraftText}
-        onEdit={startEdit}
-        onSave={saveEdit}
-        onCancel={cancelEdit}
-      />
-    );
+  // Special triage card — fully self-contained now (own structured edit
+  // fields + its own save handler), so it never routes through this
+  // component's generic text/JSON save path that used to collapse it.
+  if (
+    section === "triage_assessment" &&
+    value &&
+    (value.triage_colour || value.triage_category || value.risk_level ||
+     value.criticality_score != null || value.triage_rationale)
+  ) {
+    return <TriageCard value={value} onSave={onSave} />;
   }
 
   const isWide = meta.wide;
@@ -1038,10 +1108,18 @@ function downloadPDF(structuredNote, showToast) {
     });
   };
 
-  // Use filteredNote instead of structuredNote
-  Object.entries(filteredNote).forEach(([section, value], index) => {
+  // FIX — numbering skip: previously index came from EVERY key in
+  // filteredNote, but sections with null/empty content `return`ed early
+  // without printing, so their number was silently consumed (e.g. 3, 5, 6
+  // instead of 3, 4, 5). Filter to printable sections FIRST, then number
+  // sequentially over that filtered list.
+  const printableSections = Object.entries(filteredNote).filter(([, value]) => {
     const cleaned = filterNulls(value);
-    if (cleaned === null || cleaned === undefined) return;
+    return cleaned !== null && cleaned !== undefined;
+  });
+
+  printableSections.forEach(([section, value], index) => {
+    const cleaned = filterNulls(value);
     checkBreak(44);
     doc.setFillColor(245, 245, 245); doc.rect(M, y - 13, usableW, 20, "F");
     doc.setFillColor(0, 0, 0);       doc.rect(M, y - 13, 3, 20, "F");
@@ -1097,8 +1175,8 @@ const SECTION_ORDER = [
 ];
 
 /* ─── MAIN COMPONENT ──────────────────────────────────────────────────────── */
-function StructuredNoteEmergency({ doctorId, patientId, onRefresh, onLoadingChange }) {
-  const [loading,        setLoading]        = useState(false);
+function StructuredNoteEmergency({ doctorId, patientId, liveTriageColour, onRefresh, onLoadingChange }) {
+    const [loading,        setLoading]        = useState(false);
   const [structuredNote, setStructuredNote] = useState(null);
   const [error,          setError]          = useState(null);
   const [toast,          setToast]          = useState(null);
@@ -1173,7 +1251,26 @@ function StructuredNoteEmergency({ doctorId, patientId, onRefresh, onLoadingChan
       }
     })();
     return () => { cancelled = true; };
-  }, [patientId]);
+ }, [patientId]);
+
+  // Keep this card's triage colour in lockstep with the latest APPROVED AI
+  // clinical action from the live feed, instead of whatever colour this
+  // summary's own generation independently landed on.
+  useEffect(() => {
+    if (!liveTriageColour) return;
+    setStructuredNote((prev) => {
+      if (!prev) return prev;
+      const cur = prev.triage_assessment?.triage_colour;
+      if (cur === liveTriageColour) return prev;
+      return {
+        ...prev,
+        triage_assessment: {
+          ...(prev.triage_assessment || {}),
+          triage_colour: liveTriageColour,
+        },
+      };
+    });
+  }, [liveTriageColour, structuredNote]);
 
   const handleCardSave = useCallback((section, newValue) => {
     setStructuredNote((prev) => ({ ...prev, [section]: newValue }));

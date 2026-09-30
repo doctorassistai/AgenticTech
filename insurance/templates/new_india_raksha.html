@@ -245,8 +245,7 @@
     </tr>
     <tr>
       <td class="lbl">Registration and Other details (Attach hospital information sheet and related documents)</td>
-      <td class="val">{{ hospital.get('registrationNumber','') if hospital.get else '' }}</td>
-    </tr>
+      <td class="val">{{ hospital.get('registrationNumber') or '' }}</td>    </tr>
   </table>
 
   <!-- ═══════════════════════════════════════ -->
@@ -256,31 +255,31 @@
     <tr class="sec-hdr"><td colspan="2">Ailment details</td></tr>
     <tr>
       <td class="lbl">Onset of symtoms</td>
-      <td class="val">{{ additional.get('onsetOfSymptoms','') if additional.get else '' or case.dateOfIncident or '' }}</td>
+      <td class="val">{{ additional.get('onsetOfSymptoms') or case.dateOfIncident or '' }}</td>
     </tr>
     <tr>
       <td class="lbl">First consultation</td>
-      <td class="val">{{ additional.get('firstConsultation','') if additional.get else '' }}</td>
+      <td class="val">{{ additional.get('firstConsultationDate') or additional.get('firstConsultation') or '' }}</td>
     </tr>
     <tr>
       <td class="lbl">Referal Doctor's detail</td>
-      <td class="val">{{ case.familyDoctor or additional.get('referralDoctor','') if additional.get else '' }}</td>
+      <td class="val">{{ case.familyDoctor or additional.get('referralDoctor') or '' }}</td>
     </tr>
     <tr>
       <td class="lbl">Intial treatment Details</td>
-      <td class="val">{{ additional.get('initialTreatment','') if additional.get else '' }}</td>
+      <td class="val">{{ additional.get('initialTreatment') or '' }}</td>
     </tr>
     <tr>
       <td class="lbl">Pre Hosp Inv and Treatment details</td>
-      <td class="val">{{ additional.get('preHospitalisationDetails','') if additional.get else '' }}</td>
+      <td class="val">{{ additional.get('preHospitalisationDetails') or '' }}</td>
     </tr>
     <tr>
       <td class="lbl">Post Hosp Inv and treatment details</td>
-      <td class="val">{{ additional.get('postHospitalisationDetails','') if additional.get else '' }}</td>
+      <td class="val">{{ additional.get('postHospitalisationDetails') or '' }}</td>
     </tr>
     <tr>
       <td class="lbl">Investigations Suggesting Diagnosis (Attach relevant copies)</td>
-      <td class="val">{{ additional.get('investigationsSuggestingDiagnosis','') if additional.get else '' }}</td>
+      <td class="val">{{ additional.get('investigationsSuggestingDiagnosis') or '' }}</td>
     </tr>
     <tr>
       <td class="lbl">Outcome</td>

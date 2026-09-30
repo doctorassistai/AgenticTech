@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Investigation Report - Reimbursement</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 20px;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background: #fff;
+      font-family: Arial, Helvetica, sans-serif;
+      color: #222;
+      font-size: 13px;
+    }
+
+    .page {
+      width: 794px;
+      margin: 0 auto;
+      background: white;
+      padding: 0 26px 25px;
+      box-sizing: border-box;
+    }
+
+    /* ── Header ── */
+    .header-image {
+      width: 100%;
+      display: block;
+      margin-bottom: 20px;
+    }
+
+    /* ── Main title ── */
+    .main-title {
+      text-align: center;
+      font-size: 18px;
+      font-weight: 700;
+      text-decoration: underline;
+      margin-bottom: 20px;
+    }
+
+    /* ── Section title box (centred, bordered, underlined) ── */
+    .section-title {
+      width: 420px;
+      margin: 20px auto 14px auto;
+      border: 1px solid #444;
+      text-align: center;
+      font-size: 14px;
+      font-weight: 700;
+      text-decoration: underline;
+      padding: 4px 0;
+      background: #f7f7f7;
+      letter-spacing: 0.3px;
+    }
+
+    /* ── Tables ── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 16px;
+      table-layout: fixed;
+    }
+
+    tr {
+      page-break-inside: avoid;
+    }
+
+    td, th {
+      border: 1px solid #555;
+      padding: 8px 10px;
+      vertical-align: middle;
+      font-size: 13px;
+      line-height: 1.5;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+    }
+
+    th {
+      background: #f0f0f0;
+      font-weight: 700;
+      text-align: left;
+    }
+
+    .label {
+      font-weight: 700;
+      background: #f7f7f7;
+      text-align: left;
+    }
+
+    .value {
+      text-align: left;
+      font-weight: 500;
+    }
+
+    .center {
+      text-align: center;
+    }
+
+    .narrative-box {
+      padding-top: 10px;
+      padding-bottom: 10px;
+      vertical-align: top;
+      line-height: 1.7;
+    }
+
+    /* ── Signature ── */
+    .signature-box {
+      height: 130px;
+      position: relative;
+      vertical-align: top;
+      overflow: hidden;
+    }
+
+    .real-stamp {
+      width: 110px;
+      position: absolute;
+      top: 15px;
+      left: 20px;
+      object-fit: contain;
+    }
+
+    /* ── Section block (page-break protection) ── */
+    .section-block {
+      page-break-inside: avoid;
+      break-inside: avoid;
+      margin-bottom: 0;
+    }
+
+    .disclaimer {
+      margin-top: 30px;
+      line-height: 1.6;
+    }
+
+    @media print {
+      body { background: white; }
+      .page { margin: 0; width: 100%; min-height: auto; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!-- PAGE 1 — Claim Details + Hospital Visit Finding             -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<div class="page">
+
+  <img src="{{ header_image }}" class="header-image" alt="Header">
+
+  <div class="main-title">Investigation Report - Reimbursement</div>
+
+  <!-- ── Claim Details ── -->
+  <div class="section-block">
+    <table>
+      <colgroup><col style="width:32%"><col style="width:68%"></colgroup>
+      <tr><td class="label">Claim Number</td><td class="value">{{ case.insurerRef or '' }}</td></tr>
+      <tr><td class="label">Policy Number</td><td class="value">{{ case.policyNumber or '' }}</td></tr>
+      <tr><td class="label">Policy Product</td><td class="value">{{ facts.policy_product or 'NA' }}</td></tr>
+      <tr><td class="label">Patient Name</td><td class="value">{{ case.claimantName or '' }}</td></tr>
+      <tr>
+        <td class="label">Hospital Name and City</td>
+        <td class="value">{{ hospital.name or '' }}{% if hospital.city %}, {{ hospital.city }}{% endif %}</td>
+      </tr>
+      <tr><td class="label">Claim Amount</td><td class="value">{{ case.claimedAmount or '' }}</td></tr>
+      <tr><td class="label">Allocation Date</td><td class="value">{{ case.allocationDate or '' }}</td></tr>
+      <tr><td class="label">Submission Date</td><td class="value">{{ case.reportingDate or case.reportDate or '' }}</td></tr>
+      <tr><td class="label">Investigation TAT</td><td class="value">{{ facts.investigation_tat or '' }}</td></tr>
+    </table>
+  </div>
+
+  <!-- ── Hospital Visit Finding ── -->
+  <div class="section-title">Hospital Visit Finding</div>
+
+  <table>
+    <colgroup><col style="width:34%"><col style="width:12%"><col style="width:54%"></colgroup>
+    <tr><th>Details</th><th>Yes/No</th><th>Comments</th></tr>
+    <tr>
+      <td class="label">Indoor Register Verified</td>
+      <td class="center value">{{ facts.indoor_register_verified or '' }}</td>
+      <td class="value">{{ facts.indoor_register_comments or '' }}</td>
+    </tr>
+    <tr>
+      <td class="label">Indoor Case Papers Verified</td>
+      <td class="center value">{{ facts.indoor_case_papers_verified or '' }}</td>
+      <td class="value">{{ facts.indoor_case_papers_comments or '' }}</td>
+    </tr>
+    <tr>
+      <td class="label">Hospital Registration Certificate &amp; Number</td>
+      <td class="center value">{{ 'YES' if facts.hospital_registration_certificate_number else '' }}</td>
+      <td class="value">{{ facts.hospital_registration_certificate_number or '' }}</td>
+    </tr>
+    <tr>
+      <td class="label">Rohini ID</td>
+      <td class="center value">{{ 'NA' if not facts.hospital_rohini_id else '' }}</td>
+      <td class="value">{{ facts.hospital_rohini_id or 'NA' }}</td>
+    </tr>
+    <tr>
+      <td class="label">No of Beds</td>
+      <td class="center value"></td>
+      <td class="value">{{ facts.hospital_bed_count or 'NA' }}</td>
+    </tr>
+    <tr>
+      <td class="label">Network/Non Network Hospital</td>
+      <td class="center value">{{ facts.hospital_network_status or '' }}</td>
+      <td class="value">{{ facts.hospital_network_comments or '' }}</td>
+    </tr>
+    <tr>
+      <td class="label">Infrastructure of Hospital<br>(ICU facility/OT/Lab/Pharmacy/Ambulance etc.)</td>
+      <td class="center value">{{ 'YES' if facts.hospital_infrastructure else '' }}</td>
+      <td class="value">{{ facts.hospital_infrastructure or '' }}</td>
+    </tr>
+    <tr>
+      <td class="label">Name of Hospital Owner &amp; Mobile No</td>
+      <td class="center value">{{ 'NA' if not facts.hospital_owner_name_mobile else '' }}</td>
+      <td class="value">{{ facts.hospital_owner_name_mobile or 'NA' }}</td>
+    </tr>
+    <tr>
+      <td class="label">Met with Treating Doctor</td>
+      <td class="center value">{{ facts.met_treating_doctor or '' }}</td>
+      <td class="value">{{ facts.met_treating_doctor_comments or '' }}</td>
+    </tr>
+  </table>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!-- PAGE 2 — Admission Details + Patient Visit Finding          -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<div class="page">
+
+  <div class="section-block">
+    <table>
+      <colgroup><col style="width:32%"><col style="width:68%"></colgroup>
+      <tr><td class="label">Name of Treating Doctor, Registration Number</td><td class="value">{{ facts.treating_doctor_name_reg_number or '' }}</td></tr>
+      <tr><td class="label">Qualification and Mobile No of Treating Doctor</td><td class="value">{{ facts.treating_doctor_qualification_mobile or 'NA' }}</td></tr>
+      <tr><td colspan="2" class="label center">Admission Details</td></tr>
+      <tr><td class="label">Chief Complaints with Duration</td><td class="value narrative-box">{{ facts.chief_complaints_duration or '' }}</td></tr>
+      <tr><td class="label">P/H/O any Major Ailment with Duration</td><td class="value narrative-box">{{ facts.past_history_major_ailment or '' }}</td></tr>
+      <tr><td class="label">Diagnosis</td><td class="value narrative-box">{{ critical.diagnosis or '' }}</td></tr>
+      <tr><td class="label">Treatment - Conservative/Surgical</td><td class="value">{{ facts.treatment_type or '' }}</td></tr>
+      <tr><td class="label">Room Category</td><td class="value">{{ billing.roomType or '' }}</td></tr>
+      <tr><td class="label">Final Bill Amount</td><td class="value">{{ billing.finalBillAmount or '' }}</td></tr>
+    </table>
+    <table>
+      <colgroup><col style="width:22%"><col style="width:28%"><col style="width:22%"><col style="width:28%"></colgroup>
+      <tr>
+        <td class="label">DOA with time</td>
+        <td class="value">{{ hospital.admissionDate or '' }}</td>
+        <td class="label">DOD with time</td>
+        <td class="value">{{ hospital.dischargeDate or '' }}</td>
+      </tr>
+    </table>
+    <table>
+      <tr><td class="label center">Brief Findings</td></tr>
+      <tr><td class="value narrative-box">{{ facts.hospital_visit_brief_findings or '' }}</td></tr>
+    </table>
+  </div>
+
+  <!-- ── Patient Visit Finding ── -->
+  <div class="section-title">Patient Visit Finding</div>
+
+  <table>
+    <colgroup><col style="width:32%"><col style="width:68%"></colgroup>
+    <tr><td class="label">Name of Patient</td><td class="value">{{ case.claimantName or '' }}</td></tr>
+    <tr><td class="label">Age of Patient</td><td class="value">{{ case.claimantAge or '' }}</td></tr>
+    <tr><td class="label">Occupation</td><td class="value">{{ facts.patient_occupation or '' }}</td></tr>
+    <tr><td class="label">Address</td><td class="value">{{ case.claimantAddress or '' }}</td></tr>
+    <tr><td class="label">Mobile No</td><td class="value">{{ case.claimantMobile or '' }}</td></tr>
+    <tr><td class="label">KYC Details</td><td class="value">{{ facts.kyc_details or '' }}</td></tr>
+    <tr><td class="label">Chief Complaints with Duration</td><td class="value narrative-box">{{ facts.chief_complaints_patient or '' }}</td></tr>
+    <tr><td class="label">Previous Consultation Details</td><td class="value narrative-box">{{ facts.previous_consultation_details or '' }}</td></tr>
+    <tr><td class="label">P/H/O any Major Disease</td><td class="value narrative-box">{{ facts.past_history_major_disease or '' }}</td></tr>
+    <tr><td class="label">Family Physician/Referring Doctor Details and Mobile No</td><td class="value">{{ case.familyDoctor or '' }}</td></tr>
+    <tr><td class="label">Distance Checking</td><td class="value">{{ facts.distance_checking or '' }}</td></tr>
+    <tr><td class="label">Mode of Payment</td><td class="value">{{ facts.mode_of_payment or '' }}</td></tr>
+  </table>
+  <table>
+    <tr><td class="label center">Brief Findings</td></tr>
+    <tr><td class="value narrative-box">{{ facts.patient_visit_brief_findings or '' }}</td></tr>
+  </table>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!-- PAGE 3 — Other Findings + Pharmacy + Lab/Radiologist         -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<div class="page">
+
+  <!-- ── Other Investigation Findings ── -->
+  <div class="section-title">Other Investigation Findings</div>
+
+  <table>
+    <colgroup><col style="width:32%"><col style="width:68%"></colgroup>
+    <tr><td class="label">Work Place Visit</td><td class="value">{{ facts.workplace_visit or 'NOT DONE' }}</td></tr>
+    <tr><td class="label">Employer Visit Findings</td><td class="value narrative-box">{{ facts.employer_visit_findings or 'NOT DONE' }}</td></tr>
+    <tr><td class="label">Social Media Findings</td><td class="value narrative-box">{{ facts.social_media_findings or 'NOT DONE' }}</td></tr>
+    <tr><td class="label">Google Map Location Details</td><td class="value narrative-box">{{ facts.google_map_location_details or '' }}</td></tr>
+  </table>
+
+  <!-- ── Pharmacy Visit Finding ── -->
+  <div class="section-title">Pharmacy Visit Finding</div>
+
+  <table>
+    <colgroup><col style="width:32%"><col style="width:68%"></colgroup>
+    <tr><td class="label">Address of Pharmacy</td><td class="value">{{ facts.pharmacy_address or 'NA' }}</td></tr>
+    <tr><td class="label">Drug License No</td><td class="value">{{ facts.pharmacy_drug_license_no or 'NA' }}</td></tr>
+    <tr><td class="label">Inward-Outward Purchase Invoice</td><td class="value">{{ facts.pharmacy_invoice_details or 'NA' }}</td></tr>
+    <tr><td class="label">Bills Verified</td><td class="value">{{ facts.pharmacy_bills_verified or 'Yes/No' }}</td></tr>
+  </table>
+  <table>
+    <tr><td class="label center">Brief Findings</td></tr>
+    <tr><td class="value narrative-box">{{ facts.pharmacy_brief_findings or '' }}</td></tr>
+  </table>
+
+  <!-- ── Laboratory / Radiologist Visit Findings ── -->
+  <div class="section-title">Laboratory/Radiologist Visit Findings</div>
+
+  <table>
+    <colgroup><col style="width:32%"><col style="width:68%"></colgroup>
+    <tr><td class="label">Name of Laboratory/Radiology</td><td class="value">{{ facts.lab_name or 'NA' }}</td></tr>
+    <tr><td class="label">Address of Laboratory/Radiology</td><td class="value">{{ facts.lab_address or 'NA' }}</td></tr>
+    <tr><td class="label">Pathologist/Radiologist Name and Mobile No</td><td class="value">{{ facts.pathologist_name_mobile or 'NA' }}</td></tr>
+    <tr><td class="label">Pathologist/Radiologist Registration No</td><td class="value">{{ facts.pathologist_reg_no or 'NA' }}</td></tr>
+    <tr><td class="label">Association of Pathologist with Labs</td><td class="value">{{ facts.pathologist_lab_association or 'NA' }}</td></tr>
+    <tr><td class="label">Distance from Laboratory</td><td class="value">{{ facts.lab_distance or 'NA' }}</td></tr>
+    <tr><td class="label">Reports Verified</td><td class="value">{{ facts.lab_reports_verified or 'Yes/No' }}</td></tr>
+  </table>
+  <table>
+    <tr><td class="label center">Brief Findings</td></tr>
+    <tr><td class="value narrative-box">{{ facts.lab_brief_findings or '' }}</td></tr>
+  </table>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!-- PAGE 4 — Overall Findings / Conclusion / Sign-off            -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<div class="page">
+
+  <!-- ── Overall Findings & Conclusion ── -->
+  <div class="section-title">Overall Findings &amp; Conclusion</div>
+
+  <table>
+    <colgroup><col style="width:32%"><col style="width:68%"></colgroup>
+    <tr><td class="label">Overall Findings and Observation</td><td class="value narrative-box">{{ facts.overall_findings_observation or '' }}</td></tr>
+    <tr><td class="label">Evidences / Grade</td><td class="value">{{ facts.evidences_grade or '' }}</td></tr>
+    <tr><td class="label">Enclosure/Evidences</td><td class="value narrative-box">{{ case.enclosures or '' }}</td></tr>
+    <tr><td class="label">Conclusion/Recommendation</td><td class="value narrative-box">{{ facts.conclusion_recommendation or '' }}</td></tr>
+  </table>
+
+  <div class="disclaimer">
+    The Investigation Report is being issued without prejudice, which is meant strictly confidential and subject to
+    Terms &amp; Conditions of Insurance Policy under which the subject claim is lodged.
+  </div>
+
+  <!-- ── Sign-off ── -->
+  <div class="section-block" style="margin-top:20px;">
+    <table>
+      <colgroup><col style="width:32%"><col style="width:68%"></colgroup>
+      <tr><td class="label">Report made by</td><td class="value">{{ case.reportMadeBy or 'DR ANJANA R MOHAN' }}</td></tr>
+      <tr><td class="label">Name of Vendor</td><td class="value">{{ case.vendorName or 'OPTIMUS MEDICAL SERVICES PVT LIMITED' }}</td></tr>
+      <tr>
+        <td class="label signature-box">Authorized Signatory and Stamp</td>
+        <td class="signature-box">
+          {% if show_stamp != false %}
+            <img src="{{ stamp_image }}" class="real-stamp" alt="Stamp">
+          {% endif %}
+        </td>
+      </tr>
+    </table>
+  </div>
+
+</div>
+
+</body>
+</html>

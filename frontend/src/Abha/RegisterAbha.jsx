@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Fragment } from "react";
 import { useNavigate } from "react-router-dom";
 
 const API_BASE_URL = import.meta.env.VITE_BACKEND_URL;
@@ -14,7 +14,9 @@ function RegisterAbha() {
   const [txnId, setTxnId] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [gatewayDown, setGatewayDown] = useState(false); // ABDM-1206 / 503 on confirm-otp
   const [suggestions, setSuggestions] = useState([]);
+  const [suggestLoading, setSuggestLoading] = useState(false);
 
   const segRefs = [useRef(null), useRef(null), useRef(null)];
 
@@ -60,9 +62,12 @@ function RegisterAbha() {
     else segRefs[0].current.focus();
   };
 
-  /* ── Step 1: Request OTP ── */
+  /* ── Step 1: Request OTP ──
+     Also used by the gateway-retry button on step 2, so it must be safe to
+     call again with the Aadhaar number already in state. */
   const handleRequestOtp = async () => {
     setError("");
+    setGatewayDown(false);
     if (!/^\d{12}$/.test(aadhaarRaw)) {
       setError("Please enter a valid 12-digit Aadhaar number");
       return;
@@ -77,6 +82,7 @@ function RegisterAbha() {
       if (!res.ok) throw new Error();
       const data = await res.json();
       setTxnId(data.txnId);
+      setOtp(""); // old OTP (if any) is for a dead txnId — never reuse it
       setStep(2);
     } catch {
       setError("Unable to request OTP. Please try again.");
@@ -85,9 +91,17 @@ function RegisterAbha() {
     }
   };
 
+  /* Retry after ABDM's Aadhaar gateway (503 / ABDM-1206) rejected the OTP.
+     The txnId is dead at that point, so this silently gets a fresh one and
+     stays on step 2 — the user only has to enter the new OTP and mobile again. */
+  const handleGatewayRetry = () => {
+    handleRequestOtp();
+  };
+
   /* ── Step 2: Verify OTP ── */
   const handleVerifyOtp = async () => {
     setError("");
+    setGatewayDown(false);
     if (!/^\d{6}$/.test(otp)) { setError("Enter valid 6-digit OTP"); return; }
     if (!/^\d{10}$/.test(mobile)) { setError("Enter valid 10-digit mobile number"); return; }
     setLoading(true);
@@ -97,8 +111,20 @@ function RegisterAbha() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ txnId, otp, phone_number: mobile }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "OTP verification failed");
+      const data = await res.json().catch(() => ({}));
+
+      if (res.status === 503) {
+        // ABDM's Aadhaar gateway is down (ABDM-1206). The txnId this OTP was
+        // tied to is now dead — no amount of retrying confirm-otp will help.
+        // Offer a one-tap retry that requests a fresh OTP instead.
+        setGatewayDown(true);
+        throw new Error(
+          data.detail || "Aadhaar gateway is temporarily unavailable. Please try again."
+        );
+      }
+
+      if (!res.ok) throw new Error(data.detail || data.message || "OTP verification failed");
+
       setTxnId(data.txnId);
       if (data.message?.toLowerCase().includes("already exist")) {
         if (data.tokens?.token) {
@@ -117,23 +143,43 @@ function RegisterAbha() {
 
   /* ── Step 3: Fetch suggestions ── */
   useEffect(() => {
-    if (step === 3 && txnId) {
-      fetch(`${API_BASE_URL}abha/auth/address-suggestions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ txnId }),
-      })
-        .then(r => r.json())
-        .then(data => {                                                             //suggestions abdm adress
-    // Check if ABDM sends it as abhaAddressList OR suggestions
-    const addressList = data?.abhaAddressList || data?.suggestions;                       
-    if (addressList) {
-        setSuggestions(addressList); 
-    }
-})                                                                                  //finish
+    if (step !== 3 || !txnId) return;
 
-        .catch(() => {});
-    }
+    let cancelled = false;
+    setSuggestLoading(true);
+
+    fetch(`${API_BASE_URL}abha/auth/address-suggestions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ txnId }),
+    })
+      .then(async (r) => {
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(data?.detail || "Could not load suggestions");
+        return data;
+      })
+      .then((data) => {
+        if (cancelled) return;
+        // Backend now always returns { txnId, abhaAddressList: [string] }.
+        // The fallbacks keep this alive against an un-patched backend.
+        const list = (data?.abhaAddressList || data?.suggestions || [])
+          .map((s) => (typeof s === "string" ? s : s?.abhaAddress || s?.address || ""))
+          .filter(Boolean);
+        setSuggestions(list);
+        if (list.length > 0) setAbhaAddress((prev) => prev || list[0]);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        console.warn("ABHA address suggestions unavailable:", err.message);
+        setSuggestions([]); // fall back to the free-text input
+      })
+      .finally(() => {
+        if (!cancelled) setSuggestLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [step, txnId]);
 
   /* ── Step 3: Create ABHA ── */
@@ -147,11 +193,12 @@ function RegisterAbha() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ txnId, abha_address: abhaAddress }),
       });
-      if (!res.ok) throw new Error();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.detail || "Failed to create ABHA address");
       alert("ABHA created successfully");
       navigate("/profile", { replace: true });
-    } catch {
-      setError("Failed to create ABHA address");
+    } catch (err) {
+      setError(err.message || "Failed to create ABHA address");
     } finally {
       setLoading(false);
     }
@@ -296,9 +343,8 @@ function RegisterAbha() {
                   <label>Aadhaar number</label>
                   <div className="aadhaar-wrap">
                     {[0, 1, 2].map((i) => (
-                      <>
+                      <Fragment key={i}>
                         <input
-                          key={i}
                           ref={segRefs[i]}
                           className="aadhaar-seg"
                           maxLength={4}
@@ -311,7 +357,7 @@ function RegisterAbha() {
                           onPaste={i === 0 ? handleSegPaste : undefined}
                         />
                         {i < 2 && <span className="aadhaar-sep">—</span>}
-                      </>
+                      </Fragment>
                     ))}
                   </div>
                 </div>
@@ -347,7 +393,7 @@ function RegisterAbha() {
                     value={otp}
                     maxLength={6}
                     inputMode="numeric"
-                    onChange={e => setOtp(e.target.value.replace(/\D/g, ""))}
+                    onChange={e => { setOtp(e.target.value.replace(/\D/g, "")); setGatewayDown(false); }}
                   />
                 </div>
                 <div className="field">
@@ -358,7 +404,7 @@ function RegisterAbha() {
                     value={mobile}
                     maxLength={10}
                     inputMode="numeric"
-                    onChange={e => setMobile(e.target.value.replace(/\D/g, ""))}
+                    onChange={e => { setMobile(e.target.value.replace(/\D/g, "")); setGatewayDown(false); }}
                   />
                 </div>
                 <button
@@ -368,6 +414,16 @@ function RegisterAbha() {
                 >
                   {loading ? "Verifying..." : "Verify OTP →"}
                 </button>
+                {gatewayDown && (
+                  <button
+                    onClick={handleGatewayRetry}
+                    disabled={loading}
+                    className="btn-primary"
+                    style={{ background: "#fff", color: "#000" }}
+                  >
+                    {loading ? "Requesting new OTP..." : "Send a new OTP →"}
+                  </button>
+                )}
               </>
             )}
 
@@ -381,7 +437,11 @@ function RegisterAbha() {
                   becomes your permanent health identity.
                 </p>
 
-                {suggestions.length > 0 ? (
+                {suggestLoading ? (
+                  <div className="field">
+                    <label>Loading suggestions…</label>
+                  </div>
+                ) : suggestions.length > 0 ? (
                   <>
                     <div className="field">
                       <label>Suggested addresses</label>
@@ -399,7 +459,7 @@ function RegisterAbha() {
                       <label>Or enter custom address</label>
                       <input
                         className="input"
-                        placeholder="yourname@abha"
+                        placeholder="yourname"
                         value={abhaAddress}
                         onChange={e => setAbhaAddress(e.target.value)}
                       />

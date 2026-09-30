@@ -37,8 +37,10 @@ from PIL import Image
 import fitz  # PyMuPDF
 import pytesseract
 import PyPDF2
+import pathlib
 from groq import Groq
 from fastapi import Query
+import inspect
 from typing import Optional
 from fastapi import Response
 from neo4j import AsyncGraphDatabase
@@ -113,6 +115,7 @@ db = client[MONGO_DB]
 transcription_formats_collection = database["transcription_formats"]
 doctor_user_c = database["doctor_users"]
 hospital_user_c = database["hospital_users"]
+documentation_feature_counter_collection = database["documentation_feature_counter"]
 integrator_save_api_c = database["integrator_save_api"]
 assertion_collections = database["assertion-collections"]
 emergency_patients_collection = database["patients"]
@@ -123,7 +126,7 @@ conversation_user_collection = database["conversation_user"]
 dictation_collection = database["dictation"]
 patient_user_collection = db["patient_users"]
 visit_timeline_collection = db["visit_timeline"]
-
+visit_summary_collection =db["visit_summary_collection"]
 synoptic_collection = database["patient_synoptic_report"]
 oncology_investigations_collection = database["oncology_investigations"]
 documentation_treatment_plan_collection = database["documentation-treatment-plan"]
@@ -282,8 +285,10 @@ surgical_oncology_collection = database["surgical_oncology"]
 protocol_master_prefills_collection = database["protocol_master_prefills"]
 nurse_referral_letters_collection = database["nurse_referral_letters"]
 protocol_master_collection = database["protocol_master"]
+radiotherapy_protocol_collection = database["radiotherapy_protocol_master"]
 
 tumor_board_assignments_collection = database["tumor_board_assignments"]
+llm_usage_log_collection = database["llm_usage_log"]  # _id = hospital_id
 
 
 #NEW CLASS START
@@ -2693,7 +2698,7 @@ async def get_current_context(
 #     # 4️⃣ LLM EXECUTION
 #     # ==========================================================
 #     completion = groq_client.chat.completions.create(
-#         model="llama-3.1-8b-instant",
+#         model="openai/gpt-oss-20b",
 #         messages=[{"role": "user", "content": prompt}],
 #         temperature=0.2,
 #         max_tokens=200
@@ -2942,7 +2947,7 @@ Output now:
     )
 
     completion = groq_client.chat.completions.create(
-        model="llama-3.1-8b-instant",
+        model="openai/gpt-oss-20b",
         messages=[{"role": "user", "content": prompt}],
         temperature=0.1,  # Lower temperature for more deterministic output
         max_tokens=250
@@ -5631,6 +5636,51 @@ async def save_documentation_features_bulk(payload: dict):
         logger.info("✅ Incoming bulk documentation payload")
 
         documents = payload.get("documents")
+        
+        
+        
+        feature_count = len(documents)
+
+        logger.info(
+            f"📊 Total incoming feature count: {feature_count}"
+        )
+
+        # Get doctor_id and patient_id from the bulk payload
+        first_metadata = documents[0].get("metadata", {})
+
+        doctor_id = first_metadata.get("doctor_id")
+        patient_id = first_metadata.get("patient_id")
+
+        # ======================================================
+        # 🔢 UPDATE FEATURE COUNTER COLLECTION
+        # ======================================================
+        if doctor_id and patient_id:
+
+            await documentation_feature_counter_collection.update_one(
+                {
+                    "doctor_id": doctor_id,
+                    "patient_id": patient_id
+                },
+                {
+                    "$inc": {
+                        "feature_count": feature_count
+                    },
+                    "$set": {
+                        "updated_at": datetime.utcnow()
+                    },
+                    "$setOnInsert": {
+                        "created_at": datetime.utcnow()
+                    }
+                },
+                upsert=True
+            )
+
+            logger.info(
+                "📊 Feature counter updated | doctor=%s | patient=%s | added=%s",
+                doctor_id,
+                patient_id,
+                feature_count
+            )
 
         if not documents or not isinstance(documents, list):
             return JSONResponse(
@@ -8609,7 +8659,7 @@ OUTPUT SCHEMA (DO NOT MODIFY)
 """
 
         completion = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             temperature=0.1,
             max_tokens=8000,
             response_format={"type": "json_object"},
@@ -9184,7 +9234,7 @@ If verification contradicts TNM field → downgrade accuracy to 70%
 """
 
         completion = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             temperature=0.1,
             max_tokens=7000,
             response_format={"type": "json_object"},
@@ -9556,7 +9606,7 @@ OUTPUT SCHEMA (DO NOT MODIFY)
 """
 
     completion = groq_client.chat.completions.create(
-        model="llama-3.1-8b-instant",
+        model="openai/gpt-oss-20b",
         temperature=0.1,
         max_tokens=7000,
         response_format={"type": "json_object"},
@@ -11428,7 +11478,7 @@ OUTPUT ONLY THE JSON OBJECT. NO MARKDOWN. NO EXPLANATIONS.
 """
 
         completion = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             temperature=0.1,
             max_tokens=5000,
             response_format={"type": "json_object"},
@@ -12917,7 +12967,7 @@ OUTPUT ONLY VALID JSON.
 """
 
         completion = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             temperature=0,
             max_tokens=8000,
             response_format={"type": "json_object"},
@@ -14968,7 +15018,7 @@ OUTPUT ONLY JSON. NO MARKDOWN. NO EXPLANATIONS.
 """
 
         # completion = groq_client.chat.completions.create(
-        #     model="llama-3.1-8b-instant",
+        #     model="openai/gpt-oss-20b",
         #     temperature=0.1,
         #     max_tokens=7000,
         #     response_format={"type": "json_object"},
@@ -14978,7 +15028,7 @@ OUTPUT ONLY JSON. NO MARKDOWN. NO EXPLANATIONS.
         # processed_output = json.loads(completion.choices[0].message.content)
 
         completion = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             temperature=0.1,
             max_tokens=3500,  # 🔥 reduce this for stability
             response_format={"type": "json_object"},
@@ -16267,6 +16317,7 @@ class TempDataUpdate(BaseModel):
     patient_id: str
     doctor_id: str
     # Everything as LIST
+    appointment: Optional[List[Dict[str, Any]]] = None  # ADD HERE
     vitals: Optional[List[Dict[str, Any]]] = None
     documentation: Optional[List[Dict[str, Any]]] = None
     medication_list: Optional[List[Any]] = None
@@ -16282,6 +16333,8 @@ class TempDataUpdate(BaseModel):
     tumor_board_plan: Optional[List[Any]] = None
     lab_reports: Optional[List[Dict[str, Any]]] = None
     visit_summary: Optional[Dict[str, Any]] = None
+    radiotherapy_workflow_procedure: Optional[List[Dict[str, Any]]] = None
+    screening_workflow: Optional[List[Dict[str, Any]]] = None
 
 @router.post("/general/temp/save")
 async def save_temp_data(data: TempDataUpdate):
@@ -16539,7 +16592,7 @@ DATA INPUT:
         # =====================================================
 
         completion = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.2,
             response_format={"type": "json_object"},
@@ -16848,7 +16901,7 @@ Return ONLY JSON.
 
     try:
         completion = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.1,
             max_tokens=1500,
@@ -17449,7 +17502,7 @@ Transcribed text:
 
         try:
             completion = groq_client.chat.completions.create(
-                model="llama-3.1-8b-instant",
+                model="openai/gpt-oss-20b",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.1,
                 response_format={"type": "json_object"},
@@ -18809,6 +18862,15 @@ async def save_voice_dictation(dictation_data: VoiceDictationRequest):
             }
         )
         
+        try:
+            async with httpx.AsyncClient(timeout=5) as client:
+                await client.post(
+                    "https://doctorassist.ai/api/hms/users/ambulance/notify-doctor-update",
+                    json={"patient_id": patient_id, "update_type": "EMT_VOICE_NOTE_SAVED"},
+                )
+        except Exception as notify_err:
+            logger.warning(f"Doctor notify failed (non-critical): {notify_err}")
+
         return {
             "status": "success",
             "message": "Voice dictation saved successfully",
@@ -20422,6 +20484,36 @@ async def get_latest_patient_summary(patient_id: str):
         logger.error(f"❌ Failed fetching patient summary: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@router.get("/all/patient-summary/{patient_id}")
+async def get_patient_summaries(patient_id: str):
+    try:
+        docs = await summary_collection.find(
+            {"patient_id": patient_id}
+        ).sort("generated_at", -1).to_list(None)
+
+        if not docs:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No patient summaries found for patient_id={patient_id}"
+            )
+
+        for doc in docs:
+            doc["_id"] = str(doc["_id"])
+
+        return {
+            "status": "success",
+            "count": len(docs),
+            "data": docs
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Failed fetching patient summaries: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/processed-documents/{patient_id}")
 async def fetch_processed_documents(patient_id: str):
 
@@ -21112,7 +21204,7 @@ async def extract_pain_management_fields(payload: dict):
             raise HTTPException(status_code=400, detail="dictation is required")
 
         completion = groq_client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="openai/gpt-oss-120b",
             messages=[
                 {"role": "system", "content": PAIN_CHAR_EXTRACT_FIELDS_PROMPT},
                 {"role": "user", "content": dictation},
@@ -21270,7 +21362,7 @@ async def extract_nerve_block_fields(payload: dict):
             raise HTTPException(status_code=400, detail="dictation is required")
  
         completion = groq_client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="openai/gpt-oss-120b",
             messages=[
                 {"role": "system", "content": NERVE_BLOCK_EXTRACT_FIELDS_PROMPT},
                 {"role": "user", "content": dictation},
@@ -21447,7 +21539,7 @@ async def summarize_pain_management_history(patient_id: str, doctor_id: str):
         history_text = json.dumps(records, indent=2, default=str)
  
         completion = groq_client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="openai/gpt-oss-120b",
             messages=[
                 {"role": "system", "content": PAIN_HISTORY_SUMMARY_PROMPT},
                 {"role": "user", "content": history_text},
@@ -21549,7 +21641,7 @@ async def get_latest_medications_summary(patient_id: str, doctor_id: str):
         prescriptions_text = json.dumps(real_prescriptions, indent=2, default=str)
  
         completion = groq_client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="openai/gpt-oss-120b",
             messages=[
                 {"role": "system", "content": CURRENT_MEDICATION_SUMMARY_PROMPT},
                 {"role": "user", "content": prescriptions_text},
@@ -24133,7 +24225,7 @@ and assign roles to each sentence as "Doctor" or "Patient".
 
         try:
             completion = groq_client.chat.completions.create(
-                model="llama-3.1-8b-instant",
+                model="openai/gpt-oss-20b",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.1,
                 response_format={"type": "json_object"},
@@ -24267,7 +24359,7 @@ Analyze the conversation transcript and separate each sentence as either spoken 
 
         try:
             completion = groq_client.chat.completions.create(
-                model="llama-3.1-8b-instant",
+                model="openai/gpt-oss-20b",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.1,
                 response_format={"type": "json_object"},
@@ -24401,7 +24493,7 @@ Return only JSON.
 """
 
         completion = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             messages=[
                 {
                     "role": "user",
@@ -24462,6 +24554,7 @@ async def save_chemotherapy_record(request: Request):
         hospital_id = data.get("hospitalId", "")
         treatment_id = data.get("treatmentId")
         status = data.get("status", "active")
+        active_tab = data.get("activeTab", "overview")
         
         if not doc_id or not patient_id:
             raise HTTPException(status_code=400, detail="doctorId and patientId are required")
@@ -24520,13 +24613,534 @@ async def save_chemotherapy_record(request: Request):
             del record["_id"]
 
         # ==========================================================
-        # 🔥 TEMP DATA SAVE
+        # 🔥 TEMP DATA SAVE - ONLY CURRENT TAB'S DATA
         # ==========================================================
         from fastapi.encoders import jsonable_encoder
+        
+        # Get the full data from the record
+        full_data = record.get("data", {})
+        
+        # If full_data is empty, try to get it from the request directly
+        if not full_data:
+            full_data = data.get("formData", {})
+            logger.info(f"Using formData from request")
+        
+        # Get the cycles data (contains most tab data)
+        cycles_data = full_data.get("cycles", {})
+        cycle_1_data = cycles_data.get("1", {}) if cycles_data else {}
+        
+        # Get the current cycle from treatment
+        current_cycle = record.get("treatment", {}).get("currentCycle", 1)
+        
+        # Get only the data for the active tab
+        tab_data = full_data.get(active_tab, {})
+        
+        # If tab_data is empty, use the appropriate source
+        if not tab_data:
+            logger.warning(f"tab_data for '{active_tab}' is empty, using fallback source")
+            
+            # Map tabs to their data sources
+            tab_source_mapping = {
+                "overview": full_data,
+                "partA": cycle_1_data.get("regimen", {}),
+                "partB": cycle_1_data.get("pre_chemo", {}) or cycle_1_data.get("prep", {}),
+                "partC": cycle_1_data.get("admin", {}),
+                "partD": cycle_1_data.get("post_chemo", {}),
+                "partE": cycle_1_data.get("completion", {}),
+                "partF": cycle_1_data.get("final_summary", {}) or full_data.get("final_summary", {}),
+                "imaging": full_data.get("imaging", {}),
+                "chemoIntelligence": full_data,
+                "totalDischarge": full_data.get("discharge_summary", {}),
+                "summary": full_data,
+                "cycle_admin": cycle_1_data.get("cycle_admin", {})
+            }
+            
+            tab_data = tab_source_mapping.get(active_tab, {})
+            if not tab_data:
+                tab_data = full_data
+        
+        # If still empty, skip temp save
+        if not tab_data:
+            logger.warning("No data available to save to temp - skipping temp save")
+            return {
+                "status": "success",
+                "message": "Chemotherapy record saved successfully",
+                "treatmentId": treatment_id
+            }
+        
+        # Clean the tab data - remove empty values and large objects
+        clean_tab_data = {}
+        
+        # ==========================================================
+        # OVERVIEW TAB - Extract from summary and assessment
+        # ==========================================================
+        if active_tab == "overview":
+            # 1. Extract from 'summary' (patient demographics)
+            summary = full_data.get("summary", {})
+            if summary:
+                if summary.get("firstName"):
+                    clean_tab_data["patientName"] = summary.get("firstName")
+                if summary.get("age"):
+                    clean_tab_data["patientAge"] = str(summary.get("age"))
+                if summary.get("sex"):
+                    clean_tab_data["patientGender"] = summary.get("sex")
+                if summary.get("registrationDate"):
+                    clean_tab_data["registrationDate"] = summary.get("registrationDate")
+            
+            # 2. Extract from 'assessment' (clinical + allergy data)
+            assessment = full_data.get("assessment", {})
+            if assessment:
+                # Clinical info
+                if assessment.get("diagnosis"):
+                    clean_tab_data["patientDiagnosis"] = assessment.get("diagnosis")
+                if assessment.get("height"):
+                    clean_tab_data["height"] = str(assessment.get("height"))
+                if assessment.get("weight"):
+                    clean_tab_data["weight"] = str(assessment.get("weight"))
+                if assessment.get("serumCreatinine"):
+                    clean_tab_data["serumCreatinine"] = str(assessment.get("serumCreatinine"))
+                if assessment.get("ecog") or assessment.get("performanceStatus"):
+                    clean_tab_data["ecog"] = assessment.get("ecog") or assessment.get("performanceStatus")
+                
+                # Allergy data
+                if assessment.get("allergyStatus"):
+                    clean_tab_data["allergy"] = assessment.get("allergyStatus")
+                if assessment.get("allergies"):
+                    clean_tab_data["allergies"] = assessment.get("allergies")
+                if assessment.get("allergyDrug"):
+                    clean_tab_data["allergyDrug"] = assessment.get("allergyDrug")
+                if assessment.get("allergyType"):
+                    clean_tab_data["allergyType"] = assessment.get("allergyType")
+                if assessment.get("allergySeverity"):
+                    clean_tab_data["allergySeverity"] = assessment.get("allergySeverity")
+                if assessment.get("interactionCheckSource"):
+                    clean_tab_data["interactionCheckSource"] = assessment.get("interactionCheckSource")
+                
+                # Keep full assessment
+                clean_tab_data["assessment"] = assessment
+        
+        # ==========================================================
+        # SUMMARY TAB - Extract from summary and assessment
+        # ==========================================================
+        elif active_tab == "summary":
+            # Summary data is at the top level
+            allowed_fields = [
+                "patientId", "firstName", "lastName", "age", "sex",
+                "registrationDate", "nextDueDate", "activeAlerts",
+                "cycleHistoryNotes"
+            ]
+            for field in allowed_fields:
+                if field in tab_data and tab_data[field] not in [None, "", [], {}, False]:
+                    clean_tab_data[field] = tab_data[field]
+            
+            # Also get assessment summary info
+            assessment = full_data.get("assessment", {})
+            if assessment:
+                if assessment.get("diagnosis"):
+                    clean_tab_data["diagnosis"] = assessment.get("diagnosis")
+                if assessment.get("performanceStatus"):
+                    clean_tab_data["performanceStatus"] = assessment.get("performanceStatus")
+                if assessment.get("diseaseStage"):
+                    clean_tab_data["diseaseStage"] = assessment.get("diseaseStage")
+            
+            # Get treatment progress info
+            treatment_data = record.get("treatment", {})
+            if treatment_data:
+                clean_tab_data["plannedCycles"] = treatment_data.get("plannedCycles", 6)
+                clean_tab_data["completedCycles"] = treatment_data.get("completedCycles", 0)
+                clean_tab_data["status"] = treatment_data.get("status", "active")
+        
+        # ==========================================================
+        # CYCLE ADMIN TAB
+        # ==========================================================
+        elif active_tab == "cycle_admin":
+            # Get cycle admin data from the current cycle
+            cycle_admin = tab_data
+            if cycle_admin:
+                allowed_fields = [
+                    "cycleDate1", "cycleH1", "cycleWbc1", "cycleAnc1", 
+                    "cyclePlatelets1", "cycleDrugs1", "evaluation", "remarks",
+                    "medsGiven", "cycleCompleted", "notCompletedReason"
+                ]
+                for field in allowed_fields:
+                    if field in cycle_admin and cycle_admin[field] not in [None, "", [], {}, False]:
+                        clean_tab_data[field] = cycle_admin[field]
+            
+            # Also include drugs from admin section
+            admin = cycle_1_data.get("admin", {})
+            if admin:
+                if admin.get("adminDrugs"):
+                    clean_tab_data["adminDrugs"] = admin.get("adminDrugs")
+                if admin.get("totalDose"):
+                    clean_tab_data["totalDose"] = admin.get("totalDose")
+                if admin.get("adminRoute"):
+                    clean_tab_data["adminRoute"] = admin.get("adminRoute")
+                if admin.get("preMedication"):
+                    clean_tab_data["preMedication"] = admin.get("preMedication")
+                if admin.get("patientIdConfirmed") is not None:
+                    clean_tab_data["patientIdConfirmed"] = admin.get("patientIdConfirmed")
+                if admin.get("regimenConfirmed") is not None:
+                    clean_tab_data["regimenConfirmed"] = admin.get("regimenConfirmed")
+            
+            # Get cycle number
+            clean_tab_data["cycleNumber"] = current_cycle
+        
+        # ==========================================================
+        # PART A - Protocol Master
+        # ==========================================================
+        elif active_tab == "partA":
+            # Data is in cycle_1_data.regimen
+            regimen = cycle_1_data.get("regimen", {})
+            if regimen:
+                if regimen.get("treatmentIntent"):
+                    clean_tab_data["intent"] = regimen.get("treatmentIntent")
+                if regimen.get("selectedProtocol"):
+                    clean_tab_data["protocolName"] = regimen.get("selectedProtocol")
+                if regimen.get("startDate"):
+                    clean_tab_data["startDate"] = regimen.get("startDate")
+                if regimen.get("cycles") or regimen.get("plannedCycles"):
+                    clean_tab_data["cycles"] = str(regimen.get("cycles") or regimen.get("plannedCycles"))
+                if regimen.get("daysBetween") or regimen.get("daysBetweenCycles"):
+                    clean_tab_data["daysBetween"] = str(regimen.get("daysBetween") or regimen.get("daysBetweenCycles"))
+                if regimen.get("protocolDetails"):
+                    clean_tab_data["protocolDetails"] = regimen.get("protocolDetails")
+                if regimen.get("doseAdjustments"):
+                    clean_tab_data["doseAdjustments"] = regimen.get("doseAdjustments")
+                if regimen.get("concurrentTherapy"):
+                    clean_tab_data["concurrentTherapy"] = regimen.get("concurrentTherapy")
+                if regimen.get("reasonForChange"):
+                    clean_tab_data["reasonForChange"] = regimen.get("reasonForChange")
+                if regimen.get("drugs"):
+                    clean_tab_data["drugs"] = regimen.get("drugs")
+                if regimen.get("chemoType") or regimen.get("typeOfChemotherapy"):
+                    clean_tab_data["chemoType"] = regimen.get("chemoType") or regimen.get("typeOfChemotherapy")
+                if regimen.get("protocolMasterRef"):
+                    clean_tab_data["protocolMasterRef"] = regimen.get("protocolMasterRef")
+            
+            # Also get details if available
+            details = cycle_1_data.get("details", {})
+            if details:
+                if details.get("consultantName"):
+                    clean_tab_data["consultantName"] = details.get("consultantName")
+        
+        # ==========================================================
+        # PART B - Doctor's Notes
+        # ==========================================================
+        elif active_tab == "partB":
+            # Get from pre_chemo
+            pre_chemo = cycle_1_data.get("pre_chemo", {})
+            if pre_chemo:
+                if pre_chemo.get("currentLabs"):
+                    clean_tab_data["currentLabs"] = pre_chemo.get("currentLabs")
+                if pre_chemo.get("venousAccess"):
+                    clean_tab_data["venousAccess"] = pre_chemo.get("venousAccess")
+                if pre_chemo.get("informedConsent") is not None:
+                    clean_tab_data["consentTaken"] = "yes" if pre_chemo.get("informedConsent") else "no"
+                if pre_chemo.get("safetyVerified"):
+                    clean_tab_data["safetyVerified"] = pre_chemo.get("safetyVerified")
+                if pre_chemo.get("emergencyMeds"):
+                    clean_tab_data["emergencyMeds"] = pre_chemo.get("emergencyMeds")
+                if pre_chemo.get("docOngoingTox"):
+                    clean_tab_data["docOngoingTox"] = pre_chemo.get("docOngoingTox")
+            
+            # Get from prep
+            prep = cycle_1_data.get("prep", {})
+            if prep:
+                if prep.get("pharmacyVerification") is not None:
+                    clean_tab_data["pharmacyVerification"] = prep.get("pharmacyVerification")
+                if prep.get("nurseVerification") is not None:
+                    clean_tab_data["nurseVerification"] = prep.get("nurseVerification")
+                if prep.get("prepPPE") is not None:
+                    clean_tab_data["prepPPE"] = prep.get("prepPPE")
+                if prep.get("labelingDetails"):
+                    clean_tab_data["labelingDetails"] = prep.get("labelingDetails")
+                if prep.get("drugPreparations"):
+                    clean_tab_data["drugPreparations"] = prep.get("drugPreparations")
+                
+                # Treatment decision from prep
+                if prep.get("treatmentDecision"):
+                    clean_tab_data["treatmentDecision"] = prep.get("treatmentDecision")
+                if prep.get("treatmentDecisionJustification"):
+                    clean_tab_data["treatmentDecisionJustification"] = prep.get("treatmentDecisionJustification")
+            
+            # Consultant from details
+            details = cycle_1_data.get("details", {})
+            if details and details.get("consultantName"):
+                clean_tab_data["consultantName"] = details.get("consultantName")
+        
+        # ==========================================================
+        # PART C - Nurse's Notes
+        # ==========================================================
+        elif active_tab == "partC":
+            admin = cycle_1_data.get("admin", {})
+            if admin:
+                if admin.get("planDate"):
+                    clean_tab_data["planDate"] = admin.get("planDate")
+                if admin.get("adminRoute"):
+                    clean_tab_data["adminRoute"] = admin.get("adminRoute")
+                if admin.get("adminRouteNotes"):
+                    clean_tab_data["adminRouteNotes"] = admin.get("adminRouteNotes")
+                if admin.get("wardType"):
+                    clean_tab_data["wardType"] = admin.get("wardType")
+                if admin.get("totalDose"):
+                    clean_tab_data["totalDose"] = admin.get("totalDose")
+                if admin.get("patientIdConfirmed") is not None:
+                    clean_tab_data["patientIdConfirmed"] = admin.get("patientIdConfirmed")
+                if admin.get("regimenConfirmed") is not None:
+                    clean_tab_data["regimenConfirmed"] = admin.get("regimenConfirmed")
+                if admin.get("preMedication"):
+                    clean_tab_data["preMedication"] = admin.get("preMedication")
+                if admin.get("adminDrugs"):
+                    clean_tab_data["drugs"] = admin.get("adminDrugs")
+                
+                # Vitals
+                vitals = admin.get("vitals", {})
+                if vitals:
+                    if vitals.get("tempPre"):
+                        clean_tab_data["tempPre"] = vitals.get("tempPre")
+                    if vitals.get("tempDuring"):
+                        clean_tab_data["tempDuring"] = vitals.get("tempDuring")
+                    if vitals.get("tempPost"):
+                        clean_tab_data["tempPost"] = vitals.get("tempPost")
+                    if vitals.get("pulsePre"):
+                        clean_tab_data["pulsePre"] = vitals.get("pulsePre")
+                    if vitals.get("pulseDuring"):
+                        clean_tab_data["pulseDuring"] = vitals.get("pulseDuring")
+                    if vitals.get("pulsePost"):
+                        clean_tab_data["pulsePost"] = vitals.get("pulsePost")
+                    if vitals.get("bpPre"):
+                        clean_tab_data["bpPre"] = vitals.get("bpPre")
+                    if vitals.get("bpDuring"):
+                        clean_tab_data["bpDuring"] = vitals.get("bpDuring")
+                    if vitals.get("bpPost"):
+                        clean_tab_data["bpPost"] = vitals.get("bpPost")
+                    if vitals.get("rrPre"):
+                        clean_tab_data["rrPre"] = vitals.get("rrPre")
+                    if vitals.get("rrDuring"):
+                        clean_tab_data["rrDuring"] = vitals.get("rrDuring")
+                    if vitals.get("rrPost"):
+                        clean_tab_data["rrPost"] = vitals.get("rrPost")
+                    if vitals.get("spo2Pre"):
+                        clean_tab_data["spo2Pre"] = vitals.get("spo2Pre")
+                    if vitals.get("spo2During"):
+                        clean_tab_data["spo2During"] = vitals.get("spo2During")
+                    if vitals.get("spo2Post"):
+                        clean_tab_data["spo2Post"] = vitals.get("spo2Post")
+                    if vitals.get("painPre"):
+                        clean_tab_data["painPre"] = vitals.get("painPre")
+                    if vitals.get("painDuring"):
+                        clean_tab_data["painDuring"] = vitals.get("painDuring")
+                    if vitals.get("painPost"):
+                        clean_tab_data["painPost"] = vitals.get("painPost")
+        
+        # ==========================================================
+        # PART D - Toxicity Monitoring
+        # ==========================================================
+        elif active_tab == "partD":
+            post_chemo = cycle_1_data.get("post_chemo", {})
+            if post_chemo:
+                if post_chemo.get("toxicities"):
+                    clean_tab_data["toxicities"] = post_chemo.get("toxicities")
+                if post_chemo.get("postponeTreatment"):
+                    clean_tab_data["postponeTreatment"] = post_chemo.get("postponeTreatment")
+                if post_chemo.get("postponeReason"):
+                    clean_tab_data["postponeReason"] = post_chemo.get("postponeReason")
+                if post_chemo.get("postponeDays"):
+                    clean_tab_data["postponeDays"] = post_chemo.get("postponeDays")
+                if post_chemo.get("postponeFromDate"):
+                    clean_tab_data["postponeFromDate"] = post_chemo.get("postponeFromDate")
+                if post_chemo.get("postponeUntilDate"):
+                    clean_tab_data["postponeUntilDate"] = post_chemo.get("postponeUntilDate")
+                if post_chemo.get("monitoringPeriod"):
+                    clean_tab_data["monitoringPeriod"] = post_chemo.get("monitoringPeriod")
+                if post_chemo.get("nadirLabs"):
+                    clean_tab_data["nadirLabs"] = post_chemo.get("nadirLabs")
+                if post_chemo.get("sideEffectMgt"):
+                    clean_tab_data["sideEffectMgt"] = post_chemo.get("sideEffectMgt")
+                if post_chemo.get("interimImaging"):
+                    clean_tab_data["interimImaging"] = post_chemo.get("interimImaging")
+                if post_chemo.get("responseCriteria"):
+                    clean_tab_data["responseCriteria"] = post_chemo.get("responseCriteria")
+                if post_chemo.get("tumorBoardReview"):
+                    clean_tab_data["tumorBoardReview"] = post_chemo.get("tumorBoardReview")
+                if post_chemo.get("tumorBoardReviewDetails"):
+                    clean_tab_data["tumorBoardReviewDetails"] = post_chemo.get("tumorBoardReviewDetails")
+                if post_chemo.get("organCardiac"):
+                    clean_tab_data["organCardiac"] = post_chemo.get("organCardiac")
+                if post_chemo.get("organPulmonary"):
+                    clean_tab_data["organPulmonary"] = post_chemo.get("organPulmonary")
+                if post_chemo.get("organNeuro"):
+                    clean_tab_data["organNeuro"] = post_chemo.get("organNeuro")
+                if post_chemo.get("organAudio"):
+                    clean_tab_data["organAudio"] = post_chemo.get("organAudio")
+                if post_chemo.get("trtUrineProtein"):
+                    clean_tab_data["trtUrineProtein"] = post_chemo.get("trtUrineProtein")
+                if post_chemo.get("trtThyroid"):
+                    clean_tab_data["trtThyroid"] = post_chemo.get("trtThyroid")
+                if post_chemo.get("trtGlucose"):
+                    clean_tab_data["trtGlucose"] = post_chemo.get("trtGlucose")
+                if post_chemo.get("trtEcg"):
+                    clean_tab_data["trtEcg"] = post_chemo.get("trtEcg")
+        
+        # ==========================================================
+        # PART E - Discharge (On Treatment)
+        # ==========================================================
+        elif active_tab == "partE":
+            completion = cycle_1_data.get("completion", {})
+            if completion:
+                if completion.get("toleratedWell") is not None:
+                    clean_tab_data["tolerated"] = "yes" if completion.get("toleratedWell") else "no"
+                if completion.get("watchSymptoms"):
+                    watch = completion.get("watchSymptoms", {})
+                    clean_tab_data["watchPain"] = watch.get("pain", False)
+                    clean_tab_data["watchMotions"] = watch.get("motions", False)
+                    clean_tab_data["watchFever"] = watch.get("fever", False)
+                    clean_tab_data["watchVomiting"] = watch.get("vomiting", False)
+                    clean_tab_data["watchMouth"] = watch.get("mouth", False)
+                if completion.get("dischargeDrugs"):
+                    clean_tab_data["dischargeDrugs"] = completion.get("dischargeDrugs")
+                if completion.get("followUpSchedule"):
+                    clean_tab_data["followUpDoctor"] = completion.get("followUpSchedule")
+                if completion.get("followUpDaycare"):
+                    clean_tab_data["followUpDaycare"] = completion.get("followUpDaycare")
+                if completion.get("treatmentCompletionStatus"):
+                    clean_tab_data["treatmentCompletionStatus"] = completion.get("treatmentCompletionStatus")
+                if completion.get("treatmentNotCompletedReason"):
+                    clean_tab_data["treatmentNotCompletedReason"] = completion.get("treatmentNotCompletedReason")
+                if completion.get("treatmentNotCompletedNotes"):
+                    clean_tab_data["treatmentNotCompletedNotes"] = completion.get("treatmentNotCompletedNotes")
+                if completion.get("toxicitySummaryText"):
+                    clean_tab_data["toxicitySummaryText"] = completion.get("toxicitySummaryText")
+                if completion.get("cumulativeDoses"):
+                    clean_tab_data["cumulativeDoses"] = completion.get("cumulativeDoses")
+                if completion.get("treatmentOutcomes"):
+                    clean_tab_data["treatmentOutcomes"] = completion.get("treatmentOutcomes")
+                if completion.get("residualToxicity"):
+                    clean_tab_data["residualToxicity"] = completion.get("residualToxicity")
+                if completion.get("endOfResponseTreatment"):
+                    clean_tab_data["endOfResponseTreatment"] = completion.get("endOfResponseTreatment")
+                if completion.get("endOfResponseDate"):
+                    clean_tab_data["endOfResponseDate"] = completion.get("endOfResponseDate")
+        
+        # ==========================================================
+        # PART F - Discharge (Completion)
+        # ==========================================================
+        elif active_tab == "partF":
+            final_summary = full_data.get("final_summary", {}) or cycle_1_data.get("final_summary", {})
+            if final_summary:
+                if final_summary.get("overallAssessment"):
+                    clean_tab_data["overallAssessment"] = final_summary.get("overallAssessment")
+                if final_summary.get("recommendations"):
+                    clean_tab_data["recommendations"] = final_summary.get("recommendations")
+                if final_summary.get("physicianSignature"):
+                    clean_tab_data["physicianSignature"] = final_summary.get("physicianSignature")
+                if final_summary.get("signatureDate"):
+                    clean_tab_data["signatureDate"] = final_summary.get("signatureDate")
+                if final_summary.get("physicianSigned") is not None:
+                    clean_tab_data["physicianSigned"] = final_summary.get("physicianSigned")
+                if final_summary.get("dischargePreparedBy"):
+                    clean_tab_data["dischargePreparedBy"] = final_summary.get("dischargePreparedBy")
+                if final_summary.get("toxicitySummaryText"):
+                    clean_tab_data["toxicitySummaryText"] = final_summary.get("toxicitySummaryText")
+                if final_summary.get("treatmentCompletionStatus"):
+                    clean_tab_data["treatmentCompletionStatus"] = final_summary.get("treatmentCompletionStatus")
+                if final_summary.get("treatmentNotCompletedReason"):
+                    clean_tab_data["treatmentNotCompletedReason"] = final_summary.get("treatmentNotCompletedReason")
+                if final_summary.get("treatmentNotCompletedNotes"):
+                    clean_tab_data["treatmentNotCompletedNotes"] = final_summary.get("treatmentNotCompletedNotes")
+                if final_summary.get("endOfResponseTreatment"):
+                    clean_tab_data["endOfResponseTreatment"] = final_summary.get("endOfResponseTreatment")
+                if final_summary.get("endOfResponseDate"):
+                    clean_tab_data["endOfResponseDate"] = final_summary.get("endOfResponseDate")
+        
+        # ==========================================================
+        # IMAGING STUDIES
+        # ==========================================================
+        elif active_tab == "imaging":
+            allowed_fields = [
+                "ct_scan", "mri", "pet_scan", "pet_ct", "xray",
+                "usg", "mammography", "bone_scan", "spect_scan",
+                "fluoroscopy", "angiography"
+            ]
+            for field in allowed_fields:
+                if field in tab_data and tab_data[field] not in [None, "", [], {}, False]:
+                    clean_tab_data[field] = tab_data[field]
+        
+        # ==========================================================
+        # CHEMOTHERAPY INTELLIGENCE
+        # ==========================================================
+        elif active_tab == "chemoIntelligence":
+            # Only save summary data for intelligence
+            allowed_fields = ["summary", "treatmentHistory", "consultationSummary"]
+            for field in allowed_fields:
+                if field in tab_data and tab_data[field] not in [None, "", [], {}, False]:
+                    clean_tab_data[field] = tab_data[field]
+        
+        # ==========================================================
+        # TOTAL DISCHARGE
+        # ==========================================================
+        elif active_tab == "totalDischarge":
+            allowed_fields = [
+                "dischargeSummary", "finalAssessment", "recommendations",
+                "followUpPlan", "physicianSignature"
+            ]
+            for field in allowed_fields:
+                if field in tab_data and tab_data[field] not in [None, "", [], {}, False]:
+                    clean_tab_data[field] = tab_data[field]
+        
+        # ==========================================================
+        # REMOVE UNWANTED DATA
+        # ==========================================================
+        # Remove cycles if they somehow got in
+        if "cycles" in clean_tab_data:
+            del clean_tab_data["cycles"]
+        
+        # Remove tumor board fields
+        tumor_board_fields = [
+            "tbPastDecision", "tbFollowed", "tbNotFollowedReason",
+            "tbAssign", "tbScheduleDate", "tbQuestion", "tumorBoardPlanData"
+        ]
+        for field in tumor_board_fields:
+            if field in clean_tab_data:
+                del clean_tab_data[field]
+        
+        # Remove empty objects and lists
+        for key in list(clean_tab_data.keys()):
+            value = clean_tab_data[key]
+            if value in [None, "", [], {}, False]:
+                del clean_tab_data[key]
+        
+        # ==========================================================
+        # BUILD THE FILTERED RECORD
+        # ==========================================================
+        filtered_record = {
+            "doctorId": doc_id,
+            "patientId": patient_id,
+            "hospitalId": hospital_id,
+            "status": status,
+            "treatmentId": treatment_id,
+            "updatedAt": datetime.utcnow().isoformat(),
+            "activeTab": active_tab,
+            "data": {active_tab: clean_tab_data},
+            "treatment": {
+                "currentCycle": record.get("treatment", {}).get("currentCycle", 1),
+                "completedCycles": record.get("treatment", {}).get("completedCycles", 0),
+                "plannedCycles": record.get("treatment", {}).get("plannedCycles", 6),
+                "status": record.get("treatment", {}).get("status", "active")
+            }
+        }
+        
+        # Log what we're saving
+        logger.info(f"=== TEMP SAVE - Active Tab: {active_tab} ===")
+        logger.info(f"Data keys being saved: {list(clean_tab_data.keys())}")
+        logger.info(f"Has 'data' field? {'data' in filtered_record}")
+        
         temp_payload = jsonable_encoder({
             "patient_id": patient_id,
             "doctor_id": doc_id,
-            "chemotherapy_workflow": [record]
+            "treatment_id": treatment_id,
+            "active_tab": active_tab,
+            "chemotherapy_workflow": [filtered_record]
         })
 
         try:
@@ -24540,6 +25154,9 @@ async def save_chemotherapy_record(request: Request):
                 logger.error(
                     f"Temp save failed: {temp_response.status_code} - {temp_response.text}"
                 )
+            else:
+                logger.info(f"✅ Temp save successful for tab: {active_tab}")
+                logger.info(f"Saved data size: {len(str(temp_payload))} characters")
 
         except Exception as e:
             logger.error(f"Temp save exception: {str(e)}")
@@ -24552,6 +25169,132 @@ async def save_chemotherapy_record(request: Request):
     except Exception as e:
         logger.error(f"Failed to save chemotherapy record: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+
+@router.delete("/delete-chemotherapy-records")
+async def delete_chemotherapy_records(patientId: str):
+    try:
+        if not patientId:
+            raise HTTPException(
+                status_code=400,
+                detail="patientId is required"
+            )
+
+        delete_result = await chemotherapy_records_collection.delete_many(
+            {
+                "patientId": patientId
+            }
+        )
+
+        deleted_count = delete_result.deleted_count
+
+        logger.info(
+            f"Deleted {deleted_count} chemotherapy record(s) "
+            f"for patient {patientId}"
+        )
+
+        return {
+            "status": "success",
+            "message": "Chemotherapy records deleted successfully",
+            "patientId": patientId,
+            "deletedRecords": deleted_count
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        logger.error(
+            f"Failed to delete chemotherapy records: {e}",
+            exc_info=True
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to delete chemotherapy records"
+        )
+
+@router.get("/get-chemotherapy-record")
+async def get_chemotherapy_record(patientId: str):
+    try:
+        if not patientId:
+            raise HTTPException(
+                status_code=400,
+                detail="patientId is required"
+            )
+
+        # Get chemotherapy record using patientId only
+        record = await chemotherapy_records_collection.find_one(
+            {"patientId": patientId},
+            {"_id": 0},
+            sort=[("updatedAt", -1)]
+        )
+
+        if not record:
+            return {
+                "status": "success",
+                "message": "No chemotherapy record found",
+                "patientId": patientId,
+                "data": {},
+                "treatment": {},
+                "treatmentId": None,
+                "treatmentStatus": None
+            }
+
+        data = record.get("data", {})
+        treatment = record.get("treatment", {})
+
+        ret_treatment_id = record.get("treatmentId")
+        ret_status = record.get("status", "active")
+
+        # Fetch latest medication analysis to auto-populate medsGiven
+        latest_med_event = await documentation_medication_analysis_collection.find_one(
+            {
+                "patient_id": patientId,
+                "feature_id": "documentation-medication-analysis"
+            },
+            sort=[("created_at", -1)]
+        )
+
+        if latest_med_event and "finaloutput" in latest_med_event:
+            prescriptions = latest_med_event["finaloutput"].get(
+                "prescriptions", []
+            )
+
+            if prescriptions:
+                latest_medication = prescriptions[-1].get(
+                    "medication", ""
+                )
+
+                if "cycle_admin" not in data:
+                    data["cycle_admin"] = {}
+
+                if not data["cycle_admin"].get("medsGiven"):
+                    data["cycle_admin"]["medsGiven"] = latest_medication
+
+        return {
+            "status": "success",
+            "patientId": patientId,
+            "data": data,
+            "treatment": treatment,
+            "treatmentId": ret_treatment_id,
+            "treatmentStatus": ret_status
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        logger.error(
+            f"Failed to get chemotherapy record: {e}",
+            exc_info=True
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail="Internal server error"
+        )
 
 @router.get("/get-chemotherapy-record")
 async def get_chemotherapy_record(patientId: str, doctorId: str, hospitalId: str = "", treatmentId: str = None):
@@ -24704,6 +25447,7 @@ async def save_radiotherapy_record(request: Request):
         doc_id = data.get("doctorId")
         patient_id = data.get("patientId")
         is_complete = data.get("isComplete", False)
+        tab_id = data.get("tabId")
         
         if not doc_id or not patient_id:
             raise HTTPException(status_code=400, detail="doctorId and patientId are required")
@@ -24760,14 +25504,64 @@ async def save_radiotherapy_record(request: Request):
         )
 
         # ==========================================================
-        # 🔥 TEMP DATA SAVE
+        # TEMP DATA SAVE
         # ==========================================================
-        
+
         from fastapi.encoders import jsonable_encoder
+        import copy
+
+        if is_complete:
+            # ======================================================
+            # FINAL SAVE
+            # Send complete record to TEMP
+            # BUT remove history and empty fields
+            # ======================================================
+
+            temp_data = copy.deepcopy(existing_data)
+
+            # History is only for MongoDB, don't send to LLM
+            temp_data.pop("history", None)
+
+            # Remove empty values
+            temp_data = remove_empty_fields(temp_data)
+
+            temp_workflow_data = temp_data
+
+        else:
+            # ======================================================
+            # TAB SAVE
+            # Send ONLY the tab that was just saved
+            # ======================================================
+
+            if not tab_id:
+                logger.warning(
+                    "tabId missing for non-final radiotherapy save"
+                )
+                temp_workflow_data = {}
+            else:
+                current_tab_data = copy.deepcopy(
+                    existing_data.get(tab_id, {})
+                )
+
+                # Don't send history
+                if isinstance(current_tab_data, dict):
+                    current_tab_data.pop("history", None)
+
+                # Remove empty fields
+                current_tab_data = remove_empty_fields(
+                    current_tab_data
+                )
+
+                temp_workflow_data = {
+                    tab_id: current_tab_data
+                }
+
         temp_payload = jsonable_encoder({
             "patient_id": patient_id,
             "doctor_id": doc_id,
-            "radiotherapy_workflow": [record]
+            "radiotherapy_workflow": [
+                temp_workflow_data
+            ]
         })
 
         try:
@@ -24861,7 +25655,46 @@ async def save_preventive_screening(request: Request):
             update_doc,
             upsert=True,
         )
+        # ==========================================================
+        # 🔥 TEMP DATA SAVE (Preventive Screening Workflow)
+        # ==========================================================
 
+        from fastapi.encoders import jsonable_encoder
+
+        screening_record = {
+            "patient_id": patient_id,
+            "doctor_id": doctor_id,
+            "appointment_id": appointment_id,
+            "case_history": case_history,
+            "examination": examination,
+            "updated_at": datetime.utcnow()
+        }
+
+        temp_payload = jsonable_encoder({
+            "patient_id": patient_id,
+            "doctor_id": doctor_id,
+            "screening_workflow": [
+                screening_record
+            ]
+        })
+
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                temp_response = await client.post(
+                    f"{api_base_url}hms/users/data/context/general/temp/save",
+                    json=temp_payload
+                )
+
+            if temp_response.status_code != 200:
+                logger.error(
+                    f"Preventive screening temp save failed: "
+                    f"{temp_response.status_code} - {temp_response.text}"
+                )
+
+        except Exception as e:
+            logger.error(
+                f"Preventive screening temp trigger exception: {str(e)}"
+            )
         return {
             "status": "success",
             "patient_id": patient_id,
@@ -25209,13 +26042,11 @@ async def get_documentation_outputs(patient_id: str, doctor_id: str):
     logger.info(f"[get-documentation-outputs] doctor_appts sorted: {[(a.get('appointment_id'), a.get('date')) for a in doctor_appts]}")
 
     current_appointment_id = doctor_appts[-1].get("appointment_id")   # latest = current
-    previous_appointment_id = (
-        doctor_appts[-2].get("appointment_id") if len(doctor_appts) >= 2 else None
-    )
+    candidate_appts = [a.get("appointment_id") for a in doctor_appts[:-1]][::-1]  # most recent first
     logger.info(f"[get-documentation-outputs] current_appointment_id={current_appointment_id}")
-    logger.info(f"[get-documentation-outputs] previous_appointment_id={previous_appointment_id}")
+    logger.info(f"[get-documentation-outputs] candidate previous appointment_ids (most recent first): {candidate_appts}")
 
-    if not previous_appointment_id:
+    if not candidate_appts:
         logger.warning(f"[get-documentation-outputs] Only {len(doctor_appts)} appointment(s) found — no previous appointment available")
         raise HTTPException(
             status_code=404,
@@ -25225,14 +26056,6 @@ async def get_documentation_outputs(patient_id: str, doctor_id: str):
     # ==========================================================
     # 2️⃣ QUERY DOCUMENTATION FOR THAT PREVIOUS APPOINTMENT ONLY
     # ==========================================================
-    query = {
-        "metadata.patient_id": patient_id,
-        "metadata.doctor_id": doctor_id,
-        "appointment_id": previous_appointment_id,
-        "status": "success"
-    }
-    logger.info(f"[get-documentation-outputs] documentation query: {query}")
-
     projection = {
         "_id": 1,
         "feature_id": 1,
@@ -25252,42 +26075,44 @@ async def get_documentation_outputs(patient_id: str, doctor_id: str):
     ]
 
     results = []
+    previous_appointment_id = None
 
-    for collection in collections:
-        docs = await collection.find(query, projection).to_list(length=None)
-        logger.info(f"[get-documentation-outputs] {collection.name} — matched {len(docs)} docs with strict query")
-        for doc in docs:
-            doc["_id"] = str(doc["_id"])
-            if isinstance(doc.get("created_at"), datetime):
-                doc["created_at"] = doc["created_at"].isoformat()
-            results.append(doc)
-
-    logger.info(f"[get-documentation-outputs] total results after strict query: {len(results)}")
-
-    # 🔍 DEBUG — if nothing matched, show what's actually stored (ignoring appointment_id/status filters)
-    if not results:
-        logger.warning("[get-documentation-outputs] No results with strict query — running debug lookup without appointment_id/status filters")
-        debug_query = {
+    for appt_id in candidate_appts:
+        query = {
             "metadata.patient_id": patient_id,
             "metadata.doctor_id": doctor_id,
+            "appointment_id": appt_id,
+            "status": "success"
         }
-        logger.info(f"[get-documentation-outputs] debug_query: {debug_query}")
+        logger.info(f"[get-documentation-outputs] trying appointment_id={appt_id}")
+
+        appt_results = []
         for collection in collections:
-            debug_docs = await collection.find(
-                debug_query,
-                {"appointment_id": 1, "status": 1, "metadata": 1, "created_at": 1, "feature_id": 1}
-            ).to_list(length=None)
-            logger.info(f"[get-documentation-outputs][DEBUG] {collection.name} — ALL docs for this patient/doctor ({len(debug_docs)}): {debug_docs}")
+            docs = await collection.find(query, projection).to_list(length=None)
+            for doc in docs:
+                doc["_id"] = str(doc["_id"])
+                if isinstance(doc.get("created_at"), datetime):
+                    doc["created_at"] = doc["created_at"].isoformat()
+                appt_results.append(doc)
+
+        logger.info(f"[get-documentation-outputs] appointment_id={appt_id} — matched {len(appt_results)} docs total")
+
+        if appt_results:
+            previous_appointment_id = appt_id
+            results = appt_results
+            break
+        else:
+            logger.info(f"[get-documentation-outputs] no docs for appointment_id={appt_id}, trying next older appointment")
 
     if not results:
-        logger.warning(f"[get-documentation-outputs] Returning 404 — no documentation found for appointment_id={previous_appointment_id}")
+        logger.warning("[get-documentation-outputs] No documentation found across ANY of the patient's prior appointments with this doctor")
         raise HTTPException(
             status_code=404,
-            detail=f"No documentation outputs found for appointment '{previous_appointment_id}'"
+            detail="No documentation outputs found for any previous appointment with this doctor"
         )
 
     results.sort(key=lambda x: x.get("created_at", ""), reverse=True)
-    logger.info(f"[get-documentation-outputs] final sorted results count: {len(results)}")
+    logger.info(f"[get-documentation-outputs] using previous_appointment_id={previous_appointment_id}, final results count: {len(results)}")
 
     # ==========================================================
     # 3️⃣ FETCH VITALS FOR THAT PREVIOUS APPOINTMENT ONLY
@@ -25394,68 +26219,189 @@ async def get_tumor_board_plan(patientId: str):
 async def save_rt_record_details(request: Request):
     try:
         data = await request.json()
+
         patientId = data.get("patientId")
         doctorId = data.get("doctorId")
         formData = data.get("formData", {})
         isComplete = data.get("isComplete", False)
-        
+        tab_id = next(iter(formData.keys()), None)
+
         hospital_id = await fetch_hospital_id(doctorId)
-        
-        query = {"patientId": patientId, "doctorId": doctorId, "hospitalId": hospital_id, "status": {"$ne": "completed"}}
-        
+
+        query = {
+            "patientId": patientId,
+            "doctorId": doctorId,
+            "hospitalId": hospital_id,
+            "status": {"$ne": "completed"}
+        }
+
         existing = await database["rt_record_details"].find_one(query)
         existing_data = existing if existing else {}
-        
+
         treatment_id = existing_data.get("treatmentId") if existing else None
+
         if not treatment_id:
             other_active = await radiotherapy_records_collection.find_one(
-                {"patientId": patientId, "doctorId": doctorId, "status": "active"}
+                {
+                    "patientId": patientId,
+                    "doctorId": doctorId,
+                    "status": "active"
+                }
             )
+
             if other_active and other_active.get("treatmentId"):
                 treatment_id = other_active.get("treatmentId")
             else:
                 import uuid
                 treatment_id = str(uuid.uuid4())
+
         existing_data["treatmentId"] = treatment_id
-        
+
         import copy
         from datetime import datetime
 
-        
-        tracked_keys = ["common", "ebrt", "brachy", "discharge"]
-        
+        tracked_keys = [
+            "common",
+            "ebrt",
+            "brachy",
+            "discharge"
+        ]
+
         if "history" not in existing_data:
             existing_data["history"] = {}
-            
+
         for k, v in formData.items():
+
             if k in tracked_keys:
+
                 if k not in existing_data or existing_data[k] != v:
+
                     if k not in existing_data["history"]:
                         existing_data["history"][k] = []
+
                     existing_data["history"][k].append({
                         "savedAt": datetime.utcnow().isoformat(),
                         "data": copy.deepcopy(v)
                     })
+
             existing_data[k] = v
-            
+
         if isComplete:
             existing_data["status"] = "completed"
         elif "status" not in existing_data:
             existing_data["status"] = "active"
-            
-        update = {"$set": {k: v for k, v in existing_data.items() if k != "_id"}}
+
+        update = {
+            "$set": {
+                k: v
+                for k, v in existing_data.items()
+                if k != "_id"
+            }
+        }
+
         update["$set"]["hospitalId"] = hospital_id
+
+        # ==========================================================
+        # SAVE RT RECORD
+        # ==========================================================
+
         if existing and "_id" in existing:
-            await database["rt_record_details"].update_one({"_id": existing["_id"]}, update)
+
+            await database["rt_record_details"].update_one(
+                {"_id": existing["_id"]},
+                update
+            )
+
         else:
+
             update["$set"]["patientId"] = patientId
             update["$set"]["doctorId"] = doctorId
-            await database["rt_record_details"].insert_one(update["$set"])
-        return {"status": "success"}
-    except Exception as e:
-        logger.error(f"Error saving rt record details: {str(e)}")
-        return {"status": "error", "message": str(e)}
 
+            await database["rt_record_details"].insert_one(
+                update["$set"]
+            )
+
+        # ==========================================================
+        # 🔥 TEMP DATA TRIGGER - Tab-specific only
+        # ==========================================================
+
+        from bson import ObjectId
+        from fastapi.encoders import jsonable_encoder
+
+        # ✅ Get ONLY the tab that was just saved
+        # The frontend sends formData as { [tabId]: tabData }
+        # So tab_id is the key of the tab that was saved
+        
+        # Get the tab data from the formData
+        tab_specific_data = {}
+        if tab_id and tab_id in formData:
+            tab_specific_data = {tab_id: formData[tab_id]}
+        else:
+            # Fallback: if tab_id not found, use the first key
+            first_key = next(iter(formData.keys()), None)
+            if first_key:
+                tab_specific_data = {first_key: formData[first_key]}
+            else:
+                tab_specific_data = {"activeTab": "unknown"}
+
+        temp_payload = jsonable_encoder(
+            {
+                "patient_id": patientId,
+                "doctor_id": doctorId,
+                "radiotherapy_workflow_procedure": [
+                    tab_specific_data  # ✅ Send ONLY the current tab
+                ]
+            },
+            custom_encoder={
+                ObjectId: str
+            }
+        )
+
+        try:
+
+            async with httpx.AsyncClient(timeout=15.0) as client:
+
+                temp_response = await client.post(
+                    f"{api_base_url}hms/users/data/context/general/temp/save",
+                    json=temp_payload
+                )
+
+            if temp_response.status_code != 200:
+
+                logger.error(
+                    f"RT temp save failed: "
+                    f"{temp_response.status_code} - "
+                    f"{temp_response.text}"
+                )
+
+            else:
+
+                logger.info(
+                    f"RT workflow procedure temp data saved successfully for tab: {tab_id}"
+                )
+
+        except Exception as e:
+
+            logger.error(
+                f"RT temp save exception: {str(e)}",
+                exc_info=True
+            )
+
+        return {
+            "status": "success"
+        }
+
+    except Exception as e:
+
+        logger.error(
+            f"Error saving rt record details: {str(e)}",
+            exc_info=True
+        )
+
+        return {
+            "status": "error",
+            "message": str(e)
+        }
 @router.get("/get-rt-record-details")
 async def get_rt_record_details(patientId: str, doctorId: str):
     try:
@@ -25653,6 +26599,8 @@ class CreateInvestigationPayload(BaseModel):
     clinical_indication: str
     parameters: Union[list, str]
     investigation_type: str
+    category: Optional[str] = None
+    sub_category: Optional[str] = None
     order_context: Optional[Dict[str, Any]] = None
 
 
@@ -25685,9 +26633,17 @@ async def create_investigation(payload: CreateInvestigationPayload):
             "patient_id": payload.patient_id,
             "doctor_id": payload.doctor_id,
             "id": next_id,
+
             "clinical_indication": payload.clinical_indication,
+
             "investigation": investigation_key,
+            "investigation_type": payload.investigation_type,
+
+            "category": payload.category,
+            "sub_category": payload.sub_category,
+
             "parameters": payload.parameters,
+
             "document_id": None,
             "status": "pending",
             "date_of_order": now,
@@ -25874,7 +26830,7 @@ Do not include markdown formatting like ```json.
 
         groq_client = Groq(api_key=api_key)
         completion = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.1,
             response_format={"type": "json_object"},
@@ -26081,7 +27037,7 @@ Output ONLY a valid JSON object with EXACTLY the keys listed above. Do not inven
 """
 
         response = local_groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             messages=[{"role": "user", "content": prompt}],
             response_format={"type": "json_object"},
             temperature=0.1,
@@ -26218,7 +27174,7 @@ Clinical Dictation:
 """
 
         response = local_groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             messages=[{"role": "user", "content": prompt}],
             response_format={"type": "json_object"},
             temperature=0.1,
@@ -26321,7 +27277,7 @@ Output ONLY a valid JSON object with EXACTLY the keys listed above. Do not inven
 """
 
         response = local_groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             messages=[{"role": "user", "content": prompt}],
             response_format={"type": "json_object"},
             temperature=0.1,
@@ -26389,7 +27345,7 @@ Keep the tone professional, objective, and clinical.
 Return ONLY a valid JSON object with a single key "summary" containing the text. Do not include markdown formatting like ```json.
 """
         completion = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.2,
             response_format={"type": "json_object"},
@@ -26691,7 +27647,7 @@ Return a JSON object strictly matching this schema:
 }}
 '''
         response = local_groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             messages=[{"role": "user", "content": prompt}],
             response_format={"type": "json_object"},
             temperature=0.0,
@@ -26796,7 +27752,7 @@ Return ONLY this JSON, no other text:
         # ── FIX 2: Raise max_tokens so JSON mode can always complete the document ──
         try:
             response = local_groq_client.chat.completions.create(
-                model="llama-3.1-8b-instant",
+                model="openai/gpt-oss-20b",
                 messages=[{"role": "user", "content": prompt}],
                 response_format={"type": "json_object"},
                 temperature=0.0,
@@ -27021,7 +27977,7 @@ async def generate_chemo_toxicity_summary(request: Request):
         """
 
         completion = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.2,
             response_format={"type": "json_object"},
@@ -27150,7 +28106,7 @@ async def generate_toxicity_summary(request: Request):
         Return ONLY a valid JSON object with a single key "summary" containing the text. Do not include markdown formatting like ```json.
         """
         completion = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.2,
             response_format={"type": "json_object"},
@@ -27197,7 +28153,7 @@ Focus exclusively on the diagnosis, active problems, staging, severity, and key 
 Do NOT provide a general patient summary. Return ONLY a valid JSON object with a single key "summary" containing the text.
 Data: {bson.json_util.dumps(summary_data, indent=2)}'''
         
-        completion = groq_client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role": "user", "content": prompt}], temperature=0.2, response_format={"type": "json_object"}, max_tokens=1000)
+        completion = groq_client.chat.completions.create(model="openai/gpt-oss-20b", messages=[{"role": "user", "content": prompt}], temperature=0.2, response_format={"type": "json_object"}, max_tokens=1000)
         logger.info(f"LLM completed generation for patient_id: {patient_id}")
         
         llm_output = json.loads(completion.choices[0].message.content)
@@ -27241,7 +28197,7 @@ Keep the tone professional, objective, and clinical.
 Return ONLY a valid JSON object with a single key "summary" containing the text. Do not include markdown formatting like ```json.
 """
         completion = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.2,
             response_format={"type": "json_object"},
@@ -27391,7 +28347,7 @@ Return ONLY a valid JSON object matching the above structure. Do not include mar
         """
 
         completion = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.1,
             response_format={"type": "json_object"},
@@ -27486,9 +28442,7 @@ async def get_completed_oncology_documents(payload: dict):
                 "data": []
             }
 
-
         response_data = []
-
 
         # ---------------------------------------------
         # Retrieve processed documents
@@ -27501,7 +28455,6 @@ async def get_completed_oncology_documents(payload: dict):
             if not document_id:
                 continue
 
-
             processed_document = processed_documents.find_one(
                 {
                     "document_id": document_id,
@@ -27510,15 +28463,29 @@ async def get_completed_oncology_documents(payload: dict):
                 }
             )
 
-
             if not processed_document:
                 continue
 
-
+            # ---------------------------------------------
+            # Build response
+            # ---------------------------------------------
             response_data.append(
                 {
+                    # Investigation information
                     "investigation": investigation.get(
                         "investigation"
+                    ),
+
+                    "investigation_type": investigation.get(
+                        "investigation_type"
+                    ),
+
+                    "category": investigation.get(
+                        "category"
+                    ),
+
+                    "sub_category": investigation.get(
+                        "sub_category"
                     ),
 
                     "clinical_indication": investigation.get(
@@ -27535,7 +28502,9 @@ async def get_completed_oncology_documents(payload: dict):
 
                     "document_id": document_id,
 
-
+                    # -----------------------------------------
+                    # Processed document information
+                    # -----------------------------------------
                     "raw_markdown": processed_document.get(
                         "raw_markdown"
                     ),
@@ -27554,7 +28523,6 @@ async def get_completed_oncology_documents(payload: dict):
                 }
             )
 
-
         return {
             "status": "success",
             "patient_id": patient_id,
@@ -27563,10 +28531,8 @@ async def get_completed_oncology_documents(payload: dict):
             "data": response_data
         }
 
-
     except HTTPException:
         raise
-
 
     except Exception as e:
         logger.exception(
@@ -27577,7 +28543,6 @@ async def get_completed_oncology_documents(payload: dict):
             status_code=500,
             detail=str(e)
         )
-
 
 
 
@@ -27870,7 +28835,7 @@ Text to analyze:
 
         response = groq_client.chat.completions.create(
             messages=[{"role": "user", "content": prompt}],
-            model="llama-3.3-70b-versatile",
+            model="openai/gpt-oss-120b",
             temperature=0.1,
             max_tokens=1500,
         )
@@ -27989,7 +28954,7 @@ Return format MUST BE:
 Return ONLY a valid JSON object. Do not include markdown formatting like ```json.
         """
         completion = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.1,
             response_format={"type": "json_object"},
@@ -28101,7 +29066,7 @@ Return format MUST BE:
 Return ONLY a valid JSON object. Do not include markdown formatting like ```json.
 """
         completion = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.1,
             response_format={"type": "json_object"},
@@ -28211,7 +29176,7 @@ Return format MUST BE:
 Return ONLY a valid JSON object. Do not include markdown formatting like ```json.
 """
         completion = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.1,
             response_format={"type": "json_object"},
@@ -28314,7 +29279,7 @@ Return format MUST BE:
 Return ONLY a valid JSON object. Do not include markdown formatting like ```json.
 """
         completion = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.1,
             response_format={"type": "json_object"},
@@ -28398,7 +29363,7 @@ RULES:
 Return ONLY a valid JSON object. Do not include markdown formatting like ```json.
 """
         completion = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.15,
             response_format={"type": "json_object"},
@@ -29718,8 +30683,8 @@ async def get_radiation_oncology_records(patient_id: str):
         )
 
 
-GROQ_MODEL_FAST = "llama-3.1-8b-instant"
-GROQ_MODEL_SMART = "llama-3.3-70b-versatile"
+GROQ_MODEL_FAST = "openai/gpt-oss-20b"
+GROQ_MODEL_SMART = "openai/gpt-oss-120b"
  
 # type: ignore  # e.g. db["paragraph_embeddings"]
  
@@ -30614,7 +31579,7 @@ async def store_doctor_embeddings(doctor_id: str):
 def call_llm(prompt: str) -> str:
 
     response = groq_client.chat.completions.create(
-        model="llama-3.1-8b-instant",
+        model="openai/gpt-oss-20b",
         messages=[
             {
                 "role": "system",
@@ -30640,13 +31605,13 @@ def call_llm(prompt: str) -> str:
 
 
 
-@router.get("/protocol-master/all")
+@router.get("/radiotherapy-protocols/all")
 async def get_all_protocols():
 
     try:
         protocols = []
 
-        cursor = protocol_master_collection.find({})
+        cursor = radiotherapy_records_collection.find({})
 
         async for protocol in cursor:
             protocol["_id"] = str(protocol["_id"])
@@ -30703,6 +31668,45 @@ async def get_chemotherapy_regimen(patient_id: str, doctor_id: str):
         )
 
 
+
+
+@router.get("/radiotherapy-records/{patient_id}/{doctor_id}")
+async def get_radiotherapy_records(patient_id: str, doctor_id: str):
+
+    try:
+        record = await radiotherapy_records_collection.find_one(
+            {
+                "patientId": patient_id,
+                "doctorId": doctor_id
+            },
+            {
+                "_id": 0,
+                "data": 1,
+                "updatedAt": 1
+            }
+        )
+
+        if not record:
+            raise HTTPException(
+                status_code=404,
+                detail="Radiotherapy records not found"
+            )
+
+        return {
+            "status": "success",
+            "data": record.get("data", {}),
+            "updatedAt": record.get("updatedAt")
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        logger.exception("Failed retrieving radiotherapy records")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed retrieving radiotherapy records: {str(e)}"
+        )
 #for fetching hospital id by rishy
 async def fetch_hospital_id(doctor_id: str) -> str:
     """Fetch hospitalId for a doctor from the doctor API."""
@@ -30978,7 +31982,7 @@ async def calculate_exposure_levels(payload: ExposureLevelsPayload):
                 {"role": "system", "content": "You are a specialized medical AI that outputs valid JSON only."},
                 {"role": "user", "content": prompt}
             ],
-            model="llama-3.3-70b-versatile",
+            model="openai/gpt-oss-120b",
             temperature=0.2,
             response_format={"type": "json_object"}
         )
@@ -31231,3 +32235,2062 @@ async def finalize_claim_validation(payload: dict):
             "success": False,
             "message": str(e)
         }
+
+
+#
+#
+# FOR PATIENT INFORMATION MASKING USING THE SDK - This endpoint points to the zipfile (by vinayak)
+#
+#
+
+
+FILE_PATH = pathlib.Path(
+    "/app/uploads/patient_info_masking.zip"
+)
+
+@router.get("/download-patient-masking",response_class=FileResponse,summary="Download Patient Info Masking Zip")
+async def download_patient_info_masking():
+    # Verify the file actually exists before attempting to return it
+    if not FILE_PATH.is_file():
+        raise HTTPException(status_code=404, detail="File not found")
+
+    return FileResponse(
+        path=FILE_PATH,
+        filename="patient_info_masking.zip",
+        media_type="application/zip",
+    )
+    
+
+
+
+class UpdateVisitSummaryRequest(BaseModel):
+    patient_id: str
+    appointment_id: str
+    visit_summary: str = Field(..., min_length=1)
+
+
+@router.put("/patients/{patient_id}/visits/{appointment_id}/summary")
+async def update_visit_summary(
+    patient_id: str,
+    appointment_id: str,
+    request: UpdateVisitSummaryRequest,
+):
+    # Prevent mismatch between URL and body
+    if request.patient_id != patient_id:
+        raise HTTPException(
+            status_code=400,
+            detail="patient_id in URL and body must match"
+        )
+
+    new_summary = request.visit_summary.strip()
+
+    if not new_summary:
+        raise HTTPException(
+            status_code=400,
+            detail="visit_summary cannot be empty"
+        )
+
+    # Find the existing visit
+    existing_visit = visit_timeline_collection.find_one(
+        {
+            "patient_id": patient_id,
+            "appointment_id": appointment_id,
+        }
+    )
+
+    if not existing_visit:
+        raise HTTPException(
+            status_code=404,
+            detail="Visit not found"
+        )
+
+    # Update ONLY the visit summary
+    result = visit_timeline_collection.update_one(
+        {
+            "patient_id": patient_id,
+            "appointment_id": appointment_id,
+        },
+        {
+            "$set": {
+                "visit_summary": new_summary,
+                "updated_at": datetime.utcnow(),
+            }
+        },
+    )
+
+    if result.matched_count == 0:
+        raise HTTPException(
+            status_code=404,
+            detail="Visit not found"
+        )
+
+    # Return updated visit
+    updated_visit = visit_timeline_collection.find_one(
+        {
+            "patient_id": patient_id,
+            "appointment_id": appointment_id,
+        },
+        {
+            "_id": 0,
+        }
+    )
+
+    return {
+        "success": True,
+        "message": "Visit summary updated successfully",
+        "patient_id": patient_id,
+        "appointment_id": appointment_id,
+        "visit": updated_visit,
+    }
+    
+@router.get("/timelines/{patient_id}")
+async def get_patient_timeline(
+    patient_id: str,
+):
+    """
+    Returns the patient's complete visit history.
+
+    Each visit contains:
+    - Visit metadata
+    - Visit summary
+    - Timeline entries without report_content
+
+    Timeline is fetched using patient_id only.
+    """
+
+    visit_docs = list(
+        visit_timeline_collection.find(
+            {
+                "patient_id": patient_id,
+            },
+            {"_id": 0},
+        ).sort("visit_number", ASCENDING)
+    )
+
+    if not visit_docs:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No timeline found for patient '{patient_id}'.",
+        )
+
+    visits = []
+
+    for visit in visit_docs:
+        timeline = []
+
+        for entry in sorted(
+            visit.get("timeline", []),
+            key=lambda x: x.get("report_date", "")
+        ):
+            timeline.append({
+                "timeline_entry_id": entry.get("timeline_entry_id"),
+                "report_date": entry.get("report_date"),
+                "document_id": entry.get("document_id"),
+                "file_name": entry.get("file_name"),
+                "report_summary": entry.get("report_summary"),
+            })
+
+        visits.append({
+            "visit_number": visit.get("visit_number"),
+            "appointment_id": visit.get("appointment_id"),
+            "appointment_date": visit.get("appointment_date"),
+            "visit_start_date": visit.get("visit_start_date"),
+            "visit_end_date": visit.get("visit_end_date"),
+            "visit_summary": visit.get("visit_summary"),
+            "timeline": timeline,
+        })
+
+    return {
+        "patient_id": patient_id,
+        "total_visits": len(visits),
+        "visits": visits,
+    }
+
+
+
+
+@router.delete("/timelinesy/{patient_id}")
+async def delete_patient_timeline(patient_id: str):
+    """
+    Deletes the complete timeline for a patient.
+
+    This removes the patient's document from the visit_timeline
+    collection, including all visits, summaries, and timeline entries.
+    """
+
+    result = visit_timeline_collection.delete_one(
+        {
+            "patient_id": patient_id,
+        }
+    )
+
+    if result.deleted_count == 0:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No timeline found for patient '{patient_id}'.",
+        )
+
+    return {
+        "message": "Patient timeline deleted successfully.",
+        "patient_id": patient_id,
+        "deleted_count": result.deleted_count,
+    }
+
+
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  NURSE QUESTIONNAIRE  —  cross-specialty (Surgical / Medical / Radiation Oncology)
+# ═══════════════════════════════════════════════════════════════════════════════
+# A single endpoint set for all three oncology specialties. An LLM generates the
+# questions a nurse should ask the patient at the bedside (how they feel; symptoms and
+# reactions — pain, nausea/vomiting, fatigue, appetite, site-specific problems; warning
+# signs) spanning BEFORE / DURING / AFTER the procedure or treatment. It is fed a LEAN
+# context assembled here directly from each department's own collection — no agentic
+# dependency: the current procedure/treatment + status, the 2-3 most recent vitals, and
+# the 2-3 most recent lab + radiology investigations. The nurse records free-text answers
+# inline; questions + answers are persisted to the `nurse_questionaire` collection.
+
+nurse_questionnaire_collection = database["nurse_questionaire"]
+
+_NQ_MODEL = "openai/gpt-oss-20b"         # light generation job — lean context keeps it grounded
+_NQ_MAX_INVESTIGATIONS = 3                 # per type (lab / radiology)
+_NQ_MAX_VITALS = 3
+_NQ_MARKDOWN_CAP = 600                     # chars of report markdown kept per investigation
+
+
+def _nq_normalize_speciality(raw: str) -> str:
+    """Map whatever the frontend sends (any casing / synonym) to a canonical key:
+    surgical | medical | radiation. Keyword matching is order-independent because the
+    three specialty names share no substrings."""
+    s = (raw or "").strip().lower()
+    if "surg" in s:
+        return "surgical"
+    if "rad" in s:                          # radiation / radiotherapy
+        return "radiation"
+    if "med" in s or "chemo" in s:          # medical oncology / chemotherapy
+        return "medical"
+    return "surgical"                       # safe default
+
+
+def _nq_trim(text, cap: int = _NQ_MARKDOWN_CAP) -> str:
+    """Truncate heavy report markdown so the LLM context stays lean."""
+    if not text:
+        return ""
+    text = str(text).strip()
+    return text if len(text) <= cap else text[:cap].rstrip() + " …[truncated]"
+
+
+async def _nq_recent_vitals(patient_id: str):
+    """2-3 most recent vital snapshots. patient_vitals is keyed by sys_user_id (== the
+    patient_id value); the `vitals` sub-doc is keyed by timestamp string."""
+    doc = await patient_vitals_collection.find_one(
+        {"sys_user_id": patient_id}, {"_id": 0, "vitals": 1}
+    )
+    if not doc or not doc.get("vitals"):
+        return []
+    entries = sorted((doc.get("vitals") or {}).items(), key=lambda kv: kv[0], reverse=True)
+    out = []
+    for ts, entry in entries[:_NQ_MAX_VITALS]:
+        entry = entry or {}
+        snap = {"recorded_at": ts}
+        for k in ("blood_pressure", "heart_rate", "respiratory_rate", "weight",
+                  "electrocardiogram_ecg", "arterial_blood_gas_abg", "electrolytes"):
+            v = entry.get(k)
+            if v not in (None, "", [], {}):
+                snap[k] = v
+        out.append(snap)
+    return out
+
+
+async def _nq_recent_investigations(patient_id: str):
+    """2-3 most recent completed lab + radiology investigations. Split by the
+    `investigation` field's type prefix (e.g. 'radiology_...' vs 'lab_...'). Resulted
+    content lives in processed_documents (SYNC collection — no await), truncated."""
+    cursor = oncology_investigations_collection.find(
+        {"patient_id": patient_id, "status": "completed"}
+    ).sort("date_of_order", -1)
+    investigations = await cursor.to_list(length=None)
+
+    labs, radiology = [], []
+    for inv in investigations:
+        if len(labs) >= _NQ_MAX_INVESTIGATIONS and len(radiology) >= _NQ_MAX_INVESTIGATIONS:
+            break
+        name = inv.get("investigation") or ""
+        bucket = radiology if name.lower().startswith("radiology") else labs
+        if len(bucket) >= _NQ_MAX_INVESTIGATIONS:
+            continue
+        report = ""
+        document_id = inv.get("document_id")
+        if document_id:
+            pdoc = processed_documents.find_one(
+                {"document_id": document_id, "patient_id": patient_id}
+            )
+            if pdoc:
+                report = pdoc.get("parameterwise_markdown") or pdoc.get("raw_markdown") or ""
+        bucket.append({
+            "investigation": name,
+            "date": inv.get("date_of_order"),
+            "clinical_indication": inv.get("clinical_indication"),
+            "report": _nq_trim(report),
+        })
+    return {"labs": labs, "radiology": radiology}
+
+
+async def _nq_surgical_context(patient_id: str):
+    """Current surgical episode + status from the surgical_oncology collection
+    (queried by patient_id)."""
+    rec = await surgical_oncology_collection.find_one(
+        {"patient_id": patient_id}, {"_id": 0}, sort=[("created_at", -1)]
+    )
+    if not rec:
+        return None
+    booking = rec.get("booking", {}) or {}
+    post_op = rec.get("post_op", {}) or {}
+    ctx = {
+        "procedure": booking.get("procedureName"),
+        "pre_op_diagnosis": booking.get("preOpDiagnosis"),
+        "surgery_date": booking.get("surgeryDate"),
+        "approach": booking.get("approach"),
+        "status": rec.get("status"),
+        "surgery_finished": rec.get("surgery_finished"),
+    }
+    if post_op.get("complications"):
+        ctx["post_op_complications"] = post_op.get("complications")
+    return {k: v for k, v in ctx.items() if v not in (None, "", [], {})}
+
+
+async def _nq_medical_context(patient_id: str):
+    """Current chemotherapy course + cycle status from chemotherapy_records
+    (queried by patientId)."""
+    rec = await chemotherapy_records_collection.find_one(
+        {"patientId": patient_id}, {"_id": 0}, sort=[("updatedAt", -1)]
+    )
+    if not rec:
+        return None
+    data = rec.get("data", {}) or {}
+    assessment = data.get("assessment", {}) or {}
+    treatment = rec.get("treatment", {}) or {}
+    ctx = {
+        "diagnosis": assessment.get("diagnosis"),
+        "performance_status": assessment.get("performanceStatus"),
+        "allergies": assessment.get("allergies"),
+        "status": rec.get("status") or treatment.get("status"),
+        "planned_cycles": treatment.get("plannedCycles"),
+        "current_cycle": treatment.get("currentCycle"),
+        "completed_cycles": treatment.get("completedCycles"),
+    }
+    # Current-cycle regimen + most recent toxicities (lean — only the active cycle).
+    cycles = data.get("cycles", {}) or {}
+    cur = str(treatment.get("currentCycle") or "")
+    cyc = cycles.get(cur) or {}
+    regimen = cyc.get("regimen") or {}
+    if regimen.get("selectedProtocol"):
+        ctx["current_protocol"] = regimen.get("selectedProtocol")
+    post_chemo = cyc.get("post_chemo") or {}
+    if post_chemo.get("toxicities"):
+        ctx["recent_toxicities"] = post_chemo.get("toxicities")
+    return {k: v for k, v in ctx.items() if v not in (None, "", [], {})}
+
+
+async def _nq_radiation_context(patient_id: str):
+    """Radiation treatment + status. rt_record_details is the richer source (intent, RT
+    type, dose/fractions, completion, adverse events); radiotherapy_records supplements
+    any gaps. Both queried by patientId; non-empty fields merged (rt_record_details wins)."""
+    ctx = {}
+    detail = await database["rt_record_details"].find_one(
+        {"patientId": patient_id}, {"_id": 0}, sort=[("updatedAt", -1)]
+    )
+    if detail:
+        treatment = (detail.get("common", {}) or {}).get("treatment", {}) or {}
+        ebrt = detail.get("ebrt", {}) or {}
+        sim_sets = ebrt.get("simulationSets") or []
+        sim0 = sim_sets[0] if sim_sets else {}
+        completion = ebrt.get("completion", {}) or {}
+        ctx.update({
+            "treatment_intent": treatment.get("intent"),
+            "rt_type": treatment.get("rtType"),
+            "total_dose": sim0.get("totalDose"),
+            "total_fractions": sim0.get("totalFractions"),
+            "completion_status": completion.get("rtCompletion"),
+            "clinical_response": completion.get("clinResponse"),
+            "status": detail.get("status"),
+        })
+        if ebrt.get("adverseEvents"):
+            ctx["adverse_events"] = ebrt.get("adverseEvents")
+    rec = await radiotherapy_records_collection.find_one(
+        {"patientId": patient_id}, {"_id": 0}, sort=[("updatedAt", -1)]
+    )
+    if rec:
+        data = rec.get("data", {}) or {}
+        intent = data.get("intent", {}) or {}
+        sessions = data.get("sessions", {}) or {}
+        summary = data.get("summary", {}) or {}
+        if not ctx.get("treatment_intent") and intent.get("treatmentIntent"):
+            ctx["treatment_intent"] = intent.get("treatmentIntent")
+        if not ctx.get("status") and rec.get("status"):
+            ctx["status"] = rec.get("status")
+        if summary.get("toxicities"):
+            ctx.setdefault("toxicities", summary.get("toxicities"))
+        if sessions.get("totalSessionsDelivered") is not None or sessions.get("totalDoseDeliveredGy") is not None:
+            ctx.setdefault("sessions", {
+                "delivered": sessions.get("totalSessionsDelivered"),
+                "dose_gy": sessions.get("totalDoseDeliveredGy"),
+            })
+    ctx = {k: v for k, v in ctx.items() if v not in (None, "", [], {})}
+    return ctx or None
+
+
+def _nq_stage(specialty: str, treatment: dict) -> dict:
+    """Derive the patient's CURRENT stage from the record's status fields so the LLM only
+    asks about what has already happened or is happening now — never a future phase. Returns
+    the stage key, a human phrase, and the phases the LLM is allowed to generate:
+        pre         -> ['before']                    (procedure/treatment not yet done)
+        in_progress -> ['before', 'during']          (happening now)
+        post        -> ['before', 'during', 'after'] (completed)
+    This is the deterministic guard; the generated questions are also post-filtered to it."""
+    t = treatment or {}
+    status = str(t.get("status") or "").lower()
+
+    def result(stage: str) -> dict:
+        allowed = {
+            "pre": ["before"],
+            "in_progress": ["before", "during"],
+            "post": ["before", "during", "after"],
+        }[stage]
+        phrase = {
+            "pre": "has NOT yet taken place — the patient is in the preparation / pre-treatment stage",
+            "in_progress": "is currently in progress",
+            "post": "has been completed",
+        }[stage]
+        return {"stage": stage, "stage_phrase": phrase, "allowed_phases": allowed}
+
+    if specialty == "surgical":
+        if t.get("surgery_finished") is True or any(w in status for w in ("complet", "discharg", "postop", "post-op", "recover")):
+            return result("post")
+        if any(w in status for w in ("progress", "ongoing", "intra", "in surgery", "in-surgery")):
+            return result("in_progress")
+        return result("pre")
+
+    if specialty == "medical":
+        completed = t.get("completed_cycles")
+        planned = t.get("planned_cycles")
+        if "complet" in status or (isinstance(completed, int) and isinstance(planned, int) and planned and completed >= planned):
+            return result("post")
+        if "progress" in status or t.get("current_cycle") or (isinstance(completed, int) and completed > 0):
+            return result("in_progress")
+        return result("pre")
+
+    # radiation
+    if t.get("completion_status") or "complet" in status:
+        return result("post")
+    if "active" in status or "progress" in status or t.get("sessions"):
+        return result("in_progress")
+    return result("pre")
+
+
+async def _nq_build_context(patient_id: str, specialty: str):
+    """Assemble the lean LLM context: specialty treatment + status, the derived care stage
+    (so questions stay on-timeline), recent vitals, and recent labs + radiology (labs/vitals
+    are common across all specialties)."""
+    if specialty == "medical":
+        treatment = await _nq_medical_context(patient_id)
+        label = "chemotherapy / medical oncology treatment"
+    elif specialty == "radiation":
+        treatment = await _nq_radiation_context(patient_id)
+        label = "radiotherapy treatment"
+    else:
+        treatment = await _nq_surgical_context(patient_id)
+        label = "surgery / procedure"
+    vitals = await _nq_recent_vitals(patient_id)
+    investigations = await _nq_recent_investigations(patient_id)
+    return {
+        "specialty": specialty,
+        "treatment_label": label,
+        "care_stage": _nq_stage(specialty, treatment or {}),
+        "current_treatment": treatment or {},
+        "recent_vitals": vitals,
+        "recent_labs": investigations["labs"],
+        "recent_radiology": investigations["radiology"],
+    }
+
+
+_NQ_SYSTEM_PROMPT = (
+    "You are an experienced oncology nurse preparing to see a patient at the bedside. "
+    "From the patient's current treatment context, recent vitals and recent investigations, "
+    "generate the questions a nurse should ask THIS patient — about how they are feeling and "
+    "their symptoms and reactions (pain, nausea/vomiting, fatigue, appetite, bowel/bladder, "
+    "sleep, wound/site-specific problems), medication adherence, and any warning signs. "
+    "Place each question in the correct phase of the care timeline (before / during / after "
+    "the procedure or treatment), covering ONLY the phases appropriate to where this patient "
+    "currently is — never ask about a phase that has not happened yet. Generate as many "
+    "or as few questions as are genuinely meaningful: do NOT pad to a target and do NOT force "
+    "a fixed count. Ground every question in the provided context; never invent clinical "
+    "facts. Questions must be answerable by the patient in plain language."
+)
+
+
+def _nq_user_prompt(context: dict) -> str:
+    stage = context.get("care_stage", {}) or {}
+    label = context.get("treatment_label", "procedure/treatment")
+    allowed = stage.get("allowed_phases") or ["before", "during", "after"]
+    phrase = stage.get("stage_phrase", "")
+    return (
+        "Return ONLY a JSON object with this exact shape:\n"
+        '{ "questions": [ { "phase": "before|during|after", '
+        '"category": "<short topic, e.g. pain, nausea, wound, fatigue, medication>", '
+        '"question": "<the question to ask the patient, in plain language>" } ] }\n\n'
+        f"CURRENT STAGE — CRITICAL: the {label} {phrase}.\n"
+        f"Because of this, you may ONLY use these phase values: {allowed}. "
+        "Do NOT generate any question about a later phase that has not happened yet — for "
+        "example, if the treatment has not taken place, do NOT ask about how the procedure "
+        "went, recovery, wound healing, or post-treatment side-effects, because none of that "
+        "has occurred. Only ask about what has already happened or is happening now.\n\n"
+        "Rules:\n"
+        f"- 'phase' must be exactly one of: {allowed} (no other value is permitted at this stage).\n"
+        "- Order the questions by phase in that same order.\n"
+        "- Tailor every question to the specialty and to the specific treatment, toxicities "
+        "and vitals shown below.\n"
+        "- Output ONLY the JSON object, with no surrounding prose.\n\n"
+        f"PATIENT CONTEXT:\n{json.dumps(context, default=str, indent=2)}"
+    )
+
+
+def _nq_generate_questions(context: dict):
+    """Call the LLM and normalize its output into id'd question rows with empty answers.
+    Questions are post-filtered to the care stage's allowed phases, so a premature
+    (future-phase) question can never reach the nurse even if the model ignores the rule."""
+    allowed = context.get("care_stage", {}).get("allowed_phases") or ["before", "during", "after"]
+    allowed_set = set(allowed)
+    completion = groq_client.chat.completions.create(
+        model=_NQ_MODEL,
+        messages=[
+            {"role": "system", "content": _NQ_SYSTEM_PROMPT},
+            {"role": "user", "content": _nq_user_prompt(context)},
+        ],
+        response_format={"type": "json_object"},
+        temperature=0.3,
+    )
+    parsed = json.loads(completion.choices[0].message.content)
+    raw_questions = parsed.get("questions", []) if isinstance(parsed, dict) else []
+    out = []
+    for q in raw_questions:
+        if not isinstance(q, dict):
+            continue
+        text = (q.get("question") or "").strip()
+        if not text:
+            continue
+        phase = (q.get("phase") or "").strip().lower()
+        if phase not in ("before", "during", "after"):
+            phase = allowed[0]                 # unlabeled -> earliest phase valid at this stage
+        if phase not in allowed_set:
+            continue                            # drop a future-phase question (stage guard)
+        out.append({
+            "id": f"q{len(out) + 1}",
+            "phase": phase,
+            "category": (q.get("category") or "").strip(),
+            "question": text,
+            "answer": "",
+        })
+    return out
+
+
+class NurseQuestionnaireGenerateRequest(BaseModel):
+    patient_id: str
+    speciality: str
+    doctor_id: Optional[str] = None
+
+
+class NurseQuestionnaireAnswer(BaseModel):
+    id: str
+    phase: Optional[str] = ""
+    category: Optional[str] = ""
+    question: str
+    answer: Optional[str] = ""
+
+
+class NurseQuestionnaireSaveRequest(BaseModel):
+    patient_id: str
+    speciality: str
+    doctor_id: Optional[str] = None
+    questions: List[NurseQuestionnaireAnswer]
+
+
+@router.post("/nurse-questionnaire/generate")
+async def generate_nurse_questionnaire(payload: NurseQuestionnaireGenerateRequest):
+    """Generate a fresh set of nurse questions for the patient from the specialty's own
+    record + common vitals/labs, save it (overwriting any prior set), and return it."""
+    try:
+        specialty = _nq_normalize_speciality(payload.speciality)
+        context = await _nq_build_context(payload.patient_id, specialty)
+        questions = _nq_generate_questions(context)
+
+        now = datetime.now(timezone.utc)
+        await nurse_questionnaire_collection.update_one(
+            {"patient_id": payload.patient_id, "speciality": specialty},
+            {"$set": {
+                "patient_id": payload.patient_id,
+                "speciality": specialty,
+                "doctor_id": payload.doctor_id,
+                "questions": questions,
+                "generated_at": now,
+                "updated_at": now,
+            }},
+            upsert=True,
+        )
+        return {
+            "status": "success",
+            "patient_id": payload.patient_id,
+            "speciality": specialty,
+            "questions": questions,
+            "generated_at": now.isoformat(),
+        }
+    except Exception as e:
+        logger.exception("Failed to generate nurse questionnaire")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/nurse-questionnaire")
+async def get_nurse_questionnaire(patient_id: str, speciality: str):
+    """Return the saved questionnaire (questions + recorded answers) for this patient +
+    specialty, or data=None if none has been generated yet."""
+    try:
+        specialty = _nq_normalize_speciality(speciality)
+        doc = await nurse_questionnaire_collection.find_one(
+            {"patient_id": patient_id, "speciality": specialty}, {"_id": 0}
+        )
+        if not doc:
+            return {"status": "success", "data": None}
+        for k in ("generated_at", "updated_at"):
+            if isinstance(doc.get(k), datetime):
+                doc[k] = doc[k].isoformat()
+        return {"status": "success", "data": doc}
+    except Exception as e:
+        logger.exception("Failed to fetch nurse questionnaire")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/nurse-questionnaire/save")
+async def save_nurse_questionnaire(payload: NurseQuestionnaireSaveRequest):
+    """Upsert the questionnaire with the nurse's free-text answers."""
+    try:
+        specialty = _nq_normalize_speciality(payload.speciality)
+        now = datetime.now(timezone.utc)
+        questions = [q.dict() for q in payload.questions]
+        await nurse_questionnaire_collection.update_one(
+            {"patient_id": payload.patient_id, "speciality": specialty},
+            {
+                "$set": {
+                    "patient_id": payload.patient_id,
+                    "speciality": specialty,
+                    "doctor_id": payload.doctor_id,
+                    "questions": questions,
+                    "updated_at": now,
+                },
+                "$setOnInsert": {"generated_at": now},
+            },
+            upsert=True,
+        )
+        return {"status": "success", "saved_at": now.isoformat()}
+    except Exception as e:
+        logger.exception("Failed to save nurse questionnaire")
+        raise HTTPException(status_code=500, detail=str(e))
+    
+    
+
+
+@router.post("/generate-visit-summary")
+async def generate_visit_summary(request: Request):
+    """
+    Generate OPD Visit Summary.
+
+    Request body:
+
+    {
+        "patient_id": "PATIENT_ID",
+        "doctor_id": "DOCTOR_ID",
+        "dictation": "optional current dictation"
+    }
+
+    IMPORTANT:
+
+    - appointment_id is NOT required
+    - appointment_id is NOT used anywhere
+    - clinical_summary is NOT sent to LLM
+    - clinical_summary comes directly from:
+          summary_collection.summary.paragraphs
+    - confirmed_diagnoses comes directly from:
+          summary_collection.summary.confirmed_diagnoses
+    - diagnosis_header is NOT used
+    - confirmed_diagnosis_present is NOT used
+    - LLM generates the other sections
+    """
+
+    import inspect
+
+    # ==============================================================
+    # HELPER FOR MIXED SYNC / ASYNC MONGO
+    # ==============================================================
+
+    async def resolve_mongo_result(result):
+
+        if inspect.isawaitable(result):
+            return await result
+
+        return result
+
+    try:
+
+        # ==========================================================
+        # 1. READ REQUEST
+        # ==========================================================
+
+        payload = await request.json()
+
+        patient_id = payload.get("patient_id")
+        doctor_id = payload.get("doctor_id")
+
+        # Optional.
+        # If provided, use this dictation directly.
+        # Otherwise fetch latest dictation from MongoDB.
+        supplied_dictation = payload.get(
+            "dictation"
+        )
+
+        if not patient_id:
+
+            raise HTTPException(
+                status_code=400,
+                detail="patient_id is required"
+            )
+
+        # ==========================================================
+        # 2. FETCH PATIENT DEMOGRAPHICS
+        # ==========================================================
+
+        patient_result = patient_user_collection.find_one(
+            {
+                "sys_user_id": patient_id
+            },
+            {
+                "_id": 0,
+                "name": 1,
+                "date_of_birth": 1,
+                "blood_group": 1,
+                "gender": 1,
+                "patient_id": 1,
+                "sys_user_id": 1
+            }
+        )
+
+        patient_doc = await resolve_mongo_result(
+            patient_result
+        )
+
+        if not patient_doc:
+
+            raise HTTPException(
+                status_code=404,
+                detail=f"Patient not found: {patient_id}"
+            )
+
+        # ==========================================================
+        # 3. CALCULATE AGE
+        # ==========================================================
+
+        age = None
+
+        dob_str = patient_doc.get(
+            "date_of_birth"
+        )
+
+        if dob_str:
+
+            try:
+
+                if isinstance(
+                    dob_str,
+                    datetime
+                ):
+
+                    dob = dob_str.date()
+
+                else:
+
+                    dob = datetime.strptime(
+                        str(dob_str),
+                        "%Y-%m-%d"
+                    ).date()
+
+                today = datetime.utcnow().date()
+
+                age = (
+                    today.year
+                    - dob.year
+                    - (
+                        (today.month, today.day)
+                        < (dob.month, dob.day)
+                    )
+                )
+
+            except Exception as e:
+
+                logger.warning(
+                    f"Unable to calculate age "
+                    f"for patient={patient_id}: {str(e)}"
+                )
+
+        patient_demographics = {
+
+            "name": patient_doc.get(
+                "name"
+            ),
+
+            "age": age,
+
+            "sex": patient_doc.get(
+                "gender"
+            ),
+
+            "blood_group": patient_doc.get(
+                "blood_group"
+            )
+        }
+
+        # ==========================================================
+        # 4. FETCH LATEST DICTATION
+        # ==========================================================
+
+        dictation = supplied_dictation
+
+        if not dictation:
+
+            # ------------------------------------------------------
+            # First try doctor-specific structured notes
+            # ------------------------------------------------------
+
+            structured_query = {
+                "patient_id": patient_id
+            }
+
+            if doctor_id:
+
+                structured_query[
+                    "doctor_id"
+                ] = doctor_id
+
+            structured_result = (
+                structured_note_collection.find_one(
+                    structured_query,
+                    {
+                        "_id": 0,
+                        "structured_notes": 1
+                    }
+                )
+            )
+
+            structured_doc = (
+                await resolve_mongo_result(
+                    structured_result
+                )
+            )
+
+            # ------------------------------------------------------
+            # Fallback to patient-only structured notes
+            # ------------------------------------------------------
+
+            if not structured_doc:
+
+                structured_result = (
+                    structured_note_collection.find_one(
+                        {
+                            "patient_id": patient_id
+                        },
+                        {
+                            "_id": 0,
+                            "structured_notes": 1
+                        }
+                    )
+                )
+
+                structured_doc = (
+                    await resolve_mongo_result(
+                        structured_result
+                    )
+                )
+
+            # ------------------------------------------------------
+            # Get latest dictation
+            # ------------------------------------------------------
+
+            if structured_doc:
+
+                notes = structured_doc.get(
+                    "structured_notes",
+                    []
+                )
+
+                if notes:
+
+                    def get_created_at(note):
+
+                        created_at = note.get(
+                            "created_at"
+                        )
+
+                        if isinstance(
+                            created_at,
+                            datetime
+                        ):
+
+                            return created_at
+
+                        return datetime.min
+
+                    notes = sorted(
+                        notes,
+                        key=get_created_at,
+                        reverse=True
+                    )
+
+                    latest_note = notes[0]
+
+                    dictation = latest_note.get(
+                        "dictation",
+                        ""
+                    )
+
+        if not dictation:
+
+            dictation = ""
+
+        # ==========================================================
+        # 5. FETCH LATEST VITALS
+        # ==========================================================
+
+        vitals_result = (
+            patient_vitals_collection.find_one(
+                {
+                    "sys_user_id": patient_id
+                },
+                {
+                    "_id": 0,
+                    "vitals": 1,
+                    "last_vitals_timestamp": 1,
+                    "last_doctor_id": 1,
+                    "last_visit_type": 1
+                }
+            )
+        )
+
+        vitals_doc = await resolve_mongo_result(
+            vitals_result
+        )
+
+        latest_vitals = {}
+
+        if vitals_doc:
+
+            vitals_map = vitals_doc.get(
+                "vitals",
+                {}
+            )
+
+            if vitals_map:
+
+                try:
+
+                    # --------------------------------------------------
+                    # Prefer last_vitals_timestamp stored by your
+                    # save_patient_vitals endpoint.
+                    # --------------------------------------------------
+
+                    last_timestamp = (
+                        vitals_doc.get(
+                            "last_vitals_timestamp"
+                        )
+                    )
+
+                    if (
+                        last_timestamp
+                        and str(last_timestamp)
+                        in vitals_map
+                    ):
+
+                        latest_timestamp = str(
+                            last_timestamp
+                        )
+
+                    else:
+
+                        latest_timestamp = max(
+                            vitals_map.keys()
+                        )
+
+                    latest_vitals = (
+                        vitals_map.get(
+                            latest_timestamp,
+                            {}
+                        )
+                        .copy()
+                    )
+
+                    latest_vitals[
+                        "timestamp"
+                    ] = latest_timestamp
+
+                except Exception as e:
+
+                    logger.warning(
+                        f"Unable to determine latest vitals "
+                        f"for patient={patient_id}: {str(e)}"
+                    )
+
+        # ==========================================================
+        # 6. FETCH LATEST PREVENTIVE SCREENING
+        # ==========================================================
+
+        screening_cursor = (
+            preventive_screening_collection.find(
+                {
+                    "patient_id": patient_id
+                },
+                {
+                    "_id": 0,
+                    "patient_id": 1,
+                    "doctor_id": 1,
+                    "case_history": 1,
+                    "examination": 1,
+                    "created_at": 1,
+                    "updated_at": 1
+                }
+            )
+            .sort(
+                "updated_at",
+                -1
+            )
+            .limit(1)
+        )
+
+        # ----------------------------------------------------------
+        # Handle Motor cursor and PyMongo cursor.
+        # ----------------------------------------------------------
+
+        if hasattr(
+            screening_cursor,
+            "to_list"
+        ):
+
+            screening_docs = (
+                await screening_cursor.to_list(
+                    length=1
+                )
+            )
+
+        else:
+
+            screening_docs = list(
+                screening_cursor
+            )
+
+        preventive_screening = {}
+
+        if screening_docs:
+
+            screening_doc = (
+                screening_docs[0]
+            )
+
+            preventive_screening = {
+
+                "case_history": (
+                    screening_doc.get(
+                        "case_history"
+                    )
+                ),
+
+                "examination": (
+                    screening_doc.get(
+                        "examination"
+                    )
+                )
+            }
+
+        # ==========================================================
+        # 7. FETCH LATEST CLINICAL SUMMARY
+        # ==========================================================
+        #
+        # YOUR ACTUAL DATABASE STRUCTURE:
+        #
+        # {
+        #     "summary": {
+        #         "diagnosis_header": "...",
+        #         "confirmed_diagnosis_present": true,
+        #         "confirmed_diagnoses": [
+        #             "..."
+        #         ],
+        #         "paragraphs": [
+        #             "...",
+        #             "..."
+        #         ]
+        #     }
+        # }
+        #
+        # ONLY USE:
+        #
+        #     summary.paragraphs
+        #     summary.confirmed_diagnoses
+        #
+        # NOTHING ELSE.
+        # ==========================================================
+
+        summary_cursor = (
+            summary_collection.find(
+                {
+                    "patient_id": patient_id
+                }
+            )
+            .sort(
+                "generated_at",
+                -1
+            )
+            .limit(1)
+        )
+
+        if hasattr(
+            summary_cursor,
+            "to_list"
+        ):
+
+            summary_docs = (
+                await summary_cursor.to_list(
+                    length=1
+                )
+            )
+
+        else:
+
+            summary_docs = list(
+                summary_cursor
+            )
+
+        clinical_summary = ""
+
+        confirmed_diagnoses = []
+
+        if summary_docs:
+
+            latest_summary_doc = (
+                summary_docs[0]
+            )
+
+            # ======================================================
+            # GET summary OBJECT
+            # ======================================================
+
+            summary_data = (
+                latest_summary_doc.get(
+                    "summary",
+                    {}
+                )
+            )
+
+            # Safety check
+            if not isinstance(
+                summary_data,
+                dict
+            ):
+
+                summary_data = {}
+
+            # ======================================================
+            # 7A. GET PARAGRAPHS ONLY
+            # ======================================================
+
+            paragraphs = (
+                summary_data.get(
+                    "paragraphs",
+                    []
+                )
+            )
+
+            if isinstance(
+                paragraphs,
+                list
+            ):
+
+                clinical_summary = " ".join(
+                    str(paragraph).strip()
+                    for paragraph in paragraphs
+                    if paragraph
+                )
+
+            elif isinstance(
+                paragraphs,
+                str
+            ):
+
+                clinical_summary = (
+                    paragraphs.strip()
+                )
+
+            else:
+
+                clinical_summary = ""
+
+            # Normalize into one paragraph
+            clinical_summary = " ".join(
+                clinical_summary.split()
+            )
+
+            # ======================================================
+            # 7B. GET CONFIRMED DIAGNOSES ONLY
+            # ======================================================
+
+            diagnoses = (
+                summary_data.get(
+                    "confirmed_diagnoses",
+                    []
+                )
+            )
+
+            if isinstance(
+                diagnoses,
+                list
+            ):
+
+                confirmed_diagnoses = [
+
+                    str(diagnosis).strip()
+
+                    for diagnosis in diagnoses
+
+                    if diagnosis
+                ]
+
+            elif isinstance(
+                diagnoses,
+                str
+            ):
+
+                confirmed_diagnoses = [
+                    diagnoses.strip()
+                ]
+
+        # ==========================================================
+        # 8. LOG SUMMARY DATA
+        # ==========================================================
+        #
+        # Useful for testing.
+        # ==========================================================
+
+        logger.info(
+            "Visit summary source data | patient=%s | "
+            "clinical_summary=%s | confirmed_diagnoses=%s",
+            patient_id,
+            bool(clinical_summary),
+            confirmed_diagnoses
+        )
+
+        # ==========================================================
+        # 9. BUILD LLM INPUT
+        # ==========================================================
+        #
+        # IMPORTANT:
+        #
+        # clinical_summary is NOT included.
+        #
+        # confirmed_diagnoses is NOT included.
+        #
+        # appointment_id is NOT included.
+        #
+        # ==========================================================
+
+        llm_source_data = {
+
+            "patient_demographics": (
+                patient_demographics
+            ),
+
+            "dictation": dictation,
+
+            "latest_vitals": latest_vitals,
+
+            "preventive_screening": (
+                preventive_screening
+            )
+        }
+
+        source_json = json.dumps(
+            llm_source_data,
+            indent=2,
+            default=str
+        )
+
+        # ==========================================================
+        # 10. LLM PROMPT
+        # ==========================================================
+
+        prompt = f"""
+You are a hospital clinical documentation assistant.
+
+Generate the non-summary sections of an OPD Visit Summary.
+
+The backend will separately insert:
+
+1. Clinical summary
+2. Confirmed diagnoses
+
+You will NOT receive either of these.
+
+You MUST NOT generate either of these.
+
+============================================================
+SOURCE OF TRUTH
+============================================================
+
+Use ONLY the supplied:
+
+1. Patient demographics
+2. Doctor dictation
+3. Latest vitals
+4. Preventive screening
+
+Only include information explicitly present.
+
+Never invent clinical information.
+
+Do not practice medicine.
+
+Do not add standard medical recommendations.
+
+Do not add typical findings.
+
+Do not complete missing information.
+
+Do not infer information.
+
+============================================================
+DIAGNOSIS
+============================================================
+
+Do NOT generate a diagnosis section.
+
+Do NOT generate a diagnosis field.
+
+Do NOT infer or create diagnoses.
+
+Confirmed diagnoses are handled directly by the backend.
+
+============================================================
+CLINICAL EXAMINATION
+============================================================
+
+Generate clinical_examination only from:
+
+- explicitly documented examination findings
+- latest vitals
+- preventive screening examination findings
+
+Do not invent normal findings.
+
+Do not interpret findings unless explicitly documented.
+
+============================================================
+ASSESSMENT
+============================================================
+
+Generate assessment only from information explicitly
+stated in the dictation, vitals, or preventive screening.
+
+Do not create new clinical reasoning.
+
+Do not infer a diagnosis.
+
+============================================================
+PLAN
+============================================================
+
+Generate plan only from actions explicitly stated.
+
+This can include ONLY explicitly documented:
+
+- investigations
+- treatment
+- procedures
+- medications
+- counselling
+- referrals
+- monitoring
+- follow-up
+
+Do not add standard medical recommendations.
+
+============================================================
+NEXT VISIT
+============================================================
+
+Generate next_visit only if explicitly documented.
+
+Do not invent a follow-up date.
+
+Do not invent a follow-up interval.
+
+============================================================
+OUTPUT
+============================================================
+
+Return ONLY valid JSON.
+
+Use this structure:
+
+{{
+    "clinical_examination": {{
+        ...
+    }},
+    "assessment": "...",
+    "plan": {{
+        ...
+    }},
+    "next_visit": "..."
+}}
+
+Rules:
+
+- DO NOT include diagnosis.
+- DO NOT include confirmed_diagnoses.
+- DO NOT include clinical_summary.
+- DO NOT include patient_demographics.
+- DO NOT include appointment_id.
+- Do not create empty sections.
+- Do not create null values.
+- Do not create empty lists.
+- If information is not explicitly stated, omit it.
+- Preserve medical terminology.
+- Preserve clinically relevant details explicitly stated.
+- Do not invent information.
+- Do not infer information.
+- Do not add clinical recommendations.
+- Do not add standard-of-care information.
+
+============================================================
+SOURCE DATA
+============================================================
+
+{source_json}
+"""
+
+        # ==========================================================
+        # 11. CALL LLM
+        # ==========================================================
+
+        completion = groq_client.chat.completions.create(
+            model="openai/gpt-oss-120b",
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            temperature=0.1,
+            response_format={
+                "type": "json_object"
+            },
+            max_tokens=6000
+        )
+
+        llm_content = (
+            completion
+            .choices[0]
+            .message
+            .content
+        )
+
+        generated_sections = json.loads(
+            llm_content
+        )
+
+        # ==========================================================
+        # 12. REMOVE FORBIDDEN LLM FIELDS
+        # ==========================================================
+
+        generated_sections.pop(
+            "diagnosis",
+            None
+        )
+
+        generated_sections.pop(
+            "confirmed_diagnoses",
+            None
+        )
+
+        generated_sections.pop(
+            "clinical_summary",
+            None
+        )
+
+        generated_sections.pop(
+            "patient_demographics",
+            None
+        )
+
+        generated_sections.pop(
+            "appointment_id",
+            None
+        )
+
+        # ==========================================================
+        # 13. CLEAN EMPTY VALUES
+        # ==========================================================
+
+        def remove_empty_values(value):
+
+            if isinstance(
+                value,
+                dict
+            ):
+
+                cleaned = {}
+
+                for key, val in value.items():
+
+                    cleaned_value = (
+                        remove_empty_values(
+                            val
+                        )
+                    )
+
+                    if cleaned_value not in (
+                        None,
+                        "",
+                        [],
+                        {}
+                    ):
+
+                        cleaned[key] = (
+                            cleaned_value
+                        )
+
+                return cleaned
+
+            if isinstance(
+                value,
+                list
+            ):
+
+                cleaned_list = []
+
+                for item in value:
+
+                    cleaned_item = (
+                        remove_empty_values(
+                            item
+                        )
+                    )
+
+                    if cleaned_item not in (
+                        None,
+                        "",
+                        [],
+                        {}
+                    ):
+
+                        cleaned_list.append(
+                            cleaned_item
+                        )
+
+                return cleaned_list
+
+            return value
+
+        generated_sections = (
+            remove_empty_values(
+                generated_sections
+            )
+        )
+
+        # ==========================================================
+        # 14. BUILD FINAL VISIT SUMMARY
+        # ==========================================================
+        #
+        # Clinical summary:
+        #     summary.paragraphs
+        #
+        # Confirmed diagnoses:
+        #     summary.confirmed_diagnoses
+        #
+        # Both come directly from MongoDB.
+        #
+        # Neither goes through LLM.
+        # ==========================================================
+
+        visit_summary = {
+
+            "document_type": (
+                "OPD Visit Summary"
+            ),
+
+            "date_of_visit": (
+                datetime.utcnow().strftime(
+                    "%d.%m.%Y"
+                )
+            ),
+
+            # ------------------------------------------------------
+            # Patient demographics
+            # ------------------------------------------------------
+
+            "patient_demographics": (
+                patient_demographics
+            ),
+
+            # ------------------------------------------------------
+            # DIRECT FROM summary_collection
+            # summary.paragraphs
+            # ------------------------------------------------------
+
+            "clinical_summary": (
+                clinical_summary
+            ),
+
+            # ------------------------------------------------------
+            # DIRECT FROM summary_collection
+            # summary.confirmed_diagnoses
+            # ------------------------------------------------------
+
+            "confirmed_diagnoses": (
+                confirmed_diagnoses
+            ),
+
+            # ------------------------------------------------------
+            # LLM GENERATED
+            # ------------------------------------------------------
+
+            "clinical_examination": (
+                generated_sections.get(
+                    "clinical_examination"
+                )
+            ),
+
+            "assessment": (
+                generated_sections.get(
+                    "assessment"
+                )
+            ),
+
+            "plan": (
+                generated_sections.get(
+                    "plan"
+                )
+            ),
+
+            "next_visit": (
+                generated_sections.get(
+                    "next_visit"
+                )
+            )
+        }
+
+        # ==========================================================
+        # 15. REMOVE EMPTY TOP-LEVEL VALUES
+        # ==========================================================
+
+        visit_summary = (
+            remove_empty_values(
+                visit_summary
+            )
+        )
+
+        # ==========================================================
+        # 16. SAVE VISIT SUMMARY
+        # ==========================================================
+        #
+        # NO appointment_id.
+        # ==========================================================
+
+        visit_summary_record = {
+
+            "patient_id": patient_id,
+
+            "doctor_id": doctor_id,
+
+            "visit_summary": visit_summary,
+
+            "source_data": {
+
+                "dictation": dictation,
+
+                "latest_vitals": latest_vitals,
+
+                "preventive_screening": (
+                    preventive_screening
+                ),
+
+                # Direct MongoDB source.
+                # NOT sent to LLM.
+                "clinical_summary_source": (
+                    clinical_summary
+                ),
+
+                # Direct MongoDB source.
+                # NOT sent to LLM.
+                "confirmed_diagnoses_source": (
+                    confirmed_diagnoses
+                )
+            },
+
+            "generated_at": datetime.utcnow(),
+
+            "updated_at": datetime.utcnow()
+        }
+
+        insert_result = (
+            visit_summary_collection.insert_one(
+                visit_summary_record
+            )
+        )
+
+        await resolve_mongo_result(
+            insert_result
+        )
+
+        # ==========================================================
+        # 17. RETURN
+        # ==========================================================
+
+        return {
+
+            "status": "success",
+
+            "feature_name": "visit_summary",
+
+            "data": visit_summary,
+
+            "metadata": {
+
+                "patient_id": patient_id,
+
+                "doctor_id": doctor_id,
+
+                "sources": {
+
+                    "dictation": bool(
+                        dictation
+                    ),
+
+                    "latest_vitals": bool(
+                        latest_vitals
+                    ),
+
+                    "preventive_screening": bool(
+                        preventive_screening
+                    ),
+
+                    "clinical_summary": bool(
+                        clinical_summary
+                    ),
+
+                    "confirmed_diagnoses": bool(
+                        confirmed_diagnoses
+                    )
+                }
+            }
+        }
+
+    except HTTPException:
+
+        raise
+
+    except Exception as e:
+
+        logger.exception(
+            "Visit summary generation failed"
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                f"Visit summary generation error: "
+                f"{str(e)}"
+            )
+        )
+        
+        
+def remove_empty_fields(value):
+    if isinstance(value, dict):
+        cleaned = {}
+
+        for key, val in value.items():
+            result = remove_empty_fields(val)
+
+            if result not in (None, "", {}, []):
+                cleaned[key] = result
+
+        return cleaned
+
+    if isinstance(value, list):
+        cleaned = []
+
+        for item in value:
+            result = remove_empty_fields(item)
+
+            if result not in (None, "", {}, []):
+                cleaned.append(result)
+
+        return cleaned
+
+    return value
+
+
+
+
+
+@router.delete("/delete-tumor-board-plan/{patient_id}")
+async def delete_tumor_board_plan(patient_id: str):
+    try:
+        # Delete all tumor board plans for this patient
+        result = await tumor_board_plan_collection.delete_many(
+            {
+                "patient_id": patient_id
+            }
+        )
+
+        if result.deleted_count == 0:
+            return {
+                "message": "No tumor board plan data available for this patient",
+                "patient_id": patient_id,
+                "deleted_count": 0
+            }
+
+        return {
+            "message": "All tumor board plan data deleted successfully",
+            "patient_id": patient_id,
+            "deleted_count": result.deleted_count
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to delete tumor board plans: {str(e)}"
+        )
+
+
+
+##################################################TOKEN CODE ALWIN###############################
+
+async def _resolve_hospital(doctor_id: str):
+    result = doctor_user_collection.find_one(
+        {"sys_user_id": doctor_id}, {"_id": 0, "hospital_id": 1, "hospital_name": 1}
+    )
+    doc = await result if inspect.isawaitable(result) else result
+    if not doc:
+        return None, None
+    return doc.get("hospital_id"), doc.get("hospital_name")
+
+
+async def _upsert_token_rollup(
+    *, hospital_id: str, hospital_name: Optional[str], doctor_id: str,
+    feature: str, model: str, input_tokens: int, output_tokens: int, now: datetime,
+):
+    total_tokens = input_tokens + output_tokens
+
+    # Step 1: existing doctor + existing feature/model leaf -> $inc in place
+    try:
+        result = await llm_usage_log_collection.update_one(
+            {
+                "_id": hospital_id,
+                "doctors": {
+                    "$elemMatch": {
+                        "doctor_id": doctor_id,
+                        "features": {"$elemMatch": {"feature": feature, "model": model}},
+                    }
+                },
+            },
+            {
+                "$inc": {
+                    "total_input_tokens": input_tokens,
+                    "total_output_tokens": output_tokens,
+                    "total_tokens": total_tokens,
+                    "total_calls": 1,
+                    "doctors.$[doc].total_input_tokens": input_tokens,
+                    "doctors.$[doc].total_output_tokens": output_tokens,
+                    "doctors.$[doc].total_tokens": total_tokens,
+                    "doctors.$[doc].total_calls": 1,
+                    "doctors.$[doc].features.$[feat].input_tokens": input_tokens,
+                    "doctors.$[doc].features.$[feat].output_tokens": output_tokens,
+                    "doctors.$[doc].features.$[feat].total_tokens": total_tokens,
+                    "doctors.$[doc].features.$[feat].calls": 1,
+                },
+                "$set": {
+                    "hospital_name": hospital_name,
+                    "updated_at": now,
+                    "doctors.$[doc].last_used": now,
+                    "doctors.$[doc].features.$[feat].last_used": now,
+                },
+            },
+            array_filters=[{"doc.doctor_id": doctor_id}, {"feat.feature": feature, "feat.model": model}],
+        )
+        if result.matched_count:
+            return
+    except Exception:
+        logger.debug("token rollup step1 miss for doctor_id=%s feature=%s model=%s", doctor_id, feature, model)
+
+    # Step 2: doctor exists, feature+model doesn't
+    try:
+        result = await llm_usage_log_collection.update_one(
+            {"_id": hospital_id, "doctors.doctor_id": doctor_id},
+            {
+                "$inc": {
+                    "total_input_tokens": input_tokens,
+                    "total_output_tokens": output_tokens,
+                    "total_tokens": total_tokens,
+                    "total_calls": 1,
+                    "doctors.$[doc].total_input_tokens": input_tokens,
+                    "doctors.$[doc].total_output_tokens": output_tokens,
+                    "doctors.$[doc].total_tokens": total_tokens,
+                    "doctors.$[doc].total_calls": 1,
+                },
+                "$set": {
+                    "hospital_name": hospital_name,
+                    "updated_at": now,
+                    "doctors.$[doc].last_used": now,
+                },
+                "$push": {
+                    "doctors.$[doc].features": {
+                        "feature": feature, "model": model,
+                        "input_tokens": input_tokens, "output_tokens": output_tokens,
+                        "total_tokens": total_tokens, "calls": 1, "last_used": now,
+                    }
+                },
+            },
+            array_filters=[{"doc.doctor_id": doctor_id}],
+        )
+        if result.modified_count:
+            return
+    except Exception:
+        logger.debug("token rollup step2 miss for doctor_id=%s", doctor_id)
+
+    # Step 3: hospital doc exists, doctor doesn't
+    new_doctor = {
+        "doctor_id": doctor_id,
+        "total_input_tokens": input_tokens,
+        "total_output_tokens": output_tokens,
+        "total_tokens": total_tokens,
+        "total_calls": 1,
+        "last_used": now,
+        "features": [{
+            "feature": feature, "model": model,
+            "input_tokens": input_tokens, "output_tokens": output_tokens,
+            "total_tokens": total_tokens, "calls": 1, "last_used": now,
+        }],
+    }
+    try:
+        result = await llm_usage_log_collection.update_one(
+            {"_id": hospital_id},
+            {
+                "$inc": {
+                    "total_input_tokens": input_tokens,
+                    "total_output_tokens": output_tokens,
+                    "total_tokens": total_tokens,
+                    "total_calls": 1,
+                },
+                "$set": {"hospital_name": hospital_name, "updated_at": now},
+                "$push": {"doctors": new_doctor},
+            },
+        )
+        if result.modified_count:
+            return
+    except Exception:
+        logger.debug("token rollup step3 miss for hospital_id=%s", hospital_id)
+
+    # Step 4: hospital doc doesn't exist at all
+    await llm_usage_log_collection.update_one(
+        {"_id": hospital_id},
+        {"$setOnInsert": {
+            "_id": hospital_id, "hospital_name": hospital_name,
+            "total_input_tokens": input_tokens, "total_output_tokens": output_tokens,
+            "total_tokens": total_tokens, "total_calls": 1, "updated_at": now,
+            "doctors": [new_doctor],
+        }},
+        upsert=True,
+    )
+
+
+@router.post("/log-tokens")
+async def log_tokens(payload: dict = Body(...)):
+    """
+    Generalized, reusable token-usage logging endpoint.
+
+    Single source of truth for logging LLM token usage — pass BOTH input_tokens
+    and output_tokens (from any pipeline, any feature, any model) in ONE call.
+    This increments total_calls exactly once per call and rolls the tokens up
+    together, instead of being split into two separate writes/entries.
+
+    Expected payload:
+    {
+        "doctor_id": "required — sys_user_id of the doctor",
+        "feature": "optional — tag identifying which pipeline/function this came from",
+        "model": "optional — model name used for the LLM call",
+        "input_tokens": "optional — prompt/input tokens for this call",
+        "output_tokens": "optional — completion/output tokens for this call"
+    }
+
+    Reusable from any service/location: just POST doctor_id + feature + model +
+    input_tokens + output_tokens here in a single request.
+    """
+    doctor_id = payload.get("doctor_id")
+    feature = payload.get("feature", "unknown")
+    model = payload.get("model", "unknown")
+    input_tokens = int(payload.get("input_tokens", 0) or 0)
+    output_tokens = int(payload.get("output_tokens", 0) or 0)
+
+    if not doctor_id:
+        raise HTTPException(status_code=400, detail="doctor_id is required")
+
+    hospital_id, hospital_name = await _resolve_hospital(doctor_id)
+    if not hospital_id:
+        logger.warning(f"log_tokens: no hospital found for doctor_id={doctor_id} — not persisted")
+        return {"success": False, "reason": "hospital_not_found"}
+
+    await _upsert_token_rollup(
+        hospital_id=hospital_id, hospital_name=hospital_name, doctor_id=doctor_id,
+        feature=feature, model=model, input_tokens=input_tokens, output_tokens=output_tokens,
+        now=datetime.utcnow(),
+    )
+    return {
+        "success": True,
+        "doctor_id": doctor_id,
+        "input_tokens": input_tokens,
+        "output_tokens": output_tokens,
+    }
+#############################################TOKEN CODE ALWIN###################################################
+
+
+@router.delete("/patient-summary/delete")
+async def delete_patient_summaries():
+    try:
+        summary_ids = [
+            "6aa111279b7403912ca60eea",
+            "6aa10e77f2c0d4e3bf2f9e64"
+        ]
+
+        object_ids = [ObjectId(summary_id) for summary_id in summary_ids]
+
+        result = await summary_collection.delete_many({
+            "_id": {"$in": object_ids}
+        })
+
+        return {
+            "status": "success",
+            "deleted_count": result.deleted_count
+        }
+
+    except Exception as e:
+        logger.error(f"❌ Failed deleting patient summaries: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
+        
+        
+        

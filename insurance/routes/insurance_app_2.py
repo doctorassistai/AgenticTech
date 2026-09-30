@@ -147,17 +147,51 @@ async def update_availability_time(request: Request, body: TimeUpdate):
 
     return {"success": True, "availableFrom": body.availableFrom, "availableTo": body.availableTo}
 
+class LoginPing(BaseModel):
+    latitude:  Optional[float] = None
+    longitude: Optional[float] = None
+
 @router.post("/login-ping")
-async def record_login(request: Request):
+async def record_login(request: Request, body: LoginPing = LoginPing()):
     """Called by mobile app right after successful login to stamp lastLoginAt."""
     user_id = _get_user_id(request)
-    
+
+    update = {"lastLoginAt": datetime.now(IST)}
+    if body.latitude is not None and body.longitude is not None:
+        update["latitude"]  = body.latitude
+        update["longitude"] = body.longitude
+
     result = await avail_col.update_one(
         {"userId": user_id},
-        {"$set": {"lastLoginAt": datetime.now(IST)}}
+        {"$set": update}
     )
     # If no record yet (officer hasn't done check-in), that's fine — just skip
     return {"success": True, "updated": result.matched_count > 0}
+
+class LocationPing(BaseModel):
+    latitude:  float
+    longitude: float
+
+@router.patch("/location-ping")
+async def location_ping(request: Request, body: LocationPing):
+    """Called every ~10 min while the officer is active in the app."""
+    user_id = _get_user_id(request)
+
+    result = await avail_col.update_one(
+        {"userId": user_id},
+        {"$set": {
+            "latitude":    body.latitude,
+            "longitude":   body.longitude,
+            "lastUpdated": datetime.now(IST),
+        }}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(
+            status_code=404,
+            detail="No availability record found. Complete daily check-in first."
+        )
+    return {"success": True}
+
 
 @router.post("/checkin")
 async def checkin(request: Request, body: AvailabilityUpsert):

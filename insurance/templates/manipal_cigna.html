@@ -224,8 +224,8 @@
       <tr><td class="lbl">PATIENT NAME</td><td class="val-data">{{ case.claimantName or '' }}</td></tr>
       <tr><td class="lbl">RELATIONSHIP WITH INSURED</td><td class="val-data">{{ case.relationship or '' }}</td></tr>
       <tr><td class="lbl">AGE/ SEX</td><td class="val-data">{{ case.claimantAge or '' }}{% if case.claimantGender %} / {{ case.claimantGender }}{% endif %}</td></tr>
-      <tr><td class="lbl">INSURED CITY</td><td class="val-data">{{ case.city or hospital.city or '' }}</td></tr>
-      <tr><td class="lbl">INSURED STATE</td><td class="val-data">{{ case.state or hospital.get('state','') if hospital.get else '' }}</td></tr>
+      <tr><td class="lbl">INSURED CITY</td><td class="val-data">{{ case.city or '' }}</td></tr>
+      <tr><td class="lbl">INSURED STATE</td><td class="val-data">{{ case.state or '' }}</td></tr>
       <tr><td class="lbl">CLAIM AMOUNT</td><td class="val-data">{{ case.claimedAmount or '' }}</td></tr>
       <tr><td class="lbl">DIAGNOSIS</td><td class="val-data">{{ critical.diagnosis or '' }}</td></tr>
       <tr><td class="lbl">DOA</td><td class="val-data">{{ hospital.admissionDate or '' }}</td></tr>
@@ -249,8 +249,8 @@
         <td style="font-weight:bold; font-size:10.5px; text-align:center; vertical-align:middle;">
           Claim<br>Specific<br>Triggers:
         </td>
-        <td class="val-data" style="min-height:36px;">{{ case.claimTrigger or (case.get('triggerDetails') or {}).get('trigger') or '' }}</td>
-        <td class="val-data">{{ (case.get('triggerDetails') or {}).get('outcome') or '' }}</td>
+        <td class="val-data" style="min-height:36px;">{{ case.claimTriggers or (case.get('triggerDetails') or {}).get('trigger') or '' }}</td>
+                <td class="val-data">{{ (case.get('triggerDetails') or {}).get('outcome') or '' }}</td>
       </tr>
     </table>
 
@@ -430,7 +430,8 @@
       </tr>
       <tr>
         <td class="lbl">RECOMMENDATION</td>
-        <td class="val">{{ conc.get('recommendation') or additional.get('investigatorHospitalOpinion','Choose an item.') if additional.get else conc.get('recommendation','Choose an item.') }}</td>
+        {% set rec_val = conc.get('recommendation') or (additional.get('investigatorHospitalOpinion') if additional.get else None) %}
+        <td class="{{ 'val-data' if rec_val else 'val' }}">{{ rec_val or 'Choose an item.' }}</td>
       </tr>
       <tr>
         <td class="lbl">REMARKS</td>

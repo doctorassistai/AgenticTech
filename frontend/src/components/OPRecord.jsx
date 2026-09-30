@@ -40,6 +40,7 @@ import PatientReferralsTab from "./PatientReferralsTab";
 import ProtocolMasterTab from "./OPProtocolMasterTab";
 import RadioTherapyOverview from "./RadioTherapyOverview";
 import SurgeryOverview from "./SurgeryOverview";
+import ChemoIntelligenceTab from "./ChemoIntelligenceTab";
 const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || "https://doctorassist.ai/api/";
 
 function uploadInvestigationFile(patientId, doctorId, investigationId, file) {
@@ -3697,7 +3698,7 @@ const getInitialFormData = (patientId) => ({
 // ─── CHEMOTHERAPY WORKFLOW (Main Component) ──────────────────────────────────────────────────
 
 const OPRecord = ({ doctorId, patientId, doctorSpeciality, doctorName, hospitalId = "" }) => {
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState("chemoIntelligence");
   const [currentTreatmentId, setCurrentTreatmentId] = useState(null);
   const [currentTreatmentStatus, setCurrentTreatmentStatus] = useState("active");
   const [treatmentHistory, setTreatmentHistory] = useState([]);
@@ -5452,7 +5453,8 @@ const OPRecord = ({ doctorId, patientId, doctorSpeciality, doctorName, hospitalI
             treatmentId: currentTreatmentId,
             status: overrideStatus || currentTreatmentStatus,
             formData: mergedData,
-            treatment: mergedTreatment
+            treatment: mergedTreatment,
+            activeTab: activeTab 
           })
         }
       );
@@ -6099,6 +6101,7 @@ const OPRecord = ({ doctorId, patientId, doctorSpeciality, doctorName, hospitalI
 
   // ─── SIDEBAR RENDERING ────────────────────────────────────────────
   const navItems = [
+    { id: "chemoIntelligence", label: "Chemotherapy Intelligence" },
     { id: "overview", label: "Overview & Dashboard" },
     { id: "partA", label: "Protocol Master" },
     { id: "partB", label: "Doctor's Notes" },
@@ -6314,7 +6317,18 @@ const OPRecord = ({ doctorId, patientId, doctorSpeciality, doctorName, hospitalI
             </Box>
           </Box>
 
-          <Box sx={{ flex: 1, p: 3, pb: 10, position: "relative" }}>
+          <Box sx={{ flex: 1, p: activeTab === "chemoIntelligence" ? 0 : 3, pb: 10, position: "relative" }}>
+
+            {/* TAB: CHEMOTHERAPY INTELLIGENCE */}
+            {activeTab === "chemoIntelligence" && (
+              <ChemoIntelligenceTab
+                patientId={patientId}
+                doctorId={doctorId}
+                treatmentId={currentTreatmentId}
+                cycleNum={activeEditCycle}
+                treatmentHistory={treatmentHistory}
+              />
+            )}
 
             {/* TAB: OVERVIEW & DASHBOARD */}
             {activeTab === "overview" && (

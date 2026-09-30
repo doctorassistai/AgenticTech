@@ -446,7 +446,7 @@ if not GROQ_API_KEY:
     raise RuntimeError("GROQ_API_KEY is not set")
 
 llm = ChatGroq(
-    model="llama-3.1-8b-instant",
+    model="openai/gpt-oss-20b",
     groq_api_key=GROQ_API_KEY,
     temperature=0.1,  # Lower temperature for less hallucination
     max_tokens=4500

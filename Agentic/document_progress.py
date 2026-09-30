@@ -88,7 +88,7 @@ mongo_db     = mongo_client[MONGO_DB_NAME]
 
 # Primary reasoning LLM (fast)
 llm = ChatGroq(
-    model="llama-3.1-8b-instant",
+    model="openai/gpt-oss-20b",
     temperature=0.2,
     max_tokens=5000,
     groq_api_key=GROQ_API_KEY,
@@ -96,7 +96,7 @@ llm = ChatGroq(
 
 # Higher-quality LLM for synthesis layers
 llm_synthesis = ChatGroq(
-    model="llama-3.3-70b-versatile",
+    model="openai/gpt-oss-120b",
     temperature=0.1,
     max_tokens=5000,
     groq_api_key=GROQ_API_KEY,

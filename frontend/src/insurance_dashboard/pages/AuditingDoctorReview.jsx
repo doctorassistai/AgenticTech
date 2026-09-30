@@ -1,228 +1,111 @@
-import React, { useState, useEffect, useCallback } from "react";
+import "./Dashboard.css";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useExtractionEvents } from "./ExtractionNotifications";
 
 const BASE_URL = import.meta.env.VITE_BACKEND_URL;
-
-/* ─── THEME (matches DoctorDashboard) ─── */
-const T = {
-  bg: "#ffffff",
-  bgAlt: "#fafafa",
-  bgTert: "#f5f5f5",
-  text: "#000000",
-  textSec: "#444444",
-  textMuted: "#888888",
-  border: "#e0e0e0",
-  accent: "#000000",
-  success: "#2e7d32",
-  warning: "#ed6c02",
-  error: "#d32f2f",
-  purple: "#7c3aed",
-};
-
 const b = (BASE_URL || "").replace(/\/$/, "");
 
-/* ─── Status pill ─── */
-function StatusPill({ color, spin, children }) {
+const PRIORITY_COLOR = { Normal: "gray", High: "amber", Urgent: "red", Critical: "red" };
+const STATUS_COLOR = {
+  ALLOCATED: "blue", IN_PROGRESS: "amber", EVIDENCE_COLLECTION: "amber",
+  UNDER_REVIEW: "purple", QC_PENDING: "teal", COMPLETED: "green", CLOSED: "gray", DRAFT: "gray",
+};
+
+function fmtAmount(n) {
+  if (!n && n !== 0) return "—";
+  return "₹" + Number(n).toLocaleString("en-IN");
+}
+function fmtStatus(s) {
+  return (s || "").replaceAll("_", " ");
+}
+// Whichever timestamp the case carries for "when it landed with this doctor" —
+// falls back through the likely field names so the "Today" stat still works
+// regardless of which one the my-cases endpoint actually returns.
+function getAllocatedDate(c) {
+  return c.assignedAt || c.allocatedAt || c.allocationDate || c.createdAt || null;
+}
+function isToday(dateStr) {
+  if (!dateStr) return false;
+  const d = new Date(dateStr);
+  const now = new Date();
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, color, fontWeight: 600 }}>
-      {spin
-        ? <span style={{ display: "inline-block", width: 10, height: 10, border: `2px solid ${color}`, borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
-        : <span>●</span>}
-      {children}
-    </span>
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate()
   );
 }
 
-/* ─── Page checklist (no thumbnails — plain numbered checkboxes) ─── */
-function PageChecklist({ pageCount, selected, onToggle, onSelectAll, onClearAll }) {
-  const pages = Array.from({ length: pageCount }, (_, i) => i + 1);
-  return (
-    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
-      <div style={{
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "8px 14px", background: T.bgAlt, border: `1px solid ${T.border}`,
-        borderBottom: "none",
-      }}>
-        <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: T.text }}>
-          Select pages ({selected.size}/{pageCount})
-        </span>
-        <div style={{ display: "flex", gap: 10 }}>
-          <button type="button" onClick={onSelectAll} style={{ fontSize: 10, fontWeight: 600, background: "none", border: "none", color: T.text, cursor: "pointer", textDecoration: "underline", padding: 0 }}>All</button>
-          <button type="button" onClick={onClearAll} style={{ fontSize: 10, fontWeight: 600, background: "none", border: "none", color: T.textMuted, cursor: "pointer", textDecoration: "underline", padding: 0 }}>None</button>
-        </div>
-      </div>
-      <div style={{
-        display: "flex", flexWrap: "wrap", alignContent: "flex-start", gap: 6, flex: 1, overflowY: "auto",
-        padding: 10, border: `1px solid ${T.border}`, background: "#fff",
-      }}>
-        {pages.map(p => {
-          const isSel = selected.has(p);
-          return (
-            <label key={p} style={{
-              display: "flex", alignItems: "center", gap: 4, fontSize: 11,
-              padding: "3px 8px", cursor: "pointer",
-              border: `1px solid ${isSel ? T.text : T.border}`,
-              background: isSel ? T.text : "#fff",
-              color: isSel ? "#fff" : T.textSec, fontWeight: isSel ? 700 : 400,
-            }}>
-              <input type="checkbox" checked={isSel} onChange={() => onToggle(p)} style={{ margin: 0 }} />
-              {p}
-            </label>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
+/* ─── Supporting-document status row — no actions except retry-on-failure.
+   Extraction is queued automatically at upload time (in the supervisor's
+   Case Document Upload panel), so by the time the doctor opens a case each
+   Supporting Document is already Processing / Extracted / Failed — nothing
+   here requires the doctor to pick pages or click Extract. ─── */
+function SupportingDocStatusRow({ task, doctorId, onRetried }) {
+  const [retrying, setRetrying] = useState(false);
+  const [retryError, setRetryError] = useState("");
 
-/* ─── One staged Supporting Document — PDF viewer + page picker + extract ─── */
-function StagedDocumentCard({ doc, doctorId, caseId, onExtracted }) {
-  const pageCount = doc.page_count || 1;
-  const [selected, setSelected] = useState(new Set(Array.from({ length: pageCount }, (_, i) => i + 1)));
-  const [status, setStatus] = useState("idle"); // idle | queued | polling | done | error
-  const [errorMsg, setErrorMsg] = useState("");
+  const status = task.status; // "queued" | "processing" | "success" | "failed" | "rejected"
+  const isProcessing = status === "queued" || status === "processing";
+  const isFailed = status === "failed";
+  const isDone = status === "success";
 
-  const toggle = (p) => setSelected(prev => {
-    const next = new Set(prev);
-    next.has(p) ? next.delete(p) : next.add(p);
-    return next;
-  });
-  const selectAll = () => setSelected(new Set(Array.from({ length: pageCount }, (_, i) => i + 1)));
-  const clearAll  = () => setSelected(new Set());
-
-  const pollStatus = async (taskId) => {
-    const start = Date.now();
-    while (Date.now() - start < 5 * 60 * 1000) {
-      const resp = await fetch(`${b}/insurance/web/advanced-upload/status/${taskId}`, {
-        headers: { "X-User-Id": doctorId, "X-User-Role": "auditing-doctor-new" },
-      });
-      if (!resp.ok) throw new Error(`Status check failed: ${resp.status}`);
-      const data = await resp.json();
-      if (data.status === "success") return data.result;
-      if (data.status === "failed") throw new Error(data.error || "Extraction failed");
-      if (data.status === "rejected") throw new Error(data.error || "This file is already being processed.");
-      await new Promise(r => setTimeout(r, 2500));
-    }
-    throw new Error("Extraction is taking longer than expected — check back shortly.");
-  };
-
-  const handleExtract = async () => {
-    if (selected.size === 0) return;
-    setStatus("queued");
-    setErrorMsg("");
+  const handleRetry = async () => {
+    setRetrying(true);
+    setRetryError("");
     try {
-      const resp = await fetch(`${b}/insurance/web/advanced-upload/extract`, {
+      const resp = await fetch(`${b}/insurance/web/advanced-upload/retry/${task.task_id}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "X-User-Id": doctorId, "X-User-Role": "auditing-doctor-new" },
-        body: JSON.stringify({
-          case_id: caseId,
-          doc_id: doc.doc_id,
-          pages: Array.from(selected).sort((a, c) => a - c),
-          email_text: "",
-        }),
+        credentials: "include",
       });
       if (!resp.ok) {
         const errBody = await resp.json().catch(() => null);
-        throw new Error(errBody?.detail || `Extraction failed: ${resp.status}`);
+        throw new Error(errBody?.detail || `Retry failed: ${resp.status}`);
       }
-      const queued = await resp.json();
-      if (!queued.task_id) throw new Error("No task_id returned");
-
-      setStatus("polling");
-      const result = await pollStatus(queued.task_id);
-      if (!result || !result.success) throw new Error("Extraction returned empty result");
-
-      setStatus("done");
-      onExtracted(doc.doc_id, result);
+      onRetried();
     } catch (err) {
-      console.error("Extraction error", err);
-      setErrorMsg(err.message || "Extraction failed");
-      setStatus("error");
+      console.error("Retry error", err);
+      setRetryError(err.message || "Retry failed");
+    } finally {
+      setRetrying(false);
     }
   };
 
-  if (status === "done") return null; // removed from staged list once extracted —
-  // its outcome lives on in the "Recent extraction activity" section below,
-  // driven by the shared extraction context, so it's visible even after
-  // navigating away and back.
+  const accent = isDone ? "var(--green)" : isFailed ? "var(--red)" : "var(--amber)";
 
   return (
-    <div style={{ border: `1px solid ${T.border}`, marginBottom: 16 }}>
-      <div style={{
-        padding: "8px 14px", background: T.bgAlt, borderBottom: `1px solid ${T.border}`,
-        display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 6,
-      }}>
-        <div>
-          <div style={{ fontSize: 12, fontWeight: 600, color: T.text }}>{doc.file_name}</div>
-          <div style={{ fontSize: 10, color: T.textMuted }}>
-            {doc.display_label} · {pageCount} page{pageCount !== 1 ? "s" : ""}
-          </div>
+    <div
+      style={{
+        display: "flex", justifyContent: "space-between", alignItems: "center",
+        gap: 10, padding: "10px 14px", marginBottom: 8,
+        border: "1px solid var(--border)", borderLeft: `3px solid ${accent}`,
+        borderRadius: "var(--radius-sm, 8px)", background: "var(--bg)",
+      }}
+    >
+      <div style={{ minWidth: 0 }}>
+        <div className="td-name" style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+          {task.display_label || task.file_name}
         </div>
-        {status === "idle" && <StatusPill color={T.textMuted}>Awaiting review</StatusPill>}
-        {status === "queued" && <StatusPill color={T.warning} spin>Queuing…</StatusPill>}
-        {status === "polling" && <StatusPill color={T.warning} spin>Parsing & extracting…</StatusPill>}
-        {status === "error" && <StatusPill color={T.error}>Failed</StatusPill>}
+        <div className="td-sub" style={{ marginTop: 2 }}>
+          {isDone && `${task.result?.fields_found ?? 0} field(s) merged into the claim.`}
+          {isFailed && (retryError || task.error || "Extraction failed.")}
+          {isProcessing && `${task.total_pages || 1} page(s) · parsing & extracting…`}
+        </div>
       </div>
 
-      <div style={{ display: "flex", gap: 16, padding: 14, alignItems: "stretch", height: 720 }}>
-        <div style={{ flex: "1 1 50%", minWidth: 340, display: "flex", flexDirection: "column" }}>
-          <div style={{
-            padding: "8px 14px", background: T.bgAlt, border: `1px solid ${T.border}`, borderBottom: "none",
-          }}>
-            <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: T.text }}>
-              Document preview
-            </span>
-          </div>
-          {doc.stored_url ? (
-            <iframe
-              src={doc.stored_url}
-              title={doc.file_name}
-              style={{ width: "100%", flex: 1, border: `1px solid ${T.border}` }}
-            />
-          ) : (
-            <div style={{
-              flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
-              color: T.textMuted, fontSize: 12, border: `1px solid ${T.border}`,
-            }}>Preview not available</div>
-          )}
-        </div>
-
-        <div style={{ flex: "1 1 50%", minWidth: 340, display: "flex", flexDirection: "column", gap: 10 }}>
-          <PageChecklist
-            pageCount={pageCount}
-            selected={selected}
-            onToggle={toggle}
-            onSelectAll={selectAll}
-            onClearAll={clearAll}
-          />
-
-          {errorMsg && (
-            <div style={{ fontSize: 11, color: T.error }}>{errorMsg}</div>
-          )}
-
-          <button
-            onClick={handleExtract}
-            disabled={selected.size === 0 || status === "queued" || status === "polling"}
-            style={{
-              padding: "9px 14px", background: T.text, color: "#fff", border: "none",
-              fontSize: 11, fontWeight: 700, cursor: selected.size === 0 ? "not-allowed" : "pointer",
-              opacity: (selected.size === 0 || status === "queued" || status === "polling") ? 0.5 : 1,
-              letterSpacing: "0.04em", textTransform: "uppercase",
-            }}
-          >
-            {status === "queued" || status === "polling"
-              ? "Extracting…"
-              : status === "error"
-                ? `Retry Extraction (${selected.size}/${pageCount})`
-                : `Extract Selected (${selected.size}/${pageCount})`}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+        {isProcessing && (
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, color: "var(--amber)", fontWeight: 700 }}>
+            <span style={{ display: "inline-block", width: 10, height: 10, border: "2px solid var(--amber)", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+            Processing
+          </span>
+        )}
+        {isDone && <span className="badge green">Extracted</span>}
+        {isFailed && (
+          <button className="btn btn-sm" onClick={handleRetry} disabled={retrying}>
+            {retrying ? "Retrying…" : "↺ Retry"}
           </button>
-
-          <div style={{ fontSize: 10, color: T.textMuted }}>
-            Only the pages you check are sent for parsing & extraction. Extracted fields override
-            existing values on this claim.
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );
@@ -244,9 +127,7 @@ function RecentExtractionActivity({ caseId }) {
 
   return (
     <div style={{ marginBottom: 20 }}>
-      <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: T.text, marginBottom: 8 }}>
-        Recent Extraction Activity
-      </div>
+      <div className="sh">Recent Extraction Activity</div>
       {events.map((ev) => {
         const isSuccess = ev.status === "success";
         return (
@@ -255,26 +136,20 @@ function RecentExtractionActivity({ caseId }) {
             style={{
               display: "flex", justifyContent: "space-between", alignItems: "center",
               gap: 10, padding: "8px 12px", marginBottom: 6,
-              border: `1px solid ${T.border}`,
-              borderLeft: `3px solid ${isSuccess ? T.success : T.error}`,
-              background: T.bg,
+              border: "1px solid var(--border)",
+              borderLeft: `3px solid ${isSuccess ? "var(--green)" : "var(--red)"}`,
+              borderRadius: "var(--radius-sm, 8px)", background: "var(--bg)",
             }}
           >
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: T.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              <div className="td-name" style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                 {ev.display_label || ev.file_name}
               </div>
-              <div style={{ fontSize: 10, color: T.textMuted, marginTop: 2 }}>
-                {isSuccess
-                  ? `${ev.fields_found ?? 0} field(s) merged into the claim.`
-                  : (ev.error || "Extraction failed.")}
+              <div className="td-sub" style={{ marginTop: 2 }}>
+                {isSuccess ? `${ev.fields_found ?? 0} field(s) merged into the claim.` : (ev.error || "Extraction failed.")}
               </div>
             </div>
-            <span style={{
-              fontSize: 9, fontWeight: 700, padding: "2px 8px", whiteSpace: "nowrap",
-              background: isSuccess ? T.success : T.error, color: "#fff",
-              textTransform: "uppercase", letterSpacing: "0.05em",
-            }}>
+            <span className={`badge ${isSuccess ? "green" : "red"}`}>
               {isSuccess ? "Extracted" : "Failed"}
             </span>
           </div>
@@ -284,34 +159,35 @@ function RecentExtractionActivity({ caseId }) {
   );
 }
 
-/* ─── Doctor Document Review — replaces the old field-display CaseDetail ─── */
-function DoctorDocumentReview({ caseId, doctorId }) {
+/* ─── Doctor Document Review — status-only, no page selection anywhere.
+   Extraction was already queued the moment the Supporting Document was
+   uploaded (supervisor side); this just shows where each one stands. ─── */
+function DoctorDocumentReview({ caseId, doctorId, onClose }) {
   const [caseHeader, setCaseHeader] = useState(null);
-  const [staged, setStaged] = useState([]);
+  const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [justExtracted, setJustExtracted] = useState([]);
   const navigate = useNavigate();
 
   const fetchAll = useCallback(async () => {
     if (!caseId) return;
     setLoading(true);
     try {
-      const [caseResp, stagedResp] = await Promise.all([
+      const [caseResp, statusResp] = await Promise.all([
         fetch(`${b}/insurance/web/doctor/case/${caseId}`, {
-          headers: { "X-User-Id": doctorId, "X-User-Role": "auditing-doctor-new" },
+          credentials: "include",
         }),
-        fetch(`${b}/insurance/web/advanced-upload/staged-list/${caseId}`, {
-          headers: { "X-User-Id": doctorId, "X-User-Role": "auditing-doctor-new" },
+        fetch(`${b}/insurance/web/advanced-upload/case-status/${caseId}`, {
+          credentials: "include",
         }),
       ]);
       const caseData = await caseResp.json();
       setCaseHeader(caseData.case || null);
 
-      if (stagedResp.ok) {
-        const stagedData = await stagedResp.json();
-        setStaged(stagedData.documents || []);
+      if (statusResp.ok) {
+        const statusData = await statusResp.json();
+        setTasks(statusData.tasks || []);
       } else {
-        setStaged([]);
+        setTasks([]);
       }
     } catch (err) {
       console.error(err);
@@ -320,183 +196,95 @@ function DoctorDocumentReview({ caseId, doctorId }) {
     }
   }, [caseId, doctorId]);
 
-useEffect(() => {
-  fetchAll();
-  const interval = setInterval(fetchAll, 6000);
-  return () => clearInterval(interval);
-}, [fetchAll]);
-
-  const handleExtracted = (docId, result) => {
-    setStaged(prev => prev.filter(d => d.doc_id !== docId));
-    setJustExtracted(prev => [
-      { docId, label: result.display_label, fieldsFound: result.fields_found || 0 },
-      ...prev,
-    ]);
-  };
+  useEffect(() => {
+    fetchAll();
+    const interval = setInterval(fetchAll, 6000);
+    return () => clearInterval(interval);
+  }, [fetchAll]);
 
   if (loading && !caseHeader) {
     return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 300 }}>
-        <div style={{ width: 24, height: 24, border: `2px solid ${T.border}`, borderTopColor: T.text, borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+      <div className="panel">
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 200 }}>
+          <div style={{ width: 24, height: 24, border: "2px solid var(--border)", borderTopColor: "var(--accent)", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+        </div>
       </div>
     );
   }
 
   if (!caseHeader) return null;
 
+  // Defense in depth alongside the backend filter: never let a
+  // findings-only task (task_type === "findings") count toward "documents
+  // still processing" here — that's a distinct background job and must
+  // not disable "Review the case" for a case whose real documents are
+  // already extracted.
+  // doc_id, not task_type, is the reliable signal — some legacy findings
+  // rows predate the task_type field entirely and would slip past a
+  // task_type check.
+  const processingCount = tasks.filter(
+    (t) =>
+      (t.status === "queued" || t.status === "processing") && t.doc_id != null
+  ).length;
   return (
-    <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-      {/* Header */}
-      <div style={{
-        background: T.text, padding: "16px 20px", marginBottom: 20,
-        display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12,
-      }}>
-        <div>
-          <div style={{ fontSize: 18, fontWeight: 300, color: "#fff" }}>{caseHeader.claimantName || "—"}</div>
-          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginTop: 2, fontFamily: "monospace" }}>
+    <div className="panel">
+      <div className="panel-header">
+        <div className="panel-title">
+          <div className="dot" style={{ background: "var(--accent)" }} />
+          {caseHeader.claimantName || "—"}
+          <span style={{ marginLeft: 8, fontSize: 12, fontWeight: 400, color: "var(--muted)" }}>
             {caseHeader.caseId}
+          </span>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            onClick={() => navigate(`/insurance/doctor/pdf-editor/${caseId}`)}
+            disabled={processingCount > 0}
+            style={{
+              padding: "7px 16px", background: "var(--accent)", color: "#fff",
+              border: "none", borderRadius: 6, fontSize: 12, fontWeight: 700,
+              fontFamily: "inherit", whiteSpace: "nowrap",
+              opacity: processingCount > 0 ? 0.5 : 1,
+              cursor: processingCount > 0 ? "not-allowed" : "pointer",
+            }}
+          >
+            {processingCount > 0 ? `Waiting on ${processingCount} document(s)…` : "Review the case"}
+          </button>
+          <button
+            onClick={onClose}
+            style={{
+              padding: "7px 16px", background: "transparent", color: "var(--muted)",
+              border: "1px solid var(--border)", borderRadius: 6, fontSize: 12,
+              fontWeight: 600, fontFamily: "inherit", cursor: "pointer",
+            }}
+          >
+            Close
+          </button>
+        </div>
+      </div>
+
+      <div className="panel-body">
+        {/* Persistent success/failure log — survives leaving and returning to
+            this case, or navigating to "Review the case" and coming back. */}
+        <RecentExtractionActivity caseId={caseId} />
+
+        <div style={{ marginBottom: 12 }}>
+          <div className="sh">Supporting Documents</div>
+          <div className="td-sub">
+            Uploaded by the allocation team for this case. Extraction is queued automatically — nothing to select here.
           </div>
         </div>
-        <button
-          onClick={() => navigate(`/insurance/doctor/pdf-editor/${caseId}`)}
-          style={{
-            padding: "5px 14px", background: "#fff", border: "1px solid rgba(255,255,255,0.4)",
-            color: "#000", fontSize: 10, fontWeight: 600, cursor: "pointer",
-            letterSpacing: "0.06em", textTransform: "uppercase",
-          }}
-        >
-          Review the case
-        </button>
-      </div>
 
-      {justExtracted.length > 0 && (
-        <div style={{
-          marginBottom: 16, padding: "10px 14px",
-          background: "color-mix(in srgb, #16a34a 8%, transparent)",
-          border: "1px solid color-mix(in srgb, #16a34a 25%, transparent)",
-        }}>
-          {justExtracted.map((j, i) => (
-            <div key={i} style={{ fontSize: 12, color: T.success }}>
-              ✓ {j.label || "Document"} extracted — {j.fieldsFound} field(s) merged into the claim.
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Persistent success/failure log — survives leaving and returning to
-          this case, or navigating to "Review the case" and coming back. */}
-      <RecentExtractionActivity caseId={caseId} />
-
-      <div style={{ marginBottom: 12 }}>
-        <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: T.text }}>
-          Supporting Documents Awaiting Review
-        </div>
-        <div style={{ fontSize: 11, color: T.textMuted, marginTop: 2 }}>
-          Uploaded by the allocation team for this case. Open each document, pick the relevant pages, and run extraction.
-        </div>
-      </div>
-
-      {staged.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "40px 20px", border: `1px solid ${T.border}`, background: T.bgAlt }}>
-          <div style={{ fontSize: 28, marginBottom: 8 }}>🗂️</div>
-          <div style={{ fontSize: 12, color: T.textMuted }}>No supporting documents pending review for this case.</div>
-        </div>
-      ) : (
-        staged.map(doc => (
-          <StagedDocumentCard
-            key={doc.doc_id}
-            doc={doc}
-            doctorId={doctorId}
-            caseId={caseId}
-            onExtracted={handleExtracted}
-          />
-        ))
-      )}
-    </div>
-  );
-}
-
-/* ─── Case Card Component ─── */
-function CaseCard({ c, onSelect, selected, extracting, extractionEvent }) {
-  const priorityColors = {
-    Critical: { bg: "#000", text: "#fff" },
-    Urgent: { bg: "#333", text: "#fff" },
-    High: { bg: "#555", text: "#fff" },
-    Normal: { bg: T.bgTert, text: T.textSec },
-  };
-  const pc = priorityColors[c.claimPriority] || priorityColors.Normal;
-
-  // extracting (server-confirmed, in-flight) always wins visually over a
-  // stale finished event for the same case.
-  const showFinished = !extracting && extractionEvent;
-  const finishedIsSuccess = showFinished && extractionEvent.status === "success";
-
-  return (
-    <div
-      onClick={() => onSelect(c.caseId)}
-      style={{
-        padding: "12px 14px",
-        cursor: "pointer",
-        borderBottom: `1px solid ${T.border}`,
-        background: selected ? T.bgAlt : T.bg,
-        borderLeft: selected ? `3px solid ${T.text}` : "3px solid transparent",
-        transition: "all 0.12s",
-      }}
-    >
-     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-  <div style={{ flex: 1, minWidth: 0 }}>
-    <div style={{ fontWeight: 400, fontSize: 13, color: T.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-      {c.claimantName || "—"}
-    </div>
-    <div style={{ fontSize: 10, color: T.textMuted, marginTop: 2, fontFamily: "monospace" }}>{c.insurerRef || "—"}</div>
-  </div>
-  <span
-    style={{
-            fontSize: 9,
-            fontWeight: 400,
-            padding: "2px 7px",
-            background: pc.bg,
-            color: pc.text,
-            border: `1px solid ${T.border}`,
-            whiteSpace: "nowrap",
-            marginLeft: 8,
-            letterSpacing: "0.06em",
-            textTransform: "uppercase",
-          }}
-        >
-          {c.claimPriority || "Normal"}
-        </span>
-      </div>
-      <div style={{ marginTop: 6, display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-        <span style={{ fontSize: 9, padding: "2px 7px", background: T.bgTert, color: T.textSec, border: `1px solid ${T.border}` }}>
-          {c.insurer || "—"}
-        </span>
-        <span style={{ fontSize: 9, padding: "2px 7px", background: T.bgTert, color: T.textSec, border: `1px solid ${T.border}` }}>
-          {c.claimMode || "—"}
-        </span>
-        {c.has_markdown && (
-          <span style={{ fontSize: 9, padding: "2px 7px", background: "#000", color: "#fff", border: "none" }}>📄 Doc</span>
+        {tasks.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "40px 20px", border: "1px solid var(--border)", borderRadius: "var(--radius-sm, 8px)", background: "var(--bg3)" }}>
+            <div style={{ fontSize: 28, marginBottom: 8 }}>🗂️</div>
+            <div className="td-sub">No supporting documents for this case yet.</div>
+          </div>
+        ) : (
+          tasks.map((task) => (
+            <SupportingDocStatusRow key={task.task_id} task={task} doctorId={doctorId} onRetried={fetchAll} />
+          ))
         )}
-        {extracting && (
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 9, fontWeight: 700, color: T.warning }}>
-            <span style={{
-              display: "inline-block", width: 7, height: 7, border: `2px solid ${T.warning}`,
-              borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.7s linear infinite",
-            }} />
-            Extracting
-          </span>
-        )}
-        {showFinished && (
-          <span style={{
-            display: "inline-flex", alignItems: "center", gap: 4, fontSize: 9, fontWeight: 700,
-            color: finishedIsSuccess ? T.success : T.error,
-          }}>
-            {finishedIsSuccess ? "✓ Extracted" : "✕ Extraction failed"}
-          </span>
-        )}
-      </div>
-      <div style={{ fontSize: 10, color: T.textMuted, marginTop: 5 }}>
-        {c.hospitalDetails?.name || "—"} &nbsp;·&nbsp; ₹{(c.claimedAmount || 0).toLocaleString("en-IN")}
       </div>
     </div>
   );
@@ -512,10 +300,10 @@ export default function AuditingDoctorReview() {
   const [search, setSearch] = useState("");
   const [filterPriority, setFilterPriority] = useState("All");
 
-  // Extraction state (active + finished) now comes from the shared,
-  // app-root-mounted context — it keeps polling regardless of which page is
-  // mounted, so "Extracting…" and the finished ✓/✕ badge both stay accurate
-  // even if the doctor left this page and came back.
+  // Extraction state (active + finished) comes from the shared, app-root
+  // mounted context — it keeps polling regardless of which page is mounted,
+  // so the per-row "Extracting…" / "Extracted" / "Failed" badge stays
+  // accurate even if the doctor left this page and came back.
   const { activeCaseIds, eventsByCaseId } = useExtractionEvents();
   const [creditWarning, setCreditWarning] = useState(null);
 
@@ -533,13 +321,13 @@ export default function AuditingDoctorReview() {
 
   useEffect(() => {
     fetch(`${BASE_URL}insurance/web/doctor/my-cases`, {
-      headers: { "X-User-Id": doctorId, "X-User-Role": "auditing-doctor-new" },
+      credentials: "include",
     })
       .then((r) => r.json())
       .then((d) => setCases(d.cases || []))
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, [doctorId]);
+  }, []);
 
   const filtered = cases.filter((c) => {
     const matchSearch =
@@ -553,62 +341,68 @@ export default function AuditingDoctorReview() {
 
   const priorities = ["All", "Critical", "Urgent", "High", "Normal"];
 
+  // A case counts as "extracted" if we have a live success event for it, OR
+  // (when there's no live event at all — e.g. it was extracted in an earlier
+  // session before this page was open) if the case itself already carries
+  // extracted content. Live "failed"/"processing" events always take
+  // priority over that persisted flag.
+  const isCaseExtracted = useCallback(
+    (c) => {
+      const event = eventsByCaseId[c.caseId];
+      if (event) return event.status === "success";
+      return !!c.has_markdown;
+    },
+    [eventsByCaseId]
+  );
+
+  // Row-wise stats, same visual language as the allocation team's dashboard.
+  const stats = useMemo(() => {
+    const todayCount = cases.filter((c) => isToday(getAllocatedDate(c))).length;
+    const extractedCount = cases.filter((c) => isCaseExtracted(c)).length;
+    const failedCount = cases.filter((c) => eventsByCaseId[c.caseId]?.status === "failed").length;
+    return [
+      { label: "Total Cases", value: cases.length, color: "blue" },
+      { label: "Allocated Today", value: todayCount, color: "purple" },
+      { label: "Extracted", value: extractedCount, color: "green" },
+      { label: "Extraction Failed", value: failedCount, color: "amber" },
+    ];
+  }, [cases, eventsByCaseId, isCaseExtracted]);
+
+  const selectedCase = selected ? cases.find((c) => c.caseId === selected) : null;
+
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600&display=swap');
         @keyframes spin { to { transform: rotate(360deg); } }
-        * { box-sizing: border-box; }
-        body { margin: 0; font-family: 'Open Sans', sans-serif; font-weight: 300; background: ${T.bgTert}; color: ${T.text}; -webkit-font-smoothing: antialiased; }
-        ::selection { background: #000; color: #fff; }
-        .case-card:hover { background: ${T.bgAlt} !important; }
-        .prio-btn:hover { border-color: ${T.text} !important; color: ${T.text} !important; }
-        ::-webkit-scrollbar { width: 4px; height: 4px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: ${T.border}; }
-        ::-webkit-scrollbar-thumb:hover { background: ${T.textMuted}; }
+        .doctor-topbar {
+          background: var(--bg); border-bottom: 1px solid var(--border);
+          padding: 0 20px; height: 52px; display: flex; align-items: center;
+          justify-content: space-between; position: sticky; top: 0; z-index: 100;
+        }
+        .doctor-mark {
+          width: 28px; height: 28px; border-radius: 7px; background: var(--accent);
+          display: flex; align-items: center; justify-content: center; color: #fff; font-size: 13px;
+        }
+        .doctor-case-row:hover { background: var(--bg3); }
       `}</style>
 
-      <div style={{ minHeight: "100vh", background: T.bgTert }}>
+      <div style={{ minHeight: "100vh", background: "var(--bg2, var(--bg3))" }}>
         {/* Top bar */}
-        <div
-          style={{
-            background: T.bg,
-            borderBottom: `1px solid ${T.border}`,
-            padding: "0 20px",
-            height: 52,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            position: "sticky",
-            top: 0,
-            zIndex: 100,
-          }}
-        >
+        <div className="doctor-topbar">
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            <div style={{ width: 28, height: 28, background: T.text, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <span style={{ color: "#fff", fontSize: 13 }}>⚕</span>
-            </div>
+            <div className="doctor-mark">⚕</div>
             <div>
-              <div style={{ fontSize: 12, fontWeight: 400, color: T.text, letterSpacing: "-0.01em" }}>Auditing Doctor Portal</div>
-              <div style={{ fontSize: 9, color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}>Case Review Dashboard</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text)" }}>Auditing Doctor Portal</div>
+              <div style={{ fontSize: 9, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.1em" }}>
+                Case Review Dashboard
+              </div>
             </div>
           </div>
           <button
+            className="btn btn-ghost btn-sm"
             onClick={() => {
               localStorage.clear();
               navigate("/login");
-            }}
-            style={{
-              background: "transparent",
-              border: `1px solid ${T.border}`,
-              color: T.textSec,
-              padding: "5px 12px",
-              cursor: "pointer",
-              fontSize: 11,
-              fontFamily: "'Open Sans', sans-serif",
-              fontWeight: 300,
-              letterSpacing: "0.04em",
             }}
           >
             Sign Out
@@ -616,128 +410,181 @@ export default function AuditingDoctorReview() {
         </div>
 
         {creditWarning && (
-          <div style={{
-            padding: "8px 20px", fontSize: 12, fontWeight: 600,
-            background: "color-mix(in srgb, #ed6c02 12%, transparent)",
-            borderBottom: "1px solid color-mix(in srgb, #ed6c02 35%, transparent)",
-            color: T.warning,
-          }}>
+          <div
+            style={{
+              padding: "8px 20px", fontSize: 12, fontWeight: 600,
+              background: "color-mix(in srgb, var(--amber) 12%, transparent)",
+              borderBottom: "1px solid color-mix(in srgb, var(--amber) 35%, transparent)",
+              color: "var(--amber)",
+            }}
+          >
             ⚠️ Document parsing credits running low ({creditWarning.credits_used}/{creditWarning.credit_budget} used, {creditWarning.percent_used}%). Extraction may fail until the next reset.
           </div>
         )}
 
-        <div style={{ display: "flex", height: "calc(100vh - 52px)" }}>
-          {/* Left panel */}
-          <div
-            style={{
-              width: 280,
-              flexShrink: 0,
-              background: T.bg,
-              borderRight: `1px solid ${T.border}`,
-              display: "flex",
-              flexDirection: "column",
-            }}
-          >
-            <div style={{ padding: "12px", borderBottom: `1px solid ${T.border}` }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                <span style={{ fontSize: 9, fontWeight: 400, color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.12em" }}>
-                  Assigned Cases
-                </span>
-                <span style={{ fontSize: 10, color: T.textMuted }}>{cases.length}</span>
+        <div className="page-content">
+          {/* Stats */}
+          <div className="stats-grid">
+            {stats.map((s) => (
+              <div key={s.label} className={`stat-card ${s.color}`}>
+                <div className="stat-label">{s.label}</div>
+                <div className="stat-value">{loading ? "—" : s.value}</div>
               </div>
-              <input
-                type="text"
-                placeholder="Search name, case ID, insurer…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "7px 10px",
-                  border: `1px solid ${T.border}`,
-                  fontSize: 11,
-                  fontFamily: "'Open Sans', sans-serif",
-                  fontWeight: 300,
-                  color: T.text,
-                  background: T.bgAlt,
-                  outline: "none",
-                  borderRadius: 0,
-                }}
-              />
+            ))}
+          </div>
+
+          {/* Cases panel — row-wise table, same as the allocation team's dashboard */}
+          <div className="panel">
+            <div className="panel-header">
+              <div className="panel-title">
+                <div className="dot" style={{ background: "var(--accent)" }} />
+                Assigned Cases
+              </div>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                <input
+                  type="text"
+                  placeholder="Search name, case ID, insurer…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  style={{ width: 240 }}
+                />
+                <select value={filterPriority} onChange={(e) => setFilterPriority(e.target.value)} style={{ width: "auto" }}>
+                  {priorities.map((p) => (
+                    <option key={p} value={p}>{p === "All" ? "All Priorities" : p}</option>
+                  ))}
+                </select>
+              </div>
             </div>
 
-            <div style={{ padding: "8px 12px", borderBottom: `1px solid ${T.border}`, display: "flex", gap: 4, flexWrap: "wrap" }}>
-              {priorities.map((p) => (
-                <button
-                  key={p}
-                  className="prio-btn"
-                  onClick={() => setFilterPriority(p)}
-                  style={{
-                    fontSize: 9,
-                    padding: "2px 8px",
-                    border: `1px solid ${filterPriority === p ? T.text : T.border}`,
-                    background: filterPriority === p ? T.text : "transparent",
-                    color: filterPriority === p ? "#fff" : T.textMuted,
-                    cursor: "pointer",
-                    fontFamily: "'Open Sans', sans-serif",
-                    fontWeight: 300,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.06em",
-                    transition: "all 0.12s",
-                  }}
-                >
-                  {p}
-                </button>
-              ))}
-            </div>
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th style={{ paddingLeft: 16 }}>Insurer Ref</th>
+                    <th>Claimant</th>
+                    <th>Hospital</th>
+                    <th>Insurer</th>
+                    <th>Amount</th>
+                    <th>Priority</th>
+                    <th>Status</th>
+                    <th>Extraction</th>
+                    <th style={{ width: 220, textAlign: "center" }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading && (
+                    <tr><td colSpan={9} style={{ textAlign: "center", color: "var(--muted)", padding: 32 }}>Loading…</td></tr>
+                  )}
+                  {!loading && filtered.length === 0 && (
+                    <tr><td colSpan={9} style={{ textAlign: "center", color: "var(--muted)", padding: 32 }}>
+                      {search ? "No cases match your search." : "No cases assigned yet."}
+                    </td></tr>
+                  )}
+                  {!loading && filtered.map((c) => {
+                    const extracting = activeCaseIds.has(c.caseId);
+                    const event = eventsByCaseId[c.caseId];
+                    const isFailed = !extracting && event?.status === "failed";
+                    const isDone = !extracting && !isFailed && isCaseExtracted(c);
+                    const isSelected = selected === c.caseId;
 
-            <div style={{ flex: 1, overflowY: "auto" }}>
-              {loading ? (
-                <div style={{ textAlign: "center", padding: 40 }}>
-                  <div
-                    style={{
-                      width: 20,
-                      height: 20,
-                      border: `2px solid ${T.border}`,
-                      borderTopColor: T.text,
-                      borderRadius: "50%",
-                      margin: "0 auto 10px",
-                      animation: "spin 0.7s linear infinite",
-                    }}
-                  />
-                  <div style={{ fontSize: 10, color: T.textMuted, letterSpacing: "0.1em", textTransform: "uppercase" }}>Loading…</div>
-                </div>
-              ) : filtered.length === 0 ? (
-                <div style={{ textAlign: "center", padding: "40px 20px" }}>
-                  <div style={{ fontSize: 28, marginBottom: 8 }}>📋</div>
-                  <div style={{ fontSize: 11, color: T.textMuted }}>{search ? "No cases match your search." : "No cases assigned yet."}</div>
-                </div>
-              ) : (
-                filtered.map((c) => (
-                  <CaseCard
-                    key={c.caseId}
-                    c={c}
-                    selected={selected === c.caseId}
-                    onSelect={setSelected}
-                    extracting={activeCaseIds.has(c.caseId)}
-                    extractionEvent={eventsByCaseId[c.caseId]}
-                  />
-                ))
-              )}
+                    return (
+                      <tr
+                        key={c.caseId}
+                        className="doctor-case-row"
+                        onClick={() => setSelected((prev) => (prev === c.caseId ? null : c.caseId))}
+                        style={{ cursor: "pointer", background: isSelected ? "var(--bg3)" : "" }}
+                      >
+                        <td style={{ paddingLeft: 16 }}>
+                          <span className="td-mono">{c.insurerRef || "—"}</span>
+                        </td>
+                        <td>
+                          <div className="td-name">{c.claimantName || "—"}</div>
+                        </td>
+                        <td>
+                          <div>{c.hospitalDetails?.name || "—"}</div>
+                        </td>
+                        <td>
+                          <span className="badge gray">{c.insurer || "—"}</span>
+                        </td>
+                        <td>{fmtAmount(c.claimedAmount)}</td>
+                        <td>
+                          <span className={`badge ${PRIORITY_COLOR[c.claimPriority] || "gray"}`}>
+                            {c.claimPriority || "Normal"}
+                          </span>
+                        </td>
+                        <td>
+                          {c.status
+                            ? <span className={`badge ${STATUS_COLOR[c.status] || "gray"}`}>{fmtStatus(c.status)}</span>
+                            : <span className="badge gray">—</span>}
+                        </td>
+                        <td>
+                          {extracting && (
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 700, color: "var(--amber)" }}>
+                              <span style={{ display: "inline-block", width: 8, height: 8, border: "2px solid var(--amber)", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+                              Extracting
+                            </span>
+                          )}
+                          {isDone && <span className="badge green">✓ Extracted</span>}
+                          {isFailed && <span className="badge red">✕ Failed</span>}
+                          {!extracting && !isDone && !isFailed && <span className="badge gray">—</span>}
+                        </td>
+                        <td onClick={(e) => e.stopPropagation()} style={{ textAlign: "center" }}>
+                          <div style={{ display: "flex", gap: 6, justifyContent: "center" }}>
+                            <button
+                              disabled={extracting}
+                              title={extracting ? "Waiting for extraction to finish" : "Open this case in the PDF editor"}
+                              onClick={() => navigate(`/insurance/doctor/pdf-editor/${c.caseId}`)}
+                              style={{
+                                padding: "6px 14px",
+                                background: "var(--accent)",
+                                color: "#fff",
+                                border: "none",
+                                borderRadius: 6,
+                                fontSize: 11,
+                                fontWeight: 700,
+                                fontFamily: "inherit",
+                                whiteSpace: "nowrap",
+                                opacity: extracting ? 0.5 : 1,
+                                cursor: extracting ? "not-allowed" : "pointer",
+                              }}
+                            >
+                              Review the case
+                            </button>
+                            {isFailed && (
+                              <button
+                                title="View documents and retry the failed extraction"
+                                onClick={() => setSelected(c.caseId)}
+                                style={{
+                                  padding: "6px 12px",
+                                  background: "transparent",
+                                  color: "var(--red)",
+                                  border: "1px solid var(--red)",
+                                  borderRadius: 6,
+                                  fontSize: 11,
+                                  fontWeight: 700,
+                                  fontFamily: "inherit",
+                                  whiteSpace: "nowrap",
+                                  cursor: "pointer",
+                                }}
+                              >
+                                ↺ Retry
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           </div>
 
-          {/* Right panel */}
-          <div style={{ flex: 1, overflowY: "auto", padding: 16 }}>
-            {selected ? (
-              <DoctorDocumentReview caseId={selected} doctorId={doctorId} />
-            ) : (
-              <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 10 }}>
-                <div style={{ fontSize: 40 }}>🔍</div>
-                <div style={{ fontSize: 14, fontWeight: 300, color: T.textSec, letterSpacing: "-0.01em" }}>Select a case to review</div>
-                <div style={{ fontSize: 11, color: T.textMuted }}>Click any case from the list to view supporting documents.</div>
-              </div>
-            )}
-          </div>
+          {/* Detail drawer — supporting documents & per-document retry, same
+              pattern as Dashboard.jsx's selected-case panel. */}
+          {selectedCase && (
+            <DoctorDocumentReview caseId={selectedCase.caseId} doctorId={doctorId} onClose={() => setSelected(null)} />
+          )}
         </div>
       </div>
     </>

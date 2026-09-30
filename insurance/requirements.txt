@@ -23,6 +23,10 @@ twilio
 pika
 python-docx
 pandas
+openai
+xlrd
+openpyxl
+numpy
 
 pydantic[email]
 
@@ -41,3 +45,4 @@ email-validator
 
 python-jose[cryptography]
 premailer
+redis

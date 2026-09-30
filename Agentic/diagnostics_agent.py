@@ -196,7 +196,7 @@ SKILL_COLLECTION_NAME = "clinical_skills"   # standalone backfill/browse collect
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 _groq_client_module = Groq(api_key=GROQ_API_KEY)
-SKILL_APPLICATION_MODEL = "llama-3.3-70b-versatile"
+SKILL_APPLICATION_MODEL = "openai/gpt-oss-120b"
 
 # Minimum final_score a retrieved skill needs before we bother running the
 # per-skill matched/missing application analysis on it.
@@ -3432,7 +3432,7 @@ The previous diagnosis should ONLY be considered if:
         )
 
         llm = ChatGroq(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             groq_api_key=os.getenv("GROQ_API_KEY"),
             temperature=0.2,
             max_tokens=10000,

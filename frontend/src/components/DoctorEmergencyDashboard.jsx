@@ -1,6 +1,59 @@
 import React, { useState, useEffect, useRef } from 'react';
 
 const API_BASE_URL = 'https://doctorassist.ai/api';
+const humanizeClinicalText = (raw) => {
+  if (!raw) return '';
+  let text = String(raw);
+
+  // IFT (inter-facility transfer) records store `condition` as raw JSON
+  // (JSON.stringify(iftForm)). For these, show only reasonForTransfer.
+  if (text.trim().startsWith('{')) {
+    try {
+      const parsed = JSON.parse(text);
+      if (parsed && typeof parsed === 'object' && parsed.reasonForTransfer) {
+        return String(parsed.reasonForTransfer).trim();
+      }
+    } catch (e) {
+      // not valid JSON — fall through to text-based handling below
+    }
+  }
+
+  // Emergency / voice-triage records use "condition | Matched: ... | Priority: ...".
+  // Keep only the plain condition text before the first "|".
+  text = text.split('|')[0].trim();
+
+  text = text.replace(/\[([A-Z][A-Z0-9_]*)\s*@\s*([^\]]+)\]/g, (_, tag, time) => {
+    const label = tag.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+    return `${label} (${time.trim()}): `;
+  });
+
+  text = text.replace(/\{([^{}]*)\}/g, (_, inner) => {
+    const pairs = [];
+    const pairRegex = /"([^"]+)"\s*:\s*(?:"((?:[^"\\]|\\.)*)"|(-?\d+(?:\.\d+)?))/g;
+    let m;
+    while ((m = pairRegex.exec(inner)) !== null) {
+      const key = m[1]
+        .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+        .replace(/_/g, ' ')
+        .toLowerCase()
+        .replace(/\b\w/g, (c) => c.toUpperCase());
+      const value = m[2] !== undefined ? m[2].replace(/\\"/g, '"') : m[3];
+      pairs.push(`${key}: ${value}`);
+    }
+    return pairs.length ? pairs.join('; ') : inner.replace(/"/g, '');
+  });
+
+  text = text.replace(/\b([A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+)\b/g, (m) =>
+    m.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())
+  );
+
+  return text
+    .replace(/[\[\]{}"]/g, '')
+    .replace(/\s+/g, ' ')
+    .replace(/\s*,\s*/g, ', ')
+    .replace(/\s*;\s*/g, '; ')
+    .trim();
+};
 
 const NewPatientToast = ({ alerts, onDismiss, onView }) => {
   if (!alerts.length) return null;
@@ -191,12 +244,20 @@ const buildDateQuery = (filter, custom) => {
       console.error('Error fetching today count:', error);
     }
   };
-// Auto-refresh patient list every 20 seconds
+// Live updates — replaces the old 20s poll. A push from the shared
+// dashboard WebSocket (new patient registered, or an incident marked
+// completed) triggers a single refetch instead of running our own timer.
 useEffect(() => {
-  const interval = setInterval(() => {
-    fetchPatients();
-  }, 20000); // adjust interval as needed
-  return () => clearInterval(interval);
+  const ws = new WebSocket('wss://doctorassist.ai/api/hms/users/ambulance/ws/dashboard');
+  ws.onmessage = (event) => {
+    let msg;
+    try { msg = JSON.parse(event.data); } catch { return; }
+    if (msg.type === 'NEW_PATIENT_REGISTERED' || msg.type === 'INCIDENT_COMPLETED') {
+      fetchPatients();
+    }
+  };
+  ws.onerror = (err) => console.error('Dashboard WS error:', err);
+  return () => ws.close();
 }, []);
 useEffect(() => {
   fetchPatients();
@@ -288,8 +349,7 @@ const dateFilterLabel = {
       <td style={s.td}>{patient.phoneNumber || 'N/A'}</td>
       <td style={s.td}>{patient.age}</td>
       <td style={s.td}>{patient.accidentDetails?.accidentTime || 'N/A'}</td>
-      <td style={s.td}>{patient.accidentDetails?.condition || 'N/A'}</td>
-      <td style={s.td}>
+      <td style={s.td} className="dd-condition-cell">{humanizeClinicalText(patient.accidentDetails?.condition) || 'N/A'}</td>            <td style={s.td}>
         <button style={s.actionBtn} onClick={() => navigateToPatientProfile(patient)}>
           View →
         </button>
@@ -350,6 +410,13 @@ const dateFilterLabel = {
           font-size: 12px;
           color: #444444;
           white-space: nowrap;
+        }
+
+        .dd-condition-cell {
+          white-space: normal !important;
+          word-break: break-word;
+          max-width: 320px;
+          min-width: 220px;
         }
 
         /* Search input */
@@ -687,7 +754,7 @@ const dateFilterLabel = {
                           <td style={{ padding: '12px 14px', fontSize: 12, color: '#444' }}>{patient.phoneNumber || 'N/A'}</td>
                           <td style={{ padding: '12px 14px', fontSize: 12, color: '#444' }}>{patient.age}</td>
                           <td style={{ padding: '12px 14px', fontSize: 12, color: '#444' }}>{patient.accidentDetails?.accidentTime || 'N/A'}</td>
-                          <td style={{ padding: '12px 14px', fontSize: 12, color: '#444' }}>{patient.accidentDetails?.condition || 'N/A'}</td>
+                          <td className="dd-condition-cell" style={{ padding: '12px 14px', fontSize: 12, color: '#444' }}>{humanizeClinicalText(patient.accidentDetails?.condition) || 'N/A'}</td>
                           <td style={{ padding: '12px 14px' }}>
                             <button className="dd-action-btn" onClick={() => navigateToPatientProfile(patient)}>
                               View →
@@ -786,7 +853,7 @@ const dateFilterLabel = {
                         <td style={{ padding: '12px 14px', fontSize: 12, color: '#444' }}>{patient.phoneNumber || 'N/A'}</td>
                         <td style={{ padding: '12px 14px', fontSize: 12, color: '#444' }}>{patient.age}</td>
                         <td style={{ padding: '12px 14px', fontSize: 12, color: '#444' }}>{patient.accidentDetails?.accidentTime || 'N/A'}</td>
-                        <td style={{ padding: '12px 14px', fontSize: 12, color: '#444' }}>{patient.accidentDetails?.condition || 'N/A'}</td>
+                        <td className="dd-condition-cell" style={{ padding: '12px 14px', fontSize: 12, color: '#444' }}>{humanizeClinicalText(patient.accidentDetails?.condition) || 'N/A'}</td>
                         <td style={{ padding: '12px 14px' }}>
                           <button className="dd-action-btn" onClick={() => navigateToPatientProfile(patient)}>
                             View →

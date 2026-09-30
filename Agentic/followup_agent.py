@@ -1271,7 +1271,7 @@ async def generate_followup_consultation_endpoint(request: dict = Body(...)):
 
         # ── STEP 5: Run agentic pipeline ──────────────────────────────
         llm = ChatGroq(
-            model        = "llama-3.3-70b-versatile",
+            model        = "openai/gpt-oss-120b",
             groq_api_key = GROQ_API_KEY,
             temperature  = 0.1,
         )

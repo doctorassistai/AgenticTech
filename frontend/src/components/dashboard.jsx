@@ -11,6 +11,7 @@ import {
   IconButton,
   Avatar,
   Divider,
+  
   useTheme,
   useMediaQuery,
   Chip,
@@ -52,6 +53,7 @@ import {
   SaveRounded,
   CheckCircleRounded,
   ErrorRounded,
+   MicRounded,  
 } from "@mui/icons-material";
 import { Menu, MenuItem, Checkbox, Tabs, Tab } from "@mui/material";
 import Badge from "@mui/material/Badge";
@@ -76,10 +78,12 @@ import ToxicitySurveillancePanel from "./Toxicitysurveillancepanel";
 import GenomicsPanel from "./GenomicsPanel"
 import AgenticMedicationPanel from "./Agenticmedicationpanel";
 import QuickNote from "./QuickNote";
+import LongitudinalTimeline from "./LongitudinalTimeline";
 import Trend from './Trend';  // 👈 ADD HERE
 import DiagnosisAnalysis from "./DiagnosisAnalysis";
 import AgenticWorkspace from "./AgenticWorkspace";
 import QuickNotesList from "./QuickNotesList";
+import VisitSummaryPanel from "./VisitSummaryPanel";
 import DocumentRetrieval from "./DocumentRetrieval";
 import PatientSummary from "./PatientSummary";
 import ClinicalReasoningDashboard from "./ClinicalReasoningDashboard";
@@ -130,6 +134,58 @@ import TreatmentPlanSkill from "./TreatmentPlanSkill";
 import PainManagementNewFollowUp from "./PainManagementNewFollowUp";
 import PainManagementHistoryPanel from "./PainManagementHistoryPanel";
 import OncoPathologyWorkflow from "./onco-pathology/OncoPathologyWorkflow"
+import RheumatologyIntakeForm from "./RheumatologyIntakeForm";
+import RheumatologyIntakeSummary from "./RheumatologyIntakeSummary";
+
+import RheumatologyJointMap from "./RheumatologyJointMap";
+import RheumatologyJointMapHistory from "./RheumatologyJointMapHistory";
+import RheumatologyDifferentialDiagnosis from "./RheumatologyDifferentialDiagnosis";
+import RheumatologyDifferentialDiagnosisHistory from "./RheumatologyDifferentialDiagnosisHistory";
+import RheumatologyInvestigationPlanner from "./RheumatologyInvestigationPlanner";
+import RheumatologyInvestigationPlannerHistory from "./RheumatologyInvestigationPlannerHistory";
+import RheumatologyLabTrends from "./RheumatologyLabTrends";
+import RheumatologyLabTrendsHistory from "./RheumatologyLabTrendsHistory";
+import RheumatologyBiomarkerAnalysis from "./RheumatologyBiomarkerAnalysis";
+import RheumatologyBiomarkerAnalysisHistory from "./RheumatologyBiomarkerAnalysisHistory";
+import RheumatologyDiseaseActivity from "./RheumatologyDiseaseActivity";
+import RheumatologyDiseaseActivityHistory from "./RheumatologyDiseaseActivityHistory";
+import RheumatologyTreatmentDecision from "./RheumatologyTreatmentDecision";
+import RheumatologyTreatmentDecisionHistory from "./RheumatologyTreatmentDecisionHistory";
+import RheumatologyDMARDSafety from "./RheumatologyDMARDSafety";
+import RheumatologyDMARDSafetyHistory from "./RheumatologyDMARDSafetyHistory";
+import RheumatologyTreatmentLedger from "./RheumatologyTreatmentLedger";
+import RheumatologyComorbidityRisk from "./RheumatologyComorbidityRisk";
+import RheumatologyComorbidityRiskHistory from "./RheumatologyComorbidityRiskHistory";
+import RheumatologyFlarePrediction from "./RheumatologyFlarePrediction";
+import RheumatologyFlarePredictionHistory from "./RheumatologyFlarePredictionHistory";
+import RheumatologyImaging from "./RheumatologyImaging";
+import RheumatologyImagingHistory from "./RheumatologyImagingHistory";
+import RheumatologyCorrelation from "./RheumatologyCorrelation";
+import RheumatologyCorrelationHistory from "./RheumatologyCorrelationHistory";
+import RheumatologyTreatmentResponse from "./RheumatologyTreatmentResponse";
+import RheumatologyTreatmentResponseHistory from "./RheumatologyTreatmentResponseHistory";
+import RheumatologyManifestation from "./RheumatologyManifestation";
+import RheumatologyManifestationHistory from "./RheumatologyManifestationHistory";
+import RheumatologySteroidStewardship from "./RheumatologySteroidStewardship";
+import RheumatologySteroidStewardshipHistory from "./RheumatologySteroidStewardshipHistory";
+import RheumatologySteroidStewardshipTaperHistory from "./RheumatologySteroidStewardshipTaperHistory";
+import RheumatologyTreatToTarget from "./RheumatologyTreatToTarget";
+import RheumatologyTreatToTargetHistory from "./RheumatologyTreatToTargetHistory";
+import RheumatologyFollowup from "./RheumatologyFollowup";
+import RheumatologyFollowupHistory from "./RheumatologyFollowupHistory";
+import RheumatologyStructuredNote from "./RheumatologyStructuredNote";
+import RheumatologyStructuredNoteHistory from "./RheumatologyStructuredNoteHistory";
+import RheumatologyProcedure from "./RheumatologyProcedure";
+import RheumatologyProcedureHistory from "./RheumatologyProcedureHistory";
+import RheumatologyTimeline from "./RheumatologyTimeline";
+import PreTreatmentAssessmentPanel from "./Pretreatmentassessmentpanel";
+import NeuropsychiatryWorkflow from "./neuropsychiatry-module/NeuropsychiatryWorkflow";
+import NephrologyWorkflow from "./nephrology-module/NephrologyWorkflow";
+import ClinicalReportData from "./ClinicalReportData";
+
+import MicrobiologyWorkflow from "./microbiology/MicrobiologyWorkflow";
+
+import PulmonologyWorkflow from "./pulmonology-module/PulmonologyWorkflow";
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
 const FONT = '"Open Sans", sans-serif';
@@ -305,6 +361,7 @@ const DOCUMENTATION_LABELS = {
   "documentation-investigation-notes": "Investigation Notes",
   "documentation-treatment-plan": "Treatment Plan",
   "structured-note": "Structured Clinical Note",
+  "visit-summary": "Visit Summary",
 };
 
 
@@ -1178,6 +1235,7 @@ const DOC_IDS = [
   "documentation-medication-analysis", "documentation-clinical-notes",
   "documentation-investigation-notes", "documentation-treatment-plan",
   "structured-note",
+  "visit-summary"
 ];
 
 // ─── Main Dashboard ───────────────────────────────────────────────────────────
@@ -1190,6 +1248,7 @@ export default function DoctorDashboard() {
   const query = new URLSearchParams(location.search);
   const doctorId = query.get("doctor_id");
   const patientId = query.get("patient_id");
+  const pathologyRequestId = query.get("pathology_request_id")
 
   // State
   const [open, setOpen] = useState(false);
@@ -1205,7 +1264,7 @@ export default function DoctorDashboard() {
   const [activeTabIndex, setActiveTabIndex] = useState(0);
   const [patientSummaryTrigger, setPatientSummaryTrigger] = useState(0);
   const [tabAnchor, setTabAnchor] = useState(null);
-  const [mainTab, setMainTab] = useState("clinical");
+  const [mainTab, setMainTab] = useState(pathologyRequestId ? "reports" : "clinical");
   const [docTab, setDocTab] = useState(0);
   const [dataDocTab, setDataDocTab] = useState(0);
   const [conditions, setConditions] = useState([]);
@@ -1241,6 +1300,7 @@ export default function DoctorDashboard() {
   const [medicalBoardPlanStatus, setMedicalBoardPlanStatus] = useState("none"); // "loading" | "none" | "pending" | "approved"
   const [isOncologySpecialist, setIsOncologySpecialist] = useState(false);
   const [isAnaesthesiologist, setIsAnaesthesiologist] = useState(false);
+  const [isRheumatologist, setIsRheumatologist] = useState(false);
 const [isPainPalliativeSpecialist, setIsPainPalliativeSpecialist] = useState(false);
 const [isPalliativeMedicineSpecialist, setIsPalliativeMedicineSpecialist] = useState(false);
 const [palliativeInitialData, setPalliativeInitialData] = useState(null);
@@ -1266,6 +1326,31 @@ const [anaesthesiaChecklist, setAnaesthesiaChecklist] = useState({
   const documentationRef = useRef(null);
   const dataTabRef = useRef(null);
   const procedureTabRef = useRef(null);
+
+  // ─── Rheumatology module refs (scroll anchors for the tab's local left nav) ──
+  const rheumIntakeRef = useRef(null);
+  const rheumJointMapRef = useRef(null);
+  const rheumDifferentialRef = useRef(null);
+  const rheumInvestigationRef = useRef(null);
+const rheumLabsRef = useRef(null);
+  const rheumBiomarkerRef = useRef(null);
+    const rheumDiseaseActivityRef = useRef(null);
+  const rheumTreatmentDecisionRef = useRef(null);
+  const rheumDmardSafetyRef = useRef(null);
+  const rheumLedgerRef = useRef(null);
+  const rheumFlareRef = useRef(null);
+  const rheumImagingRef = useRef(null);
+  const rheumCorrelationRef = useRef(null);
+  const rheumManifestationRef = useRef(null);
+  const rheumTreatmentResponseRef = useRef(null);
+  const rheumComorbidityRef = useRef(null);
+  const rheumSteroidRef = useRef(null);
+  const rheumSteroidTaperRef = useRef(null);
+  const rheumTreatToTargetRef = useRef(null);
+  const rheumFollowupRef = useRef(null);
+  const rheumStructuredNoteRef = useRef(null);
+  const rheumProcedureRef = useRef(null);
+  const rheumTimelineRef = useRef(null);
   const [savePopupOpen, setSavePopupOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -1277,6 +1362,8 @@ const [anaesthesiaChecklist, setAnaesthesiaChecklist] = useState({
 const [isAgenticMedLoading, setIsAgenticMedLoading] = useState(false);// ADD THIS LINE
 const [patientDocTab, setPatientDocTab] = useState(0); // 0 = Medical Records, 1 = Patient Images
 const [openDiagnosisSkill, setOpenDiagnosisSkill] = useState(false);
+
+const [useAgenticMedication, setUseAgenticMedication] = useState(false);
   // Store only the primary diagnosis and reason from skill-based analysis
 const [diagnosisSkillPrimary, setDiagnosisSkillPrimary] = useState("");
 const [diagnosisSkillReason, setDiagnosisSkillReason] = useState("");
@@ -1284,6 +1371,11 @@ const [diagnosisSkillReason, setDiagnosisSkillReason] = useState("");
 const [openTreatmentPlanSkill, setOpenTreatmentPlanSkill] = useState(false);
 const [diagnosisTabIndex, setDiagnosisTabIndex] = useState(0);
 const [treatmentTabIndex, setTreatmentTabIndex] = useState(0);
+
+useEffect(() => {
+    if (pathologyRequestId) setMainTab("reports");
+}, [pathologyRequestId]);
+
   // ─── Effects ────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!doctorId || !patientId) return;
@@ -1420,6 +1512,7 @@ useEffect(() => {
         setIsAnaesthesiologist(specialty === "Anesthesiology"); // 👈 add this line
         setIsPainPalliativeSpecialist(specialty === "Onco Pain and Palliative Care");  
         setIsPalliativeMedicineSpecialist(specialty === "Palliative Medicine"); // ← add
+        setIsRheumatologist(specialty === "Rheumatology"); // 👈 add this line
         console.log("doctorId used:", doctorId);
 console.log("raw specialty from API:", data?.specialization);
 console.log("fallback doctorSpeciality:", doctorSpeciality);
@@ -1848,16 +1941,19 @@ const runAgenticMedication = async (dictationText) => {
   dictationText,
   analyzedJson
 ) => {
-
-  if (
-  nodeId === "documentation-medication-analysis" &&
-  !hasTreatmentProtocol(analyzedJson, dictationText)
-) {
-  const json = await runAgenticMedication(dictationText);
-  console.log("RETURNING FROM AGENTIC", json);
-
-  return json;
-}
+  if (nodeId === "documentation-medication-analysis") {
+    // Check if treatment protocol exists in dictation
+    const protocolExists = hasTreatmentProtocol(analyzedJson, dictationText);
+    
+    // Use Agentic if checkbox is checked OR treatment protocol exists
+    const useAgentic = useAgenticMedication || protocolExists;
+    
+    if (useAgentic) {
+      const json = await runAgenticMedication(dictationText);
+      console.log("RETURNING FROM AGENTIC", json);
+      return json;
+    }
+  }
 
   try {
     const res = await fetch(
@@ -1865,17 +1961,6 @@ const runAgenticMedication = async (dictationText) => {
       const json = await res.json();
       return json?.finaloutput ?? null;
     } catch { return null; }
-  };
-
-  const runAllDictationNodes = async (dictationText, analyzedJson) => {
-    if (!dictationText?.trim()) return;
-    const dictationNodes = enabledNodes.filter((n) => n.requires_dictation);
-    if (!dictationNodes.length) return;
-    setReloadingNode("ALL");
-    try {
-      const results = await Promise.all(dictationNodes.map(async (node) => ({ nodeId: node.node_id, data: await runDictationFeatureWithText(node.node_id, dictationText, analyzedJson) })));
-      setNodeData((prev) => { const updated = { ...prev }; results.forEach((r) => { updated[r.nodeId] = r.data; }); return updated; });
-    } finally { setReloadingNode(null); }
   };
 
   const runSummaryDictation = async (featureId, dictationText, analyzedJson) => {
@@ -1893,6 +1978,36 @@ const runAgenticMedication = async (dictationText) => {
     } catch { return false; }
   };
 
+  const closeEncounter = async () => {
+    const response = await fetch(
+      `${API_BASE_URL}hms/users/ai-legacy/documents/encounter/close`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          patient_id: patientId,
+          doctor_id: doctorId,
+        }),
+      }
+    );
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(
+        data.detail || "Failed to close encounter"
+      );
+    }
+
+    console.log(
+      "✅ Encounter closed:",
+      data.encounter_id
+    );
+
+    return data;
+  };
   const handleSave = async () => {
     try {
       const diagnosis = diagnosisText?.trim();
@@ -1935,12 +2050,18 @@ const investigationData = nodeData["documentation-investigation-notes"];
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
-                patient_id: patientId,
-                doctor_id: doctorId,
-                investigation_type: inv.investigation_name || inv.category || "General",
-                clinical_indication: inv.standard_indications || "",
-                parameters: inv.parameters || [],
-              }),
+              patient_id: patientId,
+              doctor_id: doctorId,
+
+              investigation_type:
+                inv.investigation_name || inv.category || "General",
+
+              category: inv.category || "",
+              sub_category: inv.subcategory || "",
+
+              clinical_indication: inv.standard_indications || "",
+              parameters: inv.parameters || [],
+            }),
             });
 
             const json = await res.json().catch(() => ({}));
@@ -1996,6 +2117,7 @@ const investigationData = nodeData["documentation-investigation-notes"];
         throw new Error(json.message || "Unknown error");
       }
       
+
       // Success
       setIsSaving(false);
       setSaveSuccess(true);
@@ -2105,17 +2227,19 @@ setTimeout(() => {
   // };
 
   const renderDocPanel = (activeId) => {
-    const node = enabledNodes.find((n) => n.node_id === activeId);
-    const setDoc = (payload) => setNodeData((prev) => ({ ...prev, [activeId]: payload }));
-    
-    if (activeId === "documentation-medication-analysis") {
+  const node = enabledNodes.find((n) => n.node_id === activeId);
+  const setDoc = (payload) => setNodeData((prev) => ({ ...prev, [activeId]: payload }));
+  
+  if (activeId === "documentation-medication-analysis") {
+    const protocolExists = hasTreatmentProtocol(
+      analyzedDictation,
+      currentDictation
+    );
 
-      const protocolExists = hasTreatmentProtocol(
-        analyzedDictation,
-        currentDictation
-      );
-
-      if (!protocolExists && agenticMedData) {
+    // Use Agentic if checkbox is checked OR treatment protocol exists
+    if (useAgenticMedication || protocolExists) {
+      // If we have agentic data, show the panel
+      if (agenticMedData) {
         return (
           <AgenticMedicationPanel
             data={agenticMedData}
@@ -2124,7 +2248,6 @@ setTimeout(() => {
             diagnosisText={diagnosisText}
             onSave={(updatedData) => {
               setAgenticMedData(updatedData);
-
               setNodeData((prev) => ({
                 ...prev,
                 "documentation-medication-analysis": updatedData,
@@ -2133,23 +2256,34 @@ setTimeout(() => {
           />
         );
       }
-
+      // If agentic is enabled but no data yet, show loading or fallback
       return (
-        <MedicationPanel
-          data={nodeData[activeId]}
-          metadata={{
-            patient_id: patientId,
-            doctor_id: doctorId,
-          }}
-          diagnosisText={diagnosisText}
-          onSave={(p) =>
-            setDoc({
-              prescriptions: p.prescriptions,
-            })
-          }
-        />
+        <Box sx={{ p: 4, textAlign: "center" }}>
+          <Typography sx={{ ...os({ fontSize: 13, color: C.ash }) }}>
+            {isAgenticMedLoading ? "Loading AI-powered medication analysis..." : "Agentic analysis will appear here"}
+          </Typography>
+        </Box>
       );
     }
+
+    // Default: Standard MedicationPanel
+    return (
+      <MedicationPanel
+        data={nodeData[activeId]}
+        metadata={{
+          patient_id: patientId,
+          doctor_id: doctorId,
+        }}
+        diagnosisText={diagnosisText}
+        onSave={(p) =>
+          setDoc({
+            prescriptions: p.prescriptions,
+          })
+        }
+      />
+    );
+  }
+  // ... rest of the function
     if (activeId === "documentation-clinical-notes") return <ClinicalNotesPanel data={nodeData[activeId]} metadata={{ doctor_id: doctorId, patient_id: patientId }} onSave={setDoc} />;
     if (activeId === "documentation-investigation-notes") return <InvestigationNotes data={nodeData[activeId]} doctorId={doctorId} patientId={patientId} onSave={setDoc} />;
     if (activeId === "documentation-treatment-plan") return <TreatmentPlan ref={treatmentPlanRef} doctorId={doctorId} patientId={patientId} treatmentObjective={treatmentObjective} dictationData={nodeData[activeId]} dictationText={currentDictation} onTreatmentObjectiveChange={setTreatmentObjective} reloadTrigger={dictationRun} />;
@@ -2157,6 +2291,7 @@ setTimeout(() => {
     if (activeId === "documentation-clinical-summary") return <ClinicalSummaryPanel doctorId={doctorId} patientId={patientId} data={nodeData[activeId] ?? null} onSave={setDoc} />;
     if (activeId === "documentation-referral-letter") return <ReferralLetterPanel doctorId={doctorId} patientId={patientId} data={nodeData[activeId] ?? null} onSave={setDoc} />;
     if (activeId === "structured-note") return <StructuredNotePanel doctorId={doctorId} patientId={patientId} dictation={currentDictation} />;
+    if (activeId === "visit-summary") return <VisitSummaryPanel doctorId={doctorId} patientId={patientId} dictation={currentDictation} />;
     if (node) return <NodeCanvas node={node} data={nodeData[activeId] ?? null} />;
     return <Typography sx={{ ...os({ fontSize: 13, color: C.ash }) }}>Documentation module not available</Typography>;
   };
@@ -2276,6 +2411,8 @@ setTimeout(() => {
     { label: "Procedural", value: "procedure" },
     { label: "Clinical Workflow", value: "agentic" },
     { label: "Insurance", value: "insurance" },
+      ...(isRheumatologist ? [{ label: "Rheumatology Workflow", value: "rheum-workflow" }] : []), // 👈 add this line
+
       ...(isAnaesthesiologist ? [{ label: "Pre-Anaesthesia Checkup", value: "pac" }] : []),
       ...(isAnaesthesiologist ? [{ label: "Anaesthesia", value: "anaesthesia" }] : []), // 👈 add
 
@@ -2289,7 +2426,10 @@ setTimeout(() => {
              "Reports", 
       value: "reports" 
     }] : []),
-    
+    ...(doctorSpeciality === "Neuropsychiatry" ? [{ label: "Neuropsychiatry Workflow", value: "neuropsychiatry-workflow" }] : []),
+    ...(doctorSpeciality === "Nephrology" ? [{ label: "Nephrology Workflow", value: "nephrology-workflow" }] : []),
+    ...(doctorSpeciality === "Pulmonology" ? [{ label: "Pulmonology Workflow", value: "pulmonology-workflow" }] : []),
+    ...(doctorSpeciality === "Microbiology" ? [{ label: "Microbiology Workflow", value: "microbiology-workflow" }] : []),
   ];
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -2412,6 +2552,28 @@ setTimeout(() => {
                   <PsychologyRounded sx={{ fontSize: 15 }} />
                 </IconButton>
               </Tooltip>
+                            {/* ✅ Voice Assistant — opens /voice with doctor context only */}
+              <Tooltip title="Voice Assistant">
+                <IconButton
+                  size="small"
+                  onClick={() => {
+                    const url = new URL(window.location.origin + "/voice");
+                    if (doctorId) url.searchParams.set("doctor_id", doctorId);
+                    window.location.href = url.toString();
+                  }}
+                  sx={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: "2px",
+                    border: `1px solid ${C.fog}`,
+                    color: C.smoke,
+                    "&:hover": { background: C.ghost, color: C.ink },
+                  }}
+                >
+                  <MicRounded sx={{ fontSize: 15 }} />
+                </IconButton>
+              </Tooltip>
+
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
   <Typography sx={{ fontSize: 11, color: C.ash }}>
     Font
@@ -2555,10 +2717,12 @@ setTimeout(() => {
               <Box sx={{ ...sectionCard }}>
                 <SectionHeader sub="AI-powered analysis from patient history and dictation">Clinical Insights</SectionHeader>
                 <Tabs value={contextTabIndex} onChange={(_, v) => setContextTabIndex(v)} sx={{ ...tabSx, px: 3 }}>
-                  <Tab label="Patient Summary" />
-                  <Tab label="Current Clinical Context" />
-                  <Tab label="Medical Clinical Context" />
-                  {medicalBoardPlanStatus === "visible" && <Tab label="Plans" />}
+                  <Tab label="Patient Summary" value={0} />
+                  <Tab label="Pre-Treatment Assessment" value={1} />
+                  <Tab label="Current Clinical Context" value={2} />
+                  <Tab label="Medical Clinical Context" value={3} />
+                  <Tab label="Longitudinal Timeline" value={4} />
+                  {medicalBoardPlanStatus === "visible" && <Tab label="Plans" value={5} />}
                 </Tabs>
                 <Box sx={{ p: { xs: 2, sm: 3 } }}>
                   {contextTabIndex === 0 && (
@@ -2569,6 +2733,12 @@ setTimeout(() => {
                       </Box>
                   )}
                   {contextTabIndex === 1 && (
+                    <PreTreatmentAssessmentPanel
+                      doctorId={doctorId}
+                      patientId={patientId}
+                    />
+                  )}
+                  {contextTabIndex === 2 && (
                     <Box>
                       <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
                         <Tooltip title="Refresh">
@@ -2581,7 +2751,7 @@ setTimeout(() => {
                       <CurrentClinicalContextCard data={nodeData["current-clinical-context"]} />
                     </Box>
                   )}
-                  {contextTabIndex === 2 && (
+                  {contextTabIndex === 3 && (
                     <Box>
                       <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
                         <Tooltip title="Refresh">
@@ -2594,8 +2764,16 @@ setTimeout(() => {
                       <CurrentClinicalContextCard data={nodeData["medical-clinical-context"]} />
                     </Box>
                   )}
+                  {contextTabIndex === 4 && (
+                    <LongitudinalTimeline
+                      patientId={patientId}
+                      doctorId={doctorId}
+                      refreshTrigger={dictationRun}
+                    />
+                  )}
+
                   {/* Always mounted (hidden) so the plan status is known before the tab itself needs to appear */}
-                  <Box sx={{ display: contextTabIndex === 3 ? "block" : "none" }}>
+                  <Box sx={{ display: contextTabIndex === 4 ? "block" : "none" }}>
                     <MedicalBoardPlanTab
                       patientId={patientId}
                       doctorId={doctorId}
@@ -2605,13 +2783,18 @@ setTimeout(() => {
                 </Box>
               </Box>
 
+
+              
+
               {/* Dictation */}
               {/* Dictation */}
+{/* Dictation */}
 <Box sx={{ ...sectionCard }}>
   <Box sx={{
     px: { xs: 2.5, sm: 3 }, pt: { xs: 2.5, sm: 3 }, pb: 0,
     borderBottom: `1px solid ${C.fog}`,
     display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2,
+    flexWrap: "wrap",
   }}>
     <Box>
       <Typography sx={{ ...os({ fontSize: 14, color: C.ink, letterSpacing: "0.02em" }) }}>
@@ -2624,32 +2807,54 @@ setTimeout(() => {
       </Typography>
     </Box>
 
-    {/* Auto / Manual toggle */}
-    <Box sx={{
-      display: "flex", border: `1px solid ${C.fog}`, borderRadius: "2px",
-      overflow: "hidden", flexShrink: 0, mt: 0.5,
-    }}>
-      {["auto", "manual"].map((mode) => (
-        <Box
-          key={mode}
-          component="button"
-          type="button"
-          onClick={() => setDictationMode(mode)}
+    {/* ─── SafeRx Checkbox ─── */}
+    <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexShrink: 0, mt: { xs: 1, sm: 0 } }}>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+        <Checkbox
+          checked={useAgenticMedication}
+          onChange={(e) => setUseAgenticMedication(e.target.checked)}
+          size="small"
           sx={{
-            px: 2, py: 0.75,
-            border: "none",
-            background: dictationMode === mode ? C.black : C.white,
-            color: dictationMode === mode ? C.white : C.ash,
-            fontFamily: FONT, fontSize: 11, fontWeight: 300,
-            cursor: "pointer", textTransform: "capitalize",
-            letterSpacing: "0.04em",
-            transition: "all 0.15s",
-            "&:hover": dictationMode !== mode ? { background: C.ghost } : {},
+            color: C.mist,
+            "&.Mui-checked": { color: C.black },
+            p: 0.5,
           }}
-        >
-          {mode}
-        </Box>
-      ))}
+        />
+        <Typography sx={{ ...os({ fontSize: 11, color: C.ash }) }}>
+          SafeRx (Agentic)
+        </Typography>
+        <Tooltip title="Enable AI-powered medication analysis with safety alerts">
+          <WarningAmberRounded sx={{ fontSize: 14, color: C.ash, cursor: "help" }} />
+        </Tooltip>
+      </Box>
+
+      {/* Auto / Manual toggle */}
+      <Box sx={{
+        display: "flex", border: `1px solid ${C.fog}`, borderRadius: "2px",
+        overflow: "hidden", flexShrink: 0,
+      }}>
+        {["auto", "manual"].map((mode) => (
+          <Box
+            key={mode}
+            component="button"
+            type="button"
+            onClick={() => setDictationMode(mode)}
+            sx={{
+              px: 2, py: 0.75,
+              border: "none",
+              background: dictationMode === mode ? C.black : C.white,
+              color: dictationMode === mode ? C.white : C.ash,
+              fontFamily: FONT, fontSize: 11, fontWeight: 300,
+              cursor: "pointer", textTransform: "capitalize",
+              letterSpacing: "0.04em",
+              transition: "all 0.15s",
+              "&:hover": dictationMode !== mode ? { background: C.ghost } : {},
+            }}
+          >
+            {mode}
+          </Box>
+        ))}
+      </Box>
     </Box>
   </Box>
 
@@ -2792,7 +2997,7 @@ setTimeout(() => {
               {/* Diagnosis Analysis (Standard + Skill-Based) */}
 <Box sx={{ ...sectionCard }}>
   <SectionHeader sub="Enter clinical findings for AI-assisted diagnosis — standard or skill-based">
-    Diagnosis Analysis
+    Provisional Diagnosis Analysis
   </SectionHeader>
 
   <Box sx={{ px: 3, pt: 1 }}>
@@ -3117,14 +3322,27 @@ setTimeout(() => {
               </Box>
 
               <Box sx={{ ...sectionCard }}>
-                <SectionHeader>Context History</SectionHeader>
-                <Box sx={{ p: 3 }}><ContextHistoryPanel patientId={patientId} doctorId={doctorId} /></Box>
+                <SectionHeader
+                  sub="Structured laboratory results, diagnostic findings, and clinical intelligence"
+                >
+                  Clinical Report Data
+                </SectionHeader>
+
+                <Box sx={{ p: { xs: 1.5, sm: 2 } }}>
+                  <ClinicalReportData
+                    patientId={patientId}
+                    doctorId={doctorId}
+                  />
+                </Box>
               </Box>
+
 
               <Box sx={{ ...sectionCard }}>
                 <SectionHeader>Context History</SectionHeader>
                 <Box sx={{ p: 3 }}><ContextHistoryPanel patientId={patientId} doctorId={doctorId} /></Box>
               </Box>
+
+             
               <Box sx={{ ...sectionCard }}>
                 <SectionHeader sub="Review medication, investigation, treatment, and clinical notes">Clinical Documentation</SectionHeader>
                 <Box sx={{ px: 3, pt: 1 }}>
@@ -3214,6 +3432,292 @@ setTimeout(() => {
               <Box sx={{ p: 3 }}><Unifiedinsurance patientId={patientId} doctorId={doctorId} /></Box>
             </Box>
           )}
+          {mainTab === "rheum-workflow" && isRheumatologist && (
+            <Box sx={{ display: "flex", gap: 3, alignItems: "flex-start" }}>
+
+              {/* ─── Local left nav — only visible inside this tab ─────────── */}
+              <Box
+                sx={{
+                  width: 240,
+                  flexShrink: 0,
+                  position: "sticky",
+                  top: 16,
+                  alignSelf: "flex-start",
+                  maxHeight: "calc(100vh - 100px)",
+                  overflowY: "auto",
+                  display: { xs: "none", md: "block" },
+                  background: C.white,
+                  border: `1px solid ${C.fog}`,
+                  borderRadius: "4px",
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+                }}
+              >
+                <Box sx={{ px: 2, py: 1.5, borderBottom: `1px solid ${C.fog}`, background: C.ghost }}>
+                  <Typography sx={{ ...os({ fontSize: 12, color: C.ink, letterSpacing: "0.04em" }) }}>
+                    RHEUMATOLOGY
+                  </Typography>
+                </Box>
+                <List disablePadding sx={{ py: 1 }}>
+                  {[
+                    { label: "Patient Intake", ref: rheumIntakeRef },
+                    { label: "Symptom Assessment (Joint Map)", ref: rheumJointMapRef },
+                    { label: "Disease Categorization & Triage", ref: rheumDifferentialRef },
+                    { label: "Investigation Planner", ref: rheumInvestigationRef },
+                    { label: "Lab Trends", ref: rheumLabsRef },
+                    { label: "Biomarker Analysis", ref: rheumBiomarkerRef },
+                    { label: "Disease Activity Scores", ref: rheumDiseaseActivityRef },
+                    { label: "Medication & Treatment Decision", ref: rheumTreatmentDecisionRef },
+                    { label: "DMARD / Toxicity Monitoring", ref: rheumDmardSafetyRef },
+                    { label: "Treatment Ledger", ref: rheumLedgerRef },
+                    { label: "Flare Prediction", ref: rheumFlareRef },
+                    { label: "Imaging Analysis", ref: rheumImagingRef },
+                    { label: "Biomarker + Imaging Correlation", ref: rheumCorrelationRef },
+                    { label: "Extra-Articular Manifestations", ref: rheumManifestationRef },
+                    { label: "Treatment Response", ref: rheumTreatmentResponseRef },
+                    { label: "Steroid Exposure & Tapering", ref: rheumSteroidRef },
+                    { label: "Steroid Taper Plan", ref: rheumSteroidTaperRef },
+                    { label: "Comorbidity & Risk", ref: rheumComorbidityRef },
+                    { label: "Joint Injection / Arthrocentesis", ref: rheumProcedureRef },
+                    { label: "Patient Timeline", ref: rheumTimelineRef },
+                    { label: "Dashboard", ref: rheumTreatToTargetRef },
+                    { label: "Structured Clinical Note", ref: rheumStructuredNoteRef },
+                    { label: "Follow-up / Reports", ref: rheumFollowupRef },
+                  ].map((item) => (
+                    <ListItemButton
+                      key={item.label}
+                      disabled={item.comingSoon}
+                      onClick={() =>
+                        item.ref?.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+                      }
+                      sx={{
+                        borderRadius: "2px", mx: 1, mb: 0.15, py: 0.7, px: 1.25,
+                        width: "auto",
+                        opacity: item.comingSoon ? 0.45 : 1,
+                        "&:hover": !item.comingSoon ? { background: C.ghost } : {},
+                      }}
+                    >
+                      <ListItemText
+                        primary={
+                          <Typography sx={{ ...os({ fontSize: 11.5, color: C.charcoal }) }}>
+                            {item.label}{item.comingSoon ? " · soon" : ""}
+                          </Typography>
+                        }
+                      />
+                    </ListItemButton>
+                  ))}
+                </List>
+              </Box>
+
+             {/* ─── Right side — reordered per requested sequence, remaining modules appended at the end ──── */}
+              <Box sx={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2.5 }}>
+
+                <Box ref={rheumIntakeRef}>
+                  <RheumatologyIntakeForm
+                    doctorId={doctorId}
+                    patientId={patientId}
+                    patientName={nodeData?.["patient-profile"]?.name}
+                    dictationText={currentDictation}
+                    dictationTrigger={dictationRun}
+                  />
+                </Box>
+                <RheumatologyIntakeSummary patientId={patientId} doctorId={doctorId} />
+
+                <Box ref={rheumJointMapRef}>
+  <RheumatologyJointMap
+    doctorId={doctorId}
+    patientId={patientId}
+    patientName={nodeData?.["patient-profile"]?.name}
+    dictationText={currentDictation}
+    dictationTrigger={dictationRun}
+  />
+</Box>
+                <RheumatologyJointMapHistory patientId={patientId} doctorId={doctorId} />
+
+                <Box ref={rheumDifferentialRef}>
+                  <RheumatologyDifferentialDiagnosis
+                    doctorId={doctorId}
+                    patientId={patientId}
+                    patientName={nodeData?.["patient-profile"]?.name}
+                    onApprove={(condition) => setDiagnosisText(condition)}
+                  />
+                </Box>
+                <RheumatologyDifferentialDiagnosisHistory patientId={patientId} doctorId={doctorId} />
+
+                <Box ref={rheumInvestigationRef}>
+                  <RheumatologyInvestigationPlanner
+                    doctorId={doctorId}
+                    patientId={patientId}
+                    patientName={nodeData?.["patient-profile"]?.name}
+                  />
+                </Box>
+                <RheumatologyInvestigationPlannerHistory patientId={patientId} doctorId={doctorId} />
+
+                <Box ref={rheumLabsRef}>
+                  <RheumatologyLabTrends
+                    doctorId={doctorId}
+                    patientId={patientId}
+                    patientName={nodeData?.["patient-profile"]?.name}
+                  />
+                </Box>
+                <RheumatologyLabTrendsHistory patientId={patientId} doctorId={doctorId} />
+
+                <Box ref={rheumBiomarkerRef}>
+                  <RheumatologyBiomarkerAnalysis
+                    doctorId={doctorId}
+                    patientId={patientId}
+                    patientName={nodeData?.["patient-profile"]?.name}
+                  />
+                </Box>
+                <RheumatologyBiomarkerAnalysisHistory patientId={patientId} doctorId={doctorId} />
+
+                <Box ref={rheumDiseaseActivityRef}>
+                  <RheumatologyDiseaseActivity
+                    doctorId={doctorId}
+                    patientId={patientId}
+                    patientName={nodeData?.["patient-profile"]?.name}
+                  />
+                </Box>
+                <RheumatologyDiseaseActivityHistory patientId={patientId} doctorId={doctorId} />
+
+                <Box ref={rheumTreatmentDecisionRef}>
+                  <RheumatologyTreatmentDecision
+                    doctorId={doctorId}
+                    patientId={patientId}
+                    patientName={nodeData?.["patient-profile"]?.name}
+                  />
+                </Box>
+                <RheumatologyTreatmentDecisionHistory patientId={patientId} doctorId={doctorId} />
+
+                <Box ref={rheumDmardSafetyRef}>
+                  <RheumatologyDMARDSafety
+                    doctorId={doctorId}
+                    patientId={patientId}
+                    patientName={nodeData?.["patient-profile"]?.name}
+                  />
+                </Box>
+                <RheumatologyDMARDSafetyHistory patientId={patientId} doctorId={doctorId} />
+
+                <Box ref={rheumLedgerRef}>
+                  <RheumatologyTreatmentLedger
+                    doctorId={doctorId}
+                    patientId={patientId}
+                    patientName={nodeData?.["patient-profile"]?.name}
+                  />
+                </Box>
+
+                <Box ref={rheumFlareRef}>
+                  <RheumatologyFlarePrediction
+                    doctorId={doctorId}
+                    patientId={patientId}
+                    patientName={nodeData?.["patient-profile"]?.name}
+                  />
+                </Box>
+                <RheumatologyFlarePredictionHistory patientId={patientId} doctorId={doctorId} />
+
+                <Box ref={rheumImagingRef}>
+                  <RheumatologyImaging
+                    doctorId={doctorId}
+                    patientId={patientId}
+                    patientName={nodeData?.["patient-profile"]?.name}
+                  />
+                </Box>
+                <RheumatologyImagingHistory patientId={patientId} doctorId={doctorId} />
+
+                <Box ref={rheumCorrelationRef}>
+                  <RheumatologyCorrelation
+                    doctorId={doctorId}
+                    patientId={patientId}
+                    patientName={nodeData?.["patient-profile"]?.name}
+                  />
+                </Box>
+                <RheumatologyCorrelationHistory patientId={patientId} doctorId={doctorId} />
+
+                <Box ref={rheumManifestationRef}>
+                  <RheumatologyManifestation
+                    doctorId={doctorId}
+                    patientId={patientId}
+                    patientName={nodeData?.["patient-profile"]?.name}
+                  />
+                </Box>
+                <RheumatologyManifestationHistory patientId={patientId} doctorId={doctorId} />
+
+                <Box ref={rheumTreatmentResponseRef}>
+                  <RheumatologyTreatmentResponse
+                    doctorId={doctorId}
+                    patientId={patientId}
+                    patientName={nodeData?.["patient-profile"]?.name}
+                  />
+                </Box>
+                <RheumatologyTreatmentResponseHistory patientId={patientId} doctorId={doctorId} />
+
+                <Box ref={rheumSteroidRef}>
+                  <RheumatologySteroidStewardship
+                    doctorId={doctorId}
+                    patientId={patientId}
+                    patientName={nodeData?.["patient-profile"]?.name}
+                  />
+                </Box>
+                <RheumatologySteroidStewardshipHistory patientId={patientId} doctorId={doctorId} />
+
+                <Box ref={rheumSteroidTaperRef}>
+                  <RheumatologySteroidStewardshipTaperHistory patientId={patientId} doctorId={doctorId} />
+                </Box>
+
+                <Box ref={rheumComorbidityRef}>
+                  <RheumatologyComorbidityRisk
+                    doctorId={doctorId}
+                    patientId={patientId}
+                    patientName={nodeData?.["patient-profile"]?.name}
+                  />
+                </Box>
+                <RheumatologyComorbidityRiskHistory patientId={patientId} doctorId={doctorId} />
+
+                <Box ref={rheumProcedureRef}>
+                  <RheumatologyProcedure
+                    doctorId={doctorId}
+                    patientId={patientId}
+                    patientName={nodeData?.["patient-profile"]?.name}
+                  />
+                </Box>
+                <RheumatologyProcedureHistory patientId={patientId} doctorId={doctorId} />
+
+                <Box ref={rheumTimelineRef}>
+                  <RheumatologyTimeline
+                    doctorId={doctorId}
+                    patientId={patientId}
+                    patientName={nodeData?.["patient-profile"]?.name}
+                  />
+                </Box>
+
+                <Box ref={rheumTreatToTargetRef}>
+                  <RheumatologyTreatToTarget
+                    doctorId={doctorId}
+                    patientId={patientId}
+                    patientName={nodeData?.["patient-profile"]?.name}
+                  />
+                </Box>
+                <RheumatologyTreatToTargetHistory patientId={patientId} doctorId={doctorId} />
+
+                <Box ref={rheumStructuredNoteRef}>
+                  <RheumatologyStructuredNote
+                    doctorId={doctorId}
+                    patientId={patientId}
+                    patientName={nodeData?.["patient-profile"]?.name}
+                  />
+                </Box>
+                <RheumatologyStructuredNoteHistory patientId={patientId} doctorId={doctorId} />
+
+                <Box ref={rheumFollowupRef}>
+                  <RheumatologyFollowup
+                    doctorId={doctorId}
+                    patientId={patientId}
+                    patientName={nodeData?.["patient-profile"]?.name}
+                  />
+                </Box>
+                <RheumatologyFollowupHistory patientId={patientId} doctorId={doctorId} />
+              </Box>
+            </Box>
+          )}
           {mainTab === "pac" && isAnaesthesiologist && (
   <PreAnaesthesiaCheckup
     patientId={patientId}
@@ -3262,7 +3766,8 @@ setTimeout(() => {
                     <OncoPathologyWorkflow 
                       doctorId={doctorId} 
                       patientId={patientId} 
-                      doctorName={doctorName} 
+                      doctorName={doctorName}
+                      pathologyRequestId={pathologyRequestId}
                     />
                   ) : (
                       <Typography sx={{ p: 3, color: C.ash, ...os() }}>
@@ -3270,6 +3775,21 @@ setTimeout(() => {
                       </Typography>
                   )}
               </Box>
+          )}
+          {mainTab === "neuropsychiatry-workflow" && doctorSpeciality === "Neuropsychiatry" && (
+            <NeuropsychiatryWorkflow doctorId={doctorId} patientId={patientId} />
+          )}
+
+          {mainTab === "nephrology-workflow" && doctorSpeciality === "Nephrology" && (
+            <NephrologyWorkflow doctorId={doctorId} patientId={patientId} />
+          )}
+          
+          {mainTab === "pulmonology-workflow" && doctorSpeciality === "Pulmonology" && (
+            <PulmonologyWorkflow doctorId={doctorId} patientId={patientId} />
+          )}
+
+          {mainTab === "microbiology-workflow" && doctorSpeciality === "Microbiology" && (
+            <MicrobiologyWorkflow doctorId={doctorId} patientId={patientId} doctorName={doctorName} />
           )}
 
 

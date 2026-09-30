@@ -83,7 +83,7 @@ appointments_collection = db.patient_appointments
 # GROQ INITIALIZATION
 # =====================================================================
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-GROQ_MODEL = "llama-3.3-70b-versatile"
+GROQ_MODEL = "openai/gpt-oss-120b"
 
 groq_client = Groq(api_key=GROQ_API_KEY)
 
@@ -144,20 +144,60 @@ def _call_groq_text(prompt: str, temperature: float = 0.2, max_tokens: int = 600
 REPORT_SUMMARY_PROMPT = """You are a clinical documentation assistant.
 
 Below is a single clinical report. Write ONE short clinical narrative
-paragraph (2-4 sentences) summarizing it, based ONLY on the content given.
-This summary is for timeline display only.
-
-Rules:
-- Do NOT invent facts, values, or interpretations not present in the content.
-- Do NOT return bullet points, lists, or JSON -- prose only.
-- Be concise and clinically precise (findings, values, diagnoses, medications,
-  procedures as stated).
+paragraph (2-4 sentences) summarizing it, using ONLY the information
+explicitly present in the report content below. This summary is for
+timeline display only.
 
 === REPORT DATE ===
 {report_date}
 
 === REPORT CONTENT ===
 {content}
+
+STRICT GROUNDING RULES (follow all of these):
+* Use ONLY facts, values, findings, diagnoses, medications, and procedures
+  that are explicitly stated in the REPORT CONTENT above.
+* Do NOT use any outside medical knowledge, clinical guidelines, typical
+  disease patterns, or general reasoning to fill gaps, explain causes,
+  predict outcomes, or add context not present in the text.
+* Do NOT infer a diagnosis, severity, or interpretation that is not
+  directly stated in the report, even if it seems clinically obvious.
+* Do NOT invent, estimate, guess, or normalize any values, dates, units,
+  or ranges that are missing or unclear in the source text.
+* Do NOT include information about any other report, visit, or prior
+  history -- this summary reflects ONLY the single report provided above.
+
+EXCLUSION RULES (do NOT mention any of the following, even if present
+in the report content):
+* Patient name, patient address, contact number, email, or any other
+  personal/demographic identifying detail.
+* Doctor / provider name, clinic name, hospital name, or facility address.
+* Patient age or sex/gender, UNLESS it is directly and necessarily tied
+  to a clinical finding stated in the report (e.g., a dosage that is
+  explicitly age-based). If age/sex is purely demographic/header
+  information, leave it out.
+* Administrative or system metadata, including but not limited to:
+  patient IDs, doctor/provider IDs, document IDs, UUIDs, database keys,
+  record numbers, timestamps, file names, system-generated codes, or
+  processing/ingestion metadata.
+* Do NOT mention any identifiers (e.g., PAT-xxxx, DOC-xxxx), database
+  keys, or system-generated values anywhere in the summary, even in
+  passing.
+
+FOCUS:
+* Focus exclusively on the CLINICAL content of the report -- findings,
+  diagnoses, symptoms, medications, procedures, and clinical values.
+* If the report contains ONLY administrative/personal/demographic
+  information and no actual clinical content, do not attempt to write
+  a clinical paragraph. Instead, return exactly this sentence and
+  nothing else:
+  "No clinical information available in this report."
+
+FORMATTING RULES:
+* Do NOT return bullet points, headers, lists, or JSON -- prose only.
+* Be concise and clinically precise (state findings, values, diagnoses,
+  medications, and procedures exactly as described in the report,
+  paraphrased only for readability, not reinterpreted).
 
 Return only the paragraph, nothing else.
 """
@@ -167,28 +207,89 @@ Return only the paragraph, nothing else.
 VISIT_SUMMARY_UPDATE_PROMPT = """You are a clinical documentation assistant.
 
 Previous Visit Summary
-----------------------
-
 {previous_summary}
 
-New Report Content
-------------------
-
+Current Report Content
 {report_content}
 
-Update the visit summary by incorporating ONLY the new report.
+Create the visit summary for the CURRENT visit.
 
-Avoid repeating information already present.
+Use the Previous Visit Summary only as clinical context.
+Use the Current Report Content as the primary source.
+Carry forward ongoing clinically relevant information unless it is explicitly updated or contradicted.
 
-Preserve all previous clinical context.
+Use the Previous Visit Summary and New Report Content as your ONLY sources
+of truth. Carry forward ongoing clinically relevant information unless it
+is explicitly updated or contradicted by the New Report Content.
 
-Return the COMPLETE updated visit summary.
+STRICT GROUNDING RULES (follow all of these):
+* Use ONLY facts, values, findings, diagnoses, medications, and procedures
+  that are explicitly present in the Previous Visit Summary or the New
+  Report Content above.
+* Do NOT use any outside medical knowledge, clinical guidelines, typical
+  disease patterns, or general reasoning to fill gaps, explain causes,
+  predict outcomes, or add context not present in the two sources.
+* Do NOT infer a diagnosis, severity, trend, or interpretation that is
+  not directly stated in the source text, even if it seems clinically
+  obvious.
+* Do NOT invent, estimate, guess, or normalize any values, dates, units,
+  or ranges that are missing or unclear in the source text.
 
-Rules:
-- Do NOT invent facts, values, or trends not supported by the given text.
-- Do NOT return JSON, bullet points, or field labels.
-- Return ONLY a single clinical prose paragraph -- the COMPLETE updated
-  visit summary (not a diff, not just the new part).
+EXCLUSION RULES (do NOT mention any of the following, even if present
+in the source text):
+* Patient name, patient address, contact number, email, or any other
+  personal/demographic identifying detail.
+* Doctor / provider name, clinic name, hospital name, or facility address.
+* Patient age or sex/gender, UNLESS it is directly and necessarily tied
+  to a clinical finding (e.g., a dosage that is explicitly age-based).
+  If age/sex is purely demographic/header information, leave it out.
+* Administrative or system metadata, including but not limited to:
+  patient IDs, doctor/provider IDs, document IDs, UUIDs, database keys,
+  record numbers, timestamps, file names, system-generated codes, or
+  processing/ingestion metadata.
+* Do NOT mention any identifiers (e.g., PAT-xxxx, DOC-xxxx), database
+  keys, or system-generated values anywhere in the updated summary.
+* If the Previous Visit Summary already contains such identifiers,
+  remove them during this update rather than carrying them forward.
+
+MERGE / PRESERVATION RULES:
+* Preserve ALL clinically significant information from the Previous
+  Visit Summary unless it is clearly and explicitly superseded or
+  corrected by the New Report Content.
+* Never remove or alter confirmed diagnoses, chronic conditions,
+  allergies, surgeries, procedures, medications, abnormal findings,
+  important laboratory or imaging results, or significant clinical
+  events unless the New Report Content explicitly contradicts or
+  updates them.
+* If the New Report Content updates or corrects previous information,
+  keep only the latest accurate information and drop the outdated
+  version -- do not keep both if they conflict.
+* Merge repeated or overlapping information instead of duplicating it;
+  avoid repeating information already present.
+* Compress only redundant narrative or repetitive wording; do NOT omit
+  clinically relevant facts in the process of compressing.
+* Prioritize active problems, current treatment, ongoing investigations,
+  and the latest clinical status.
+
+HANDLING NON-CLINICAL NEW REPORTS:
+* If, after excluding administrative/personal/demographic details, the
+  New Report Content contains NO clinical information, do NOT alter the
+  clinical substance of the Previous Visit Summary because of this report.
+* In that case, return the Previous Visit Summary unchanged, except for
+  removing any excluded identifiers/details if present (per the
+  exclusion rules above).
+* Only return the sentence "No clinical information available in this
+  report." if BOTH the Previous Visit Summary and the New Report Content
+  contain no clinical information at all once exclusions are applied.
+
+OUTPUT RULES:
+* Keep the final summary concise (maximum 500 words or approximately
+  3000 characters).
+* Return ONLY a single, coherent clinical prose paragraph -- the
+  COMPLETE updated visit summary (not a diff, not just the new part,
+  no bullet points, no headers, no field labels, no JSON).
+
+Return only the paragraph, nothing else.
 """
 
 
@@ -410,6 +511,15 @@ def _build_timeline_incremental_sync(
 
     # Report summary is generated for timeline display ONLY.
     report_summary = generate_report_summary(report_content, report_date)
+    previous_visit_summary = _get_previous_visit_summary(
+        patient_id,
+        visit_info["visit_number"],
+    )
+
+    visit_summary = generate_updated_visit_summary(
+        previous_visit_summary,
+        report_content,
+    )
 
     timeline_entry = {
         "timeline_entry_id": timeline_entry_id,
@@ -424,6 +534,15 @@ def _build_timeline_incremental_sync(
 
     if existing_doc is None:
         # First report for this visit -- visit_summary starts as the report summary.
+        previous_visit_summary = _get_previous_visit_summary(
+            patient_id,
+            visit_info["visit_number"],
+        )
+
+        visit_summary = generate_updated_visit_summary(
+            previous_visit_summary,
+            report_content,
+        )
         new_doc = {
             "patient_id": patient_id,
             "doctor_id": doctor_id,
@@ -433,7 +552,7 @@ def _build_timeline_incremental_sync(
             "visit_start_date": visit_info["visit_start_date"],
             "visit_end_date": visit_info["visit_end_date"],
             "timeline": [timeline_entry],
-            "visit_summary": report_summary,
+            "visit_summary": visit_summary,
             "latest_report_summary": report_summary,
             "created_at": now,
             "updated_at": now,
@@ -527,3 +646,19 @@ async def build_timeline_incremental(
             f"appointment_id={appointment_id}, patient_id={patient_id}: {exc}"
         )
         raise
+    
+    
+    
+def _get_previous_visit_summary(patient_id: str, current_visit_number: int) -> str:
+    previous_visit = visit_timeline_collection.find_one(
+        {
+            "patient_id": patient_id,
+            "visit_number": {"$lt": current_visit_number},
+        },
+        sort=[("visit_number", -1)],
+    )
+
+    if previous_visit:
+        return previous_visit.get("visit_summary", "")
+
+    return ""

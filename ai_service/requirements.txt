@@ -52,3 +52,4 @@ pika
 
 redis
 elevenlabs
+pydub

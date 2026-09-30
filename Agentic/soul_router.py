@@ -644,7 +644,7 @@ async def generate_safety_profile(
     )
 
     completion = groq_client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
+        model="openai/gpt-oss-120b",
         messages=[{"role": "user", "content": prompt}],
         temperature=0.15,
         max_tokens=3000,
@@ -1059,7 +1059,7 @@ async def generate_soul(doctor_id: str, behavioral_data: dict, specialization: s
     )
 
     completion = groq_client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
+        model="openai/gpt-oss-120b",
         messages=[{"role": "user", "content": prompt}],
         temperature=0.15,
         max_tokens=5500,

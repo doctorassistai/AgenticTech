@@ -1,71 +1,70 @@
-// synoptic/schemaRegistry.js — Schema registry for site-specific synoptic reports
-//
-// Maps anatomic site identifiers to their respective synoptic schemas. Each
-// schema defines the field structure for that site's CAP protocol. The renderer
-// (SynopticReportTab.jsx) consumes these schemas to generate the form dynamically.
-//
-// USER-OWNED: This registry and the schemas/ directory are intentionally designed
-// for user extension. To add a new site (e.g., breast, prostate, lung):
-//   1. Create synoptic/schemas/<site>.js following the colorectal.js format.
-//   2. Import and register it below.
-//   3. No changes to SynopticReportTab.jsx are needed—it's schema-driven.
-
+import { ORGAN_SYSTEMS } from "./schemas/common";
 import { colorectalSchema } from "./schemas/colorectal";
+import { colorectalBiopsySchema } from "./schemas/colorectalBiopsy";
+import { esophagusSchema } from "./schemas/esophagus";
+import { stomachSchema } from "./schemas/stomach";
+import { anusSchema } from "./schemas/anus";
+import { pancreasSchema } from "./schemas/pancreas";
+import { liverSchema } from "./schemas/liver";
+import { biliarySchema } from "./schemas/biliary";
+import { endometriumSchema } from "./schemas/endometrium";
+import { ovarySchema } from "./schemas/ovary";
+import { cervixSchema } from "./schemas/cervix";
+import { oralCavitySchema } from "./schemas/oralCavity";
+import { larynxSchema } from "./schemas/larynx";
+import { oropharynxSchema } from "./schemas/oropharynx";
+import { salivarySchema } from "./schemas/salivary";
+import { thyroidSchema } from "./schemas/thyroid";
+import { lungSchema } from "./schemas/lung";
+import { breastSchema } from "./schemas/breast";
+import { breastBiopsySchema } from "./schemas/breastBiopsy";
+import { kidneySchema } from "./schemas/kidney";
+import { bladderSchema } from "./schemas/bladder";
+import { testisSchema } from "./schemas/testis";
+import { prostateSchema } from "./schemas/prostate";
+import { prostateBiopsySchema } from "./schemas/prostateBiopsy";
+import { melanomaSchema } from "./schemas/melanoma";
+import { sarcomaSchema } from "./schemas/sarcoma";
+import { gliomaSchema } from "./schemas/glioma";
+import { lymphomaSchema } from "./schemas/lymphoma";
 
-// ─── Schema Format ───────────────────────────────────────────────────────────
-// Each schema exports an object with:
-//   {
-//     site: "string",               // Unique identifier (used as the registry key)
-//     version: "string",            // CAP protocol version
-//     title: "string",              // Display title for the tab header
-//     sections: [                   // Array of section definitions
-//       {
-//         id: "string",             // Unique section identifier
-//         title: "string",          // Section heading
-//         note: "string",           // Optional explanatory note (displayed below title)
-//         fields: [                 // Array of field definitions
-//           {
-//             key: "string",        // Field key (saved to backend; must be unique within schema)
-//             label: "string",      // Field label shown to the user
-//             type: "text" | "textarea" | "select" | "number",
-//             required: boolean,    // Optional; default false
-//             placeholder: "string", // Optional
-//             options: [string],    // Required for type: "select"
-//             rows: number,         // Optional; for type: "textarea"
-//             step: number,         // Optional; for type: "number"
-//             min: number,          // Optional; for type: "number"
-//             fromGross: "string",  // Optional; maps to a grossing field key for Import-from-Gross
-//           },
-//           ...
-//         ],
-//       },
-//       ...
-//     ],
-//   }
+const ALL_SCHEMAS = [colorectalSchema, colorectalBiopsySchema, esophagusSchema, stomachSchema, anusSchema, pancreasSchema, liverSchema, biliarySchema, endometriumSchema, ovarySchema, cervixSchema, oralCavitySchema, larynxSchema, oropharynxSchema, salivarySchema, thyroidSchema, lungSchema, breastSchema, breastBiopsySchema, kidneySchema, bladderSchema, testisSchema, prostateSchema, prostateBiopsySchema, melanomaSchema, sarcomaSchema, gliomaSchema, lymphomaSchema];
+
+// Keyed by template_id, not site: breast and prostate each have a resection and
+// a biopsy template, so the site string alone no longer identifies one schema.
+export const schemaRegistry = Object.fromEntries(ALL_SCHEMAS.map((schema) => [schema.template_id, schema]));
+
+const organSystemRank = (schema) => { const index = ORGAN_SYSTEMS.indexOf(schema.organSystem); return index === -1 ? ORGAN_SYSTEMS.length : index; };
+
+// The picker groups by organ system, and Sel emits a header whenever `group`
+// changes, so the options are sorted here once rather than at every call site.
+// Array.prototype.sort is stable, so sites keep their declaration order inside
+// a group.
+export const SYNOPTIC_TEMPLATE_OPTIONS = [...ALL_SCHEMAS].sort((a, b) => organSystemRank(a) - organSystemRank(b)).map((schema) => ({ value: schema.template_id, label: schema.title.replace("Internal Synoptic Template - ", ""), group: schema.organSystem }));
+
+export function getSynopticSchema(templateId) { return schemaRegistry[templateId] || null; }
+export function schemaFields(schema) { return (schema?.sections || []).flatMap((section) => section.fields || []); }
+// Records saved before biopsy templates exist carry only a site string; map it
+// back to that site's resection template.
+export function synopticTemplateForSavedSite(site) { return schemaRegistry[`${site}-resection-internal-v1`] || null; }
+// The confirmed diagnosis comes from the `integration` section — synthesising the
+// case is not microscope work — with the confirmed microscopy review as fallback.
+// Returns a template_id: biopsy procedures only match the biopsy templates, so a
+// core biopsy infers the needle/core template and a prostatectomy infers the
+// resection template, keeping the match unambiguous.
 //
-// ─── Import-from-Gross Mapping ───────────────────────────────────────────────
-// When a field includes `fromGross: "<grossing_key>"`, the "Import from Gross"
-// button will auto-populate that synoptic field from the grossing data's
-// corresponding key. Example:
-//   Synoptic field `tumor_greatest_dimension_cm` with `fromGross: "tumor_greatest_dimension"`
-//   imports the value from `grossing.tumor_greatest_dimension`.
-
-export const schemaRegistry = {
-  colorectal: colorectalSchema,
-  // Add future sites here:
-  // breast: breastSchema,
-  // prostate: prostateSchema,
-  // lung: lungSchema,
-};
-
-// ─── Default Site ────────────────────────────────────────────────────────────
-// When no site is specified or the user's case doesn't indicate a site yet,
-// fall back to this schema. Change this to match your institution's most common
-// surgical pathology case type.
-export const DEFAULT_SITE = "colorectal";
-
-// ─── getSynopticSchema ───────────────────────────────────────────────────────
-// Looks up a schema by site identifier; returns the default if not found.
-export function getSynopticSchema(site) {
-  return schemaRegistry[site] || schemaRegistry[DEFAULT_SITE];
+// With a schema per organ this only ever fires on an exact single match, and the
+// site keyword sets are kept disjoint on purpose. Where two genuinely overlap —
+// "base of tongue" is both an oral-cavity and an oropharyngeal keyword, and a
+// gastric cardia case can carry both "gastric" and a gastrectomy-derived
+// procedure — the result is "" and the pathologist picks, which is the intended
+// fallback. A wrong template proposed silently would be worse than none.
+export function inferSynopticTemplate(caseRegister = {}, microscopy = {}, integration = {}) {
+  const confirmed = integration?.final_integrated_diagnosis && integration?.confirmed_by && integration?.confirmation_datetime ? integration.final_integrated_diagnosis : "";
+  const review = [...(microscopy?.reviews || [])].reverse().find((item) => ["Final", "Addendum"].includes(item?.report_status) && item?.primary_diagnosis);
+  const specimens = caseRegister?.specimens || [];
+  const text = [confirmed, review?.primary_diagnosis, review?.histologic_diagnosis, ...specimens.flatMap((s) => [s.anatomic_site, s.sub_site, s.procedure, s.specimen_type])].filter(Boolean).join(" ").toLowerCase();
+  const procedures = specimens.map((s) => s.procedure || s.specimen_type || "").join(" ").toLowerCase();
+  const matches = Object.values(schemaRegistry).filter((schema) => schema.siteKeywords.some((keyword) => text.includes(keyword)) && schema.procedureKeywords.some((keyword) => procedures.includes(keyword)));
+  return matches.length === 1 ? matches[0].template_id : "";
 }

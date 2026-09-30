@@ -82,7 +82,7 @@ from Agentic.evidence_validation_agents import (
 # ────────────────────────────────────────────────────────────────
 
 GROQ_API_KEY:          str = os.getenv("GROQ_API_KEY", "")
-MODEL:                 str = os.getenv("CLINICAL_LLM_MODEL", "llama-3.3-70b-versatile")
+MODEL:                 str = os.getenv("CLINICAL_LLM_MODEL", "openai/gpt-oss-120b")
 TEMPERATURE:           float = 0.1
 MAX_TOKENS:            int   = 8000
 SECTION_CONTEXT_LIMIT: int   = 12_000

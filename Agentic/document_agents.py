@@ -108,7 +108,7 @@ def _parse_retry_after(err_str: str, attempt: int) -> float:
 def _chat(
     system: str,
     user: str,
-    model: str = "llama-3.3-70b-versatile",
+    model: str = "openai/gpt-oss-120b",
     max_tokens: int = 4000,
     temperature: float = 0.1,
     json_mode: bool = True,
@@ -1101,7 +1101,7 @@ Include both in a single decision_chains list.
         async with _GROQ_SEMAPHORE:
             return await loop.run_in_executor(
                 None, _chat, system, user,
-                "llama-3.3-70b-versatile", 4000, 0.1, True, '{"decision_chains":[]}'
+                "openai/gpt-oss-120b", 4000, 0.1, True, '{"decision_chains":[]}'
             )
 
     responses = await asyncio.gather(*[_call(c, i) for i, c in enumerate(chunks)])
@@ -1162,7 +1162,7 @@ and what is the expected outcome?
         async with _GROQ_SEMAPHORE:
             return await loop.run_in_executor(
                 None, _chat, system, user,
-                "llama-3.3-70b-versatile", 4000, 0.1, True, '{"decision_chains":[]}'
+                "openai/gpt-oss-120b", 4000, 0.1, True, '{"decision_chains":[]}'
             )
 
     responses = await asyncio.gather(*[_call(c, i) for i, c in enumerate(chunks)])
@@ -1224,7 +1224,7 @@ What specialist? How urgent?
         async with _GROQ_SEMAPHORE:
             return await loop.run_in_executor(
                 None, _chat, system, user,
-                "llama-3.3-70b-versatile", 4000, 0.1, True, '{"decision_chains":[]}'
+                "openai/gpt-oss-120b", 4000, 0.1, True, '{"decision_chains":[]}'
             )
 
     responses = await asyncio.gather(*[_call(c, i) for i, c in enumerate(chunks)])
@@ -1290,7 +1290,7 @@ These are learning events — where the doctor changed approach.
         async with _GROQ_SEMAPHORE:
             return await loop.run_in_executor(
                 None, _chat, system, user,
-                "llama-3.3-70b-versatile", 4000, 0.1, True, '{"decision_chains":[]}'
+                "openai/gpt-oss-120b", 4000, 0.1, True, '{"decision_chains":[]}'
             )
 
     responses = await asyncio.gather(*[_call(c, i) for i, c in enumerate(chunks)])

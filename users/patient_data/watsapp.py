@@ -5512,7 +5512,7 @@ Now write your response:"""
         
         # ==================== LLM CALL FORMAT ====================
         completion = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.1,
             max_tokens=250
@@ -7876,7 +7876,7 @@ async def get_followup_date(request: Request):
 
             # Call the LLaMA model with the prompt to calculate the follow-up date
             completion = groq_client.chat.completions.create(
-                model="llama-3.1-8b-instant",
+                model="openai/gpt-oss-20b",
                 temperature=0.1,
                 max_tokens=8000,
                 response_format={"type": "json_object"},
@@ -9806,3 +9806,74 @@ async def get_messages_by_doctor(doctor_id: str):
     ]
 
     return structured_messages
+
+
+
+llm_usage_log_collection = database["llm_usage_log"]
+
+
+@router.get("/llm-usage-logs")
+async def get_llm_usage_logs():
+    try:
+        logs = []
+
+        cursor = llm_usage_log_collection.find({})
+
+        async for log in cursor:
+            log["_id"] = str(log["_id"])
+            logs.append(log)
+
+        return {
+            "status": "success",
+            "count": len(logs),
+            "data": logs
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch LLM usage logs: {str(e)}"
+        )
+
+@router.delete("/llm-usage-logs")
+async def delete_all_llm_usage_logs():
+    try:
+        result = await llm_usage_log_collection.delete_many({})
+
+        return {
+            "status": "success",
+            "message": "All LLM usage logs deleted successfully",
+            "deleted_count": result.deleted_count
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to delete LLM usage logs: {str(e)}"
+        )
+
+@router.get("/llm-usage/{hospital_id}")
+async def get_llm_usage_by_hospital(hospital_id: str):
+    try:
+        hospital_data = await llm_usage_log_collection.find_one(
+            {"_id": hospital_id}
+        )
+
+        if not hospital_data:
+            return {
+                "status": "success",
+                "message": "No data available",
+                "data": None
+            }
+
+        # Mongo ObjectId conversion not needed because your _id is string
+        return {
+            "status": "success",
+            "data": hospital_data
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error fetching LLM usage data: {str(e)}"
+        )

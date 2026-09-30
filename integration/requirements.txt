@@ -9,14 +9,14 @@ groq
 jinja2
 python-multipart
 pytz
-
+tzdata
 fastapi
 uvicorn
 jinja2
-
+llama-cloud
 pymongo
 motor
-
+openai
 python-dotenv
 python-dateutil
 pytz
@@ -50,3 +50,4 @@ python-jose[cryptography]
 
 pika
 celery==5.3.6
+xlrd >= 2.0.1

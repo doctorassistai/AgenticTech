@@ -39,24 +39,16 @@
       line-height: 1.5;
       border-top: 1px solid #000;
     }
-
     /* ── HEADER ─────────────────────────────────────────────── */
     .header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
       margin-bottom: 8px;
     }
 
     .header-logo {
-      height: 44px;
+      width: 100%;
+      height: auto;
+      display: block;
       object-fit: contain;
-    }
-
-    .header-address {
-      font-size: 8.5px;
-      text-align: right;
-      line-height: 1.5;
     }
 
     /* ── SECTION TITLE (green bg like PDF) ──────────────────── */
@@ -189,7 +181,6 @@
 </div>
 
 <div class="page">
-
   <!-- ═══════════════════════════════════════════════════════ -->
   <!-- HEADER                                                  -->
   <!-- ═══════════════════════════════════════════════════════ -->
@@ -197,11 +188,6 @@
     {% if header_image %}
       <img src="{{ header_image }}" class="header-logo" alt="Optimus" />
     {% endif %}
-    <div class="header-address">
-      Optimus Medical Services Pvt Limited<br/>
-      CC NO: 63/2931, 3rd Floor Chaithanya Building<br/>
-      S.A Road, Kadavanthra, Kochi-682016
-    </div>
   </div>
 
   <!-- ═══════════════════════════════════════════════════════ -->

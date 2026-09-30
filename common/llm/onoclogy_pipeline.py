@@ -76,6 +76,9 @@ class ExtractedEntity(BaseModel):
     entity_value: Optional[Union[str, float, int]] = None
     confidence: float = 0.9
     evidence_text: str
+    # Traceability
+    source_area: Optional[str] = None
+    source_location: Optional[str] = None
 
 
 class Evidence(BaseModel):
@@ -86,6 +89,9 @@ class Evidence(BaseModel):
     document_date: Optional[str] = None
     evidence_text: str
     page_number: Optional[int] = None
+    source_area: Optional[str] = None
+    source_location: Optional[str] = None
+
     confidence: float
     extraction_date: datetime
 
@@ -653,7 +659,7 @@ Return ONLY valid JSON. No commentary, no markdown fences.
         None,
         partial(
             groq_client.chat.completions.create,
-            model="llama-3.3-70b-versatile",
+            model="openai/gpt-oss-120b",
             temperature=0.1,
             max_tokens=5000,
             response_format={"type": "json_object"},
@@ -674,9 +680,25 @@ Return ONLY valid JSON. No commentary, no markdown fences.
                 ExtractedEntity(
                     entity_type=str(entity_type),
                     entity_name=str(entity_name),
-                    entity_value=str(e.get("entity_value")) if e.get("entity_value") is not None else None,
+                    entity_value=(
+                        str(e.get("entity_value"))
+                        if e.get("entity_value") is not None
+                        else None
+                    ),
                     confidence=float(e.get("confidence", 0.9)),
                     evidence_text=str(e.get("evidence_text", "")),
+
+                    source_area=(
+                        str(e.get("source_area"))
+                        if e.get("source_area") is not None
+                        else None
+                    ),
+
+                    source_location=(
+                        str(e.get("source_location"))
+                        if e.get("source_location") is not None
+                        else None
+                    ),
                 )
             )
         return entities
@@ -727,7 +749,7 @@ Return ONLY valid JSON, no commentary, no markdown fences:
             None,
             partial(
                 groq_client.chat.completions.create,
-                model="llama-3.3-70b-versatile",
+                model="openai/gpt-oss-120b",
                 temperature=0.0,
                 max_tokens=5000,
                 response_format={"type": "json_object"},

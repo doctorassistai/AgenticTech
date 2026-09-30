@@ -16,7 +16,7 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 _groq = Groq(api_key=os.getenv("GROQ_API_KEY"))
-_CLASSIFY_MODEL = "llama-3.3-70b-versatile"
+_CLASSIFY_MODEL = "openai/gpt-oss-120b"
 
 DOCUMENT_TYPES = [
     "admission_summary", "discharge_summary", "bills", "prescriptions",

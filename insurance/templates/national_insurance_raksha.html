@@ -237,15 +237,13 @@
     </tr>
     <tr>
       <td class="lbl">Registration number of hospital</td>
-      <td class="val">{{ hospital.get('registrationNumber','') if hospital.get else '' }}</td>
-    </tr>
+      <td class="val">{{ hospital.get('registrationNumber') or '' }}</td>    </tr>
     <tr>
       <td class="lbl">Whether PPN or Non-PPN hospital, Specify</td>
-      <td class="val">{{ hospital.get('ppnStatus','-') if hospital.get else '-' }}</td>
-    </tr>
+      <td class="val">{{ hospital.get('ppnStatus') or '-' }}</td>    </tr>
     <tr>
       <td class="lbl">Name of contact person and contact number</td>
-      <td class="val">{{ hospital.get('contactPerson','') if hospital.get else '' }}{% if hospital.hospitalContactNumber %} - {{ hospital.hospitalContactNumber }}{% endif %}</td>
+      <td class="val">{{ hospital.get('contactPerson') or '' }}{% if hospital.hospitalContactNumber %} - {{ hospital.hospitalContactNumber }}{% endif %}</td>
     </tr>
   </table>
 
@@ -288,35 +286,35 @@
     </tr>
     <tr>
       <td class="lbl">Registration Number</td>
-      <td class="val">{{ hospital.get('doctorRegNumber','NA') if hospital.get else 'NA' }}</td>
+      <td class="val">{{ hospital.get('doctorRegNumber') or 'NA' }}</td>
     </tr>
     <tr>
       <td class="lbl">Name of referral Doctor</td>
-      <td class="val">{{ case.familyDoctor or additional.get('referralDoctor','NA') if additional.get else 'NA' }}</td>
+      <td class="val">{{ case.familyDoctor or additional.get('referralDoctor') or 'NA' }}</td>
     </tr>
     <tr>
       <td class="lbl">Registration Number</td>
-      <td class="val">{{ hospital.get('referralDoctorRegNumber','NA') if hospital.get else 'NA' }}</td>
+      <td class="val">{{ hospital.get('referralDoctorRegNumber') or 'NA' }}</td>
     </tr>
     <tr>
       <td class="lbl">Initial treatment details</td>
-      <td class="val">{{ additional.get('initialTreatment','NA') if additional.get else 'NA' }}</td>
+      <td class="val">{{ additional.get('initialTreatment') or 'NA' }}</td>
     </tr>
     <tr>
       <td class="lbl">Date of first onset of symptoms</td>
-      <td class="val">{{ additional.get('onsetOfSymptoms','') if additional.get else '' or case.dateOfIncident or '' }}</td>
+      <td class="val">{{ additional.get('onsetOfSymptoms') or case.dateOfIncident or '' }}</td>
     </tr>
     <tr>
       <td class="lbl">Particulars of pre-hospitalization treatments</td>
-      <td class="val">{{ additional.get('preHospitalisationDetails','NA') if additional.get else 'NA' }}</td>
+      <td class="val">{{ additional.get('preHospitalisationDetails') or 'NA' }}</td>
     </tr>
     <tr>
       <td class="lbl">Particulars of post hospitalization treatments</td>
-      <td class="val">{{ additional.get('postHospitalisationDetails','NA') if additional.get else 'NA' }}</td>
+      <td class="val">{{ additional.get('postHospitalisationDetails') or 'NA' }}</td>
     </tr>
     <tr>
       <td class="lbl">Particulars of investigations done for diagnosis (attach documents)</td>
-      <td class="val">{{ additional.get('investigationsSuggestingDiagnosis','') if additional.get else '' }}</td>
+      <td class="val">{{ additional.get('investigationsSuggestingDiagnosis') or '' }}</td>
     </tr>
   </table>
 

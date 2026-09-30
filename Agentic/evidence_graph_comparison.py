@@ -199,7 +199,7 @@ class ClinicalComparisonReport(BaseModel):
 # ═══════════════════════════════════════════════════════════════════
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-MODEL        = os.getenv("CLINICAL_LLM_MODEL", "llama-3.3-70b-versatile")
+MODEL        = os.getenv("CLINICAL_LLM_MODEL", "openai/gpt-oss-120b")
 MAX_TOKENS   = 6000
 TEMPERATURE  = 0.1
 

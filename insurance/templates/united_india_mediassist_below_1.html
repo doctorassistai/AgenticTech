@@ -240,12 +240,12 @@
         </table>
       </td>
       <td style="padding: 4px 7px;">
-        <table style="border:none; margin:0; width:100%;">
+        <table style="border:none; margin:0; width:100%; table-layout:fixed;">
           <tr>
-            <td style="border:none; padding:0; font-weight:bold; width:42%;">Policy No:</td>
-            <td style="border:none; padding:0; width:28%;">{{ case.policyNumber or '' }}</td>
-            <td style="border:none; padding:0; font-weight:bold; width:30%;">First Year Policy :</td>
-            <td style="border:none; padding:0;">{{ (case.get('policyDetails') or {}).get('firstYear') or 'Yes / No' }}</td>
+            <td style="border:none; padding:0; font-weight:bold; width:28%; white-space:nowrap;">Policy No:</td>
+            <td style="border:none; padding:0; width:22%;">{{ case.policyNumber or '' }}</td>
+            <td style="border:none; padding:0; font-weight:bold; width:30%; white-space:nowrap;">First Year Policy :</td>
+            <td style="border:none; padding:0; width:20%; white-space:nowrap;">{{ (case.get('policyDetails') or {}).get('firstYear') or 'Yes / No' }}</td>
           </tr>
         </table>
       </td>

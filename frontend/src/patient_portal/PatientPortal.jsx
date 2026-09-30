@@ -1144,7 +1144,7 @@ export default function PatientPortal({ hospitalId: propHospitalId, standalone =
         {standalone && (
           <aside className="pp-sidebar">
             <div className="pp-sidebar-header">
-              <div className="pp-brand-row"><span className="pp-brand-name">Doctorassist.AI</span></div>
+              <div className="pp-brand-row"><span className="pp-brand-name">EMR Module</span></div>
               <span className="pp-page-label">Patient Portal</span>
             </div>
             <nav className="pp-sidebar-nav">

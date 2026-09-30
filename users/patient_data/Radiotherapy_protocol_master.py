@@ -712,7 +712,7 @@ Rules:
 
     try:
         resp = groq_client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="openai/gpt-oss-120b",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": "Adapt the protocol metadata for this patient now."}
@@ -1121,3 +1121,4 @@ def _map_protocol_to_form(proto: dict, llm_data: Optional[dict] = None) -> dict:
         "ebrt": ebrt,
         "brachy": brachy,
     }
+

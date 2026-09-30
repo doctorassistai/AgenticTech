@@ -4,7 +4,13 @@ import asyncio
 import json
 from datetime import datetime, date
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
+
+from routes.agents.chunking import (
+    split_text_by_pdf,
+    render_page_batch,
+    batch_file_pages,
+)
 import re
 from groq import Groq
 import os
@@ -25,7 +31,7 @@ def _make_serializable(obj):
 logger = logging.getLogger(__name__)
 
 _groq = Groq(api_key=os.getenv("GROQ_API_KEY"))
-_MODEL = "llama-3.3-70b-versatile"
+_MODEL = "openai/gpt-oss-120b"
 _TEXT_LIMIT = 85_000
 
 # ── Shared rules injected into every agent prompt ────────────────────────────
@@ -36,10 +42,15 @@ GLOBAL RULES:
 2. Use null for any field you cannot find. Never invent values.
 3. Dates → ISO YYYY-MM-DD. Mobile → 10 digits, strip +91.
 4. Amounts → plain numeric value, no currency symbols.
+5. This pipeline processes claims from MULTIPLE insurers and MULTIPLE
+   investigation-report templates. Never assume a fixed report structure,
+   a fixed closing sentence, or a fixed section heading wording. Identify
+   sections and boundaries by their MEANING (e.g. "this is the discrepancy
+   note", "this is the report's own concluding verdict line"), not by
+   matching one exact phrase.
 """
 
 # ── Low-level Groq callers ────────────────────────────────────────────────────
-
 def call_groq_sync(
     system_prompt: str,
     user_prompt: str,
@@ -47,13 +58,15 @@ def call_groq_sync(
 ) -> Dict[str, Any]:
     max_retries = 5
     base_delay = 5.0
+    current_max_tokens = max_tokens
+    truncation_retried = False
 
     for attempt in range(max_retries):
         try:
             completion = _groq.chat.completions.create(
                 model=_MODEL,
                 temperature=0.0,
-                max_tokens=max_tokens,
+                max_tokens=current_max_tokens,
                 response_format={"type": "json_object"},
                 messages=[
                     {"role": "system", "content": system_prompt},
@@ -77,12 +90,24 @@ def call_groq_sync(
                 time.sleep(wait)
                 continue
 
+            if isinstance(exc, json.JSONDecodeError) and attempt < 1:
+                logger.warning("Groq JSON parse failed (attempt %d) — retrying once: %s", attempt + 1, exc)
+                continue
+
+            if "max completion tokens" in err_str.lower() and not truncation_retried:
+                truncation_retried = True
+                current_max_tokens = min(int(current_max_tokens * 1.6) + 500, 8192)
+                logger.warning(
+                    "Groq response was truncated before valid JSON (attempt %d) "
+                    "— retrying once with max_tokens=%d instead of %d",
+                    attempt + 1, current_max_tokens, max_tokens,
+                )
+                continue
+
             logger.error("Groq call failed: %s", exc)
-            return {}
+            raise RuntimeError(f"Groq call failed: {exc}") from exc
 
-    logger.error("Groq call failed after %d retries (rate limit)", max_retries)
-    return {}
-
+    raise RuntimeError(f"Groq call failed after {max_retries} retries (rate limit)")
 
 async def call_groq(
     system_prompt: str,
@@ -96,6 +121,8 @@ async def call_groq(
 
 
 # ── Regional language detection and translation ───────────────────────────────
+# NOTE: this is generic Unicode-block script detection covering all major
+# Indian scripts, not tied to any insurer/report template — kept as-is.
 
 _INDIAN_SCRIPT_RANGES = [
     (0x0900, 0x097F, "Devanagari"),   # Hindi, Marathi, Sanskrit
@@ -258,6 +285,11 @@ def translate_regional_text(raw_text: str) -> str:
 
 
 # ── Pass 1 — shared forensic extractor used by all triggers ──────────────────
+# This is the ONLY place claim facts are extracted. Everything downstream
+# (preprocessing, hospital/member base findings, trigger assessments,
+# reconciliation) must read from the JSON this produces, or from `raw_text`
+# directly for its own boundary-aware slicing — never from a second,
+# independently-sourced field.
 
 _PASS1_SYSTEM = SHARED_RULES + """
 IMPORTANT – YOU ARE A FORENSIC EXTRACTOR, NOT A SUMMARISER.
@@ -268,6 +300,9 @@ IMPORTANT – YOU ARE A FORENSIC EXTRACTOR, NOT A SUMMARISER.
 - For strings (discrepancies_verbatim, patient_stated_bill_amount), copy verbatim.
 - If you are unsure whether something is a pre‑admission OPD visit, include it.
   The downstream process can filter, but you must not miss it.
+- This document may come from ANY insurer or investigator template. Identify
+  fields by their meaning and context, never by matching one fixed phrase or
+  heading wording — headings, sign-offs, and closing sentences vary by insurer.
 
 CRITICAL – ASTHMA DETECTION:
 If the raw document contains "Asthma - 2 yrs", "PAST H/o Asthma", or similar,
@@ -291,6 +326,7 @@ PASS1_SCHEMA = """
   "past_history": null,
   "provisional_diagnosis": null,
   "final_diagnosis": null,
+  "case_type": null,
   "vitals_on_admission": null,
   "vitals_at_discharge": null,
   "rr_on_admission": null,
@@ -335,6 +371,7 @@ PASS1_SCHEMA = """
   "pathologist_designation": null,
   "inhouse_lab": null,
   "lab_register_collected": null,
+  "icu_register_collected": null,
   "data_collected_from_name": null,
   "data_collected_from_designation": null,
   "data_collected_from_phone": null,
@@ -423,7 +460,8 @@ PASS1_SCHEMA = """
   "investigation_vicinity_check": null,
   "hba1c_values": null,
   "patient_stated_bill_amount": null,
-  "contradictions_found": null
+  "contradictions_found": null,
+  "ped_contradiction_detected": null
 }
 """
 
@@ -460,17 +498,31 @@ past_history:
 guardian_name:
   PRIMARY SOURCE: Hospital ICP "Guardian" / "Attender" / "Next of kin" field,
   or the witness signature section of any questionnaire form.
-  
+
   AADHAAR ADDRESS RULE:
   "S/O [name]" in an Aadhaar address means the PATIENT is the son of [name].
   "D/O [name]" means the PATIENT is the daughter of [name].
   These indicate the patient's parentage — NOT the patient's guardian.
   NEVER use the name following S/O or D/O as the guardian.
-  
+
   "W/O [name]" means the patient is the wife of [name] → spouse is guardian.
   Witness signatures on questionnaire forms (signed by a family member)
   indicate the attending guardian — use that name and relation.
-  
+
+case_type:
+  Classify the claim as one of "SURGICAL", "MEDICAL", or "MIXED" based on
+  what the diagnosis and documented treatment actually show:
+    - "SURGICAL" if the primary treatment for this admission was an
+      operative/procedural intervention (an operation record, anaesthesia
+      record, or OT register entry exists for this admission).
+    - "MEDICAL" if the admission was managed purely through drugs,
+      fluids, and monitoring, with no operative procedure performed.
+    - "MIXED" if both a significant operative procedure and substantial
+      independent medical management are documented for the same admission.
+  Base this on what THIS document actually shows, not on the name of the
+  diagnosis alone — the same diagnosis can be managed surgically or
+  medically depending on the case.
+
 EXTRACTION RULES:
 
 admission_date/time: Priority: 1) Field Officer form  2) IPD Bill  3) Discharge Summary
@@ -481,17 +533,17 @@ cashless_availed:
   If "YES [x]" or checkmark → "YES".
   If "NO [x]" → "NO".
   Default to null if not found.
-  
+
 vitals_on_admission:
   CRITICAL CONTEXT-LOCK RULE:
   If this is a TRAUMA / RTA case (document contains "RTA", "road traffic accident",
-  "two-wheeler", "alleged history of RTA"), the admission vitals MUST come from 
-  the trauma patient's case sheet only. Typical RTA admission vitals include 
-  BP around 120-130/70-90, normal PR, normal SpO2. 
-  NEVER extract shock vitals (BP 90/60, SpO2 88%) for a patient who presented 
-  alert with GCS E4V5M6 and power 5/5. If you see such vitals in the document 
+  "two-wheeler", "alleged history of RTA"), the admission vitals MUST come from
+  the trauma patient's case sheet only. Typical RTA admission vitals include
+  BP around 120-130/70-90, normal PR, normal SpO2.
+  NEVER extract shock vitals (BP 90/60, SpO2 88%) for a patient who presented
+  alert with GCS E4V5M6 and power 5/5. If you see such vitals in the document
   they belong to a DIFFERENT patient's record bundled in the same document.
-  Cross-check: vitals must be consistent with the clinical picture 
+  Cross-check: vitals must be consistent with the clinical picture
   (a patient with GCS 15 and power 5/5 cannot have BP 90/60 and SpO2 88%).
 
   PRIORITY ORDER (most reliable → use the highest available):
@@ -505,13 +557,13 @@ vitals_on_admission:
        The progress record may repeat the same vitals but is the SECONDARY source.
     3) Section "PROGRESS RECORD / DOCTOR'S ORDERS" — use ONLY if sources 1 and 2 are absent.
     4) Nursing initial assessment.
- 
+
   CRITICAL — PR (Pulse Rate) SOURCE:
     The INITIAL ASSESSMENT section lists PR under item 14 "Pulse Rate: 126/min".
     The DISCHARGE SUMMARY may list a different PR (e.g. 86/min) for discharge condition.
     NEVER use the discharge PR as the admission PR.
     If the document shows "PR-86/min" only in a discharge section, it is NOT the admission PR.
- 
+
   Extract ALL markers present: BP, PR (also called Pulse), SpO2 (also Saturation/Sats),
   Temp (also Temperature, T), RR (also Respiratory Rate), GRBS (also RBS, Blood Sugar,
   Glucose), FHS (for obstetric cases).
@@ -535,15 +587,15 @@ vitals_at_discharge:
        "SPO2-98% RA", "TEMP-AFORIBALE".
     3) Any paragraph containing the phrase "condition at discharge" or
        "discharged in stable condition" followed by vital values.
- 
+
   CRITICAL — use the HIGHEST-PRIORITY source found. Do NOT mix values from
   different sources. The two discharge summary blocks (case sheet vs printed
   discharge summary) may differ — use the printed discharge summary
   ("PATIENTS CONDITION AT DISCHARGE") as it is the final authoritative record.
- 
+
   Format: "BP-110/90 mmHg, PR-86/min, RR-19/min, SpO2-98% RA, Temp-Afebrile"
   If a marker is absent, omit it. Return null only if no discharge vitals exist.
- 
+
   NOTE: "AFORIBALE" / "AFEBRILE" = no fever — transcribe verbatim as "Afebrile".
 past_history:
   Extract verbatim from sections labelled:
@@ -557,18 +609,18 @@ chief_complaints:
 
   CRITICAL CONTEXT-LOCK RULE:
   Before extracting chief complaints, identify the CASE TYPE from the document:
-  - If the document contains "RTA", "road traffic accident", "two-wheeler", 
+  - If the document contains "RTA", "road traffic accident", "two-wheeler",
     "alleged history of RTA" → this is a TRAUMA / ACCIDENT case.
     Chief complaints MUST be trauma-related: e.g. "alleged history of RTA",
-    "LOC", "head injury", "ENT bleed". NEVER output fever/SOB/myalgia for 
-    a trauma case unless explicitly documented as a separate co-morbidity 
+    "LOC", "head injury", "ENT bleed". NEVER output fever/SOB/myalgia for
+    a trauma case unless explicitly documented as a separate co-morbidity
     admission complaint.
-  - If the document contains "fever", "SOB", "dyspnoea", "breathlessness" 
+  - If the document contains "fever", "SOB", "dyspnoea", "breathlessness"
     as the PRIMARY complaints with no RTA context → this is a MEDICAL FEVER case.
     Chief complaints MUST be fever/SOB/myalgia type. NEVER output RTA complaints.
 
-  If multiple patient records are present in the same document bundle, extract 
-  ONLY the complaints for the patient whose name matches the claimant name at 
+  If multiple patient records are present in the same document bundle, extract
+  ONLY the complaints for the patient whose name matches the claimant name at
   the top of the case sheet being read. Do NOT mix complaints across patients.
 
   PRIORITY ORDER (most reliable first):
@@ -636,8 +688,7 @@ discharge_medications:
   Example wrong: ["INJ MEROPENEM", "INJ NORAD", "IV FLUIDS"]
 final_diagnosis:
   Extract ALL lines from the DIAGNOSIS block in the discharge summary.
-  This case has: ACUTE FEBRILE ILLNESS, DENGUE + VE, THROMBOCYTOPENIA, AKI, DENGUE SHOCK SYNDROME.
-  Never compress to a single line. Return as array if multiple lines.
+  Never compress multiple diagnosis lines to a single line. Return as array if multiple lines.
 bill_amount:
   EXCLUDE the value from "Final Bill amount paid at the hospital" (that is patient_stated_bill_amount).
   Use ONLY the "Total Bill Amount" or "Grand Amount" from the IPD Bill table.
@@ -661,7 +712,7 @@ discount_amount:
     - A row in the bill table where item contains "discount" (case‑insensitive).
   If found, extract the numeric value and return as "Rs.<value>/-".
   If not found, return "Rs.0/-".
-  
+
 payment_mode: "Cash", "Online", "Card", "Cheque", "NEFT" — from bill payment row.
 bill_breakdown_items:
 Extract EVERY bill row from the complete IPD bill document.
@@ -772,6 +823,7 @@ ot_register_attached: From field officer form OT register section. "YES" or "NO"
 lab_register_attached: From field officer form item 14. "YES" or "NO".
 reg_certificate_attached: From field officer form item 5. "Yes - valid till [date]" or null.
 tariff_attached: From field officer form item 15. "Yes" or "No".
+icu_register_collected: Was the ICU register verified/collected for this admission, if ICU was billed? "YES" or "NO" or null if ICU was never billed/relevant.
 inhouse_lab_present: From field officer form item 12. "YES" or "NO".
 lab_photos_attached: From field officer form item 13. "YES" or "NO".
 
@@ -810,11 +862,21 @@ discrepancies_verbatim:
   DO NOT summarise.
   DO NOT truncate.
   DO NOT rephrase.
-  Copy the EXACT sequence of characters from the first "Kindly note" or "DISCREPANCIES"
-  line until the line containing "Hence Based on above discrepancies claim seems to be suspected".
-  Preserve line breaks, spaces, page references (-14/52-), and even typos.
-  Return the block as a single string with `\n` line separators.
+  This document may use ANY insurer's wording for this section — do not
+  look for one fixed heading or one fixed closing sentence. Instead:
+    1. Find the paragraph(s) where the investigator/report itself raises
+       discrepancies, red flags, or concerns about the claim (this is
+       typically introduced by a phrase like "Kindly note", "DISCREPANCIES",
+       "Points to note", "Observations", or similar — but the exact wording
+       varies by insurer, so identify it by its MEANING, not by string match).
+    2. Copy that block VERBATIM, character-for-character, including line
+       breaks, spacing, and page references (e.g. -14/52-).
+    3. Stop at the natural end of that block — either the report's own
+       concluding/verdict sentence for this note (whatever its exact
+       wording is), or the start of a clearly different section, whichever
+       comes first.
   If the block is longer than 2000 characters, still return it fully.
+  If no such discrepancy/observations block exists in this document, return null.
 
 page_references_found: List ALL X/52 patterns as array.
 final_verdict_verbatim: Exact closing verdict line from investigation report or null.
@@ -830,12 +892,20 @@ ped_mentioned_in_records:
       "K/c/o T2DM on medication", "Known diabetic", "Known hypertensive"
     - other chronic findings:
       "Asymptomatic cholelithiasis", "cholelithiasis", "Gallstones", "CKD", "COPD", "Old CVA"
-  Also capture any line containing "since" followed by a duration (years/months) and a disease name.e.g. "Asthma - 2 yrs".
+  Also capture any line containing "since" followed by a duration (years/months) and a disease name, e.g. "Asthma - 2 yrs".
   Preserve wording verbatim.
   Return as JSON array of strings.
   Example: ["DM since 2 months", "K/c/o T2DM on medication", "Asthma since 2 years", "Asymptomatic cholelithiasis"]
-  Also capture lines matching: "Asthma\\s*-\\s*\\d+\\s*(yrs?|years?)"
-  Example: "Asthma - 2 yrs" → include as "Asthma since 2 years"
+
+ped_contradiction_detected:
+  true if ped_mentioned_in_records contains, for what is recognisably the
+  SAME condition, both a "newly diagnosed"-type statement AND a chronic
+  marker (e.g. "K/c/o", "known case of", "on medication", "on OHA", "since
+  <duration>", "on treatment") — i.e. the record contradicts itself about
+  whether this was pre-existing. false if no such internal contradiction
+  exists. Base this on what the records actually say for THIS claim, not
+  on a fixed keyword list — the exact phrasing varies by hospital/insurer.
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 FEW‑SHOT EXAMPLES FOR CRITICAL FIELDS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -905,6 +975,12 @@ If multiple contradictions:
   "Diagnosis: 'Left foot cellulitis' vs 'Left knee osteoarthritis'"
 ]
 
+Identify contradictions by comparing what the SAME document set says about
+the SAME fact at different points — do not rely on a fixed pair-list of
+diagnosis names. Any two statements about the same condition/fact that
+cannot both be true are a contradiction, regardless of which specific
+diagnoses are involved.
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 EXAMPLE 4 – patient_stated_bill_amount:
@@ -913,6 +989,10 @@ Raw: "Final Bill amount paid at the hospital: 85,653"
 Output: "Rs.85,653/-"
 
 Alternative phrasing: "final bill amount 85653" → "Rs.85,653/-"
+This field may be labelled differently across insurer templates
+("Bill amount confirmed by insured", "Amount paid by patient", etc.) —
+identify it by meaning (the bill amount the INSURED states they paid, as
+opposed to the hospital's own billed figure), not by one fixed label.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -964,14 +1044,15 @@ hba1c_values:
   Return as JSON array of strings. Example: ["10.5% (page 13/46)", "13% (17/12/25)"]
 
 patient_stated_bill_amount:
-  Look in the "Insured Verification Form" section for the exact phrase:
-  "Final Bill amount paid at the hospital:" followed by an amount like "85,653".
-  Return as string with currency, e.g., "Rs.85,653/-".
+  Extract the bill amount the INSURED states they personally paid, wherever
+  this claim's own documents record it (label wording varies by insurer —
+  see EXAMPLE 4 above). Return as string with currency, e.g., "Rs.85,653/-".
 
 contradictions_found:
-  In addition to existing checks, examine hba1c_values and policy_inception_date.
-  If HbA1c > 9% and policy inception was less than 6 months before admission,
-  add contradiction: "High HbA1c ({value}) within months of policy start – suggests pre-existing diabetes not disclosed."
+  In addition to direct textual contradictions, examine hba1c_values and
+  policy_inception_date together. If HbA1c > 9% and policy inception was
+  less than 6 months before admission, add contradiction:
+  "High HbA1c ({value}) within months of policy start – suggests pre-existing diabetes not disclosed."
 
 death_date/time/place/cause: Death details.
 postmortem_done: "YES"/"NO"/"PENDING".
@@ -995,24 +1076,20 @@ lab_vicinity_to_hospital: Lab distance/vicinity check result.
 
 async def _run_pass1_single(text: str) -> Dict[str, Any]:
     # ── FIX: truncate before sending to Groq ───────────────────────────────
-    # Every other extractor in this codebase (agents A1-A6 in
-    # multiagent_extraction.py use text[:_TEXT_LIMIT]; _run_llm_extraction
-    # uses text[:90000]) truncates the document text before building the
-    # prompt. This function previously sent the FULL untruncated text.
-    # Combined with the very large _PASS1_RULES block (tens of thousands of
-    # characters on its own), large documents — especially LlamaCloud
-    # "agentic" tier parses of big PDFs — push the total prompt size past
-    # the model's context window, causing:
-    #   "Please reduce the length of the messages or completion."
-    #   (context_length_exceeded)
-    # Truncating here brings this call in line with the rest of the pipeline.
+    # Every other extractor in this codebase truncates document text before
+    # building the prompt. Combined with the very large _PASS1_RULES block,
+    # large documents can push the total prompt size past the model's
+    # context window. Truncating here brings this call in line with the
+    # rest of the pipeline; oversized files are handled by page-batching
+    # in _run_pass1_batched instead of silent truncation loss.
     truncated_text = text[:_TEXT_LIMIT]
     user = f"""
 Extract the following from the document text below.
 Return ONLY valid JSON. Use null if not found. Never invent.
 CRITICAL:
 - Extract full discrepancy blocks; never truncate multi-line sections.
-- If you see "DISCREPANCIES", "Kindly note", or similar, capture everything until the next section heading.
+- Identify the discrepancy/observations block by MEANING, not by matching
+  one fixed heading or one fixed closing sentence — insurer templates vary.
 - Capture OPD history before admission as structured visit objects.
 - Detect PED/chronic illness even when expressed indirectly
   (e.g. "K/c/o T2DM on medication", "DM since 2 months").
@@ -1020,8 +1097,6 @@ CRITICAL:
 {PASS1_SCHEMA}
 
 {_PASS1_RULES}
-
-IMPORTANT: For discrepancies_verbatim, strictly follow the rule above and capture the full block until the phrase "hence based on above discrepancies claim seems to be suspected". Do not truncate.
 
 DOCUMENT TEXT:
  {truncated_text}
@@ -1031,38 +1106,15 @@ DOCUMENT TEXT:
 
 def detect_case_type(pass1: Dict[str, Any]) -> str:
     """
-    Detect surgical vs medical vs mixed from diagnosis fields.
-    Handles both string and list values.
+    Reads the case_type field the LLM already classified in Pass 1
+    (see the `case_type` rule in _PASS1_RULES) instead of re-deriving it
+    from a hardcoded diagnosis keyword list. Kept as a thin function so
+    downstream callers (unified_report_agent.py) don't need to change
+    their import.
     """
-    final_dx = pass1.get("final_diagnosis")
-    provisional_dx = pass1.get("provisional_diagnosis")
-
-    if isinstance(final_dx, list):
-        final_dx = " ".join(str(x) for x in final_dx)
-    if isinstance(provisional_dx, list):
-        provisional_dx = " ".join(str(x) for x in provisional_dx)
-
-    final_str = (final_dx or "").upper()
-    provisional_str = (provisional_dx or "").upper()
-    combined = final_str + " " + provisional_str
-
-    SURGICAL = [
-        "HEMORRHOID", "FISSURE", "HERNIA", "FRACTURE", "LSCS",
-        "APPENDIX", "CHOLECYSTECTOMY", "SPHINCTEROTOMY", "ORIF",
-        "LAPAROSCOP", "HYSTERECTOMY", "THYROID", "PROSTATE",
-    ]
-    MEDICAL = [
-        "DENGUE", "FEVER", "PNEUMONIA", "MALARIA", "TYPHOID",
-        "SEPSIS", "AKI", "CARDIAC", "STROKE", "ENCEPHALITIS",
-    ]
-
-    is_surgical = any(k in combined for k in SURGICAL)
-    is_medical = any(k in combined for k in MEDICAL)
-
-    if is_surgical and not is_medical:
-        return "SURGICAL"
-    if is_medical and not is_surgical:
-        return "MEDICAL"
+    case_type = str(pass1.get("case_type") or "").strip().upper()
+    if case_type in ("SURGICAL", "MEDICAL", "MIXED"):
+        return case_type
     return "MIXED"
 
 
@@ -1074,59 +1126,144 @@ def _merge_pass1(a: Dict[str, Any], b: Dict[str, Any]) -> Dict[str, Any]:
     return result
 
 
-# ── Deterministic extractors (used by both run_pass1 and triggers) ────────────
+# Fields where different batches of the SAME document may legitimately
+# extract different items (e.g. batch 1 sees page 3's chief complaints,
+# batch 2 sees page 40's drug chart) — these get UNIONED across batches
+# instead of "first non-null wins".
+_LIST_FIELDS_TO_UNION = {
+    "chief_complaints", "all_treatments", "discharge_medications",
+    "bill_breakdown_items", "hba1c_values", "pre_admission_opd_visits",
+    "pre_admission_prescriptions", "contradictions_found",
+    "ped_mentioned_in_records", "page_references_found",
+}
 
-def extract_discrepancies_deterministic(raw_text: str) -> str | None:
-    """Extract the full discrepancy block from the raw document text."""
-    pattern = r'(Kindly note|DISCREPANCIES).*?hence based on above discrepancies claim seems to be suspected'
-    match = re.search(pattern, raw_text, re.IGNORECASE | re.DOTALL)
-    return match.group(0).strip() if match else None
+
+def _normalize_amount_for_dedup(amount) -> str:
+    """Strip currency prefixes, commas, and whitespace so '13,000.00' and
+    'Rs.13,000.00' are recognized as the same amount when deduplicating
+    bill_breakdown_items across page-batches — see _dedup_key below."""
+    s = str(amount or "").strip()
+    s = re.sub(r"^rs\.?\s*", "", s, flags=re.IGNORECASE)
+    s = s.replace(",", "").rstrip("/-").strip()
+    return s
 
 
-def extract_hba1c_deterministic(raw_text: str) -> list[str] | None:
-    """Extract HbA1c values with page references."""
-    matches = re.findall(
-        r"HbA1c\s*([\d\.]+)%?\s*(?:\(page\s*([\d/]+)\))?",
-        raw_text,
-        re.IGNORECASE
+def _dedup_key(item) -> str:
+    """Dedup key for a merged list item. For bill_breakdown_items-shaped
+    dicts ({"item": name, "amount": value}), normalize both fields so
+    formatting differences between extraction batches (e.g. amount with
+    vs without an 'Rs.' prefix) don't produce two 'different' entries for
+    the same real line item. Falls back to repr() for any other shape."""
+    if isinstance(item, dict) and "item" in item and "amount" in item:
+        name = re.sub(r"\s+", " ", str(item.get("item") or "").strip().upper())
+        amount = _normalize_amount_for_dedup(item.get("amount"))
+        return f"{name}|{amount}"
+    return repr(item)[:80]
+
+
+def _merge_pass1_multi(results: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Merge Pass 1 results from multiple page-batches of the same claim.
+    Scalar fields: first non-null value found wins (same rule as
+    _merge_pass1). List fields in _LIST_FIELDS_TO_UNION: concatenated and
+    deduplicated across all batches instead of overwritten.
+    discrepancies_verbatim: longest non-empty extraction wins, since a
+    later batch may see more of a discrepancy block that spans a page
+    boundary the earlier batch cut off mid-way.
+    """
+    if not results:
+        return {}
+    merged: Dict[str, Any] = dict(results[0])
+    for r in results[1:]:
+        for k, v in r.items():
+            if k in _LIST_FIELDS_TO_UNION:
+                existing = merged.get(k)
+                if not isinstance(existing, list):
+                    existing = [existing] if existing else []
+                incoming = v if isinstance(v, list) else ([v] if v else [])
+                seen = {_dedup_key(x) for x in existing}
+                for item in incoming:
+                    key = _dedup_key(item)
+                    if key not in seen:
+                        existing.append(item)
+                        seen.add(key)
+                merged[k] = existing
+            elif k == "discrepancies_verbatim":
+                if v and (not merged.get(k) or len(str(v)) > len(str(merged.get(k)))):
+                    merged[k] = v
+            else:
+                if v is not None and merged.get(k) is None:
+                    merged[k] = v
+    return merged
+
+
+async def _run_pass1_batched(text: str) -> Dict[str, Any]:
+    """
+    Splits the combined document text by source PDF, and within any file
+    bigger than _TEXT_LIMIT, further splits it into page-batches — instead
+    of truncating to _TEXT_LIMIT chars and silently losing the rest of the
+    file. Every batch runs Pass 1 extraction concurrently, then results
+    are merged (see _merge_pass1_multi above).
+    """
+    files = split_text_by_pdf(text)
+
+    batch_texts: List[str] = []
+    for fname, ftext in files.items():
+        if len(ftext) <= _TEXT_LIMIT:
+            batch_texts.append(ftext)
+            continue
+        pages = batch_file_pages(ftext, max_chars=_TEXT_LIMIT, overlap_pages=1)
+        logger.info(
+            "run_pass1: file=%s (%d chars) split into %d batch(es) for "
+            "extraction (previously truncated to %d chars and the rest "
+            "was silently dropped)", fname, len(ftext), len(pages), _TEXT_LIMIT,
+        )
+        for batch in pages:
+            batch_texts.append(render_page_batch(fname, batch))
+
+    if not batch_texts:
+        batch_texts = [text[:_TEXT_LIMIT]]
+
+    results = await asyncio.gather(
+        *[_run_pass1_single(bt) for bt in batch_texts],
+        return_exceptions=True,
     )
-    if matches:
-        return [f"{val}% (page {page})" if page else f"{val}%" for val, page in matches]
-    return None
 
+    usable_results = []
+    for r in results:
+        if isinstance(r, Exception):
+            logger.exception("Pass 1 batch call failed: %s", r)
+            continue
+        if isinstance(r, dict) and r:
+            usable_results.append(r)
 
-def extract_patient_stated_bill_deterministic(raw_text: str) -> str | None:
-    """Extract the 'Final Bill amount paid at the hospital' value."""
-    match = re.search(r"Final Bill amount paid at the hospital:\s*([\d,]+)", raw_text, re.IGNORECASE)
-    if match:
-        amount = match.group(1).replace(",", "")
-        return f"Rs.{amount}/-"
-    return None
+    if not usable_results:
+        return {}
+
+    return _merge_pass1_multi(usable_results)
+
 
 async def run_pass1(text: str) -> Dict[str, Any]:
+    """
+    The single entry point for turning raw_llama_markdown into structured
+    claim facts. `text` must be raw_llama_markdown and nothing else —
+    every field in the returned dict is either extracted by the LLM from
+    this text, or read directly from it downstream via chunking.py's
+    boundary-aware helpers. No separate deterministic-regex extraction
+    pass runs on top of the LLM's output anymore: those regexes assumed a
+    single fixed report template (one exact closing sentence, one exact
+    field label) and silently produced wrong overrides on any other
+    insurer's format. Extraction quality for hba1c/bill/discrepancy
+    fields now depends entirely on the Pass 1 prompt rules above — if a
+    gap shows up on a real claim, the fix is to sharpen those rules, not
+    to bolt another template-specific regex back on.
+    """
     # ── Translate any regional-language segments before extraction ────────
     loop = asyncio.get_event_loop()
     text = await loop.run_in_executor(None, translate_regional_text, text)
 
-    # ── LLM extraction ────────────────────────────────────────────────────
-    merged = await _run_pass1_single(text)
-
-    # ── Deterministic overrides ───────────────────────────────────────────
-    # NOTE: these run on the FULL (untruncated) translated text since they
-    # are pure regex, not LLM calls — no context-window concern here.
-    disc_det = extract_discrepancies_deterministic(text)
-    disc_llm = merged.get("discrepancies_verbatim") or ""
-    if disc_det and len(disc_det) > len(disc_llm):
-        merged["discrepancies_verbatim"] = disc_det
-
-    if not merged.get("hba1c_values"):
-        hba1c_det = extract_hba1c_deterministic(text)
-        if hba1c_det:
-            merged["hba1c_values"] = hba1c_det
-
-    if not merged.get("patient_stated_bill_amount"):
-        bill_det = extract_patient_stated_bill_deterministic(text)
-        if bill_det:
-            merged["patient_stated_bill_amount"] = bill_det
+    # ── LLM extraction — batched per file/page so large files no longer
+    #    lose everything past _TEXT_LIMIT chars ─────────────────────────
+    merged = await _run_pass1_batched(text)
 
     return merged, text

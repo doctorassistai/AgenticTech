@@ -10,7 +10,7 @@ groq_client = Groq(
     api_key=os.getenv("GROQ_API_KEY")
 )
 
-MODEL_FAST = "llama-3.1-8b-instant"
+MODEL_FAST = "openai/gpt-oss-20b"
 
 
 # ─────────────────────────────────────────────

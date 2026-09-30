@@ -862,7 +862,7 @@ async def get_review_history(
 # ═══════════════════════════════════════════════════════════════
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-_GROQ_MODEL  = "llama-3.3-70b-versatile"
+_GROQ_MODEL  = "openai/gpt-oss-120b"
 _TEMPERATURE = 0.1
 _MAX_TOKENS  = 4000
 _groq_client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None

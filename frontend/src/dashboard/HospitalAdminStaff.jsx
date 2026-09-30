@@ -1237,7 +1237,7 @@ const HospitalAdminStaff = () => {
         <div style={S.sidebarHeader}>
           <div style={S.brandRow}>
             <div>
-              <p style={S.brandName}>DoctorAssist</p>
+              <p style={S.brandName}>EMR Module</p>
               <p style={S.brandSub}>Hospital Admin</p>
             </div>
           </div>

@@ -1,6 +1,7 @@
 import React, {
   useState,
-  useEffect
+  useEffect,
+  useCallback,
 } from "react";
 
 import {
@@ -8,30 +9,26 @@ import {
   Button,
   Paper,
   Typography,
-  CircularProgress
+  CircularProgress,
 } from "@mui/material";
 
-import MedicationPanel
-from "./MedicationPanel";
+import MedicationPanel from "./MedicationPanel";
 
 export default function MedicationWidget({
-
   doctorId,
   patientId,
-  analyzedDictation
-
+  analyzedDictation,
 }) {
-
-  // ============================================
+  // =====================================================
   // API
-  // ============================================
+  // =====================================================
 
   const API_BASE_URL =
     "https://doctorassist.ai/api";
 
-  // ============================================
-  // STATES
-  // ============================================
+  // =====================================================
+  // STATE
+  // =====================================================
 
   const [loading, setLoading] =
     useState(false);
@@ -41,383 +38,542 @@ export default function MedicationWidget({
 
   const [transcript, setTranscript] =
     useState("");
-useEffect(() => {
 
-  const existingMedicationData =
-
-    window.DOCTOR_ASSIST_DATA
-      ?.medications;
-
-  if (existingMedicationData) {
-
-    setMedicationData(
-      existingMedicationData
-    );
-  }
-
-}, []);
-  // ============================================
-  // LIVE TRANSCRIPTION
-  // ============================================
+  // =====================================================
+  // EXISTING MEDICATION DATA
+  // =====================================================
 
   useEffect(() => {
+    const existingMedicationData =
+      window.DOCTOR_ASSIST_DATA?.medications;
 
-  const syncTranscript = () => {
+    if (existingMedicationData) {
+      setMedicationData(
+        existingMedicationData
+      );
+    }
+  }, []);
 
-    const latestTranscript =
+  // =====================================================
+  // API ORCHESTRATION
+  // =====================================================
 
-      window.DOCTOR_ASSIST_DATA
-        ?.transcript || "";
-
-    setTranscript(
-      latestTranscript
-    );
-  };
-
-  // Initial load once
-  syncTranscript();
-
-  // Event-based update
-  window.addEventListener(
-    "doctorassist-transcript-update",
-    syncTranscript
-  );
-
-  return () => {
-
-    window.removeEventListener(
-      "doctorassist-transcript-update",
-      syncTranscript
-    );
-  };
-
-}, []);
-
-  // ============================================
-  // ORCHESTRATION API
-  // ============================================
-  
   const runDictationFeatureWithText =
-    async (
-
-      nodeId,
-      dictationText,
-      analyzedJson
-
-    ) => {
-
-      try {
-
-        const res =
-          await fetch(
-
+    useCallback(
+      async (
+        nodeId,
+        dictationText,
+        analyzedJson
+      ) => {
+        try {
+          const res = await fetch(
             `${API_BASE_URL}/hms/users/orchestration/generate_documentation_with_suggestions`,
-
             {
-
               method: "POST",
 
               headers: {
                 "Content-Type":
-                  "application/json"
+                  "application/json",
               },
 
               body: JSON.stringify({
+                doctor_id: doctorId,
 
-                doctor_id:
-                  doctorId,
+                patient_id: patientId,
 
-                patient_id:
-                  patientId,
+                feature_id: nodeId,
 
-                feature_id:
-                  nodeId,
-
-                dictation:
-                  dictationText,
+                dictation: dictationText,
 
                 output_json:
-
                   analyzedJson ??
-
                   analyzedDictation ??
-
-                  null
-              })
+                  null,
+              }),
             }
           );
 
-        const json =
-          await res.json();
+          if (!res.ok) {
+            throw new Error(
+              `API Error: ${res.status}`
+            );
+          }
 
-        console.log(
-          "MEDICATION RESPONSE:",
-          json
-        );
+          const json =
+            await res.json();
 
-        return (
-          json?.finaloutput ??
-          null
-        );
-
-      } catch (err) {
-
-        console.error(err);
-
-        return null;
-      }
-    };
-
-  // ============================================
-  // GENERATE MEDICATION
-  // ============================================
-
-  const generateMedication =
-    async () => {
-
-      if (
-        !transcript.trim()
-      ) {
-
-        alert(
-          "No transcription found"
-        );
-
-        return;
-      }
-
-      try {
-
-        setLoading(true);
-
-        const result =
-
-          await runDictationFeatureWithText(
-
-            "documentation-medication-analysis",
-
-            transcript,
-
-            null
+          console.log(
+            "MEDICATION RESPONSE:",
+            json
           );
 
-        if (!result) {
+          return (
+            json?.finaloutput ??
+            null
+          );
+        } catch (err) {
+          console.error(
+            "Medication API error:",
+            err
+          );
 
-          alert(
-            "Medication generation failed"
+          return null;
+        }
+      },
+      [
+        doctorId,
+        patientId,
+        analyzedDictation,
+      ]
+    );
+
+  // =====================================================
+  // GENERATE MEDICATION
+  // =====================================================
+
+  const generateMedication =
+    useCallback(
+      async (text) => {
+        const medicationTranscript =
+          String(
+            text ??
+              window.DOCTOR_ASSIST_DATA
+                ?.transcript ??
+              ""
+          ).trim();
+
+        if (!medicationTranscript) {
+          console.warn(
+            "No transcription found for medication analysis."
           );
 
           return;
         }
 
-        // ============================================
-        // SET LOCAL STATE
-        // ============================================
+        // Prevent duplicate generation
+        // while one request is already running.
+        if (loading) {
+          console.log(
+            "Medication analysis already running."
+          );
 
-        setMedicationData(
-          result
-        );
+          return;
+        }
 
-        // ============================================
-        // SAVE TO GLOBAL
-        // ============================================
+        try {
+          setLoading(true);
 
-        window.DOCTOR_ASSIST_DATA
-          .medications =
-            result;
+          console.log(
+            "GENERATING MEDICATION..."
+          );
 
-        console.log(
+          console.log(
+            "TRANSCRIPT:",
+            medicationTranscript
+          );
 
-          "GLOBAL MEDICATION DATA:",
+          const result =
+            await runDictationFeatureWithText(
+              "documentation-medication-analysis",
+
+              medicationTranscript,
+
+              null
+            );
+
+          if (!result) {
+            console.error(
+              "Medication generation failed."
+            );
+
+            return;
+          }
+
+          console.log(
+            "GENERATED MEDICATION:",
+            result
+          );
+
+          // =================================================
+          // LOCAL STATE
+          // =================================================
+
+          setMedicationData(result);
+
+          setTranscript(
+            medicationTranscript
+          );
+
+          // =================================================
+          // GLOBAL STATE
+          // =================================================
+
+          window.DOCTOR_ASSIST_DATA =
+            window.DOCTOR_ASSIST_DATA || {};
 
           window.DOCTOR_ASSIST_DATA
-            .medications
+            .medications = result;
+
+          window.DOCTOR_ASSIST_DATA
+            .transcript =
+              medicationTranscript;
+
+          console.log(
+            "GLOBAL MEDICATION DATA:",
+            window.DOCTOR_ASSIST_DATA
+              .medications
+          );
+        } catch (err) {
+          console.error(
+            "Medication generation failed:",
+            err
+          );
+        } finally {
+          setLoading(false);
+        }
+      },
+      [
+        runDictationFeatureWithText,
+        loading,
+      ]
+    );
+
+  // =====================================================
+  // LISTEN FOR TRANSCRIPTION
+  // =====================================================
+
+  useEffect(() => {
+    const syncTranscriptAndGenerate =
+      (event) => {
+        // -----------------------------------------------
+        // Prefer event transcript
+        // -----------------------------------------------
+
+        const eventTranscript =
+          event?.detail?.transcript;
+
+        // -----------------------------------------------
+        // Fallback to global transcript
+        // -----------------------------------------------
+
+        const globalTranscript =
+          window.DOCTOR_ASSIST_DATA
+            ?.transcript;
+
+        const latestTranscript =
+          eventTranscript ||
+          globalTranscript ||
+          "";
+
+        if (
+          !String(
+            latestTranscript
+          ).trim()
+        ) {
+          return;
+        }
+
+        console.log(
+          "MEDICATION WIDGET RECEIVED TRANSCRIPTION:",
+          latestTranscript
         );
 
-      } catch (err) {
-
-        console.error(err);
-
-        alert(
-          "Medication generation failed"
+        setTranscript(
+          latestTranscript
         );
 
-      } finally {
+        // -----------------------------------------------
+        // AUTOMATIC MEDICATION ANALYSIS
+        // -----------------------------------------------
 
-        setLoading(false);
-      }
+        generateMedication(
+          latestTranscript
+        );
+      };
+
+    // ===================================================
+    // INITIAL TRANSCRIPT
+    // ===================================================
+
+    const existingTranscript =
+      window.DOCTOR_ASSIST_DATA
+        ?.transcript;
+
+    if (
+      existingTranscript?.trim()
+    ) {
+      setTranscript(
+        existingTranscript
+      );
+    }
+
+    // ===================================================
+    // EVENT LISTENER
+    // ===================================================
+
+    window.addEventListener(
+      "doctorassist-transcript-update",
+      syncTranscriptAndGenerate
+    );
+
+    return () => {
+      window.removeEventListener(
+        "doctorassist-transcript-update",
+        syncTranscriptAndGenerate
+      );
     };
+  }, [
+    generateMedication,
+  ]);
 
-  // ============================================
+  // =====================================================
+  // MANUAL GENERATE BUTTON
+  // =====================================================
+
+  const handleManualGenerate = () => {
+    const currentTranscript =
+      transcript ||
+      window.DOCTOR_ASSIST_DATA
+        ?.transcript ||
+      "";
+
+    if (
+      !String(
+        currentTranscript
+      ).trim()
+    ) {
+      console.warn(
+        "No transcription available."
+      );
+
+      return;
+    }
+
+    generateMedication(
+      currentTranscript
+    );
+  };
+
+  // =====================================================
   // UI
-  // ============================================
+  // =====================================================
 
   return (
-
     <Box
       sx={{
-
         display: "flex",
-
         flexDirection: "column",
-
-        gap: 2
+        gap: 2,
       }}
     >
-
-      {/* ============================================
+      {/* =================================================
           HEADER
-      ============================================ */}
+      ================================================= */}
 
       <Box
         sx={{
-
           display: "flex",
-
           alignItems: "center",
-
           justifyContent:
-            "space-between"
+            "space-between",
+          gap: 2,
+          flexWrap: "wrap",
         }}
       >
-
         <Typography
           sx={{
-
             fontSize: 15,
-
-            fontWeight: 600
+            fontWeight: 600,
           }}
         >
           Medication Analysis
         </Typography>
 
+        {/* =============================================
+            MANUAL GENERATE BUTTON
+        ============================================= */}
+
+        <Button
+          variant="contained"
+          onClick={
+            handleManualGenerate
+          }
+          disabled={
+            loading ||
+            !transcript.trim()
+          }
+          sx={{
+            borderRadius: "8px",
+            textTransform: "none",
+            px: 2.5,
+            py: 1,
+            fontWeight: 600,
+            background:
+              "#111827",
+
+            "&:hover": {
+              background:
+                "#000000",
+            },
+
+            "&:disabled": {
+              background:
+                "#d1d5db",
+              color:
+                "#6b7280",
+            },
+          }}
+        >
+          {loading ? (
+            <Box
+              sx={{
+                display: "flex",
+                alignItems:
+                  "center",
+                gap: 1,
+              }}
+            >
+              <CircularProgress
+                size={16}
+                sx={{
+                  color: "#fff",
+                }}
+              />
+
+              Analyzing...
+            </Box>
+          ) : (
+            "Generate Medication"
+          )}
+        </Button>
       </Box>
 
-      {/* ============================================
-          BUTTON
-      ============================================ */}
+      {/* =================================================
+          AUTOMATIC PROCESSING STATUS
+      ================================================= */}
 
-      <Button
-
-        variant="contained"
-
-        onClick={
-          generateMedication
-        }
-
-        disabled={loading}
-
-        sx={{
-
-          alignSelf:
-            "flex-start",
-
-          borderRadius:
-            "10px",
-
-          textTransform:
-            "none",
-
-          px: 3,
-
-          py: 1.2,
-
-          fontWeight: 600,
-
-          background:
-            "#111827",
-
-          "&:hover": {
-
+      {loading && (
+        <Paper
+          sx={{
+            p: 2,
+            borderRadius: 2,
+            border:
+              "1px solid #e5e7eb",
             background:
-              "#000"
-          }
-        }}
-      >
-
-        {
-
-          loading ? (
-
-            <CircularProgress
-
-              size={18}
-
-              sx={{
-                color: "#fff"
-              }}
-            />
-
-          ) : (
-
-            "Generate Medication"
-          )
-        }
-
-      </Button>
-
-      {/* ============================================
-          OUTPUT
-      ============================================ */}
-
-      {
-
-        medicationData && (
-
-          <Paper
+              "#fafafa",
+          }}
+        >
+          <Box
             sx={{
-
-              p: 2,
-
-              borderRadius: 3,
-
-              border:
-                "1px solid #e5e7eb",
-
-              background:
-                "#fff"
+              display: "flex",
+              alignItems:
+                "center",
+              gap: 1.5,
             }}
           >
-
-            <MedicationPanel
-
-              data={
-                medicationData
-              }
-
-              transcript={
-                transcript
-              }
-
-              diagnosisText={
-                transcript
-              }
-
-              metadata={{
-
-                doctor_id:
-                  doctorId,
-
-                patient_id:
-                  patientId
-              }}
-
-              onSave={(data) => {
-
-                console.log(
-
-                  "Medication Saved:",
-
-                  data
-                );
-              }}
+            <CircularProgress
+              size={18}
             />
 
-          </Paper>
-        )
-      }
+            <Typography
+              sx={{
+                fontSize: 13,
+                color: "#555",
+              }}
+            >
+              Processing the
+              transcription for
+              medication analysis...
+            </Typography>
+          </Box>
+        </Paper>
+      )}
 
+      {/* =================================================
+          TRANSCRIPT STATUS
+      ================================================= */}
+
+      {!loading &&
+        transcript.trim() &&
+        !medicationData && (
+          <Paper
+            sx={{
+              p: 2,
+              borderRadius: 2,
+              border:
+                "1px solid #e5e7eb",
+              background:
+                "#fafafa",
+            }}
+          >
+            <Typography
+              sx={{
+                fontSize: 12,
+                color: "#666",
+                mb: 0.5,
+              }}
+            >
+              Transcription received
+            </Typography>
+
+            <Typography
+              sx={{
+                fontSize: 13,
+                color: "#333",
+              }}
+            >
+              Medication analysis will
+              be generated automatically.
+              You can also click
+              "Generate Medication"
+              above.
+            </Typography>
+          </Paper>
+        )}
+
+      {/* =================================================
+          OUTPUT
+      ================================================= */}
+
+      {medicationData && (
+        <Paper
+          sx={{
+            p: 2,
+            borderRadius: 3,
+            border:
+              "1px solid #e5e7eb",
+            background: "#fff",
+          }}
+        >
+          <MedicationPanel
+            data={medicationData}
+
+            transcript={
+              transcript
+            }
+
+            diagnosisText={
+              transcript
+            }
+
+            metadata={{
+              doctor_id:
+                doctorId,
+
+              patient_id:
+                patientId,
+            }}
+
+            onSave={(data) => {
+              console.log(
+                "Medication Saved:",
+                data
+              );
+            }}
+          />
+        </Paper>
+      )}
     </Box>
   );
 }
+

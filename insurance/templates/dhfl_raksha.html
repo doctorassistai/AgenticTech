@@ -277,20 +277,16 @@
     </tr>
     <tr>
       <td class="lbl">HOSPITAL_STATE</td>
-      <td class="val">{{ hospital.get('state','') if hospital.get else '' }}</td>
-    </tr>
+      <td class="val">{{ hospital.get('state') or '' }}</td>    </tr>
     <tr>
       <td class="lbl">HOSPITAL_PINCODE</td>
-      <td class="val">{{ hospital.get('pincode','') if hospital.get else '' }}</td>
-    </tr>
+      <td class="val">{{ hospital.get('pincode') or '' }}</td>    </tr>
     <tr>
       <td class="lbl">HOSPITAL_ROHINI_ID</td>
-      <td class="val">{{ hospital.get('rohiniId','') if hospital.get else '' }}</td>
-    </tr>
+      <td class="val">{{ hospital.get('rohiniId') or '' }}</td>    </tr>
     <tr>
       <td class="lbl">TPA Hospital Code</td>
-      <td class="val">{{ hospital.get('tpaHospitalCode','') if hospital.get else '' }}</td>
-    </tr>
+      <td class="val">{{ hospital.get('tpaHospitalCode') or '' }}</td>    </tr>
     <tr>
       <td class="lbl">DATE_OF_ADMISSION (DD-MMM-YYYY HH:MM)</td>
       <td class="val">{{ hospital.admissionDate or '' }}</td>
@@ -305,12 +301,10 @@
     </tr>
     <tr>
       <td class="lbl">NETWORK_HOSPITAL_FLAG &nbsp;&nbsp; - Yes / No</td>
-      <td class="val">{{ hospital.get('ppnStatus','') if hospital.get else '' }}</td>
-    </tr>
+      <td class="val">{{ hospital.get('ppnStatus') or '' }}</td>    </tr>
     <tr>
       <td class="lbl">TOTAL_CLAIMED_AMOUNT</td>
-      <td class="val">{{ case.claimedAmount or billing.get('totalAmount','') if billing.get else '' }}</td>
-    </tr>
+      <td class="val">{{ case.claimedAmount or billing.get('totalAmount') or '' }}</td>    </tr>
     <tr>
       <td class="lbl">Name of treating Doctor</td>
       <td class="val">{{ hospital.doctorName or '' }}</td>
@@ -361,8 +355,7 @@
     </tr>
     <tr>
       <td class="lbl">Treatment given to Patient (Conservative / Surgical)</td>
-      <td class="val">{{ dhfl.get('treatmentType','') or additional.get('treatment','') if additional.get else '' }}</td>
-    </tr>
+      <td class="val">{{ dhfl.get('treatmentType') or additional.get('treatment') or '' }}</td>    </tr>
     <tr>
       <td class="lbl">Is ICP available</td>
       <td class="val">{{ dhfl.get('icpAvailable','') or '' }}</td>

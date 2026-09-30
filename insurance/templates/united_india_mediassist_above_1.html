@@ -348,7 +348,7 @@
     </tr>
     <tr>
       <td class="lbl">1<sup>st</sup> Consultation</td>
-      <td class="val">{{ additional.get('firstConsultation','') if additional.get else '' }}</td>
+      <td class="val">{{ additional.get('firstConsultationDate') or additional.get('firstConsultation') or '' }}</td>
     </tr>
     <tr>
       <td class="lbl">Referral Doctor Details</td>

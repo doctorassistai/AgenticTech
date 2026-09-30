@@ -1,16 +1,44 @@
 """
 unified_report_agent.py
 ─────────────────────────────────────────────────────────────────────────────
-Three-call pipeline for investigation report generation:
+Three-call pipeline (down from 30+ calls in the old trigger/agent design):
 
-  Call A  → Hospital base findings  (Section 1 skeleton)
-  A-trigs → Per-trigger hospital assessments (appended to Section 1)
-  Call B  → Member/insured base findings (Section 2 skeleton)
-  B-trigs → Per-trigger member assessments (appended to Section 2)
-  Call C  → Reconciled conclusion (Section 3) + final verdict
+  Call A → Hospital Visit Account   (chunked by file-size budget if large)
+  Call B → Member Visit Account     (skipped entirely if no genuine member visit)
+  Call C → Conclusion               (cross-references A + B, advisory verdict)
 
-Text splitting between hospital and member content is prompt-directed,
-not regex-based, because the content is interleaved in raw_llama_markdown.
+DESIGN PRINCIPLE: flags belong INSIDE the story, at the point they occur —
+never filed away into a separate "discrepancies" essay written afterward.
+Each story call returns {"story": <prose with inline [TAG] mentions>,
+"flags": [...]} — the flags array is a STRUCTURED MIRROR of exactly what's
+already in the prose (same claims, same citations), not new analysis. This
+gives the frontend's existing checkbox UI (Section 3's flat discrepancy
+list) real, precise, checkbox-able items without ever re-litigating them in
+separate write-up.
+
+WHY NOT 15 SPECIALIST AGENTS: each agent used to see only its own
+pre-filtered slice of pages, so it never had the full picture either — the
+narrow-scope benefit (higher recall on one category) was traded against
+losing whole-claim context. Instead, each story call is given an explicit
+CHECKLIST (PED, billing support, document integrity, timeline, identity)
+to work through while narrating, recovering most of that precision without
+a 15-way fan-out. The one thing a single call genuinely cannot do —
+cross-reference hospital-side facts against member-side facts — is exactly
+what Call C exists for.
+
+WHY NOT A DETERMINISTIC VERDICT ENGINE: the doctor decides SUSPECTED vs
+GENUINE. The system's job is to surface every material fact and
+contradiction precisely, not adjudicate. The one exception kept is a
+zero-cost safety net: if Pass 1's structured extraction indicates a death
+outcome that never made it into the Hospital Visit Account, that's a
+critical omission worth force-flagging regardless of anything else.
+
+KNOWN LIMITATION: when the hospital-side documents are too large for one
+call, they're split into budget-sized chunks and narrated independently,
+then stitched together. A contradiction that only becomes visible by
+comparing chunk 1 against chunk 3 can be missed — each chunk only sees its
+own slice. Flag it if this becomes a real problem (search logs for
+"story chunking").
 """
 from __future__ import annotations
 
@@ -20,126 +48,23 @@ import logging
 import re
 from typing import Any, Dict, List, Optional, Tuple
 
-from routes.agents.base import call_groq_sync, SHARED_RULES, _make_serializable, detect_case_type
-from routes.agents.preprocessor import (
-    compute_auto_discrepancies,
-    format_bill_block,
-    format_complaints_list,
-    format_register_summary,
-    format_vitals,
-    reconcile_conclusion,
-    parse_reviewer_annotations,
-    preprocess,
+from routes.agents.base import call_groq_sync, SHARED_RULES, _make_serializable
+from routes.agents.preprocessor import parse_reviewer_annotations, reconcile_conclusion
+from routes.agents.chunking import (
+    split_text_by_pdf,
+    extract_pages,
+    render_page_batch,
+    batch_file_pages,
 )
 
 logger = logging.getLogger(__name__)
 
-def _format_annotations_for_llm(annotations: List[Dict[str, str]]) -> str:
-    """
-    Render reviewer annotations as explicit, must-address instructions for
-    the generation prompts (Call A/B trigger prompts + Call C reconcile).
-    Returns "" if there are none.
-    """
-    if not annotations:
-        return ""
-    lines = [
-        "REVIEWER ANNOTATIONS — a human reviewer has flagged the following points.",
-        "You MUST reason about each one explicitly using the document evidence",
-        "available to you. Do not just restate the note — analyse whether the",
-        "record supports, contradicts, or is silent on it, and say so.",
-        "",
-    ]
-    for i, ann in enumerate(annotations, 1):
-        lines.append(f"[{i}] ({ann.get('label', 'NOTE')})")
-        lines.append(f"    Flagged text: \"{ann.get('highlighted_text', '')}\"")
-        lines.append(f"    Reviewer note: {ann.get('note', '')}")
-        lines.append("")
-    return "\n".join(lines)
-def _drug_rule_for_case(pass1_result: Dict[str, Any]) -> str:
-    """
-    Ported from claim_genuinity.py — case-type-aware drug whitelist to
-    prevent the model importing plausible-sounding but undocumented drugs.
-    """
-    case_type = detect_case_type(pass1_result)
-    if case_type == "SURGICAL":
-        return (
-            "SURGICAL CASE — FORBIDDEN drugs (never include unless explicitly "
-            "in THIS document's medicine chart): Doxycycline, Noradrenaline/Norad, "
-            "T.Dolo, T.Udiliv, T.Hepamerz, Neb Duolin/Budecort, Inj MEROPENEM. "
-            "Only include drugs explicitly listed in THIS document's medicine chart. "
-            "Use abbreviated names exactly as they appear in the chart "
-            "(e.g. 'Inj Mero' not 'Meropenem'). "
-            "Include anaesthesia drugs from the anaesthesia record if present."
-        )
-    elif case_type == "MEDICAL":
-        return (
-            "MEDICAL CASE: Include EVERY drug by name from this document's "
-            "medicine/progress chart. Do not skip any drug. Do not abbreviate. "
-            "FORBIDDEN (include ONLY if explicitly in THIS document's chart): "
-            "spinal anaesthesia agents, OT pre-op drugs, surgical prep drugs. "
-            "Hydrocortisone/Hydrocort IS a valid medical drug — include it if present."
-        )
-    else:
-        return (
-            "Only include drugs explicitly listed in this document's medicine chart. "
-            "Do not import drugs from memory or from similar past cases."
-        )
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Member-visit document detection
-# ─────────────────────────────────────────────────────────────────────────────
-# NOTE: this list must only contain generic, case-agnostic markers of an
-# actual member/insured-side document. It must NEVER contain a specific
-# claimant's name or a one-off phrase from a single past case — that causes
-# unrelated documents to be misclassified as "member visit present", which in
-# turn makes Call B fabricate a plausible-sounding member visit section for
-# cases where no member visit was ever conducted.
-_MEMBER_DOC_KEYWORDS = [
-    "Insured Verification Form",
-    "Patient Feedback Form",
-    "Self-Declaration",
-    "FO Name",
-    "insured's residence",
-    "member visit",
-    "insured questionnaire",
-]
-
-_STRONG_MEMBER_MARKERS = ["Insured Verification Form", "Patient Feedback Form"]
-
-def has_member_documents(full_text: str) -> bool:
-    if not full_text:
-        return False
-    lower = full_text.lower()
-    if any(m.lower() in lower for m in _STRONG_MEMBER_MARKERS):
-        return True
-    hits = sum(1 for kw in _MEMBER_DOC_KEYWORDS if kw.lower() in lower)
-    return hits >= 2
-
-def extract_member_text(full_text: str) -> str:
-    """
-    Extract only pages that contain member/insured‑side content.
-    Keeps a page if it contains at least one of the keywords below.
-    """
-    # Split by page markers (common in these PDFs)
-    pages = re.split(r'(<!-- PAGE_START: \d+ -->)', full_text, flags=re.IGNORECASE)
-    kept_pages = []
-    for i in range(1, len(pages), 2):
-        marker = pages[i]
-        content = pages[i+1] if i+1 < len(pages) else ""
-        page_block = marker + content
-        if any(kw.lower() in page_block.lower() for kw in _MEMBER_DOC_KEYWORDS):
-            kept_pages.append(page_block)
-    if kept_pages:
-        return "\n".join(kept_pages)
-    # No page markers matched a member keyword. Do NOT fall back to grabbing
-    # an arbitrary slice of the (hospital-only) document — that slice gets
-    # fed straight into the member-base prompt and produces a fabricated
-    # member visit section. Callers should check has_member_documents(...)
-    # before relying on this text at all.
-    return ""
-# ─────────────────────────────────────────────────────────────────────────────
-# Trigger label map
-# ─────────────────────────────────────────────────────────────────────────────
+# ═════════════════════════════════════════════════════════════════════════════
+# Trigger label map — triggers are no longer separate report sections; they're
+# folded into each story prompt as "additional focus areas" the doctor asked
+# about, so the doctor's intent still steers the investigation without a
+# fan-out of per-trigger calls.
+# ═════════════════════════════════════════════════════════════════════════════
 TRIGGER_LABELS: Dict[str, str] = {
     "claim_genuinity_authenticity":             "Claim Genuinity & Authenticity",
     "accident_incident_verification":           "Accident / Incident Verification",
@@ -160,466 +85,238 @@ TRIGGER_LABELS: Dict[str, str] = {
     "critical_illness":                         "Critical Illness",
 }
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Shared base system prompt
-# ─────────────────────────────────────────────────────────────────────────────
-_BASE_SYSTEM = SHARED_RULES + """
-You are a senior insurance field investigation officer writing a formal
-Indian health/life insurance investigation report.
-Return ONLY valid JSON — no markdown fences, no prose outside JSON.
-Use null for missing fields. Never invent facts.
-Every factual sentence must be traceable to the source document.
-NEVER write "stable" for vitals — always use exact documented values.
-NEVER invent symptoms, drugs, dates, amounts, or clinical details.
-"""
-_CITATION_RULE = """
-CITATION RULE:
-The source document text you are given contains markers like:
-  <!-- PDF_START: filename.pdf -->
-  <!-- PAGE_START: N -->
-Whenever you state a fact drawn from that source text, add a citation
-immediately after the sentence — or after the LAST sentence of a group of
-consecutive sentences that all came from the same document and page —
-in exactly this format:
-  (Source: filename.pdf, Page N)
-Group consecutive sentences from the same document/page under ONE citation.
-Do not cite every sentence individually if they share the same source.
-If a single sentence combines facts from two different documents or pages,
-cite both, comma-separated, inside one parenthetical:
-  (Source: filename.pdf, Page N; other_file.pdf, Page M)
-Do NOT cite headers, instructions, or your own reasoning/interim
-assessments — only cite statements of fact drawn from the source document
-text.
-"""
-
-def _scope_discipline_block(current_trigger: str, all_triggers: List[str]) -> str:
-    """
-    Tells a per-trigger prompt to stay inside its own topic and not restate
-    facts that belong to a different trigger selected for this same report.
-    Without this, a fact like "history of alcohol intake" gets repeated
-    under Claim Genuinity, PED, AND Intoxication/Addiction instead of
-    staying confined to the Intoxication/Addiction paragraph.
-    """
-    others = [TRIGGER_LABELS.get(t, t) for t in all_triggers if t != current_trigger]
-    if not others:
-        return ""
-    others_str = ", ".join(others)
-    return f"""
-SCOPE DISCIPLINE:
-This report also contains SEPARATE dedicated paragraphs for these other
-triggers: {others_str}.
-Do NOT restate or re-analyse facts that belong to one of those triggers'
-own subject matter (for example, if "Intoxication / Addiction" is one of
-the other triggers listed above, do not discuss alcohol/intoxication
-findings here — that belongs in its own paragraph). Only mention such a
-fact here in passing, in a single clause, if it is directly necessary to
-support THIS trigger's own conclusion — do not give it its own sentence
-or repeat the same analysis found in the other trigger's paragraph.
-"""
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Trigger-specific hospital-side assessment instructions
-# ─────────────────────────────────────────────────────────────────────────────
-# Every block below returns "finding" (a 3-6 sentence paragraph) via the
-# calling prompt. The bullet lists inside each instruction are lifted from
-# the equivalent standalone trigger file's SECTION 3/4/5 verification
-# checklist so this per-trigger call asks the same depth of question the
-# single-trigger pipeline would — just scoped to hospital-side evidence
-# only, and phrased as "assess and answer", not "reproduce a checklist".
-_HOSPITAL_TRIGGER_INSTRUCTIONS: Dict[str, str] = {
-    "claim_genuinity_authenticity": """
-Assess from the hospital records only:
-- Is the hospitalisation clinically justified by the documented vitals, diagnosis, and treatment?
-- Are the ICP, discharge summary, registers, and billing internally consistent?
-- Are there any chart anomalies (blank dates, single-stretch entries, missing IP numbers)?
-- Does the bill breakdown match the clinical record (no billed items lacking clinical support)?
-Return a single factual paragraph. Reference facts already stated in the hospital base findings
-using phrases like "as noted above" — do not repeat them.
-""",
-    "ped_non_disclosure": """
-Assess from the hospital ICP and discharge summary only:
-- Does the past history section document any chronic or pre-existing condition?
-- Does the final/provisional diagnosis or medication chart suggest a long-standing disease
-  (e.g. K/c/o DM, HTN since X years, HbA1c >6.5%, steroids/OHA/antihypertensives on chart)?
-- Is the current diagnosis plausibly caused or complicated by any identified PED?
-- State whether the hospital record confirms, contradicts, or is silent on PED.
-
-INTRA-RECORD CONTRADICTION CHECK:
-Scan for the same condition described with contradictory descriptors, e.g.:
-  - "newly detected T2DM" alongside "K/c/o T2DM on medication"
-  - "DM since 2 months" alongside "newly diagnosed DM"
-  - "HTN newly detected" alongside "HTN on treatment"
-If found, tag it [CONTRADICTORY] in the discrepancies array and describe both
-conflicting entries in the finding. Do NOT infer concealment or intent from
-a records-only contradiction — report it as a factual inconsistency only.
-
-EVIDENCE SOURCE DISCIPLINE:
-Any statement describing patient behavior (denial, hiding, concealment) MUST
-be traceable to an explicit quote in field_officer_hospital_opinion or
-discrepancies_verbatim. Do NOT write "patient concealed" or "patient tried to
-hide" unless those words (or a clear equivalent) appear verbatim in one of
-those two sources.
-
-Return a single factual paragraph. Do not speculate beyond what the documents show.
-""",
-    "accident_incident_verification": """
-Assess from the hospital MLC register, casualty notes, and treating doctor certificate:
-- Was the MLC registered at the treating hospital? (MLC = Medico-Legal Case at hospital.
-  This is DIFFERENT from FIR at police station — state each separately.)
-- Was the FIR registered at a police station? State FIR number and station if present.
-- What does the treating doctor's certificate state as the nature of injuries?
-- Is the injury pattern documented in the ICP consistent with the reported mechanism?
-- Was alcohol smell noted in the casualty admission notes?
-- Was helmet/seatbelt status documented? Who is recorded as having brought the patient in?
-- Is the accident date/time in the ICP consistent with the admission date/time?
-Return a single factual paragraph. MLC and FIR must appear as separate sentences.
-""",
-    "intoxication_addiction": """
-Assess from the hospital admission records only:
-- Was alcohol smell or intoxication noted in the casualty/admission notes?
-- Was a blood alcohol test ordered? What was the result?
-- Does the medication chart show any addiction-related medications (e.g. thiamine,
-  naltrexone, disulfiram)?
-- Does any clinical note mention chronic alcohol use or liver disease?
-This is the ONLY paragraph where alcohol/intoxication/addiction findings should
-be analysed in depth — gather all such facts here.
-Return a single factual paragraph.
-""",
-    "legal_regulatory_death_verification": """
-Assess from the hospital death records:
-- What is the documented cause of death in the death certificate / discharge summary?
-- Was a post-mortem conducted? What were the findings?
-- Is the death certificate available and consistent with the treating doctor's notes?
-- Were any forensic / MLC procedures followed at the hospital?
-- State date, time, and place of death exactly as recorded, and whether these are
-  consistent across the discharge summary, death certificate, and postmortem report.
-Return a single factual paragraph.
-""",
-    "hospital_criteria_watchlist": """
-Assess from hospital registration, infrastructure evidence, and the field officer
-hospital-visit form:
-- Is the hospital registration certificate valid, current, and issued by the stated authority?
-- Does the hospital meet the minimum bed-strength required for the services billed
-  (compare registration-certificate bed count against the field-officer-verified count)?
-- Is the hospital empanelled with the insurer/TPA, and is it on any watchlist?
-- Is the treating doctor registered, with qualification matching the specialty of treatment?
-- Is an in-house lab present, registered, and located in the hospital's vicinity?
-- For ICU/OT billed cases: is there documentary evidence (ICU register, OT register,
-  anaesthesia record) that these facilities were physically used for this patient?
-- Are IP, OT, lab, pharmacy, and tariff registers each individually confirmed
-  (per the register flags), never as a blanket statement?
-Return a single factual paragraph referencing specific document evidence.
-""",
-    "financial_claim_pattern_risk": """
-Assess from the hospital bill and clinical record:
-- Is the billed amount proportional to the documented length of stay, procedures, and diagnosis?
-- Are there any line items billed without clinical support (e.g. ICU charges with no ICU register,
-  pharmacy charges with no matching entry in the medication chart)?
-- Is the room tariff per day consistent with the room type occupied and the total bill?
-- Is the bill breakup detailed (>10 line items) or aggregated/vague?
-- Is the claimed/billed amount a suspiciously round number, or does it exactly match the sum insured?
-- Was there a discount, and if so does its size or timing suggest it was offered to reduce scrutiny?
-Return a single factual paragraph.
-""",
-    "medical_records_treatment_verification": """
-Assess from the ICP, progress notes, vitals chart, nurses notes, and medication chart:
-- Are all investigations ordered documented with results, or is the investigation
-  result chart blank?
-- Is the treatment (drugs, fluids, procedures) appropriate and proportionate for the diagnosis?
-- Are the nurses notes and vitals chart dated across the full admission period, or do they
-  appear written in a single undated stretch?
-- Does the medication chart carry an IP number, date, and time for each entry?
-- For surgical cases: is the operation record attached, and is the post-operative
-  period documented as uneventful or otherwise?
-- Do the discharge summary's clinical narrative and the daily progress notes agree with
-  each other, or is there a timeline mismatch (e.g. treatment or lab work dated before
-  admission, or after discharge/death)?
-Return a single factual paragraph, using the exact chart-quality flag values
-(vitals_chart_dates_present, nurses_notes_dates_present,
-medication_chart_ip_number_present, investigation_result_chart_status) where relevant.
-""",
-    "policy_coverage_verification": """
-Assess from the hospital and claim-administration side of the record only:
-- Was the admission date within the policy period (policy_start_date to policy_end_date)?
-- Is this claim within any applicable waiting period (PED, named-disease, or initial
-  waiting period), based on policy_inception_date vs the diagnosis/treatment dates?
-- Was the treating hospital cashless/network, or reimbursement — and is the claim mode
-  in the hospital records consistent with cashless_availed?
-- Was pre-authorisation obtained for a cashless claim, if applicable?
-- Is the room rent actually billed within any room-rent limit implied by the policy
-  documents present in the record?
-Return a single factual paragraph. State clearly which of these could NOT be verified
-from hospital-side documents alone (coverage terms usually require the policy schedule).
-""",
-    "field_vicinity_investigation": """
-Assess from the field officer's hospital-visit form and geotag/photo evidence only:
-- Is the hospital physically located at the stated address and confirmed operational
-  by the field officer?
-- Does the field-verified bed strength match the registration certificate?
-- Was a geotag photo of the hospital premises collected?
-- Is the in-house lab (if any) genuinely in the vicinity of the hospital, with photos collected?
-- Were the IP, OT, and lab registers physically verified on-site, and is that reflected
-  in the register flags (never assume — state only what the flags confirm)?
-- Is the hospital's ICU/OT physically present and functional per the field officer's account?
-Return a single factual paragraph, citing the field officer's name and hospital opinion
-where present.
-""",
-    "employee_corporate_group_policy_verification": """
-Assess from the hospital-side and policy-administration documents only (employer/HR
-confirmation itself is usually member-side, so focus here on what the hospital and
-claim paperwork show):
-- What employer name, employee ID, and policy/member category appear in the hospital
-  admission or billing paperwork?
-- Does the claimant's relationship to the employee (self / spouse / child / parent) as
-  recorded on the admission form match what is claimed?
-- Is there any hospital-side evidence of dependent enrolment (e.g. ID proof collected
-  at admission, insurance card details)?
-- Is the treating hospital empanelled for this specific corporate/group policy, and is
-  cashless availed consistent with that empanelment?
-Return a single factual paragraph. Explicitly state where employment/eligibility
-verification is NOT determinable from hospital records alone and must rely on the
-member/HR side.
-""",
-    "hospital_cash_benefit_abuse": """
-Assess from the hospital admission/discharge timeline, vitals chart, nurses notes,
-medication chart, and bill only:
-- Calculate the exact length of stay from admission date/time to discharge date/time.
-- Is the length of stay medically justified by the diagnosis and documented severity
-  (vitals, investigations), or does it look inflated relative to clinical need?
-- Are nursing notes and the vitals chart dated for every day of the claimed stay, or
-  do they show blank dates / a single continuous undated stretch (state the exact
-  vitals_chart_dates_present / nurses_notes_dates_present / single-stretch flag values)?
-- If ICU is billed: do ICU register entries, monitoring sheets, and ICU nursing notes
-  exist for the claimed ICU days, and does the documented clinical condition support
-  ICU-level care?
-- Is there any indicator of an artificially prolonged or 23-hour-threshold admission
-  designed to trigger a hospital-cash or ICU-cash benefit rather than genuine need?
-Return a single factual paragraph.
-""",
-    "suspicious_claim_pattern_repeat_fraud": """
-Assess from the hospital records:
-- Is there any documentation of previous admissions at the same hospital, for the same
-  or a similar diagnosis, that is visible from this record alone?
-- Does the clinical picture (short LOS, rapid recovery, minimal interventions relative
-  to the diagnosis) raise concerns about a pattern of short admissions timed to a
-  minimum-stay benefit threshold?
-- Are there any chart anomalies (single-stretch entries, blank dates, physiologically
-  implausible vitals) suggesting the record was fabricated or reused as a template?
-- Does the billing structure (room tariff, drug list, lab list) resemble a standard,
-  repeatable template rather than a case-specific record?
-Return a single factual paragraph.
-""",
-    "final_universal_red_flags_matrix": """
-Provide a rapid hospital-side-only red-flag scan across these dimensions, one clause
-each, using CLEAR / FLAG / RED FLAG for each dimension (do not use headers or bullets —
-weave it into flowing prose):
-- Hospital credentials (registration validity, empanelment, watchlist status)
-- Admission and hospitalisation genuineness (IP register, nursing notes, vitals chart
-  continuity)
-- Clinical consistency (diagnosis vs complaints, vitals, investigations, treatment)
-- Documentation integrity (dated charts, no single-stretch entries, discharge summary
-  consistent with progress notes)
-- Billing (bill vs clinical support, ICU/OT charges vs register entries)
-- Chronology (lab/treatment/OT dates fall within the admission period; nothing dated
-  after discharge or death)
-Only flag an item RED FLAG if there is a specific, citable document fact supporting it —
-do not speculate. This paragraph feeds a later master synthesis; keep it dense and
-factual, 5-8 sentences.
-""",
-}
-
-# Default for triggers not explicitly listed above
-_DEFAULT_HOSPITAL_TRIGGER = """
-Assess from the hospital records only what is relevant to this trigger.
-Return a single factual paragraph. Do not repeat the hospital base findings.
-"""
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Trigger-specific member/insured-side assessment instructions
-# ─────────────────────────────────────────────────────────────────────────────
-_MEMBER_TRIGGER_INSTRUCTIONS: Dict[str, str] = {
-    "claim_genuinity_authenticity": """
-Assess from the insured verification form and member visit findings only:
-- Does the member's account of the illness/admission match the hospital record?
-- Did the member correctly identify the treating doctor, hospital name, and dates?
-- Did the member state a bill amount? Does it match the hospital bill?
-- Did the field officer find any inconsistency in the member's narration?
-Return a single factual paragraph referencing specific member-visit evidence.
-""",
-    "ped_non_disclosure": """
-Assess from the insured questionnaire, member interview, and field officer member visit:
-- Did the member disclose any pre-existing condition (DM, HTN, asthma, etc.)?
-- Did the member deny any pre-existing condition?
-- Did the member mention any prior hospitalisations, OPD visits, or ongoing medications?
-- Did the field officer note any home medications or prescription slips at the member's residence?
-
-PRE-ADMISSION OPD VISIT SCOPING:
-Only treat a visit as "pre-admission" if its date is BEFORE the admission
-date. Do NOT count inpatient consultation notes dated during the hospital
-stay as pre-admission OPD visits.
-
-- Cross-reference: if the hospital record shows PED indicators and the member denied it,
-  flag this as [UNDISCLOSED PED SUSPECTED] — the reconciliation call will decide the verdict.
-
-EVIDENCE SOURCE DISCIPLINE:
-Any statement describing the member's behavior (denial, hiding, concealment)
-MUST be traceable to an explicit quote in field_officer_member_opinion,
-discrepancies_verbatim, or the insured questionnaire itself. Do NOT write
-"member concealed" or "member tried to hide" unless equivalent wording
-appears verbatim in one of those sources.
-
-Return a single factual paragraph.
-""",
-    "accident_incident_verification": """
-Assess from the insured questionnaire, member interview, and accident narration:
-- What accident narration did the member give during the member visit?
-- Is this consistent with the hospital MLC/casualty notes?
-- Was helmet / seatbelt worn — what did the member state vs what was documented?
-- Who brought the patient to hospital according to the member?
-- Did the field officer note any inconsistency between the member's narration and physical evidence?
-Return a single factual paragraph. Explicitly flag any inconsistencies.
-""",
-    "intoxication_addiction": """
-Assess from the member visit and insured questionnaire:
-- Did the member admit to consuming alcohol before the incident?
-- Did family members mention alcohol use?
-- Are there any home medications suggesting chronic alcohol use?
-- Did the field officer observe any relevant evidence at the member's residence?
-This is the ONLY paragraph where alcohol/intoxication/addiction findings should
-be analysed in depth — gather all such facts here.
-Return a single factual paragraph.
-""",
-    "legal_regulatory_death_verification": """
-Assess from the member/beneficiary visit:
-- Did the beneficiary provide the death certificate and post-mortem report?
-- Is the beneficiary's account of circumstances consistent with hospital records?
-- Were any supporting documents (burial certificate, police report) collected from the member?
-- State the beneficiary's name, relationship to the deceased, and whether ID proof
-  submitted matches the policy nominee (if this data is present in the member forms).
-Return a single factual paragraph.
-""",
-    "financial_claim_pattern_risk": """
-Assess from the insured verification form:
-- What bill amount did the member state they paid?
-- Does this match the hospital bill? If not, quantify the difference.
-- Did the member mention any cash payment made outside the official bill?
-- Did the field officer note any financial irregularities?
-Return a single factual paragraph.
-""",
-    "medical_records_treatment_verification": """
-Assess from the insured verification form and member interview only:
-- Does the member's own account of symptoms, duration, and treatment received line up
-  with what is documented in the hospital's chief complaints and diagnosis?
-- Did the member mention any treatment, test, or medication that does NOT appear in
-  the hospital record (or vice versa — a hospital-documented treatment the member
-  seems unaware of)?
-Return a single factual paragraph. If the member forms contain no clinical detail at
-all, state that plainly rather than inferring anything.
-""",
-    "hospital_criteria_watchlist": """
-Assess from the member/insured visit only what is relevant:
-- Did the member's account of the hospital (name, location, how they chose it) match
-  the hospital identified in the claim documents?
-- Did the field officer's member-visit notes mention anything about the hospital's
-  reputation, size, or facilities that is relevant to genuineness?
-This is normally thin from the member side — if the member forms contain no hospital-
-credential-relevant content, state that plainly in a single sentence rather than
-speculating. Do not repeat hospital-side infrastructure findings here.
-""",
-    "policy_coverage_verification": """
-Assess from the insured verification form and member interview only:
-- Does the member correctly state their policy number, policy type, and relationship
-  to the primary insured (self / spouse / child / parent / employee)?
-- Did the member mention the claim mode (cashless vs reimbursement) and does it match
-  what cashless_availed shows?
-- Did the member mention a TPA name, pre-authorisation, or intimation to the insurer,
-  and is the timing consistent with policy requirements?
-- Is there any indication from the member interview of a recently purchased or
-  short-duration policy relative to the claim date?
-Return a single factual paragraph. State plainly if the member forms contain no
-policy-detail content.
-""",
-    "field_vicinity_investigation": """
-Assess from the field officer's residence-visit / vicinity-verification notes only:
-- Was the claimant's residential address physically verified by field visit?
-- Are neighbours or local contacts aware of the claimant and the hospitalisation/event?
-- Was the claimant traceable and cooperative during the field visit?
-- Did local inquiry produce any statement that contradicts the claimant's own account?
-- For accident claims: was the incident locally known and independently confirmable?
-Return a single factual paragraph, citing the field officer's name and any residence-
-verification outcome recorded.
-""",
-    "employee_corporate_group_policy_verification": """
-Assess from the member/insured-side documents and any employer/HR confirmation
-recorded during the member visit:
-- Did the member state their employer name, employee ID, department, and designation,
-  and do these match the claim paperwork?
-- Is there any explicit HR/employer confirmation of active employment recorded
-  (employment_verification_done) — what was the outcome, verbatim?
-- For a dependent claim: is the dependent's enrolment in the group policy declared,
-  and is the relationship supported by a document (marriage/birth certificate) that the
-  member produced?
-- Did the field officer note anything suggesting the employment or enrolment might not
-  be genuine (e.g. very recent joining date shortly before the claim)?
-Return a single factual paragraph. State plainly if this data is not present in the
-member-side documents.
-""",
-    "hospital_cash_benefit_abuse": """
-Assess from the member/insured visit only what is relevant:
-- Did the member's own account of the length of stay and reason for admission match
-  what the hospital records show?
-- Did the field officer note anything about the claimant's condition during or after
-  the admission that seems inconsistent with the severity implied by the benefit claimed?
-This is normally thin from the member side — if the member forms contain nothing
-relevant to length-of-stay or benefit calculation, state that plainly rather than
-speculating. Do not repeat the hospital-side LOS/ICU analysis here.
-""",
-    "suspicious_claim_pattern_repeat_fraud": """
-Assess from the insured verification form and any identifiers recorded during the
-member visit:
-- What mobile number, address, bank account, Aadhaar/ID, and emergency contact did the
-  member provide — do any of these look reused, generic, or inconsistent with other
-  details in this same claim file?
-- Did the member disclose any prior claims, other policies, or other hospitalisations
-  not already captured in the hospital-side previous-claims data?
-- Did the field officer note anything behavioral (claimant story changed, over-coached
-  responses, delayed document production, uncooperativeness)? Only report this if it
-  is explicitly recorded in field_officer_member_opinion — do not infer it.
-Return a single factual paragraph. Note explicitly that behavioral indicators alone
-are never sufficient on their own to establish fraud.
-""",
-    "final_universal_red_flags_matrix": """
-Provide a rapid member-side-only red-flag scan across these dimensions, one clause
-each, using CLEAR / FLAG / RED FLAG for each dimension (weave it into flowing prose,
-no headers or bullets):
-- Identity consistency (name/DOB/gender match across member forms and policy)
-- Member account vs hospital record consistency (illness narration, bill amount, dates)
-- Shared-identifier risk (mobile/address/bank/ID reused or inconsistent)
-- Behavioral indicators explicitly recorded by the field officer (only if present)
-Only flag an item RED FLAG if there is a specific, citable document fact supporting it.
-If no member/insured documents contain relevant content for a dimension, mark it
-CLEAR by default rather than RED FLAG — absence of member-side data is not itself
-a red flag. Keep this dense and factual, 4-6 sentences.
-""",
-}
-
-_DEFAULT_MEMBER_TRIGGER = """
-Assess from the member/insured visit findings only what is relevant to this trigger.
-Return a single factual paragraph. Do not repeat the member base findings.
-"""
-
-# Used verbatim as the per-trigger member "finding" when no member/insured
-# document exists at all, so Call C sees an explicit statement instead of
-# an empty/missing key.
-_NO_MEMBER_VISIT_TRIGGER_FINDING = (
-    "Member / insured visit was not conducted as part of this investigation, "
-    "so no member-side findings are available for this trigger."
+# Tags kept aligned with the frontend's existing color-badge enum
+# (RICH_TOKEN_RE / SEVERE_DISC_TAGS in Dashboard.jsx) so inline flags render
+# with the right styling without any frontend change.
+VALID_TAGS = (
+    "CONTRADICTORY", "MISSING", "INCOMPLETE", "SUSPICIOUS", "BILLING MISMATCH",
+    "TIMELINE MISMATCH", "SINGLE STRETCH", "CRITICAL FACT MISSING",
+    "PHYSIOLOGICAL ANOMALY", "UNDISCLOSED PED SUSPECTED", "DOCUMENT INTEGRITY",
+    "SOURCE UNREADABLE",
 )
 
+# ═════════════════════════════════════════════════════════════════════════════
+# Reviewer annotations / doctor-selected findings — kept, still real features
+# wired to the frontend (RawDocument annotations, Investigation Review tab).
+# ═════════════════════════════════════════════════════════════════════════════
+def _format_annotations_for_llm(annotations: List[Dict[str, str]]) -> str:
+    if not annotations:
+        return ""
+    lines = [
+        "REVIEWER ANNOTATIONS — a human reviewer flagged these points. Where "
+        "one is relevant to what you're narrating, weave your answer to it "
+        "naturally into the story at that point (don't create a separate "
+        "section) — state whether the record supports, contradicts, or is "
+        "silent on it.",
+        "",
+    ]
+    for i, ann in enumerate(annotations, 1):
+        lines.append(f"[{i}] ({ann.get('label', 'NOTE')}) \"{ann.get('highlighted_text', '')}\" — {ann.get('note', '')}")
+    return "\n".join(lines) + "\n"
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Helper: sync Groq wrapper
-# ─────────────────────────────────────────────────────────────────────────────
+
+def _format_selected_findings_for_llm(selected_findings: List[Dict[str, Any]]) -> str:
+    if not selected_findings:
+        return ""
+    lines = [
+        "DOCTOR-SELECTED FINDINGS — the reviewing doctor flagged these from an "
+        "earlier automated pass as worth checking. Informational only: reason "
+        "about whether the two accounts support, contradict, or are silent on "
+        "each one, but they must never by themselves force a SUSPECTED verdict.",
+        "",
+    ]
+    for i, finding in enumerate(selected_findings, 1):
+        label = finding.get("agent_label") or finding.get("agent", "FINDING")
+        lines.append(f"[{i}] ({label}) {finding.get('type', 'Finding')}: {finding.get('explanation', '')}")
+    return "\n".join(lines) + "\n"
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# HTML/markup stripping — raw_llama_markdown embeds literal <table>/<td> tags
+# that the LLM sometimes echoes verbatim. Strip once, up front, preserving the
+# PDF_START/PAGE_START structural comment markers everything else depends on.
+# ═════════════════════════════════════════════════════════════════════════════
+_MARKUP_TAG_RE = re.compile(r"<(?!!--)[^>]+>")
+
+
+def _strip_markup_preserving_markers(text: str) -> str:
+    if not text:
+        return text
+    text = re.sub(r"</tr\s*>", "\n", text, flags=re.I)
+    text = re.sub(r"</td\s*>\s*<td[^>]*>", " | ", text, flags=re.I)
+    text = re.sub(r"</th\s*>\s*<th[^>]*>", " | ", text, flags=re.I)
+    text = _MARKUP_TAG_RE.sub(" ", text)
+    text = text.replace("&nbsp;", " ").replace("&amp;", "&")
+    text = text.replace("&lt;", "<").replace("&gt;", ">")
+    text = text.replace("&quot;", '"').replace("&#39;", "'")
+    text = re.sub(r"[ \t]+", " ", text)
+    return text
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# Critical-fact death safety net — the ONE deterministic check kept, because
+# it's cheap and catches a serious silent omission rather than adjudicating
+# anything.
+# ═════════════════════════════════════════════════════════════════════════════
+_DEATH_MENTIONED_RE = re.compile(r"\b(death|died|deceased|expired|demise)\b", re.IGNORECASE)
+
+
+def pass1_indicates_death(pass1_result: Dict[str, Any]) -> bool:
+    if any(pass1_result.get(f) for f in ("death_date", "death_time", "death_place", "cause_of_death")):
+        return True
+    if str(pass1_result.get("postmortem_done") or "").upper() == "YES":
+        return True
+    if pass1_result.get("death_certificate_available") in (True, "YES", "yes"):
+        return True
+    return False
+
+
+def prose_mentions_death(prose: str) -> bool:
+    return bool(_DEATH_MENTIONED_RE.search(prose or ""))
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# Member-visit classifier — kept close to the original: per-file (never one
+# blob, so a large earlier file can't push a smaller later file out of the
+# window), fails CLOSED (a classifier error means "no member visit in that
+# file", never fabricates one). This is genuinely load-bearing infra, not
+# bloat, so it stays largely as-is.
+# ═════════════════════════════════════════════════════════════════════════════
+_MEMBER_CLASSIFIER_SYSTEM = """
+You are a document classifier for insurance investigation reports. You will be
+given the text of ONE source document belonging to a claim's supporting
+documents, with page markers like <!-- PAGE_START: N --> ... <!-- PAGE_END: N -->.
+
+Your ONLY job is to determine whether THIS document contains a genuine,
+distinct MEMBER / INSURED VISIT record — i.e. a form or write-up produced from
+an investigator's independent visit to, or interview with, the insured/
+claimant/beneficiary themselves (NOT the hospital, NOT the treating doctor,
+NOT hospital staff, NOT a field visit whose subject is the hospital premises).
+
+A genuine member/insured visit record typically contains SOME of:
+- the insured's own account of the illness/incident, in their own words or paraphrased
+- past medical history / lifestyle habits as stated BY THE INSURED
+- a bill amount the insured says THEY paid
+- an investigator's observations made AT THE INSURED'S RESIDENCE or during a
+  direct interview with the insured/beneficiary
+- signatures, photos, or ID documents of the insured collected during that visit
+- geotagged photographs of a residence, taken separately from any hospital visit
+
+Do NOT count as a member visit:
+- Any form titled or headed as a Hospital Visit, even if it also contains a
+  field or sub-label such as "Investigator opinion (Member Visit)" — a label
+  like that appearing INSIDE a Hospital Visit form does not mean a separate
+  member visit happened.
+- Geotagged photos of the hospital, pharmacy, or hospital rooms.
+- Hospital registration, tariff, or billing documents.
+
+Be skeptical by default. If you are not confident a page is genuinely about a
+visit to, or interview with, the insured, do not include it.
+
+A single file can be MIXED: mostly hospital-side content with a distinct
+block of genuine member-visit pages elsewhere in the same file (often at
+the end). The presence of duplicated hospital bills, lab reports, or a
+Google Timeline earlier in the file does NOT mean later pages aren't a
+real member visit — classify each page on its own content.
+
+These document types are STRONG, near-certain signals of a genuine member
+visit wherever they appear, regardless of what surrounds them: an "Insured
+Verification Form", a "Self-Declaration by patient" in first person, a
+"Patient Feedback Form" about a field officer's visit, or a geotagged photo
+whose location matches the insured's stated residence address.
+
+Return ONLY valid JSON, no markdown fences:
+{
+  "member_visit_present": boolean,
+  "member_pages": [list of integers — the PAGE_START numbers WITHIN THIS
+                    DOCUMENT that are genuinely member/insured-side content],
+  "reasoning": "one or two sentences"
+}
+"""
+
+
+def _member_classifier_user(file_text: str, filename: str) -> str:
+    return f"""
+Classify the following document. An opinion sub-field named "(Member Visit)"
+sitting inside a "Field Officer (Hospital Visit)" form does NOT count as
+evidence of a real member visit — read the actual page content and its
+heading/context, not just an isolated field label.
+
+SOURCE FILE: {filename}
+
+DOCUMENT TEXT:
+{file_text[:150000]}
+"""
+
+
+async def classify_member_documents(full_text: str) -> Dict[str, Any]:
+    if not full_text:
+        return {"member_visit_present": False, "member_locations": [], "reasoning": "empty text"}
+
+    files = split_text_by_pdf(full_text)
+    _WINDOW = 130_000
+
+    async def _classify_batch(fname: str, batch_text: str) -> Dict[str, Any]:
+        try:
+            result = await _agroq(_MEMBER_CLASSIFIER_SYSTEM, _member_classifier_user(batch_text, fname), max_tokens=500)
+            if not isinstance(result, dict):
+                raise ValueError("non-dict classifier response")
+            present = bool(result.get("member_visit_present"))
+            pages = [p for p in (result.get("member_pages") or []) if isinstance(p, int)]
+            return {"present": present and bool(pages), "pages": pages, "reasoning": result.get("reasoning", "")}
+        except Exception:
+            logger.exception("classify_member_documents failed for file=%s — fail closed", fname)
+            return {"present": False, "pages": [], "reasoning": "classifier error — fail closed"}
+
+    async def _classify_one(fname: str, ftext: str) -> Tuple[str, Dict[str, Any]]:
+        if len(ftext) <= _WINDOW:
+            return fname, await _classify_batch(fname, ftext)
+
+        batches = batch_file_pages(ftext, max_chars=_WINDOW, overlap_pages=1)
+        batch_texts = [render_page_batch(fname, b) for b in batches]
+        batch_results = await asyncio.gather(*[_classify_batch(fname, bt) for bt in batch_texts], return_exceptions=True)
+        merged_pages: set = set()
+        reasoning_parts: List[str] = []
+        for r in batch_results:
+            if isinstance(r, Exception):
+                continue
+            if r.get("present"):
+                merged_pages.update(r.get("pages") or [])
+            if r.get("reasoning"):
+                reasoning_parts.append(r["reasoning"])
+        return fname, {"present": bool(merged_pages), "pages": sorted(merged_pages), "reasoning": " | ".join(reasoning_parts)}
+
+    per_file_results = await asyncio.gather(*[_classify_one(fname, ftext) for fname, ftext in files.items()])
+
+    member_locations: List[Dict[str, Any]] = []
+    reasoning_parts: List[str] = []
+    for fname, res in per_file_results:
+        if res["present"]:
+            for p in res["pages"]:
+                member_locations.append({"filename": fname, "page": p})
+        if res["reasoning"]:
+            reasoning_parts.append(f"[{fname}] {res['reasoning']}")
+
+    return {
+        "member_visit_present": bool(member_locations),
+        "member_locations": member_locations,
+        "reasoning": " | ".join(reasoning_parts),
+    }
+
+
+def extract_member_text_from_pages(full_text: str, member_locations: List[Dict[str, Any]]) -> str:
+    if not member_locations:
+        return ""
+    by_file: Dict[str, List[int]] = {}
+    for loc in member_locations:
+        by_file.setdefault(loc["filename"], []).append(loc["page"])
+    parts = [extract_pages(full_text, fname, pages) for fname, pages in by_file.items()]
+    return "\n".join(p for p in parts if p)
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# Groq wrapper
+# ═════════════════════════════════════════════════════════════════════════════
 def _groq(system: str, user: str, max_tokens: int = 4000) -> Dict[str, Any]:
     return call_groq_sync(system, user, max_tokens)
 
@@ -629,758 +326,870 @@ async def _agroq(system: str, user: str, max_tokens: int = 4000) -> Dict[str, An
     return await loop.run_in_executor(None, _groq, system, user, max_tokens)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# CALL A — Hospital base findings
-# ─────────────────────────────────────────────────────────────────────────────
-_HOSPITAL_BASE_SYSTEM = _BASE_SYSTEM + _CITATION_RULE + """
-FOCUS: You are writing SECTION 1 — HOSPITAL PART FINDINGS.
-Extract information ONLY from hospital-side content in the document:
-  ICP (Indoor Case Papers), discharge summary, treating doctor certificate,
-  operation theatre records, anaesthesia records, medication/vitals/nurses charts,
-  hospital registration certificate, IP/OT/lab registers, in-patient bill.
-IGNORE: Insured verification forms, member interview content, AVR forms,
-  welfare/income certificates, any document obtained from the insured's residence.
-"""
-
-def _hospital_base_user(
-    pass1: Dict[str, Any],
-    preprocessed: Dict[str, Any],
-    text: str,
-) -> str:
-    drug_rule = _drug_rule_for_case(pass1)
-    return f"""
-Return a JSON object with exactly these keys:
-  "section1_prose": string  — full hospital findings paragraph (min 400 words)
-  "discrepancies":  array   — list of specific discrepancy strings found in hospital records
-                              (empty array [] if none)
-
-WRITING RULES FOR section1_prose:
-① Open with: "Our investigator visited the hospital, verified the ICP and collected the copy of the same."
-   If physical_visit_confirmed is NO or null: "Documents were reviewed and ICP copy was collected."
-② Patient: "[Name], a [age]-year-old [gender] (Guardian: [name if present]),
-   admitted on [date] at [time] (IP No. [ip], UHID: [uhid])."
-   Then: "Cashless availed — [YES/NO]." if known.
-   Then: "MLC registered and collected." if mlc_registered = YES.
-③ Chief complaints — ALL of them verbatim, never drop any:
-   {json.dumps(preprocessed['complaints_list'], indent=2)}
-④ OPD history before admission (exact wording if present).
-⑤ Past history verbatim. If none: "No significant past history noted."
-⑥ Vitals on admission (NEVER write "stable"):
-   "{preprocessed['vitals_formatted'] or pass1.get('vitals_on_admission') or 'Not documented'}"
-⑦ Provisional diagnosis verbatim.
-⑧ Investigations ordered verbatim.
-⑨ Final diagnosis — ALL lines verbatim:
-   {json.dumps(pass1.get('final_diagnosis'), indent=2)}
-⑩ For surgical cases: "Patient underwent [procedure] under [anaesthesia] on [date].
-   Operation record is attached. Post-operative period was noted as uneventful."
-⑪ ALL inpatient treatments by name:
-   {json.dumps(pass1.get('all_treatments', []), indent=2)}
-   DRUG SAFETY RULE: {drug_rule}
-⑫ Discharge: "Patient was discharged on [date] at [time]."
-⑬ Vitals at discharge (exact, NEVER mix with admission vitals):
-   "{pass1.get('vitals_at_discharge') or 'Not documented'}"
-⑭ Discharge medications (use exact drug names from the document, same DRUG
-   SAFETY RULE applies — never invent or import from memory):
-   {json.dumps(pass1.get('discharge_medications', []), indent=2)}
-⑮ Bill — use EXACTLY these figures, in EXACTLY this format (do not paraphrase
-   or reformat the numbers):
-   "Gross bill amount — Rs.<value>/-"
-   "Discount — Rs.<value>/-" (state Rs.0/- if nil, never omit this line)
-   "Amount received — Rs.<value>/-"
-   "Room tariff — Rs.<value>/- per day (<room_type>)" (omit room_type in
-   parentheses if not documented)
-   "Mode of payment — <mode>"
-   Use these exact source values:
-{preprocessed['bill_block']}
-   Bill breakdown — list ALL line items (bed charges, professional charges,
-   nursing, pharmacy, surgeon charges, OT charges, anaesthesia charges, lab,
-   registration, others). If there are more than ~8 items, use a bullet list
-   instead of a single run-on sentence. NEVER write "etc." or "…" to
-   truncate the list — include every item or explicitly state
-   "no detailed line-item breakup was provided."
-   Bill line items:
-   {json.dumps(pass1.get('bill_breakdown_items', []), indent=2)}
-   If a bill/payment receipt is documented as attached, state:
-   "Bill and payment receipts are attached."
-   Include page references in -XX/52- format wherever present in the
-   forensic audit facts.
-⑯ Registers and certificates — follow this exactly, per register:
-   IF flag = "YES"  → state "[register name] verified and attached."
-   IF flag = "NO"   → state "[MISSING] [register name] — not collected."
-   IF flag = null   → OMIT that register entirely from the prose. Do NOT
-                       write "not documented" or "unknown" for it, and do
-                       NOT count it toward any missing-registers list.
-   NEVER write a blanket statement like "IP register, OT register, and lab
-   register are verified and attached" unless ALL relevant flags are
-   individually "YES" — always state each register in its own sentence or
-   clause so partial verification is visible.
-
-   IP register:  {preprocessed['register_flags']['ip']}
-   OT register:  {preprocessed['register_flags']['ot']}
-   Lab register: {preprocessed['register_flags']['lab']}
-   Pharmacy:     {preprocessed['register_flags']['pharmacy']}
-   Reg cert:     {preprocessed['register_flags']['reg_cert']}
-   Tariff:       {pass1.get('tariff_attached') or 'null'}
-
-⑰ Treating doctor: "Treating Doctor — Dr. [name] ([qual], Reg No. [num])."
-⑱ Pathologist (if present): "Pathologist — [name] ([designation])."
-⑲ Data collected from: "Data collected from [name], [designation], Ph: [phone]."
-⑳ Field officer: "Field Officer: [name]."
-
-PATIENT/ADMIN CONSTANTS:
-  Physical visit:  {pass1.get('physical_visit_confirmed') or 'null'}
-  Admission time:  {pass1.get('admission_time') or 'Not documented'}
-  IP / UHID:       {pass1.get('ip_number') or pass1.get('uhid_number') or 'Not documented'}
-  Guardian:        {pass1.get('guardian_name') or 'Not documented'}
-  MLC registered:  {pass1.get('mlc_registered') or 'Not documented'}
-  Cashless:        {pass1.get('cashless_availed') or 'Not documented'}
-  Employer:        {pass1.get('employer_name') or 'Not documented'}
-  Pathologist:     {pass1.get('pathologist_name') or 'Not documented'}, {pass1.get('pathologist_designation') or ''}
-  Reg valid till:  {pass1.get('hospital_reg_valid_till') or 'Not documented'}
-  Reg authority:   {pass1.get('hospital_reg_issuing_authority') or 'Not documented'}
-  Treating doctor: {pass1.get('treating_doctor') or 'Not documented'}
-  Doctor qual:     {pass1.get('doctor_qualification') or 'Not documented'}
-  Doctor reg:      {pass1.get('doctor_reg_number') or 'Not documented'}
-  Data from name:  {pass1.get('data_collected_from_name') or 'Not documented'}
-  Data from desig: {pass1.get('data_collected_from_designation') or 'Not documented'}
-  Data from phone: {pass1.get('data_collected_from_phone') or 'Not documented'}
-  Field officer:   {pass1.get('field_officer_name') or 'Not documented'}
-
-FORENSIC AUDIT FACTS:
-{json.dumps(pass1, indent=2)}
-
-FULL DOCUMENT TEXT (focus on hospital-side content only):
-{text[:120000]}
-"""
+# ═════════════════════════════════════════════════════════════════════════════
+# File-budget chunking for the story calls — size-based, not category-based.
+# Groups whole files under a budget; a single file that alone exceeds the
+# budget is page-batched so nothing past the old fixed cutoff goes unseen.
+# ═════════════════════════════════════════════════════════════════════════════
+_STORY_CHUNK_BUDGET = 130_000
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# CALL A-trigger — Per-trigger hospital assessment
-# ─────────────────────────────────────────────────────────────────────────────
-def _hospital_trigger_user(
-    trigger: str,
-    pass1: Dict[str, Any],
-    text: str,
-    hospital_base_prose: str,
-    annotations_block: str = "",
-    preprocessed: Optional[Dict[str, Any]] = None,
-    all_triggers: Optional[List[str]] = None,
-) -> str:
-    label = TRIGGER_LABELS.get(trigger, trigger)
-    instruction = _HOSPITAL_TRIGGER_INSTRUCTIONS.get(trigger, _DEFAULT_HOSPITAL_TRIGGER)
-    scope_block = _scope_discipline_block(trigger, all_triggers or [])
+def _wrap_file(fname: str, ftext: str) -> str:
+    return f"<!-- PDF_START: {fname} -->\n{ftext}\n<!-- PDF_END: {fname} -->"
 
-    # ── PED pre-check injection ────────────────────────────────────────
-    ped_precheck_note = ""
-    if trigger == "ped_non_disclosure" and preprocessed is not None:
-        if preprocessed.get("ped_contradiction_detected"):
-            ped_precheck_note = (
-                "\nPYTHON PRE-CHECK RESULT: An intra-record contradiction was "
-                "already detected — ped_mentioned_in_records contains both a "
-                "'newly diagnosed'-type entry and a chronic marker (K/c/o / "
-                "on medication / since X months/years) for what appears to be "
-                "the same condition. You MUST report this as [CONTRADICTORY] "
-                "in your finding.\n"
-            )
-        else:
-            ped_precheck_note = (
-                "\nPYTHON PRE-CHECK RESULT: No intra-record contradiction was "
-                "detected by the automated pre-check. Do not claim one exists "
-                "unless you find independent evidence in the document text.\n"
-            )
 
-    return f"""
-TRIGGER: {label}
+def _chunk_by_file_budget(text: str, budget: int = _STORY_CHUNK_BUDGET) -> List[str]:
+    files = split_text_by_pdf(text)
+    if not files:
+        return [text] if text else []
 
-Return a JSON object with exactly these keys:
-  "finding":       string — one paragraph (3-6 sentences) of trigger-specific findings
-                            from the HOSPITAL RECORDS ONLY.
-  "discrepancies": array  — list of specific discrepancy strings found relevant to
-                            this trigger in hospital records. Empty array [] if none.
-                            Use tags: [MISSING] [INCOMPLETE] [CONTRADICTORY] [SUSPICIOUS]
-                            [BILLING MISMATCH] [TIMELINE MISMATCH] [SINGLE STRETCH]
+    chunks: List[str] = []
+    current: List[str] = []
+    current_len = 0
 
-TRIGGER ASSESSMENT INSTRUCTION:
-{instruction}
-{ped_precheck_note}
-{scope_block}
-CITATION REMINDER: cite (Source: filename.pdf, Page N) after each group of
-consecutive sentences drawn from the same document/page, as instructed in
-the system prompt.
+    def _flush():
+        nonlocal current, current_len
+        if current:
+            chunks.append("\n\n".join(current))
+            current, current_len = [], 0
 
-{annotations_block}
-If any reviewer annotation above relates to this trigger and to hospital-side
-records, address it directly in "finding" with your own reasoning — state what
-the hospital record actually shows in relation to the flagged point.
+    for fname, ftext in files.items():
+        if len(ftext) > budget:
+            _flush()
+            batches = batch_file_pages(ftext, max_chars=budget, overlap_pages=1)
+            logger.info("story chunking: file=%s (%d chars) split into %d batch(es)", fname, len(ftext), len(batches))
+            for b in batches:
+                chunks.append(_wrap_file(fname, render_page_batch(fname, b)))
+            continue
+        if current_len + len(ftext) > budget and current:
+            _flush()
+        current.append(_wrap_file(fname, ftext))
+        current_len += len(ftext)
+    _flush()
+    return chunks
 
-HOSPITAL BASE FINDINGS (already written — do NOT repeat these facts):
-{hospital_base_prose[:3000]}
 
-FORENSIC AUDIT FACTS:
-{json.dumps(pass1, indent=2)[:4000]}
+# ═════════════════════════════════════════════════════════════════════════════
+# HOSPITAL STORY
+# ═════════════════════════════════════════════════════════════════════════════
+_HOSPITAL_SYSTEM = SHARED_RULES + """
+You are a senior insurance field investigation officer writing the HOSPITAL
+VISIT ACCOUNT for a formal claim investigation report — the story of what the
+hospital records show, from admission to discharge (or death), written as a
+clear factual narrative a doctor can read once and understand the whole
+admission.
 
-FULL DOCUMENT TEXT (hospital-side content only):
-{text[:40000]}
-"""
+Before writing your final answer, silently check items 1 through 6b of the
+checklist below one at a time against the actual document text. For each
+item, either it produced zero flags because the condition genuinely wasn't
+present, or it produced a flag. Do not skip an item because the story
+already "feels complete" — completeness of prose is not the same as
+checklist coverage.
 
-# ─────────────────────────────────────────────────────────────────────────────
-# CALL B — Member/insured base findings
-# ─────────────────────────────────────────────────────────────────────────────
-_MEMBER_BASE_SYSTEM = _BASE_SYSTEM + _CITATION_RULE + """
-You are writing SECTION 2 — MEMBER / INSURED VISIT FINDINGS.
+Return ONLY a single JSON object, no markdown fences, no prose outside JSON:
+{
+  "story": "<the narrative, plain paragraphs, min 250 words>",
+  "flags": [
+    {"tag": "<ONE of: CONTRADICTORY, MISSING, INCOMPLETE, SUSPICIOUS, BILLING MISMATCH, TIMELINE MISMATCH, DOCUMENT INTEGRITY, UNDISCLOSED PED SUSPECTED, PHYSIOLOGICAL ANOMALY, SINGLE STRETCH>",
+     "text": "<one or two sentences, reviewer-facing, plain language>",
+     "file_name": "<exact file name the evidence is on>",
+     "page_number": <int or null>}
+  ]
+}
 
-The primary sources for this section are the "Insured Verification Form" and the "Patient Feedback Form".
-These forms are the official record of the member/insured visit. They contain structured data such as:
-- Patient & proposer details, age, relation
-- Symptoms, duration, first consultation
-- Past medical history (DM, HTN, etc.)
-- Regular medications, lifestyle habits (smoking, alcohol)
-- Bill amount stated by the insured
-- Field officer’s remarks and observations
+WHAT THE STORY MUST COVER, in flowing prose (not a form-fill):
+- Patient identification, admission date/time, presenting complaints, admitting diagnosis.
+  If this is a death/accident claim with NO hospital admission (e.g. brought
+  dead, or a fatal-accident/GPAIS claim supported only by FIR, postmortem,
+  death certificate, claim form, and identity/bank documents), narrate that
+  plainly — but the checklist below (especially 4, 5, 6b) still applies in
+  full to every document in the set, not only to clinical records. Blank
+  claim-form fields, mismatched identity details, and impossible dates are
+  just as material here as they would be in an inpatient chart.
+- What the hospital found and did: relevant vitals/investigation results, the
+  diagnosis reached, treatment/procedure given, and the outcome (discharged /
+  discharged against advice / transferred / died — state a death outcome
+  explicitly, with date, place and cause, never as a routine discharge).
+- If more than one admission is present (readmission, transfer, or a terminal
+  admission after an earlier discharge), describe EACH as its own paragraph
+  with its own dates — never merge dates or outcomes across admissions.
+- A plain-language bill summary at the level a doctor needs: total billed,
+  what categories it covers, whether anything looks unsupported. Do NOT
+  itemise every drug, dosage time, or line item — that belongs to the source
+  documents, not this narrative.
+- Hospital registration/credential status and who the data was collected from, briefly.
+
+CHECKLIST — work through ALL of these as you write, and When a checklist item fires, write it ONCE — never twice in different
+words. The flag line itself IS the sentence that states the fact; do not
+also write a separate plain-prose sentence describing the same thing
+right before or after it. Format:
+"[TAG] <one sentence stating the finding> (Source: file, Page N)"
+on its own line (a real line break before it, never appended to the end
+of a preceding sentence), positioned right after the narrative point it
+belongs to. If you find yourself about to restate a fact you already
+covered in the flag line, skip it — the flag line already carries that
+information for the reader.
+1. CONTRADICTORY — the same fact stated two different ways in this document
+   set (e.g. "no co-morbidities" vs. a chronic condition/medication implied
+   elsewhere; two different dates for the same event; two different diagnoses).
+2. UNDISCLOSED PED SUSPECTED — the chart shows a chronic condition, long-
+   standing medication, or history predating this admission's stated onset.
+   (You cannot see the member-side forms — just flag what THIS record shows;
+   the cross-check against disclosure happens in a later step.)
+3. BILLING MISMATCH — a charge (ICU, a procedure, a register-backed service)
+   has no supporting record among these documents; a bill total doesn't
+   reconcile with its own line items; an unexplained discount/adjustment.
+   Before flagging a mismatch between a claimed/stated total and a single
+   bill, check whether summing amounts across ALL related documents in this
+   set (e.g. a hospital bill plus a separate pharmacy invoice, or split
+   final bills) reconciles the figures — do not flag a mismatch that a
+   simple sum across documents resolves.
+4. MISSING / INCOMPLETE — a register, certificate, or form expected for this
+   kind of claim (IP register, OT register, lab register, registration
+   certificate, doctor's registration) is absent or marked not collected.
+   Also check: (a) core fields on the claim form itself (policy number,
+   claim number, sum insured, table of cover, period) left blank — flag
+   [INCOMPLETE]; (b) if a covering letter or transmittal lists enclosures
+   (e.g. "1. Claim Form, 2. FIR..., 3. Newspaper cutting..."), confirm
+   each listed item is actually present among these documents — flag
+   [MISSING] by name for any listed enclosure that is absent; (c) if a
+   form presents an either/or choice meant to be resolved by striking out
+   one option (e.g. "was / was not under the influence of intoxicating
+   liquor", "his willful act / not his willful act") and NEITHER option
+   has been struck out or otherwise marked, flag [INCOMPLETE] — the
+   question remains factually unanswered, not answered in the negative.
+   This specific field type (intoxication, willful act, or any other
+   exclusion-relevant either/or question on a claim form) is NEVER
+   optional to mention — if the document set contains such a field, your
+   story MUST include a sentence about its status, resolved or not, every
+   single time. Omitting it silently is as much a failure as inventing a
+   value for it.
+   NEVER write a sentence asserting this field's value (e.g. "intoxication
+   was noted as X", "marked YES/NO") anywhere in the story, including
+   outside the flag line — the ONLY permitted phrasing for an unresolved
+   strike-out field is "left unresolved / not indicated" inside an
+   [INCOMPLETE] flag. Do not attribute this field to a document other than
+   the one it physically appears on.
+WORKED EXAMPLE OF A FAILURE MODE TO AVOID (citation precision): if you flag
+a CONTRADICTORY value that appears on two documents, verify each of the
+TWO citations independently and separately — do not assume a fact appears
+on a second document just because it seems like the kind of document that
+would carry it. E.g. if age 46 is on the FIR and age 48 is on the claim
+form and post-mortem certificate, cite the post-mortem certificate (where
+"48" actually appears) — do NOT cite the death certificate for the second
+value unless "48" is actually printed on the death certificate itself;
+many official certificates (e.g. a death certificate) may not include an
+age field at all, and citing one that doesn't is a fabricated citation
+even though the surrounding contradiction is real.
+
+WORKED EXAMPLE OF A FAILURE MODE TO AVOID: a claim form's witness
+certification contains "was / was not under the influence of intoxicating
+liquor" with neither word struck out. WRONG: "the FIR notes that
+intoxication was noted as YES" — this both invents a resolved value AND
+attributes it to the wrong document. RIGHT: "[INCOMPLETE] The witness
+certification's intoxication question was left unresolved — neither
+option was struck out (Source: Manoj A.V.pdf, Page 4)." Never let a
+field's status migrate to the wrong document, and never let an unresolved
+field acquire a value anywhere in the story, including outside the flag
+line.
+
+5. DOCUMENT INTEGRITY — a figure that looks struck through or shown as two
+   different values; a "DUPLICATE" stamp; a document dated after a
+   documented death; identically repeated boilerplate where content should
+   be independent. You have no access to handwriting, ink, or physical
+   signatures — never claim to have evaluated those; text-only check.
+   Specifically: if a form contains a first-person declaration attributed
+   to the insured/deceased ("I hereby declare...", "Signature of the
+   Insured") and that declaration is dated AFTER a documented date of
+   death, flag [DOCUMENT INTEGRITY] — the insured could not have
+   personally signed it, and the form likely needed to be completed by a
+   nominee/claimant under a different declaration instead.
+6b. IDENTITY / DEMOGRAPHIC CONTRADICTION — this applies to EVERY document
+    in the set, not just clinical charts: compare the patient/insured's
+    name, age, date of birth, designation/occupation, and the names of any
+    relatives, witnesses, or claimants across every document (claim form,
+    FIR, postmortem certificate, ID cards, death certificate, employment
+    ID). Flag [CONTRADICTORY] any value that differs across documents
+    (e.g. two different ages for the same person, two different names
+    given for the same relative, a job title that doesn't match the
+    employee ID card). Specifically check: where a form is signed by a
+    claimant/spouse/nominee, does the name written next to "Signature"
+    match the name that document or other documents give for that
+    relative (e.g. spouse named as X in the death certificate but signing
+    a form as Y)? Flag [SUSPICIOUS] any such mismatch, described
+    factually as worth confirming, not asserted as impersonation. Also
+    check that a calendar date appearing anywhere (stamps, inward
+    registers, letters) is a real date — flag [DOCUMENT INTEGRITY] for an
+    impossible date (e.g. 31st of a 30-day month).
+7. PHYSIOLOGICAL ANOMALY — a vital/lab value that's not just abnormal but
+   implausible or inconsistent with the stated clinical picture.
+8. SINGLE STRETCH — notes/charts that read like they were written in one
+   sitting rather than dated across the real admission period.
+9. SUSPICIOUS — anything else with genuine textual evidence a reviewer
+   should look at that doesn't fit the categories above. This includes:
+   a claimant's bank account, ID, or other credential shown as opened,
+   issued, or dated AFTER the documented date of death or accident, where
+   that timing isn't explained elsewhere in the documents — flag
+   factually as worth confirming with the claimant, never asserted as
+   wrongdoing (it is often routine, e.g. an account opened for benefit
+   disbursement). Always name WHOSE account, signature, or document it is
+   (e.g. "the spouse's bank account", not just "a bank account") — omitting
+   whose it is lets a reader wrongly assume it belongs to the deceased,
+   which changes how alarming the finding reads.
+10a. SOURCE UNREADABLE — if any page's text is clearly not coherent language
+   (garbled repetition of the same word/token dozens of times, a wall of
+   disconnected characters, or content that does not form real sentences
+   in any language), do NOT attempt to extract facts from it, do NOT guess
+   at what it might say, and do NOT stay silent about it either. Flag it
+   explicitly: "[SOURCE UNREADABLE] Page N of <file> could not be read —
+   the extracted text is not coherent and this page's content is not
+   reflected in this account (Source: file, Page N)." Do this once per
+   contiguous unreadable range (e.g. "Pages 16-18"), not once per page.
+   This is a reporting duty, not optional — an investigator reviewing
+   this report needs to know which pages were skipped, exactly as much as
+   they need to know what the readable pages say.
+
+10. CONTRADICTORY (cross-document facts) — compare the hospital's name,
+    address, registered bed count, and room type across EVERY document
+    that states them (registration certificate, bills, lab reports, field
+    officer forms, verification forms). Flag [CONTRADICTORY] any figure
+    that differs across documents (e.g. bed strength given as one number
+    on the field officer's form and a different number on the hospital's
+    own registration certificate; room type described differently on the
+    bill vs. the lab report vs. the field form). Also check any explicit
+    NABH-accreditation or specialist-staff (pathologist/radiologist) claim
+    stated in the documents for internal consistency across every place it
+    appears — you have no external registry to verify these against, so
+    only flag [CONTRADICTORY] if the claim itself varies document-to-
+    document, never assert a claim is false or true.
+11. CLINICAL GENUINENESS — check whether the diagnosis is actually
+    supported by the investigation reports (lab/radiology/histopathology/
+    cardiology) and documented findings in this record, or asserted with
+    no supporting evidence anywhere in the documents. Check whether the
+    procedure/treatment given is consistent with the stated diagnosis.
+    Check whether admission and discharge records agree with each other
+    (dates, vitals, condition) rather than silently contradicting. If a
+    diagnosis has zero supporting investigation anywhere in the document
+    set, or if the clinical picture (vitals, findings, notes) appears
+    identically duplicated somewhere it should be independent, flag
+    [SUSPICIOUS], described factually as worth clinical review, not
+    asserted as fabrication.
+12. MEDICAL NECESSITY — assuming the hospitalization and diagnosis are
+    real, check whether the LEVEL of care actually matches the clinical
+    picture: was inpatient admission (vs. something that reads like it
+    could have been managed as outpatient) supported by the presenting
+    condition? If ICU/critical care was billed or documented, do the
+    vitals/notes support that level of care, or does the record show a
+    stable patient with no clear indication for it? Does the length of
+    stay match the documented clinical progress (e.g. several days billed
+    for a condition the notes show resolved on day one)? Flag [SUSPICIOUS]
+    any clear mismatch between the level of care given and what the
+    clinical record itself shows was needed — phrase neutrally, for a
+    reviewer to weigh, never as a conclusion of wrongdoing.
+13. HIGH-VALUE / BILL COMPOSITION — check the bill for: (a) any line item
+    that reads as non-medical or non-payable (diet charges, attendant
+    charges, administrative fees, cosmetic items) — flag [BILLING
+    MISMATCH]; (b) any high-cost item — implant, prosthetic, expensive
+    consumable — that is bundled into a lump sum rather than itemized
+    with its own figure, making it hard to verify — flag [INCOMPLETE];
+    (c) whether the bill shows any payment-mode or payment-evidence text
+    (cash/online/cheque/NEFT, receipt number) at all for a bill of this
+    size — flag [MISSING] if entirely absent; (d) any service billed more
+    than once under separate line entries (true duplicate, not the same
+    item legitimately repeated on different days) — flag [BILLING
+    MISMATCH]; (e) any billed service (a specific test, scan, or
+    procedure) that has clearly no corresponding report, order, or
+    clinical note anywhere in these documents — flag [BILLING MISMATCH],
+    but only when you can positively confirm no such report exists in the
+    document set, never merely because you didn't notice it.
+14. EMPLOYEE / CORPORATE POLICY — only relevant if this is a group/
+    corporate policy claim (an employer name on the policy, an HR letter,
+    or a company ID appears anywhere in the documents); if there's no such
+    indication, skip this item entirely. When it is a group policy claim,
+    check whether an employment document (HR letter, appointment letter,
+    company ID) confirms the claimant's employment with the named
+    policyholder company, whether the claimant's name matches across that
+    document and the ID proof/policy documents, and whether a stated
+    employee/dependent relationship (self/spouse/child) is consistent
+    everywhere it's mentioned. Flag [CONTRADICTORY] any name or
+    relationship mismatch; flag [MISSING] if the claim reads as a
+    corporate/group policy claim but no employment document is present at
+    all.
+15. TIMELINE RECONSTRUCTION — build the admission-side event sequence
+    explicitly: symptom onset → first consultation (if documented) →
+    admission → treatment → discharge. Where more than one document in
+    this hospital-side set states the same date (e.g. admission date on
+    both the bill and the discharge summary), confirm they agree — flag
+    [TIMELINE MISMATCH] if they don't. This is a superset of, not a
+    replacement for, item 10's admission/discharge time check above —
+    don't flag the same mismatch twice.
 
 RULES:
-- This function is ONLY ever called when a real Insured Verification Form /
-  Patient Feedback Form / other member-side document has already been
-  confirmed present in the source text — you do not need to guess whether
-  a visit happened.
-- Write a detailed, factual paragraph (min 300 words) synthesising ALL the data from these forms.
-- If a field is missing, write "Not mentioned" or "Not documented."
-- If, after reviewing the provided text, it does not actually contain an Insured
-  Verification Form or Patient Feedback Form (only incidental phrases matched),
-  set "section2_prose" to exactly:
-  "Member / insured visit was not conducted as part of this investigation, so no
-  member-side findings are available." and return an empty discrepancies array."""
-
-def _member_base_user(
-    pass1: Dict[str, Any],
-    extracted_flat: Dict[str, Any],
-    text: str,
-) -> str:
-    # Combine member-related fields from both sources
-    combined = {**extracted_flat, **pass1}
-    explicit_fields = {
-        "patient_name": combined.get("patient_name") or combined.get("name_of_patient"),
-        "patient_age": combined.get("patient_age"),
-        "relation_with_patient": combined.get("relation_with_patient"),
-        "symptoms_complaints": combined.get("symptoms_complaints"),
-        "past_medical_history": combined.get("past_medical_history") or combined.get("medical_history"),
-        "regular_medications": combined.get("regular_medications"),
-        "lifestyle_habits": combined.get("lifestyle_habits"),
-        "stated_bill_amount": combined.get("patient_stated_bill_amount"),
-        "field_officer_member_opinion": combined.get("field_officer_member_opinion"),
-        "insured_address": combined.get("insured_address") or combined.get("patient_address"),
-        "field_officer_name": combined.get("field_officer_name"),
-    }
-
-    return f"""
-Return a JSON object with exactly these keys:
-  "section2_prose": string (minimum 300 words) — the full member visit findings paragraph.
-  "discrepancies":  array — list of discrepancies found in member-side content.
-
-IMPORTANT: The document CONTAINS the Insured Verification Form and Patient Feedback Form.
-The following data has ALREADY been extracted from these forms. 
-You MUST compose Section 2 using this data. Do NOT say the visit was not conducted.
-
-EXTRACTED FORM DATA:
-{json.dumps(explicit_fields, indent=2)}
-
-WRITING INSTRUCTIONS FOR SECTION 2:
-① Open with: "Our investigator conducted a member/insured visit and collected the Insured Verification Form."
-   If the field officer name is present, include it: "The visit was conducted by [FO Name]."
-② State the patient's name, age, and relationship with the proposer/guardian.
-③ Describe the insured's account of the illness/symptoms exactly as stated in the form.
-④ Detail the past medical history, regular medications, and lifestyle habits disclosed (or denied).
-⑤ Mention the bill amount the insured stated they paid.
-⑥ Include the field officer's observations and opinions.
-⑦ List any supporting documents collected (Aadhaar, prescriptions, etc.).
-⑧ Note any inconsistencies (e.g., stated bill vs hospital bill, history denied but hospital record suggests PED).
-
-FULL MEMBER DOCUMENT TEXT (for additional context):
-{text[:80000]}
+- Every flag needs genuine textual evidence — never speculate, never invent
+  a page or file name.
+- Never state that a form field has a specific value (e.g. "marked YES",
+  "the box for X was checked") unless that exact value is present in the
+  document text below. If a field is blank, unmarked, or an either/or
+  choice has neither option struck out, say so explicitly as
+  "not indicated" or "left unresolved" — do NOT resolve it to a value on
+  the field's behalf, and do NOT summarize an unmarked field as if it were
+  answered.
+- Do not narrate a claimed mechanism, symptom, or sequence of events
+  (e.g. "resulted in loss of consciousness") unless it is stated in the
+  documents. If the documents only establish an outcome without describing
+  the mechanism, state the outcome and stop there.
+- If the sequence between an incident and death/treatment is unclear or
+  only partially documented (e.g. it's unclear whether the person was
+  taken to a hospital before death was confirmed, or which facility saw
+  them first), do NOT resolve it to whichever reading sounds cleanest.
+  State only what's explicitly sequenced in the text, and flag the gap
+  itself: "[MISSING] The sequence between the incident and the confirmed
+  time of death is not fully documented — it is unclear whether the
+  victim was examined at a hospital before death was pronounced (Source:
+  file, Page N)." A confident-sounding narrative built by filling gaps
+  with the most likely reading is exactly the kind of error this report
+  must avoid, even when the gap is small.
+- The "flags" array must exactly mirror every bracketed flag you wrote
+  inline in "story" — same tags, same claims, same order.
+- Never fabricate facts, drug names, dates, or amounts. Use "not documented"
+  for gaps rather than filling them.
+- Every specific factual claim you attribute to a named document (e.g. "the
+  FIR states...", "the claim form shows...") must be something that
+  document's own text actually contains. Before writing a sentence that
+  names a source, re-locate the fact in that source's own page range in
+  the text below; if you cannot, either drop the attribution or state the
+  fact without naming a source you're not sure of.
+- Never combine two distinct named entities (two different hospitals, two
+  different doctors, two different addresses) from two different documents
+  into a single sentence unless one document explicitly links them (e.g.
+  "transferred from X to Y", "referred to Z"). If the mortuary/holding
+  location and the post-mortem examination location are stated on
+  different documents, name each separately and only as what that specific
+  document says about it — do not infer or state that one performed the
+  role of the other.
 """
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# CALL B-trigger — Per-trigger member assessment
-# ─────────────────────────────────────────────────────────────────────────────
-def _member_trigger_user(
-    trigger: str,
-    pass1: Dict[str, Any],
-    text: str,
-    member_base_prose: str,
-    annotations_block: str = "",
-    preprocessed: Optional[Dict[str, Any]] = None,
-    all_triggers: Optional[List[str]] = None,
-) -> str:
-    label = TRIGGER_LABELS.get(trigger, trigger)
-    instruction = _MEMBER_TRIGGER_INSTRUCTIONS.get(trigger, _DEFAULT_MEMBER_TRIGGER)
-    scope_block = _scope_discipline_block(trigger, all_triggers or [])
-
-    if trigger == "ped_non_disclosure":
-        instruction += """
-   IMPORTANT: The Insured Verification Form contains a "Past medical history" table. 
-   Check if the insured marked YES/NO for conditions like Diabetes, Hypertension, etc. 
-   Also check the "Self-Declaration" for any mention of pre-existing illness. 
-   If the table has NO in all rows but the hospital ICP lists chronic conditions, 
-   flag it as [UNDISCLOSED PED SUSPECTED].
-   """
-    elif trigger == "claim_genuinity_authenticity":
-        instruction += """
-   IMPORTANT: The Insured Verification Form has fields: Symptoms, Duration, First consultation, 
-   and the insured's bill amount. Cross‑check these with the hospital records. 
-   Look for the "Field officer member opinion" section for any red flags.
-   """
-
-    # ── PED pre-check injection ────────────────────────────────────────
-    ped_precheck_note = ""
-    if trigger == "ped_non_disclosure" and preprocessed is not None:
-        if preprocessed.get("ped_contradiction_detected"):
-            ped_precheck_note = (
-                "\nPYTHON PRE-CHECK RESULT: An intra-record contradiction was "
-                "already detected in the hospital-side records — treat any "
-                "member-side denial of the same condition as a fact to report, "
-                "not as evidence of intent. Do NOT use words like 'hiding' or "
-                "'concealed' unless the field officer opinion or "
-                "discrepancies_verbatim explicitly uses them.\n"
-            )
-        else:
-            ped_precheck_note = (
-                "\nPYTHON PRE-CHECK RESULT: No intra-record contradiction was "
-                "detected by the automated pre-check.\n"
-            )
-
-    return f"""
-TRIGGER: {label}
-
-Return a JSON object with exactly these keys:
-  "finding":       string — one paragraph (3-6 sentences) of trigger-specific findings
-                            from the MEMBER / INSURED VISIT CONTENT ONLY.
-  "discrepancies": array  — specific discrepancy strings relevant to this trigger
-
-TRIGGER ASSESSMENT INSTRUCTION:
-{instruction}
-{ped_precheck_note}
-{scope_block}
-CITATION REMINDER: cite (Source: filename.pdf, Page N) after each group of
-consecutive sentences drawn from the same document/page, as instructed in
-the system prompt.
+def _hospital_user(chunk_text: str, pass1_result: dict, annotations_block: str, extra_focus: str, part_info: str = "") -> str:
+    focus_block = f"ADDITIONAL FOCUS AREAS REQUESTED BY THE REVIEWING DOCTOR: {extra_focus}\n\n" if extra_focus else ""
+    part_block = f"{part_info}\n\n" if part_info else ""
+    return f"""{part_block}{focus_block}ALREADY-EXTRACTED CLAIM FACTS (Pass 1 structured data — cross-check the
+documents below against this; flag [CONTRADICTORY] if the documents disagree
+with it; do not just restate this JSON in your story):
+{json.dumps(pass1_result, default=str)[:4000]}
 
 {annotations_block}
-If any reviewer annotation above relates to this trigger and to member-side
-records, address it directly in "finding" with your own reasoning — state what
-the member visit / insured form actually shows in relation to the flagged point.
-
-MEMBER BASE FINDINGS (already written — do NOT repeat these facts):
-{member_base_prose[:3000]}
-
-EXTRACTED FORM DATA:
-{json.dumps(pass1, indent=2)[:3000]}
-
-MEMBER DOCUMENT TEXT (filtered member forms only):
-{text[:40000]}
-"""
-# ─────────────────────────────────────────────────────────────────────────────
-# CALL C — Reconciled conclusion
-# ─────────────────────────────────────────────────────────────────────────────
-_RECONCILE_SYSTEM = _BASE_SYSTEM + """
-You are writing SECTION 3 — CONCLUSION for a formal insurance investigation report.
-You receive the complete Section 1 (hospital findings) and Section 2 (member findings)
-already written, plus per-trigger assessments from both sides.
-Your job is ONLY to write Section 3 — do not re-state facts already in Sections 1 or 2.
-
-CITATION RULE FOR SECTION 3 (different from Sections 1 & 2):
-Do NOT use "(Source: filename.pdf, Page N)" citations here — Section 1 and
-Section 2 already carry those. When you reference a fact that was
-established earlier, cite the SECTION instead, e.g.:
-  "as noted in Section 1" or "as noted in Section 2"
-placed inline in the sentence, not as a trailing parenthetical tag.
+HOSPITAL-SIDE DOCUMENT TEXT:
+{chunk_text}
 """
 
-def _reconcile_user(
-    triggers: List[str],
-    section1: str,
-    section2: str,
-    hospital_trigger_findings: Dict[str, Dict],
-    member_trigger_findings: Dict[str, Dict],
-    all_discrepancies: List[str],
-    pass1: Dict[str, Any],
-    preprocessed: Dict[str, Any],
-    disc_block: str,
-    annotations_block: str = "",
+
+# ═════════════════════════════════════════════════════════════════════════════
+# MEMBER STORY
+# ═════════════════════════════════════════════════════════════════════════════
+_MEMBER_SYSTEM = SHARED_RULES + """
+You are writing the MEMBER / INSURED VISIT ACCOUNT — what the insured (or
+beneficiary) said and disclosed when the investigator visited or interviewed
+them directly, and what the field officer independently observed.
+
+The primary sources, when they genuinely exist: the Insured Verification
+Form, the Patient Feedback Form, and any field-officer notes from a
+residence visit or direct interview with the insured/beneficiary.
+
+You are the last line of defense against a misclassified document: a
+"(Member Visit)" opinion field, a field officer's name, or a phone number
+sitting inside an unrelated Hospital Visit form does NOT make that page a
+genuine member visit record. If, after reading the text below, it does not
+actually contain the insured's own narration, disclosed history, stated
+bill amount, or a direct account of visiting/interviewing them, return
+exactly:
+{
+  "story": "Member / insured visit was not conducted as part of this investigation, so no member-side findings are available.",
+  "flags": []
+}
+That is the correct, expected answer whenever the text doesn't support a
+genuine member visit — it is not a failure.
+
+Otherwise return ONLY a single JSON object, no markdown fences:
+{
+  "story": "<the narrative, plain paragraphs, min 200 words>",
+  "flags": [ {same shape as the hospital account: tag, text, file_name, page_number} ]
+}
+
+WHAT THE STORY MUST COVER:
+- Who was interviewed/visited, by whom, and what they said about the
+  illness/incident, in their own words or closely paraphrased.
+- Past medical history and regular medications as DISCLOSED (or denied) by
+  the insured.
+- The bill amount the insured says they paid, vs. the form's own figures.
+- Anything the field officer independently observed.
+
+CHECKLIST — fold every hit inline, at the point it belongs, as "[TAG]
+explanation (Source: file, Page N)". Tags: CONTRADICTORY, MISSING,
+INCOMPLETE, SUSPICIOUS, BILLING MISMATCH, TIMELINE MISMATCH, DOCUMENT
+INTEGRITY, UNDISCLOSED PED SUSPECTED, PHYSIOLOGICAL ANOMALY, SINGLE STRETCH.
+1. A declaration that reads like a form-filling artefact rather than a
+   genuine answer — e.g. every condition in a checklist marked YES with no
+   duration or treating doctor for any of them — is a [SUSPICIOUS] flag,
+   described neutrally as a likely marking error to confirm with the
+   patient, never asserted as concealment.
+2. Any internal contradiction within the member-side documents themselves.
+3. A stated bill amount that doesn't match the form's own bill breakdown.
+4. A distance/location claim that conflicts with other location evidence in
+   these SAME documents (e.g. a geotagged photo or travel timeline placing
+   the insured somewhere inconsistent with what they stated) — flag as
+   [SUSPICIOUS], described factually, no accusation.
+5. Identifiers (claim number, ID number, policy number) that differ across
+   forms that should be reporting the same claim.
+6. A stated residence-to-hospital distance (e.g. "560m, nearest to home")
+   that is inconsistent with the insured's declared address or with a
+   geotagged photo's location in these same documents — if the true
+   distance is clearly much larger than the stated figure, flag as
+   [CONTRADICTORY], described factually as a discrepancy to confirm, never
+   asserted as fraud.
+7. GEO-VISIT LOCATION — if any document includes GPS coordinates, a
+   location caption, or timestamp text burned into a geotagged photo,
+   check whether that location text (city/area) matches the insured's
+   declared residence or the claimed hospital's city/address, as stated
+   elsewhere in these documents. Flag [CONTRADICTORY] only if the location
+   text clearly conflicts with the declared address — never speculate
+   from an ambiguous or missing location. If a GPS timestamp is present,
+   you may state it plainly alongside the visit narrative for the
+   reviewer's reference, but do not characterize any gap between that
+   timestamp and other dates as suspicious — that judgement belongs to
+   the doctor, not this account.
+
+RULES: same no-fabrication and flags-mirror-inline-tags rules as above.
+Do NOT compare against the hospital chart here — you cannot see it; a later
+step cross-checks the two accounts.
+"""
+
+
+def _member_user(chunk_text: str, pass1_result: dict, annotations_block: str, extra_focus: str, part_info: str = "") -> str:
+    focus_block = f"ADDITIONAL FOCUS AREAS REQUESTED BY THE REVIEWING DOCTOR: {extra_focus}\n\n" if extra_focus else ""
+    part_block = f"{part_info}\n\n" if part_info else ""
+    return f"""{part_block}{focus_block}ALREADY-EXTRACTED CLAIM FACTS (Pass 1 structured data, for context only):
+{json.dumps(pass1_result, default=str)[:3000]}
+
+{annotations_block}
+MEMBER-SIDE DOCUMENT TEXT:
+{chunk_text}
+"""
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# Shared story runner — handles chunking + stitching for either story type.
+# ═════════════════════════════════════════════════════════════════════════════
+async def _run_story(
+    system_prompt: str,
+    user_builder,
+    text: str,
+    pass1_result: dict,
+    annotations_block: str,
+    extra_focus: str,
+    max_tokens: int,
+    label: str,
+    origin: str,
+) -> Tuple[str, List[Dict[str, Any]], bool]:
+    chunks = _chunk_by_file_budget(text)
+    if not chunks:
+        return "", [], True
+
+    async def _call_chunk(i: int, chunk_text: str) -> Optional[Dict[str, Any]]:
+        part_info = (
+            f"This is part {i} of {len(chunks)} of the {label} documents for this "
+            f"claim (split for length). Narrate only what's in the pages below, in "
+            f"the same JSON shape — do not reference 'this part', a later step "
+            f"stitches every part together."
+        ) if len(chunks) > 1 else ""
+        prompt = user_builder(chunk_text, pass1_result, annotations_block, extra_focus, part_info)
+        try:
+            return await _agroq(system_prompt, prompt, max_tokens=max_tokens)
+        except Exception:
+            logger.exception("%s story call failed (part %d/%d)", label, i, len(chunks))
+            return None
+
+    results = await asyncio.gather(*[_call_chunk(i, c) for i, c in enumerate(chunks, 1)])
+
+    stories: List[str] = []
+    flags: List[Dict[str, Any]] = []
+    any_ok = False
+    for r in results:
+        if not isinstance(r, dict) or not r:
+            continue
+        story = (r.get("story") or "").strip()
+        if story:
+            stories.append(story)
+            any_ok = True
+        for f in (r.get("flags") or []):
+            if not isinstance(f, dict) or not f.get("tag") or not f.get("text"):
+                continue
+            tag = str(f["tag"]).strip().upper()
+            if tag not in VALID_TAGS:
+                tag = "SUSPICIOUS"
+            flags.append({
+                "tag": tag,
+                "text": str(f["text"]).strip(),
+                "file_name": f.get("file_name"),
+                "page_number": f.get("page_number"),
+                "origin": origin,
+            })
+    return "\n\n".join(stories), flags, not any_ok
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# CONCLUSION — cross-references both accounts, never repeats them.
+# ═════════════════════════════════════════════════════════════════════════════
+_CONCLUSION_SYSTEM = SHARED_RULES + """
+You are writing the CONCLUSION of a formal insurance investigation report.
+You already have the completed Hospital Visit Account and Member Visit
+Account, each already carrying its own inline flags — do NOT repeat,
+restate, or re-summarise either account. Your only job is:
+
+1. Cross-check the two accounts against each other and surface anything
+   that ONLY becomes visible by comparing them side by side (neither
+   earlier pass could do this — each only saw one side). The single most
+   common and important case: the hospital record and the insured's own
+   disclosure disagreeing about a pre-existing condition, an accident
+   narration, or a billed amount.
+2. POLICY / COVERAGE CHECK — using the policy dates and event date given
+   in the claim facts below (and anything either account already stated
+   about them), check whether the admission/event date falls within the
+   policy period, and whether either account mentioned an explicit
+   waiting-period or exclusion clause that this claim's timing or
+   diagnosis appears to conflict with. You have no full policy-wording
+   database — only flag [INCOMPLETE] or [CONTRADICTORY] on what the
+   claim's own facts/accounts state, and never say coverage is
+   "approved" or "denied", only that it's worth the doctor's attention.
+3. TIMELINE CROSS-CHECK — compare the event sequence and dates each
+   account independently establishes (symptom onset, first consultation,
+   admission, discharge, claim submission). Flag [TIMELINE MISMATCH] only
+   for a date/sequence conflict that requires comparing the two accounts
+   — a mismatch visible within a single account was already the earlier
+   pass's job to catch, don't repeat it here.
+4. Give a short, doctor-facing synthesis (150–250 words): does the picture
+   hold together? What, if anything, still needs the doctor's judgement?
+5. End with one sentence naming an advisory read — GENUINE or SUSPECTED —
+   explicitly framed as input to the doctor's own determination, never a
+   final ruling.
+
+Return ONLY a single JSON object, no markdown fences:
+{
+  "cross_flags": [
+    {"tag": "<same tag vocabulary as before>", "text": "...", "file_name": "<from either account, if attributable>", "page_number": <int or null>}
+  ],
+  "synthesis": "<the short paragraph(s) above; reference cross_flags inline
+                 as '[TAG] explanation (Source: file, Page N)' — do not list
+                 them again separately>",
+  "verdict": "GENUINE" | "SUSPECTED"
+}
+
+RULES:
+- Only include a cross_flags item if it depends on comparing BOTH accounts —
+  if either single account could already have flagged it alone, leave it
+  out, it's already flagged there.
+- Never fabricate. If the two accounts don't overlap enough to cross-check
+  (e.g. no member visit happened), say so plainly and keep cross_flags empty.
+- Doctor-selected findings or reviewer annotations given to you are
+  informational only — they must never by themselves force SUSPECTED.
+- If told a CRITICAL FACT FLAG is active, your verdict MUST be SUSPECTED and
+  your synthesis must say plainly that manual review is required for that
+  fact, regardless of anything else.
+"""
+
+
+def _flags_to_compact_json(flags: List[dict]) -> str:
+    return json.dumps([{k: v for k, v in f.items() if k != "origin"} for f in flags], default=str)[:6000]
+
+
+def _conclusion_user(
+    hospital_story: str, member_story: str,
+    hospital_flags: List[dict], member_flags: List[dict],
+    pass1_result: dict, annotations_block: str, selected_findings_block: str,
+    critical_fact_block: str,
 ) -> str:
-    trigger_summaries = []
-    for t in triggers:
-        label = TRIGGER_LABELS.get(t, t)
-        h = hospital_trigger_findings.get(t, {})
-        m = member_trigger_findings.get(t, {})
-        trigger_summaries.append(
-            f"TRIGGER: {label}\n"
-            f"  Hospital side: {h.get('finding', 'No findings')}\n"
-            f"  Member side:   {m.get('finding', 'No findings')}"
+    return f"""{critical_fact_block}
+HOSPITAL VISIT ACCOUNT (already written — do not repeat):
+{hospital_story[:6000]}
+
+HOSPITAL-SIDE FLAGS ALREADY RAISED (already inline in the account above):
+{_flags_to_compact_json(hospital_flags)}
+
+MEMBER / INSURED VISIT ACCOUNT (already written — do not repeat):
+{member_story[:4000]}
+
+MEMBER-SIDE FLAGS ALREADY RAISED (already inline in the account above):
+{_flags_to_compact_json(member_flags)}
+
+ALREADY-EXTRACTED CLAIM FACTS (Pass 1 structured data):
+{json.dumps(pass1_result, default=str)[:3000]}
+
+{annotations_block}
+{selected_findings_block}
+"""
+
+
+async def _run_conclusion(
+    hospital_story: str, member_story: str,
+    hospital_flags: List[dict], member_flags: List[dict],
+    pass1_result: dict, annotations_block: str, selected_findings_block: str,
+    critical_fact_missing: bool,
+) -> Tuple[str, List[dict], Optional[str], bool]:
+    critical_fact_block = ""
+    if critical_fact_missing:
+        critical_fact_block = (
+            "CRITICAL FACT FLAG — ACTIVE: Pass 1's structured extraction indicates "
+            "a death outcome that was not reflected in the Hospital Visit Account. "
+            "State plainly this is unresolved and requires manual review; set "
+            "verdict to SUSPECTED regardless of anything else.\n"
         )
+    prompt = _conclusion_user(hospital_story, member_story, hospital_flags, member_flags,
+                               pass1_result, annotations_block, selected_findings_block, critical_fact_block)
+    try:
+        raw = await _agroq(_CONCLUSION_SYSTEM, prompt, max_tokens=4000)
+    except Exception:
+        logger.exception("Conclusion call failed")
+        raw = None
+    if not isinstance(raw, dict) or not raw:
+        return "", [], None, True
 
-    return f"""
-Return a JSON object with exactly these keys:
-  "section3_prose": string — the full Section 3 conclusion text
-  "verdict":        string — exactly "GENUINE" or "SUSPECTED"
+    synthesis = (raw.get("synthesis") or "").strip()
+    verdict_raw = str(raw.get("verdict") or "").strip().upper()
+    verdict = verdict_raw if verdict_raw in ("GENUINE", "SUSPECTED") else None
 
-SECTION 3 STRUCTURE:
+    cross_flags: List[dict] = []
+    for f in (raw.get("cross_flags") or []):
+        if not isinstance(f, dict) or not f.get("tag") or not f.get("text"):
+            continue
+        tag = str(f["tag"]).strip().upper()
+        if tag not in VALID_TAGS:
+            tag = "SUSPICIOUS"
+        cross_flags.append({
+            "tag": tag, "text": str(f["text"]).strip(),
+            "file_name": f.get("file_name"), "page_number": f.get("page_number"),
+            "origin": "cross",
+        })
+    return synthesis, cross_flags, verdict, not synthesis
 
-A. DISCREPANCIES
-   Write out this exact text as your DISCREPANCIES content — do not add any
-   marker, tag, or wrapper text of your own around it, and do not paraphrase
-   or reformat it in any way:
-   {disc_block}
-   If the text above is literally "None", write instead: "No major discrepancies were noted."
-   Then append these auto-detected flags if not already present:
-   {chr(10).join(all_discrepancies) or "   (none)"}
 
-B. TRIGGER ASSESSMENT
-   For each trigger below, write ONE natural prose paragraph (4-6 sentences) that:
-   - Synthesises the hospital-side and member-side findings
-   - Explicitly calls out any CONTRADICTION between the two sides
-     (e.g. "The hospital ICP records DM since 5 years, however the member denied
-      any pre-existing condition during the insured visit — this constitutes an
-      undisclosed pre-existing condition.")
-   - References facts with "as noted in Section 1" / "as noted in Section 2" —
-     do NOT use "(Source: filename.pdf, Page N)" citations in this section.
-   - Ends with a one-sentence interim assessment for this trigger
-   - Stays within its OWN trigger's subject matter — if a fact belongs to a
-     different trigger in this same list (e.g. alcohol/intoxication belongs to
-     "Intoxication / Addiction"), do not re-analyse it here; a brief factual
-     mention in passing is fine, but the full analysis belongs only in that
-     trigger's own paragraph.
+# ═════════════════════════════════════════════════════════════════════════════
+# Flag merge / render helpers
+# ═════════════════════════════════════════════════════════════════════════════
+# Forces every "[TAG] ... (Source: file, Page N)" span onto its own line,
+# regardless of whether the LLM wrote it mid-sentence or on its own line.
+# The checkbox UI (Dashboard.jsx's DISC_TAG_LINE_RE / parseFlatDiscrepancyItems)
+# only recognizes a flag that STARTS a line — relying on the prompt alone to
+# guarantee that was unreliable, so it's enforced here deterministically.
+_FLAG_SPAN_RE = re.compile(
+    r"\[(" + "|".join(re.escape(t) for t in VALID_TAGS) + r")\]\s*.*?\(Source:[^)]*\)\.?",
+    re.IGNORECASE,
+)
 
-   TRIGGER FINDINGS TO SYNTHESISE:
-   {chr(10).join(trigger_summaries)}
 
-{annotations_block}
-C. REVIEWER ANNOTATIONS — MANDATORY
-   If any reviewer annotations are listed above, add a short dedicated subsection
-   after the trigger assessments, titled "REVIEWER POINTS ADDRESSED". For each
-   annotation, write 1-3 sentences that:
-   - State what the annotation flagged
-   - Reason about it against the hospital/member findings and forensic audit facts
-     already available to you (do not invent new facts)
-   - State explicitly whether the record supports, contradicts, or is silent on it
-   Do NOT just repeat the reviewer's note verbatim — show your own analysis.
-   If there are no reviewer annotations, omit this subsection entirely.
+def _normalize_flag_lines(text: str) -> str:
+    if not text:
+        return text
+    out_lines: List[str] = []
+    for line in text.split("\n"):
+        matches = list(_FLAG_SPAN_RE.finditer(line))
+        if not matches:
+            out_lines.append(line)
+            continue
+        pos = 0
+        for m in matches:
+            before = line[pos:m.start()].strip()
+            if before:
+                out_lines.append(before)
+            out_lines.append(m.group(0).strip())
+            pos = m.end()
+        after = line[pos:].strip()
+        if after:
+            out_lines.append(after)
+    return "\n".join(out_lines)
 
-D. FINAL VERDICT (one sentence)
-   Use this EXACTLY if provided (non-null):
-   final_verdict_verbatim = {pass1.get('final_verdict_verbatim') or 'null'}
 
-   If null, use one of:
-   GENUINE:   "Hence based on the above findings, the claim is found to be Genuine and recommended for settlement."
-   SUSPECTED: "Hence based on the above discrepancies, the claim seems to be Suspected."
+def _dedupe_flags(flags: List[dict]) -> List[dict]:
+    seen = set()
+    out = []
+    for f in flags:
+        key = (f.get("tag"), (f.get("text") or "").strip().lower()[:50])
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(f)
+    return out
 
-VERDICT DECISION RULES (in priority order):
-1. If the DISCREPANCY BLOCK or raw document contains "suspected" → SUSPECTED
-2. If hospital and member sides CONTRADICT each other on a material fact
-   (PED disclosure, accident narration, bill amount) → SUSPECTED
-3. If verdict_override below is SUSPECTED → SUSPECTED
-4. Otherwise → GENUINE
 
-verdict_override from preprocessor: {preprocessed['verdict_override']}
+def _render_flags_block(flags: List[dict]) -> str:
+    lines = []
+    for f in flags:
+        cite = ""
+        if f.get("file_name"):
+            cite = f" (Source: {f['file_name']}" + (f", Page {f['page_number']})" if f.get("page_number") else ")")
+        lines.append(f"[{f['tag']}] {f['text']}{cite}")
+    return "\n".join(lines)
 
-SECTION 1 ALREADY WRITTEN (reference only, do not repeat):
-{section1[:4000]}
 
-SECTION 2 ALREADY WRITTEN (reference only, do not repeat):
-{section2[:2000]}
+_SENTINEL = "Member / insured visit was not conducted as part of this investigation, so no member-side findings are available."
 
-FORENSIC AUDIT FACTS:
-{json.dumps(pass1, indent=2)[:3000]}
-"""
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Orchestrator
-# ─────────────────────────────────────────────────────────────────────────────
+# ═════════════════════════════════════════════════════════════════════════════
+# ORCHESTRATOR
+# ═════════════════════════════════════════════════════════════════════════════
 async def generate_unified_conclusion(
     triggers: List[str],
     text: str,
     pass1_result: Dict[str, Any],
-    extracted_flat: Dict[str, Any],
     preprocessed: Dict[str, Any],
     additional_context: str = "",
-) -> str:
-    """
-    Three-call pipeline: A (hospital base + per-trigger) → B (member base +
-    per-trigger) → C (reconciled conclusion). A and B run concurrently.
-    Returns the combined three-section conclusion string.
-    """
+    selected_findings: Optional[List[Dict[str, Any]]] = None,
+) -> Dict[str, Any]:
     pass1_result = _make_serializable(pass1_result)
+    text = _strip_markup_preserving_markers(text)
     annotations = parse_reviewer_annotations(additional_context)
     annotations_block = _format_annotations_for_llm(annotations)
+    selected_findings_block = _format_selected_findings_for_llm(selected_findings or [])
+    extra_focus = ", ".join(TRIGGER_LABELS.get(t, t) for t in (triggers or []))
+    failed_sections: List[Dict[str, str]] = []
 
-    # ── Discrepancy block ────────────────────────────────────────────────
-    disc_block = (
-        preprocessed.get("_effective_disc_block")
-        or pass1_result.get("discrepancies_verbatim")
-        or ""
-    )
-    auto_flags = preprocessed.get("auto_discrepancies") or []
-    if auto_flags and not disc_block:
-        disc_block = "Kindly note —\n" + "\n".join(auto_flags)
-    elif auto_flags and disc_block:
-        existing_lower = disc_block.lower()
-        new_flags = [f for f in auto_flags if f.lower()[:30] not in existing_lower]
-        if new_flags:
-            disc_block = disc_block + "\n" + "\n".join(new_flags)
-    if not disc_block:
-        disc_block = "None"
+    death_indicated = pass1_indicates_death(pass1_result)
 
-    # ── All discrepancies for reconcile call ─────────────────────────────
-    all_disc_list: List[str] = []
-    if disc_block != "None":
-        all_disc_list.append(disc_block)
-
-    # ── Determine whether a real member/insured document exists at all ───
-    # This gate is what prevents Call B from fabricating a member-visit
-    # section when no such visit was ever conducted. Only if this is True
-    # do we filter the text and run the member-side LLM calls.
-    member_present = has_member_documents(text)
-    member_text = extract_member_text(text) if member_present else ""
-
-    # ── CONCURRENT: Call A (hospital base) + Call B (member base, if any) ─
-    hospital_base_task = _agroq(
-        _HOSPITAL_BASE_SYSTEM,
-        _hospital_base_user(pass1_result, preprocessed, text),
-        max_tokens=5000,
+    hospital_task = _run_story(_HOSPITAL_SYSTEM, _hospital_user, text, pass1_result,
+                                annotations_block, extra_focus, 7000, "hospital-side", "hospital")
+    member_classification_task = classify_member_documents(text)
+    (hospital_story, hospital_flags, hospital_failed), member_classification = await asyncio.gather(
+        hospital_task, member_classification_task
     )
 
-    hospital_base_prose = ""
-    hospital_base_disc: List[str] = []
-    member_base_prose = ""
-    member_base_disc: List[str] = []
+    if hospital_failed:
+        failed_sections.append({"section": "hospital_story", "reason": "empty/unparseable response"})
+        hospital_story = hospital_story or "[Hospital findings could not be generated. Please retry.]"
+    hospital_story = _normalize_flag_lines(hospital_story)
 
+    # Deterministic, zero-hallucination flags derived purely from Pass 1's
+    # own structured chart-quality/billing fields (compute_auto_discrepancies
+    # in preprocessor.py) — free precision the LLM story call can't guarantee
+    # on its own (blank vitals chart, ICU billed without register, SpO2>100%
+    # physiological impossibility, etc). Folded in as hospital-side flags.
+    for line in (preprocessed.get("auto_discrepancies") or []):
+        m = re.match(r"\[([A-Z /]+)\]\s*(.+)", line)
+        if not m:
+            continue
+        tag = m.group(1).strip()
+        hospital_flags.append({
+            "tag": tag if tag in VALID_TAGS else "SUSPICIOUS",
+            "text": m.group(2).strip(),
+            "file_name": None, "page_number": None, "origin": "hospital",
+        })
+
+    member_present = member_classification.get("member_visit_present", False)
+    member_story, member_flags = _SENTINEL, []
     if member_present:
-        member_base_task = _agroq(
-            _MEMBER_BASE_SYSTEM,
-            _member_base_user(pass1_result, extracted_flat, member_text),
-            max_tokens=4000,
+        member_text = extract_member_text_from_pages(text, member_classification.get("member_locations") or [])
+        member_story, member_flags, member_failed = await _run_story(
+            _MEMBER_SYSTEM, _member_user, member_text, pass1_result,
+            annotations_block, extra_focus, 5000, "member visit", "member",
         )
-        hospital_base_raw, member_base_raw = await asyncio.gather(
-            hospital_base_task, member_base_task, return_exceptions=True
-        )
-
-        if isinstance(hospital_base_raw, dict):
-            hospital_base_prose = hospital_base_raw.get("section1_prose") or ""
-            hospital_base_disc = hospital_base_raw.get("discrepancies") or []
-
-        if isinstance(member_base_raw, dict):
-            member_base_prose = member_base_raw.get("section2_prose") or ""
-            member_base_disc = member_base_raw.get("discrepancies") or []
+        if member_failed:
+            failed_sections.append({"section": "member_story", "reason": "empty/unparseable response"})
+        if not member_story or "not conducted" in member_story.lower():
+            member_story, member_flags = _SENTINEL, []
         else:
-            # Retry once with a simpler, more directive prompt — only makes
-            # sense to retry when we already know member documents exist.
-            logger.warning("Member base call failed – retrying with fallback prompt")
-            fallback_user = f"""
-The document contains Insured Verification Forms and Patient Feedback Forms. 
-These forms are the primary record of the member visit. 
-Extract ALL details from them: insured's name, age, claim number, symptoms, 
-medical history disclosed, bill amount stated, field officer remarks, 
-and any inconsistencies.
-Return JSON with "section2_prose" (at least 400 words) and "discrepancies".
+            member_story = _normalize_flag_lines(member_story)
 
-Document text:
-{member_text[:80000]}
-"""
-            retry_raw = await _agroq(
-                _MEMBER_BASE_SYSTEM,
-                fallback_user,
-                max_tokens=4000,
-            )
-            if isinstance(retry_raw, dict):
-                member_base_prose = retry_raw.get("section2_prose") or ""
-                member_base_disc = retry_raw.get("discrepancies") or []
-    else:
-        # No member/insured document detected at all — skip the LLM call
-        # entirely rather than risk fabrication.
-        logger.info("No member/insured documents detected — skipping Call B")
-        hospital_base_raw = await hospital_base_task
-        if isinstance(hospital_base_raw, dict):
-            hospital_base_prose = hospital_base_raw.get("section1_prose") or ""
-            hospital_base_disc = hospital_base_raw.get("discrepancies") or []
-
-    if not hospital_base_prose:
-        logger.warning("Hospital base call returned empty — using fallback")
-        hospital_base_prose = "[Hospital findings could not be generated. Please retry.]"
-
-    if not member_base_prose:
-        member_base_prose = "Member / insured visit was not conducted as part of this investigation."
-
-    all_disc_list.extend(hospital_base_disc)
-    all_disc_list.extend(member_base_disc)
-
-    # ── CONCURRENT: Per-trigger hospital + member calls ───────────────────
-    hospital_trigger_tasks = {
-        t: _agroq(
-            _HOSPITAL_BASE_SYSTEM,
-            _hospital_trigger_user(
-                t, pass1_result, text, hospital_base_prose, annotations_block,
-                preprocessed=preprocessed, all_triggers=triggers,
-            ),
-            max_tokens=1500,
+    critical_fact_missing = False
+    if death_indicated and not prose_mentions_death(hospital_story):
+        critical_fact_missing = True
+        note_text = (
+            "Pass 1 extraction indicates a death outcome (death date / cause of "
+            "death / postmortem / death certificate) that was not reflected in "
+            "the Hospital Visit Account above. Manual review is required to "
+            "confirm outcome, date, place, and cause of death."
         )
-        for t in triggers
-    }
+        hospital_story += f"\n\n[CRITICAL FACT MISSING] {note_text}"
+        hospital_flags.append({"tag": "CRITICAL FACT MISSING", "text": note_text, "file_name": None, "page_number": None, "origin": "hospital"})
+        logger.warning("CRITICAL FACT CHECK: death indicated by Pass 1 but absent from hospital story")
 
-    all_trigger_keys = list(hospital_trigger_tasks.keys())
-    hospital_results = await asyncio.gather(
-        *[hospital_trigger_tasks[t] for t in all_trigger_keys],
-        return_exceptions=True,
+    synthesis, cross_flags, llm_verdict, conclusion_failed = await _run_conclusion(
+        hospital_story, member_story, hospital_flags, member_flags,
+        pass1_result, annotations_block, selected_findings_block, critical_fact_missing,
+    )
+    if conclusion_failed:
+        failed_sections.append({"section": "conclusion", "reason": "empty/unparseable response"})
+        synthesis = synthesis or "The two accounts above did not yield enough material for an automated synthesis; please review both directly."
+
+    # Section 3's DISCREPANCIES block is CROSS-ACCOUNT ONLY — hospital-side
+    # and member-side flags are already inline (with their own checkboxes,
+    # via the frontend's FlaggedSectionView) in Section 1 / Section 2
+    # respectively. Repeating them here is exactly the "afterward, in the
+    # conclusion" duplication that was supposed to be eliminated.
+    cross_flags = _dedupe_flags(cross_flags)
+    flags_block = _render_flags_block(cross_flags)
+
+    # specialistFindings (a separate Investigation Review tab, not the
+    # story itself) still covers every flag from every source.
+    all_flags = _dedupe_flags(hospital_flags + member_flags + cross_flags)
+
+    final_verdict = "SUSPECTED" if critical_fact_missing else (llm_verdict or "GENUINE")
+    verdict_sentence = (
+        "Hence based on the above discrepancies, this claim appears Suspected as an advisory read for the reviewing doctor — manual review is recommended before any decision."
+        if final_verdict == "SUSPECTED" else
+        "Hence based on the above findings, this claim appears Genuine as an advisory read for the reviewing doctor — this is not a final determination."
     )
 
-    hospital_trigger_findings: Dict[str, Dict] = {}
-    member_trigger_findings: Dict[str, Dict] = {}
+    section3_parts = []
+    if flags_block:
+        section3_parts.append("DISCREPANCIES\n" + flags_block)
+    if synthesis:
+        section3_parts.append(synthesis)
+    section3_parts.append(verdict_sentence)
+    section3 = "\n\n".join(section3_parts)
 
-    if member_present:
-        member_trigger_tasks = {
-            t: _agroq(
-                _MEMBER_BASE_SYSTEM,
-                _member_trigger_user(
-                    t, pass1_result, member_text, member_base_prose, annotations_block,
-                    preprocessed=preprocessed, all_triggers=triggers,
-                ),
-                max_tokens=1500,
-            )
-            for t in triggers
-        }
-        member_results = await asyncio.gather(
-            *[member_trigger_tasks[t] for t in all_trigger_keys],
-            return_exceptions=True,
-        )
-        for t, h_raw, m_raw in zip(all_trigger_keys, hospital_results, member_results):
-            h = h_raw if isinstance(h_raw, dict) else {}
-            m = m_raw if isinstance(m_raw, dict) else {}
-            hospital_trigger_findings[t] = h
-            member_trigger_findings[t] = m
-            all_disc_list.extend(h.get("discrepancies") or [])
-            all_disc_list.extend(m.get("discrepancies") or [])
-    else:
-        # No member documents — don't call the member-trigger LLM at all,
-        # just record an explicit "not conducted" finding per trigger so
-        # Call C sees a clear statement instead of an empty key.
-        for t, h_raw in zip(all_trigger_keys, hospital_results):
-            h = h_raw if isinstance(h_raw, dict) else {}
-            hospital_trigger_findings[t] = h
-            member_trigger_findings[t] = {"finding": _NO_MEMBER_VISIT_TRIGGER_FINDING, "discrepancies": []}
-            all_disc_list.extend(h.get("discrepancies") or [])
+    if critical_fact_missing:
+        section3 = ("⚠ MANUAL REVIEW REQUIRED — a possible unreflected critical fact was "
+                    "detected (see flag above) and could not be confirmed by this "
+                    "automated pipeline.\n\n") + section3
 
-    # Deduplicate discrepancies
-    seen = set()
-    unique_discs: List[str] = []
-    for d in all_disc_list:
-        key = d.strip().lower()[:60]
-        if key not in seen:
-            seen.add(key)
-            unique_discs.append(d)
-
-    # ── Append trigger findings into section prose ────────────────────────
-    if hospital_trigger_findings:
-        section1_parts = [hospital_base_prose]
-        for t in triggers:
-            label = TRIGGER_LABELS.get(t, t)
-            finding = hospital_trigger_findings.get(t, {}).get("finding", "")
-            if finding:
-                section1_parts.append(
-                    f"\n{label} — Hospital Assessment\n{finding}"
-                )
-        section1_full = "\n".join(section1_parts)
-    else:
-        section1_full = hospital_base_prose
-
-    if member_present and member_trigger_findings:
-        section2_parts = [member_base_prose]
-        for t in triggers:
-            label = TRIGGER_LABELS.get(t, t)
-            finding = member_trigger_findings.get(t, {}).get("finding", "")
-            if finding:
-                section2_parts.append(
-                    f"\n{label} — Member Assessment\n{finding}"
-                )
-        section2_full = "\n".join(section2_parts)
-    else:
-        section2_full = member_base_prose
-
-    # ── Call C — Reconciled conclusion ───────────────────────────────────
-    reconcile_raw = await _agroq(
-        _RECONCILE_SYSTEM,
-        _reconcile_user(
-            triggers,
-            section1_full,
-            section2_full,
-            hospital_trigger_findings,
-            member_trigger_findings,
-            unique_discs,
-            pass1_result,
-            preprocessed,
-            disc_block,
-            annotations_block,
-
-        ),
-        max_tokens=4000,
-    )
-
-    section3_prose = ""
-    llm_verdict = preprocessed["verdict_override"]
-    if isinstance(reconcile_raw, dict):
-        section3_prose = reconcile_raw.get("section3_prose") or ""
-        llm_verdict_raw = (reconcile_raw.get("verdict") or "").upper()
-        if llm_verdict_raw in ("GENUINE", "SUSPECTED"):
-            # If preprocessor says SUSPECTED, never let LLM override to GENUINE
-            if preprocessed["verdict_override"] == "SUSPECTED":
-                llm_verdict = "SUSPECTED"
-            else:
-                llm_verdict = llm_verdict_raw
-
-    if not section3_prose:
-        logger.warning("Reconcile call returned empty section3 — building fallback")
-        disc_text = disc_block if disc_block != "None" else "No major discrepancies were noted."
-        section3_prose = (
-            f"DISCREPANCIES\n{disc_text}\n\n"
-            f"Based on the hospital and member visit findings documented above, "
-            f"the claim has been assessed across the selected triggers. "
-        )
-        if llm_verdict == "SUSPECTED":
-            section3_prose += "Hence based on the above discrepancies, the claim seems to be Suspected."
-        else:
-            section3_prose += "Hence based on the above findings, the claim is found to be Genuine and recommended for settlement."
-
-    # ── Assemble final conclusion ─────────────────────────────────────────
     conclusion = (
-        "SECTION 1 — HOSPITAL PART FINDINGS\n\n"
-        f"{section1_full}\n\n\n"
-        "SECTION 2 — MEMBER / INSURED VISIT FINDINGS\n\n"
-        f"{section2_full}\n\n\n"
+        "SECTION 1 — HOSPITAL VISIT ACCOUNT\n\n"
+        f"{hospital_story}\n\n\n"
+        "SECTION 2 — MEMBER / INSURED VISIT ACCOUNT\n\n"
+        f"{member_story}\n\n\n"
         "SECTION 3 — CONCLUSION\n\n"
-        f"{section3_prose}"
+        f"{section3}"
     )
 
-    # ── Verdict safeguard ─────────────────────────────────────────────────
-    raw_lower = text.lower()
-    conclusion_lower = conclusion.lower()
-    if preprocessed["verdict_override"] == "SUSPECTED" or re.search(
-        r"(claim seems to be|found to be)[^\n]*suspected", raw_lower
-    ):
-        if "genuine" in conclusion_lower and "suspected" not in conclusion_lower:
-            logger.warning("Forcing SUSPECTED verdict for case")
-            conclusion = re.sub(
-                r"(?i)(found to be Genuine.*?settlement\.?|"
-                r"claim is found to be Genuine[^.]*\.)",
-                "claim seems to be Suspected.",
-                conclusion,
-                count=1,
-            )
+    try:
+        conclusion = reconcile_conclusion(conclusion, pass1_result, annotations)
+    except Exception:
+        logger.exception("reconcile_conclusion post-processing failed — using unreconciled text")
 
-    conclusion = reconcile_conclusion(conclusion, pass1_result, annotations)
+    status = "DEGRADED" if failed_sections else "COMPLETE"
+
+    specialist_findings_structured = [
+        {
+            "agent": f.get("origin", "other"),
+            "agentLabel": {"hospital": "Hospital", "member": "Member", "cross": "Cross-check"}.get(f.get("origin"), "Other"),
+            "type": f["tag"],
+            "explanation": f["text"],
+            "location": {"hospital": "hospital_episode", "member": "member"}.get(f.get("origin"), "other"),
+            "episodeIndex": None,
+            "quotes": ([{"file_name": f.get("file_name"), "page_number": f.get("page_number"), "quote": None, "verified": False}]
+                       if f.get("file_name") else []),
+        }
+        for f in all_flags
+    ]
 
     logger.info(
-        "generate_unified_conclusion | triggers=%s | calls=%d | chars=%d | member_present=%s",
-        triggers,
-        2 + len(triggers) * 2 + 1,
-        len(conclusion),
-        member_present,
+        "generate_unified_conclusion | member_present=%s | critical_fact_missing=%s | "
+        "llm_verdict=%s | final_verdict=%s | status=%s | failed_sections=%d | flags=%d | chars=%d",
+        member_present, critical_fact_missing, llm_verdict, final_verdict, status,
+        len(failed_sections), len(all_flags), len(conclusion),
     )
-    return conclusion
+    return {
+        "conclusion": conclusion,
+        "status": status,
+        "failed_sections": failed_sections,
+        "verdict": final_verdict,
+        "specialistFindings": specialist_findings_structured,
+    }

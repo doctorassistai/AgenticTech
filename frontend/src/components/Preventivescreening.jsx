@@ -186,6 +186,32 @@ const PART_C_SECTIONS = [
   { key: "prescription_followup", title: "Prescription, Follow-up & Referral" },
 ];
 
+/* ─── VOICE ASSISTANT → FORM SECTION KEY MAPS ───
+   Maps the LLM's `_filled_sections` output keys (top-level schema keys)
+   to the sidebar section keys, so the dots land on the correct item. */
+const PART_A_SECTION_KEY_MAP = {
+  visit_type: "case_details",
+  registration: "registration",
+  history: "history",
+  family_history: "family_history",
+  substance_abuse: "substance_abuse",
+  previous_cancer: "previous_cancer",
+  menstrual_history: "menstrual_history",
+  obstetric_history: "obstetric_history",
+  contraceptive_history: "contraceptive_history",
+  hrt_history: "hrt_history",
+};
+
+const PART_C_SECTION_KEY_MAP = {
+  general_examination: "general_examination",
+  breast_examination: "breast_examination",
+  cervical_examination: "cervical_examination",
+  investigations_advised: "investigations_advised",
+  prescription: "prescription_followup",
+  follow_up_advise: "prescription_followup",
+  follow_up_visit: "prescription_followup",
+};
+
 /* ─── DEFAULT STATE ─── */
 const emptyDuration = () => ({ value: "", unit: "Years" });
 const emptyVitalItem = () => ({ checked: false, value: "" });
@@ -207,9 +233,6 @@ const defaultCaseHistory = () => ({
 const defaultExamination = () => ({
   general_examination: {
     height_cm: "", weight_kg: "",
-    /* vitals.others is an ARRAY of { id, name, value } rows so the user can
-       add any number of custom vitals, each with its own name (left) and
-       value (right), instead of one fixed "Others" box. */
     vitals: { spo2: emptyVitalItem(), blood_pressure: emptyVitalItem(), others: [] },
     findings: [], nutrition: "", hydration: "", oral_cavity_findings: "", dental_hygiene: "", mouth_opening_cm: "",
   },
@@ -256,6 +279,85 @@ function deepMerge(base, incoming) {
     return out;
   }
   return incoming;
+}
+
+/* ─── SECTION-FILL DETECTION ───
+   A section is "filled" if it contains at least one meaningful value.
+   Drives the sidebar dots (green = filled, red = still empty). */
+function hasValue(v) {
+  if (v === null || v === undefined || v === false) return false;
+  if (typeof v === "string") return v.trim() !== "";
+  if (typeof v === "number") return !Number.isNaN(v);
+  if (Array.isArray(v)) return v.length > 0;
+  if (typeof v === "object") {
+    // Checked vital item: {checked, value}
+    if ("value" in v && "checked" in v) {
+      return !!(v.value && String(v.value).trim());
+    }
+    return Object.values(v).some(hasValue);
+  }
+  return !!v;
+}
+
+function isPartAFilled(caseHistory, sectionKey) {
+  const ch = caseHistory || {};
+  switch (sectionKey) {
+    case "case_details": return hasValue(ch.visit_type);
+    case "registration":
+      return hasValue(ch.registration?.routine_screening)
+          || hasValue(ch.registration?.asymptomatic)
+          || hasValue(ch.registration?.symptoms)
+          || hasValue(ch.registration?.duration_of_symptoms?.value);
+    case "history": return hasValue(ch.history?.comorbidities_present);
+    case "family_history": return hasValue(ch.family_history?.family_history_of_cancer);
+    case "substance_abuse": return hasValue(ch.substance_abuse?.substance_abuse_history);
+    case "previous_cancer": return hasValue(ch.previous_cancer?.history_of_previous_cancer);
+    case "menstrual_history": return hasValue(ch.menstrual_history?.menstrual_history);
+    case "obstetric_history": return hasValue(ch.obstetric_history?.obstetric_history);
+    case "contraceptive_history": return hasValue(ch.contraceptive_history?.contraceptives);
+    case "hrt_history": return hasValue(ch.hrt_history?.hrt_history);
+    default: return false;
+  }
+}
+
+function isPartCFilled(examination, sectionKey) {
+  const ex = examination || {};
+  switch (sectionKey) {
+    case "general_examination":
+      return hasValue(ex.general_examination?.height_cm)
+          || hasValue(ex.general_examination?.weight_kg)
+          || hasValue(ex.general_examination?.vitals?.spo2?.value)
+          || hasValue(ex.general_examination?.vitals?.blood_pressure?.value)
+          || (Array.isArray(ex.general_examination?.vitals?.others)
+              && ex.general_examination.vitals.others.length > 0)
+          || hasValue(ex.general_examination?.findings)
+          || hasValue(ex.general_examination?.nutrition)
+          || hasValue(ex.general_examination?.hydration)
+          || hasValue(ex.general_examination?.oral_cavity_findings);
+    case "breast_examination":
+      return hasValue(ex.breast_examination?.left?.palpation)
+          || hasValue(ex.breast_examination?.right?.palpation)
+          || hasValue(ex.breast_examination?.left?.axilla)
+          || hasValue(ex.breast_examination?.right?.axilla)
+          || hasValue(ex.breast_examination?.left?.nipple_discharge)
+          || hasValue(ex.breast_examination?.right?.nipple_discharge);
+    case "cervical_examination":
+      return hasValue(ex.cervical_examination?.via)
+          || hasValue(ex.cervical_examination?.vili)
+          || hasValue(ex.cervical_examination?.colposcopy)
+          || hasValue(ex.cervical_examination?.impression);
+    case "investigations_advised":
+      // Lab investigations are managed by a nested component — treat as optional
+      return true;
+    case "prescription_followup":
+      return hasValue(ex.prescription)
+          || hasValue(ex.follow_up_advise?.tobacco_cessation_details)
+          || hasValue(ex.follow_up_advise?.lifestyle_modification_details)
+          || hasValue(ex.follow_up_visit?.oral)
+          || hasValue(ex.follow_up_visit?.breast)
+          || hasValue(ex.follow_up_visit?.cervical);
+    default: return false;
+  }
 }
 
 /* ─── REUSABLE FIELD COMPONENTS ─── */
@@ -367,9 +469,6 @@ function DurationField({ label, duration, onChange }) {
   );
 }
 
-/* Input is ALWAYS editable (not gated on checked). Checking the box simply
-   marks the vital as "recorded"; typing into the value field auto-checks
-   it too, so users are never stuck unable to type into SpO2 / BP. */
 function VitalRow({ label, item, onChange, placeholder, last = false }) {
   const handleValueChange = (val) => {
     onChange({ ...item, value: val, checked: val ? true : item?.checked });
@@ -394,10 +493,6 @@ function VitalRow({ label, item, onChange, placeholder, last = false }) {
   );
 }
 
-/* "Other Vitals" block: lets the user ADD any number of custom vitals.
-   Each row has a NAME field on the left (e.g. "Pulse", "Temp", "RBS") and a
-   VALUE field on the right (e.g. "88 bpm", "98.6°F"). Rows can be added
-   with "+ Add other vital" and removed individually. */
 function OtherVitalsBlock({ items, onChange }) {
   const rows = items || [];
 
@@ -459,7 +554,6 @@ export default function PreventiveScreening() {
   const doctorName = query.get("doctor_name");
   const [appointmentId, setAppointmentId] = useState(null);
 
-  /* ✅ Only two top-level tabs now: "partA" and "partC" */
   const [activeMainTab, setActiveMainTab] = useState("partA");
   const [loadingRecord, setLoadingRecord] = useState(true);
 
@@ -479,33 +573,34 @@ export default function PreventiveScreening() {
   const [savingVitals, setSavingVitals] = useState(false);
   const [vitalsBanner, setVitalsBanner] = useState(null);
   const [saveAllBanner, setSaveAllBanner] = useState(null);
-   const [cervicalImages, setCervicalImages] = useState([]);
+  const [cervicalImages, setCervicalImages] = useState([]);
   const [uploadingCervicalImage, setUploadingCervicalImage] = useState(false);
   const [cervicalImageBanner, setCervicalImageBanner] = useState(null);
-   const [previewImageUrl, setPreviewImageUrl] = useState(null);
+  const [previewImageUrl, setPreviewImageUrl] = useState(null);
 
-  /* ── voice recording state — Part A (case history: diarization -> structure) ── */
+  /* Voice assistant → form integration: tracks which sidebar sections
+     the LLM reported as filled. Combined with isPartXFilled() on the
+     actual form state to render green/red dots. */
+  const [voiceFilledSections, setVoiceFilledSections] = useState({ A: [], C: [] });
+
+  /* ── voice recording state — Part A (case history) ── */
   const [isRecordingCaseHistory, setIsRecordingCaseHistory] = useState(false);
   const [transcribingCaseHistory, setTranscribingCaseHistory] = useState(false);
   const mediaRecorderCHRef = useRef(null);
   const audioChunksCHRef = useRef([]);
 
-  /* ── voice recording state — Part C (examination: diarization ONLY) ── */
+  /* ── voice recording state — Part C (examination) ── */
   const [isRecordingExam, setIsRecordingExam] = useState(false);
   const [transcribingExam, setTranscribingExam] = useState(false);
   const mediaRecorderExRef = useRef(null);
   const audioChunksExRef = useRef([]);
 
-  /* which section is selected in each tab's left-hand menu — kept
-     independently so switching Part A ↔ Part C remembers each tab's spot */
   const [activePartASection, setActivePartASection] = useState("case_details");
   const [activePartCSection, setActivePartCSection] = useState("general_examination");
 
   const visiblePartASections = PART_A_SECTIONS.filter((s) => !s.femaleOnly || isFemale);
   const visiblePartCSections = PART_C_SECTIONS.filter((s) => !s.femaleOnly || isFemale);
 
-  /* fall back to the first visible section if the current one gets hidden
-     (e.g. "Female patient" unchecked while on a Part B / breast / cervical section) */
   useEffect(() => {
     if (!visiblePartASections.some((s) => s.key === activePartASection)) {
       setActivePartASection(visiblePartASections[0]?.key || "case_details");
@@ -517,11 +612,80 @@ export default function PreventiveScreening() {
   }, [isFemale]);
 
   /* ══════════════════════════════════════════════════════════
+     VOICE ASSISTANT INTEGRATION
+     Events from VoiceAssistant.jsx:
+       • "voice:open-preventive-screening" — scroll into view
+       • "voice:preventive-filled" — merge dictation result into form
+         (now includes allFilledSections + pendingSections)
+       • "voice:preventive-saved" — assistant saved a part
+     ══════════════════════════════════════════════════════════ */
+  useEffect(() => {
+    const onOpen = () => {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    };
+
+    const onFilled = (e) => {
+      const {
+        part,
+        fields,
+        filledSections,
+        allFilledSections,
+      } = e.detail || {};
+      if (!fields) return;
+
+      if (part === "A") {
+        setCaseHistory((prev) => deepMerge(prev, fields));
+        // Prefer the authoritative "all filled" list if present
+        const sourceList = Array.isArray(allFilledSections) && allFilledSections.length >= 0
+          ? allFilledSections
+          : (filledSections || []);
+        const mapped = sourceList
+          .map((k) => PART_A_SECTION_KEY_MAP[k])
+          .filter(Boolean);
+        setVoiceFilledSections((prev) => ({
+          ...prev,
+          A: [...new Set(mapped)],
+        }));
+        setActiveMainTab("partA");
+        if (mapped[0]) setActivePartASection(mapped[0]);
+      } else if (part === "C") {
+        setExamination((prev) => deepMerge(prev, fields));
+        const sourceList = Array.isArray(allFilledSections) && allFilledSections.length >= 0
+          ? allFilledSections
+          : (filledSections || []);
+        const mapped = sourceList
+          .map((k) => PART_C_SECTION_KEY_MAP[k])
+          .filter(Boolean);
+        setVoiceFilledSections((prev) => ({
+          ...prev,
+          C: [...new Set(mapped)],
+        }));
+        setActiveMainTab("partC");
+        if (mapped[0]) setActivePartCSection(mapped[0]);
+      }
+    };
+
+    const onSaved = () => {
+      /* Optional: refresh from server if desired. */
+    };
+
+    window.addEventListener("voice:open-preventive-screening", onOpen);
+    window.addEventListener("voice:preventive-filled", onFilled);
+    window.addEventListener("voice:preventive-saved", onSaved);
+    return () => {
+      window.removeEventListener("voice:open-preventive-screening", onOpen);
+      window.removeEventListener("voice:preventive-filled", onFilled);
+      window.removeEventListener("voice:preventive-saved", onSaved);
+    };
+  }, []);
+
+  /* ══════════════════════════════════════════════════════════
      FETCH ON LOAD — pull latest saved record for this patient_id.
-     If nothing exists yet, form stays blank (defaults).
      ══════════════════════════════════════════════════════════ */
   useEffect(() => {
     let cancelled = false;
+    setVoiceFilledSections({ A: [], C: [] });
+
     async function loadExisting() {
       if (!patientId) {
         setLoadingRecord(false);
@@ -529,42 +693,38 @@ export default function PreventiveScreening() {
       }
       setLoadingRecord(true);
       try {
-          // Get appointment ID
-  const appointmentRes = await fetch(
-    `${API_BASE_URL}hms/users/data/patient_basic_screening_details/${patientId}/${doctorId}`
-  );
+        const appointmentRes = await fetch(
+          `${API_BASE_URL}hms/users/data/patient_basic_screening_details/${patientId}/${doctorId}`
+        );
 
-  if (appointmentRes.ok) {
-    const appointmentData = await appointmentRes.json();
-    const appt = appointmentData.data.latest_appointment;
-    setAppointmentId(appt?.appointment_id || null);
-  }
-
-  // Auto-detect patient gender -> auto-show Part B / female-only sections
-  // Auto-fill patient identity (Case Number, Name, Age, Sex) + auto-detect
-  // gender -> auto-show Part B / female-only sections
-  try {
-    const patientDetailsRes = await fetch(
-      `${API_BASE_URL}hms/users/data/context/pain-management/patient-details/${patientId}/${doctorId}`
-    );
-    if (patientDetailsRes.ok) {
-      const patientDetailsData = await patientDetailsRes.json();
-      if (patientDetailsData.status === "success" && patientDetailsData.data) {
-        const d = patientDetailsData.data;
-        setPatientInfo({
-          patientName: d.patientName || "",
-          age: d.age ?? null,
-          gender: d.gender || "",
-          phone: d.phone || "",
-        });
-        if (d.gender && d.gender.trim().toLowerCase() === "female") {
-          setIsFemale(true);
+        if (appointmentRes.ok) {
+          const appointmentData = await appointmentRes.json();
+          const appt = appointmentData.data.latest_appointment;
+          setAppointmentId(appt?.appointment_id || null);
         }
-      }
-    }
-  } catch (genderErr) {
-    console.error("Failed to fetch patient details for auto-fill:", genderErr);
-  }
+
+        try {
+          const patientDetailsRes = await fetch(
+            `${API_BASE_URL}hms/users/data/context/pain-management/patient-details/${patientId}/${doctorId}`
+          );
+          if (patientDetailsRes.ok) {
+            const patientDetailsData = await patientDetailsRes.json();
+            if (patientDetailsData.status === "success" && patientDetailsData.data) {
+              const d = patientDetailsData.data;
+              setPatientInfo({
+                patientName: d.patientName || "",
+                age: d.age ?? null,
+                gender: d.gender || "",
+                phone: d.phone || "",
+              });
+              if (d.gender && d.gender.trim().toLowerCase() === "female") {
+                setIsFemale(true);
+              }
+            }
+          }
+        } catch (genderErr) {
+          console.error("Failed to fetch patient details for auto-fill:", genderErr);
+        }
 
         const res = await fetch(`${API_BASE_URL}hms/users/data/context/preventive-screening/get/${patientId}`);
         const data = await res.json();
@@ -690,9 +850,6 @@ export default function PreventiveScreening() {
 
   /* ══════════════════════════════════════════════════════════
      VOICE — PART A (Case History)
-     Record -> Diarization endpoint (raw audio -> transcript)
-             -> Structure endpoint (transcript -> nurse/patient turns)
-             -> populate conversationText
      ══════════════════════════════════════════════════════════ */
   const handleStartRecordingCaseHistory = async () => {
     setHistoryBanner(null);
@@ -730,6 +887,7 @@ export default function PreventiveScreening() {
 
   const processCaseHistoryVoice = async (audioBlob) => {
     setTranscribingCaseHistory(true);
+
     try {
       const fd = new FormData();
       fd.append("file", audioBlob, "case_history_recording.webm");
@@ -744,24 +902,7 @@ export default function PreventiveScreening() {
         return;
       }
 
-      /* Part A ONLY: pass the transcript into the structure endpoint before
-         populating the textarea */
-      let finalText = rawText;
-      try {
-        const structRes = await fetch(STRUCTURE_CONVERSATION_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ conversation_text: rawText }),
-        });
-        const structData = await structRes.json();
-        if (structData?.conversation?.length) {
-          finalText = structData.conversation.join("\n");
-        }
-      } catch (structErr) {
-        console.error("Structuring failed, falling back to raw transcript:", structErr);
-      }
-
-      setConversationText((prev) => (prev ? `${prev}\n${finalText}` : finalText));
+      setConversationText((prev) => (prev ? `${prev}\n${rawText}` : rawText));
       setHistoryBanner({ ok: true, text: "Voice transcribed and added to the conversation box below." });
     } catch (e) {
       console.error(e);
@@ -773,8 +914,6 @@ export default function PreventiveScreening() {
 
   /* ══════════════════════════════════════════════════════════
      VOICE — PART C (Examination)
-     Record -> Diarization endpoint (raw audio -> transcript) ONLY
-             -> populate nurseNotesText directly (NO structure call)
      ══════════════════════════════════════════════════════════ */
   const handleStartRecordingExam = async () => {
     setExamBanner(null);
@@ -826,7 +965,6 @@ export default function PreventiveScreening() {
         return;
       }
 
-      /* Part C: diarization output ONLY — do NOT call the structure endpoint */
       setNurseNotesText((prev) => (prev ? `${prev}\n${rawText}` : rawText));
       setExamBanner({ ok: true, text: "Voice transcribed and added to the notes box below." });
     } catch (e) {
@@ -837,7 +975,7 @@ export default function PreventiveScreening() {
     }
   };
 
-  /* -- save Part A/B/C to the preventive-screening record (upsert by patient_id) -- */
+  /* -- save Part A/B/C to the preventive-screening record -- */
   const handleSave = async () => {
     setSaving(true);
     try {
@@ -860,33 +998,33 @@ export default function PreventiveScreening() {
     }
   };
 
-  /* -- save ONLY the vitals slice to the dedicated vitals endpoint (/save_patient_vitals) -- */
+  /* -- save ONLY the vitals slice -- */
   const handleSaveVitals = async () => {
     setSavingVitals(true);
     setVitalsBanner(null);
 
     try {
-        const timestamp = new Date().toISOString();
-        const vitalsEntry = {
-            doctor_id: doctorId,
-            height_cm: examination.general_examination.height_cm || null,
-            weight_kg: examination.general_examination.weight_kg || null,
-            bmi: bmi || null,
-            bsa: bsa || null,
-            spo2: examination.general_examination.vitals.spo2,
-            blood_pressure: examination.general_examination.vitals.blood_pressure,
-            others: examination.general_examination.vitals.others,
-        };
+      const timestamp = new Date().toISOString();
+      const vitalsEntry = {
+        doctor_id: doctorId,
+        height_cm: examination.general_examination.height_cm || null,
+        weight_kg: examination.general_examination.weight_kg || null,
+        bmi: bmi || null,
+        bsa: bsa || null,
+        spo2: examination.general_examination.vitals.spo2,
+        blood_pressure: examination.general_examination.vitals.blood_pressure,
+        others: examination.general_examination.vitals.others,
+      };
 
-        const res = await fetch(`${API_BASE_URL}hms/users/data/save_patient_vitals`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                sys_user_id: patientId,
-                appointment_id: appointmentId,
-                vitals: { [timestamp]: vitalsEntry },
-            }),
-        });
+      const res = await fetch(`${API_BASE_URL}hms/users/data/save_patient_vitals`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sys_user_id: patientId,
+          appointment_id: appointmentId,
+          vitals: { [timestamp]: vitalsEntry },
+        }),
+      });
       if (res.ok) {
         setVitalsBanner({ ok: true, text: "Vitals saved." });
         return true;
@@ -901,7 +1039,7 @@ export default function PreventiveScreening() {
     }
   };
 
-  /* -- ONE button that saves everything: case history + examination + vitals -- */
+  /* -- ONE button that saves everything -- */
   const handleSaveAll = async () => {
     setSaveAllBanner(null);
     const [historyOk, vitalsOk] = await Promise.all([handleSave(), handleSaveVitals()]);
@@ -940,8 +1078,7 @@ export default function PreventiveScreening() {
     setCH("substance_abuse.habits", (caseHistory.substance_abuse.habits || []).map((r) => (r.name === name ? { ...r, [field]: value } : r)));
   };
 
-  /* -- colposcopy image upload (base64) -- */
-  /* -- colposcopy image upload (via proxy storage endpoint) -- */
+  /* -- colposcopy image upload -- */
   const handleColposcopyImage = async (file) => {
     if (!file) return;
     setUploadingCervicalImage(true);
@@ -968,9 +1105,7 @@ export default function PreventiveScreening() {
       const data = await res.json();
       const fileUrl = data.file_url;
 
-      // set as the "current" colposcopy image on the form
       setEX("cervical_examination.colposcopy_image", fileUrl);
-      // add to the gallery of all uploaded images for this patient
       setCervicalImages((prev) => [...prev, { patient_id: patientId, file_url: fileUrl, created_at: new Date().toISOString() }]);
       setCervicalImageBanner({ ok: true, text: "Image uploaded." });
     } catch (e) {
@@ -980,6 +1115,26 @@ export default function PreventiveScreening() {
       setUploadingCervicalImage(false);
     }
   };
+
+  /* -- Section-fill derivation for the current render -- */
+  const partAFilledMap = visiblePartASections.reduce((acc, s) => {
+    acc[s.key] = isPartAFilled(caseHistory, s.key) || voiceFilledSections.A.includes(s.key);
+    return acc;
+  }, {});
+  const partCFilledMap = visiblePartCSections.reduce((acc, s) => {
+    acc[s.key] = isPartCFilled(examination, s.key) || voiceFilledSections.C.includes(s.key);
+    return acc;
+  }, {});
+
+  const partATotal = visiblePartASections.length;
+  const partAFilledCount = Object.values(partAFilledMap).filter(Boolean).length;
+  const partAPending = partATotal - partAFilledCount;
+
+  const partCTotal = visiblePartCSections.length;
+  const partCFilledCount = Object.values(partCFilledMap).filter(Boolean).length;
+  const partCPending = partCTotal - partCFilledCount;
+
+  const overallPending = partAPending + partCPending;
 
   return (
     <div style={F.page}>
@@ -1029,7 +1184,43 @@ export default function PreventiveScreening() {
           </div>
         ) : activeMainTab === "partA" ? (
           <>
-            {/* ── Part A: AI paste box (conversation → Case History Parts A & B) ── */}
+            {/* ── Part A: progress banner ── */}
+            <div style={{
+              marginBottom: "1rem",
+              padding: "0.85rem 1.1rem",
+              border: `1px solid ${partAPending === 0 && partATotal > 0 ? T.good : T.border}`,
+              background: partAPending === 0 && partATotal > 0 ? "#f1f8e9" : T.bgAlt,
+              borderRadius: 6,
+              display: "flex",
+              alignItems: "center",
+              gap: 14,
+            }}>
+              <div style={{ flex: 1 }}>
+                <div style={{
+                  fontSize: "0.78rem",
+                  color: partAPending === 0 && partATotal > 0 ? T.good : T.text,
+                  marginBottom: 6,
+                  fontWeight: partAPending === 0 && partATotal > 0 ? 400 : 300,
+                }}>
+                  {partAPending === 0 && partATotal > 0
+                    ? "✓ Part A complete — ready to save"
+                    : `Part A: ${partAFilledCount} of ${partATotal} sections filled (${partAPending} pending)`}
+                </div>
+                <div style={{ height: 6, background: "#e0e0e0", borderRadius: 3, overflow: "hidden" }}>
+                  <div style={{
+                    height: "100%",
+                    width: `${partATotal === 0 ? 100 : Math.round((partAFilledCount / partATotal) * 100)}%`,
+                    background: partAPending === 0 && partATotal > 0 ? T.good : "#FFA726",
+                    transition: "width 0.25s ease",
+                  }} />
+                </div>
+              </div>
+              <span style={{ fontSize: "0.72rem", color: T.textMuted }}>
+                {partATotal === 0 ? 100 : Math.round((partAFilledCount / partATotal) * 100)}%
+              </span>
+            </div>
+
+            {/* ── Part A: AI paste box ── */}
             <div style={F.aiBox}>
               <div style={F.aiLabelRow}>
                 <span style={F.aiIconBadge}><Sparkles size={14} /></span>
@@ -1080,16 +1271,38 @@ export default function PreventiveScreening() {
             <div style={F.formLayout}>
               <div style={F.formSidebar}>
                 <div style={F.formSidebarHeading}>Part A Sections</div>
-                {visiblePartASections.map((s) => (
-                  <button
-                    key={s.key}
-                    className="pfx-sidebar-item"
-                    style={F.formSidebarItem(activePartASection === s.key)}
-                    onClick={() => setActivePartASection(s.key)}
-                  >
-                    {s.title}
-                  </button>
-                ))}
+                {visiblePartASections.map((s) => {
+                  const filled = !!partAFilledMap[s.key];
+                  return (
+                    <button
+                      key={s.key}
+                      className="pfx-sidebar-item"
+                      style={F.formSidebarItem(activePartASection === s.key)}
+                      onClick={() => setActivePartASection(s.key)}
+                    >
+                      <span style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        width: "100%",
+                      }}>
+                        <span>{s.title}</span>
+                        <span
+                          title={filled ? "Filled" : "Not filled yet"}
+                          style={{
+                            width: 8,
+                            height: 8,
+                            borderRadius: "50%",
+                            background: filled ? T.good : T.bad,
+                            marginLeft: 8,
+                            flexShrink: 0,
+                            boxShadow: `0 0 6px ${filled ? T.good + "66" : T.bad + "66"}`,
+                          }}
+                        />
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
 
               {activePartASection === "case_details" && (
@@ -1325,7 +1538,43 @@ export default function PreventiveScreening() {
           </>
         ) : (
           <>
-            {/* ── Part C: AI paste box (nurse notes → Examination Details) ── */}
+            {/* ── Part C: progress banner ── */}
+            <div style={{
+              marginBottom: "1rem",
+              padding: "0.85rem 1.1rem",
+              border: `1px solid ${partCPending === 0 && partCTotal > 0 ? T.good : T.border}`,
+              background: partCPending === 0 && partCTotal > 0 ? "#f1f8e9" : T.bgAlt,
+              borderRadius: 6,
+              display: "flex",
+              alignItems: "center",
+              gap: 14,
+            }}>
+              <div style={{ flex: 1 }}>
+                <div style={{
+                  fontSize: "0.78rem",
+                  color: partCPending === 0 && partCTotal > 0 ? T.good : T.text,
+                  marginBottom: 6,
+                  fontWeight: partCPending === 0 && partCTotal > 0 ? 400 : 300,
+                }}>
+                  {partCPending === 0 && partCTotal > 0
+                    ? "✓ Part C complete — ready to save"
+                    : `Part C: ${partCFilledCount} of ${partCTotal} sections filled (${partCPending} pending)`}
+                </div>
+                <div style={{ height: 6, background: "#e0e0e0", borderRadius: 3, overflow: "hidden" }}>
+                  <div style={{
+                    height: "100%",
+                    width: `${partCTotal === 0 ? 100 : Math.round((partCFilledCount / partCTotal) * 100)}%`,
+                    background: partCPending === 0 && partCTotal > 0 ? T.good : "#FFA726",
+                    transition: "width 0.25s ease",
+                  }} />
+                </div>
+              </div>
+              <span style={{ fontSize: "0.72rem", color: T.textMuted }}>
+                {partCTotal === 0 ? 100 : Math.round((partCFilledCount / partCTotal) * 100)}%
+              </span>
+            </div>
+
+            {/* ── Part C: AI paste box ── */}
             <div style={F.aiBox}>
               <div style={F.aiLabelRow}>
                 <span style={F.aiIconBadge}><Sparkles size={14} /></span>
@@ -1368,16 +1617,38 @@ export default function PreventiveScreening() {
             <div style={F.formLayout}>
               <div style={F.formSidebar}>
                 <div style={F.formSidebarHeading}>Part C Sections</div>
-                {visiblePartCSections.map((s) => (
-                  <button
-                    key={s.key}
-                    className="pfx-sidebar-item"
-                    style={F.formSidebarItem(activePartCSection === s.key)}
-                    onClick={() => setActivePartCSection(s.key)}
-                  >
-                    {s.title}
-                  </button>
-                ))}
+                {visiblePartCSections.map((s) => {
+                  const filled = !!partCFilledMap[s.key];
+                  return (
+                    <button
+                      key={s.key}
+                      className="pfx-sidebar-item"
+                      style={F.formSidebarItem(activePartCSection === s.key)}
+                      onClick={() => setActivePartCSection(s.key)}
+                    >
+                      <span style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        width: "100%",
+                      }}>
+                        <span>{s.title}</span>
+                        <span
+                          title={filled ? "Filled" : "Not filled yet"}
+                          style={{
+                            width: 8,
+                            height: 8,
+                            borderRadius: "50%",
+                            background: filled ? T.good : T.bad,
+                            marginLeft: 8,
+                            flexShrink: 0,
+                            boxShadow: `0 0 6px ${filled ? T.good + "66" : T.bad + "66"}`,
+                          }}
+                        />
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
 
               {activePartCSection === "general_examination" && (
@@ -1551,11 +1822,28 @@ export default function PreventiveScreening() {
       </div>
 
       <div style={F.saveBar}>
+        {!saveAllBanner && overallPending > 0 && (
+          <span style={{ fontSize: "0.72rem", color: T.textMuted, marginRight: "auto" }}>
+            {overallPending} section{overallPending === 1 ? "" : "s"} still pending
+          </span>
+        )}
+        {!saveAllBanner && overallPending === 0 && (partATotal + partCTotal) > 0 && (
+          <span style={{ fontSize: "0.72rem", color: T.good, marginRight: "auto" }}>
+            ✓ All sections complete
+          </span>
+        )}
         {saveAllBanner && (
           <span style={{ fontSize: "0.75rem", color: saveAllBanner.ok ? T.good : T.bad, marginRight: "auto" }}>{saveAllBanner.text}</span>
         )}
-        <button style={F.saveBtn} onClick={handleSaveAll} disabled={saving || savingVitals}>
-          <Save size={15} /> {saving || savingVitals ? "Saving…" : "Save All"}
+        <button
+          style={{
+            ...F.saveBtn,
+            background: overallPending === 0 && (partATotal + partCTotal) > 0 ? T.good : T.text,
+          }}
+          onClick={handleSaveAll}
+          disabled={saving || savingVitals}
+        >
+          <Save size={15} /> {saving || savingVitals ? "Saving…" : overallPending === 0 && (partATotal + partCTotal) > 0 ? "Save All (Complete)" : "Save All"}
         </button>
       </div>
 

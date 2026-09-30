@@ -268,7 +268,7 @@ async def _run_supervisor(
         raw = await loop.run_in_executor(
             None, _chat,
             system, user,
-            "llama-3.3-70b-versatile", 1200, 0.1, True,
+            "openai/gpt-oss-120b", 1200, 0.1, True,
             default_plan,
         )
 
@@ -506,7 +506,7 @@ async def _run_exploration_agent(
     async with _GROQ_SEMAPHORE:
         raw = await loop.run_in_executor(
             None, _chat, system, user,
-            "llama-3.3-70b-versatile", 1500, 0.1, True,
+            "openai/gpt-oss-120b", 1500, 0.1, True,
             _EXPLORATION_DEFAULT_JSON,
         )
 
@@ -574,7 +574,7 @@ async def _run_exploration_agent(
     async with _GROQ_SEMAPHORE:
         raw2 = await loop.run_in_executor(
             None, _chat, system, user2,
-            "llama-3.3-70b-versatile", 1000, 0.1, True,
+            "openai/gpt-oss-120b", 1000, 0.1, True,
             _EXPLORATION_DEFAULT_JSON,
         )
 
@@ -689,7 +689,7 @@ async def _run_synthesis_agent(
         raw = await loop.run_in_executor(
             None, _chat,
             _SYNTHESIS_SYSTEM, user,
-            "llama-3.3-70b-versatile", 3000, 0.1, True,
+            "openai/gpt-oss-120b", 3000, 0.1, True,
             _SYNTHESIS_EMPTY,
         )
 
@@ -747,7 +747,7 @@ async def _run_weight_update_only(
         raw = await loop.run_in_executor(
             None, _chat,
             _WEIGHT_UPDATE_SYSTEM, user,
-            "llama-3.3-70b-versatile", 600, 0.1, True,
+            "openai/gpt-oss-120b", 600, 0.1, True,
             _WEIGHT_UPDATE_EMPTY,
         )
 

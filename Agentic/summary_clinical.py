@@ -1,13 +1,146 @@
 """
-CCGI Clinical Graph Intelligence — Lean 3-Agent Reasoning System (v4.9)
+CCGI Clinical Graph Intelligence — Lean 2-Agent Reasoning System (v5.3.0)
 =====================================================================
+
+CHANGE IN v5.3.0 (THIS VERSION — over v5.2.0):
+  • A2 ADDITIVE CONTENT CHANGE ONLY — the Clinical Summary agent's final
+    synthesis call now ALSO produces an ONCOLOGY CASE CLASSIFICATION when,
+    and only when, the patient's documented diagnosis is a malignancy. This
+    uses standard oncology charting terminology rather than generic labels:
+
+      - PRIMARY MALIGNANCY   — no prior cancer diagnosis is documented
+                                anywhere in the patient's facts/timeline;
+                                this is a de novo diagnosis.
+      - RECURRENCE            — a prior cancer diagnosis IS documented, the
+                                new finding is the SAME histology arising in
+                                the same/related site or field, and the
+                                record explicitly describes it as recurrent
+                                or relapsed. Further classified, only when
+                                the documents support it, as LOCAL, REGIONAL,
+                                or DISTANT recurrence.
+      - SECOND PRIMARY MALIGNANCY (SPM) — a prior cancer diagnosis IS
+                                documented, the new finding is a DIFFERENT
+                                histology and/or an unrelated primary site,
+                                and the record supports it being an
+                                independent primary rather than a recurrence
+                                or metastasis of the first cancer. Further
+                                classified, only when dates support it, as
+                                SYNCHRONOUS (near the same time as the first
+                                cancer, conventionally within ~6 months) or
+                                METACHRONOUS (diagnosed after a longer
+                                interval).
+
+    This classification is GRAPH-DRIVEN ONLY — it is derived strictly from
+    the same pre-extracted facts and compact timeline A2 already uses for
+    the narrative, never from outside oncology knowledge, and it is left
+    null/not-applicable whenever the patient's diagnosis is not oncological,
+    or the evidence for a specific classification is ambiguous (the model is
+    explicitly instructed to leave it unclassified rather than guess). It
+    adds two new keys to A2's existing JSON schema — "oncology_case_type" and
+    "oncology_case_chips" — and a corresponding "oncology_classification"
+    block in the API response's "summary" object. NOTHING ELSE CHANGES: the
+    non-oncology narrative content, the CONFIRMED DIAGNOSIS bold rule, the
+    measurement/value bold rule, the mandatory final current-status
+    paragraph, batching, token budgets, and the rest of the v5.2.0 schema
+    are all byte-for-byte unchanged. Version strings bumped to
+    lean-5.3.0 throughout logging and the /health and pipeline responses.
+
+CHANGE IN v5.2.0 (carried forward, unchanged):
+  • A2 CONTENT CHANGE ONLY — the v5.1.0 requirement that the Clinical
+    Summary agent's FINAL SYNTHESIS narrative be organized CHRONOLOGICALLY
+    BY DOCUMENT DATE is REVERTED. As of v5.2.0 the narrative is again
+    organized by CLINICAL LOGIC/TOPIC — the same style of ordering used in
+    the earlier v4.4-v4.9 line (diagnosis -> pathology/findings ->
+    biomarkers -> imaging -> labs -> procedures/treatment course ->
+    functional/clinical status -> complications -> other -> mandatory
+    current-status close) — rather than mirroring raw document/date order.
+    Concretely:
+      - Dates are still used, but only (a) to state a specific date/period
+        next to a fact when that date is itself clinically meaningful
+        (e.g. date of diagnosis, date of surgery, date a critical lab was
+        drawn), and (b) INTERNALLY, using the A1 compact timeline, to work
+        out which finding/treatment/status is most CURRENT and to get the
+        real chronological sequence of treatment events right (e.g.
+        confirming surgery preceded chemotherapy, which preceded
+        radiotherapy) — dates are NOT used to dictate the paragraph-by-
+        paragraph structure of the summary any more.
+      - The summary is explicitly a GENERIC, CONCISE, doctor-readable
+        clinical summary: short enough to be read at a glance, but still
+        required to cover every clinically relevant piece of documented
+        content for that patient — diagnosis, pathology/findings, every
+        documented treatment/procedure category (per the unchanged,
+        mandatory, graph-driven-only PROCEDURE DETAIL RULE below), current
+        disease/treatment status, complications/toxicities, active
+        medications, and the follow-up plan.
+      - Length guidance is tightened versus v5.1.0 so the result stays a
+        true, concise SUMMARY rather than a long chronological narrative
+        retelling, while still scaling up modestly for a heavily-
+        documented patient so nothing clinically important is dropped.
+    NOTHING ELSE CHANGED: the mandatory, graph-driven-only PROCEDURE
+    DETAIL RULE, the CONFIRMED DIAGNOSIS bold rule, the measurement/value
+    bold rule, the "missing information is silently omitted" rule, the
+    mandatory final current-status paragraph, A1 (Timeline agent,
+    untouched), A2's batching (SUMMARY_BATCH_SIZE fact-extraction batches,
+    one final synthesis call), token budgets (SUMMARY_EXTRACTION_MAX_TOKENS,
+    SUMMARY_SYNTHESIS_MAX_TOKENS), the "no external medical knowledge"
+    grounding rule, and the OUTPUT JSON SCHEMA are all byte-for-byte
+    unchanged from v5.1.0. The v5.0.1 LLM_CONCURRENCY rate-limit fix is
+    untouched and still in effect (see below).
+
+CHANGE IN v5.1.0 (carried forward, now partially superseded — see above):
+  • A2 CONTENT CHANGE ONLY — the Clinical Summary agent's FINAL SYNTHESIS
+    narrative was organized CHRONOLOGICALLY BY DOCUMENT DATE instead of
+    being sequenced purely by clinical logic. THIS ORDERING RULE IS
+    SUPERSEDED BY v5.2.0 ABOVE — the narrative is once again organized by
+    clinical logic, not document date. Everything else introduced in
+    v5.1.0 (the mandatory, graph-driven-only PROCEDURE DETAIL RULE
+    covering every treatment/procedure category actually present in the
+    patient's documents) remains in effect, unchanged, in v5.2.0.
+
+CHANGE IN v5.0.1 (carried forward, unchanged):
+  • RATE-LIMIT FIX ONLY. Added a single shared `asyncio.Semaphore`
+    (LLM_CONCURRENCY, default 4) that every LLM call passes through inside
+    BaseAgent._invoke(). This is the ONLY functional change v5.0.1 made
+    over v5.0. It does NOT touch: batch sizes, max_tokens budgets, prompts,
+    schemas, fallback logic, or any content/completeness behavior. It
+    exists purely to stop Groq TPM (tokens-per-minute) 429 rate-limit
+    errors that occur when many batches fire concurrently (e.g. A1's 14
+    batches, or A2's 7 fact-extraction batches, all admitted to Groq at
+    the same instant).
+
+    WHY THIS APPROACH AND NOT max_tokens/batch-size reduction: Groq counts
+    a request's *requested* max_tokens against your TPM budget the moment
+    the request is admitted — not what it actually generates. Firing many
+    batches via asyncio.gather() at once creates a burst that can exceed
+    the account's TPM ceiling even though the total minute-long workload
+    would easily fit if paced out. Reducing max_tokens or batch size would
+    also reduce this burst, but at the cost of truncation/completeness
+    risk on richly-documented patients — exactly the outcome we want to
+    avoid. A concurrency semaphore paces requests without shrinking any
+    single call's budget or the amount of data any call is allowed to
+    process, so nothing is ever dropped, summarized short, or missed.
+
+    HOW IT WORKS: LLM_CONCURRENCY (default 4) means at most 4 LLM calls
+    are ever in flight to Groq at once, from ANY agent, at ANY stage of
+    the pipeline (A1 batch-organization, A1 narrative generation, A2
+    fact-extraction, A2 synthesis all share the same semaphore). Every
+    other queued call simply waits its turn instead of being admitted all
+    at once and immediately 429'd. The Groq SDK's built-in retry/backoff
+    is still in place underneath this as a second line of defense, but
+    with the semaphore in place it should rarely need to trigger.
+
+    TUNING: raise LLM_CONCURRENCY if your Groq tier can sustain more
+    parallel throughput (higher TPM limit); lower it if you still see
+    429s. It defaults to 4, a conservative starting point for a 300,000
+    TPM on-demand tier with GROQ_MAX_TOKENS=8000 completion budgets.
 
 Architecture:
   A1  Timeline Agent          → date-wise chronological reconstruction from graph data,
                                  organized by ENTITY TYPE within each date (not a document
                                  dump). Processes documents in BATCHES of TIMELINE_BATCH_SIZE
-                                 (concurrently), merges the batches deterministically in
-                                 Python, then writes narratives in TWO further batched steps:
+                                 (concurrently, throttled by LLM_CONCURRENCY), merges the
+                                 batches deterministically in Python, then writes narratives
+                                 in TWO further batched steps:
 
                                    (a) PER-DOCUMENT narrative generation — flattened across
                                    ALL dates into batches of NARRATIVE_BATCH_SIZE documents
@@ -41,11 +174,18 @@ Architecture:
 
   A2  Clinical Summary Agent  → doctor-letter-style narrative (multi-paragraph), grounded
                                  ONLY in graph document data, no recommendations/predictions.
-                                 Any diagnosis stated as CONFIRMED (biopsy/histopathology or
+                                 As of v5.2.0, the narrative is a GENERIC, CONCISE clinical
+                                 summary organized by CLINICAL LOGIC/TOPIC (not raw document/
+                                 date order), and still gives full, dated, doctor-ready detail
+                                 for every treatment/procedure category (surgery,
+                                 chemotherapy, radiotherapy, or any other documented
+                                 procedure) that is actually present in the graph data —
+                                 never a fixed/hardcoded template of procedures. Any
+                                 diagnosis stated as CONFIRMED (biopsy/histopathology or
                                  other gold-standard confirmation in the record — never a
                                  merely suspected/probable one) is wrapped in markdown
-                                 **bold** in the narrative and in the diagnosis header.
-                                 Fully mines STRUCTURED WORKFLOW DOCUMENTS (chemotherapy,
+                                 **bold** in the narrative and in the diagnosis header. Fully
+                                 mines STRUCTURED WORKFLOW DOCUMENTS (chemotherapy,
                                  radiotherapy, surgical, nursing, treatment-planning, or any
                                  structured EMR/JSON-style document) for treatment-management
                                  detail — treatment intent, protocol, cycle counts, dose
@@ -53,242 +193,99 @@ Architecture:
                                  monitoring observations, and treatment status — instead of
                                  only surfacing the diagnosis/medication from them.
 
-                                 NEW IN v4.4: prompts strengthened for richer, more complete
-                                 output — when the record contains MULTIPLE documents of the
-                                 same type (e.g. several separate chemotherapy administration
-                                 records, several dictations), each is described as its own
-                                 individual clinical event with its own date/time/detail,
-                                 never folded into one generic combined sentence. Sentence
-                                 count guidance now scales with how much is documented.
-
-                                 NEW IN v4.5: the final synthesis pass now writes the summary
-                                 as one continuous, doctor-narrated STORY of the patient's
-                                 course — chronological, connected with natural clinical
-                                 transitions ("Following this...", "He was subsequently
-                                 started on..."), — instead of a dense back-to-back list of
-                                 facts, while still requiring every individual chemotherapy
-                                 administration, radiotherapy session/plan, surgical event,
-                                 and other structured workflow detail to be narrated as its
-                                 own moment in the story (never merged or summarized away).
-                                 The final-synthesis call now also uses its own
-                                 SUMMARY_SYNTHESIS_MAX_TOKENS budget (defaults to
-                                 GROQ_MAX_TOKENS) so a long, fully-documented story is never
-                                 silently truncated, without changing the token budget of any
-                                 other call in the pipeline. OUTPUT JSON SCHEMA for A2 is
-                                 UNCHANGED.
-
-                                 NEW IN v4.6: fixes chemotherapy/systemic-therapy treatment
-                                 course being under-represented in the final summary even
-                                 though it was correctly extracted into the Timeline. Both
-                                 the fact-extraction pass (Pass 1) and the synthesis pass
-                                 (Pass 2) now explicitly treat chemotherapy/radiotherapy/
-                                 surgical/treatment-workflow documents as the AUTHORITATIVE
-                                 source for treatment information, and are required to always
-                                 surface: treatment modality, treatment intent, regimen/
-                                 protocol, current treatment status, current cycle vs planned
-                                 cycles, and any documented treatment response or toxicity.
-                                 Multiple workflow documents describing the SAME regimen are
-                                 now woven into ONE continuous chronological treatment
-                                 narrative in the synthesis pass (rather than repeated as
-                                 separate boilerplate paragraphs) — this changes ONLY how
-                                 they are connected in prose; every cycle's own date, dose,
-                                 and status is still individually preserved, nothing is
-                                 dropped. Purely operational/administrative workflow metadata
-                                 (nurse verification, pharmacy verification, consent capture,
-                                 IV/venous access mechanics, drug labeling/preparation
-                                 checklists) is explicitly excluded from the clinical summary
-                                 UNLESS it reflects an actual clinical event (e.g. a reaction,
-                                 extravasation, or documented toxicity) — the Timeline (A1)
-                                 continues to retain this detail at the document level
-                                 regardless, since A1's prompts are unchanged. OUTPUT JSON
-                                 SCHEMA for A2 is UNCHANGED — no keys added, removed, or
-                                 renamed.
-
-                                 NEW IN v4.6.1 (narrative-ordering fix): A1's timeline is,
-                                 by design, ordered LATEST-DATE-FIRST for chart browsing.
-                                 The synthesis pass was previously handed that same
-                                 latest-first timeline as its only chronological reference,
-                                 which could pull the generated story toward reading like a
-                                 reverse-dated log instead of a doctor's overview. The
-                                 synthesis pass now (a) re-sorts a LOCAL COPY of the compact
-                                 timeline to earliest-first purely for its own reference —
-                                 this does NOT touch A1's actual output/order in the response
-                                 at all — and (b) is explicitly instructed to write a
-                                 GENERIC, big-picture clinical overview organized by clinical
-                                 logic (identification → presenting complaint → workup/
-                                 diagnosis → treatment course narrated earliest-to-latest →
-                                 current status), rather than mirroring the order of whatever
-                                 timeline/facts data it happens to be given. A1 and A3 are
-                                 completely unchanged. OUTPUT JSON SCHEMA for A2 is UNCHANGED.
-
-                                 NEW IN v4.7 (physician-synopsis rewrite — superseded by
-                                 v4.8, see below): Pass 2's prompts were briefly rewritten to
-                                 produce a rigid, discharge-summary-style "clinical synopsis"
-                                 organized under ten fixed section headings, with dates used
-                                 purely internally and chronological connective phrasing
-                                 disallowed.
-
-                                 NEW IN v4.8 (Clinical Summary (A2) Enhancement
-                                 Specification — generic multi-specialty physician-oriented
-                                 clinical summary): per the spec, v4.7's rigid fixed-section
-                                 "synopsis" restructuring is reverted. Pass 2 once again
-                                 produces ONE continuous, synthesized, paragraph-based
-                                 physician narrative (the same continuous physician-style
-                                 writing, same number/shape of paragraphs, same JSON schema
-                                 as before) — but with substantially richer clinical content
-                                 requirements layered on top:
-                                   • A comprehensive, specialty-agnostic checklist of what to
-                                     extract when explicitly documented — diagnosis, pathology,
-                                     molecular/biomarkers, imaging/disease extent, laboratory
-                                     trends, procedures/surgeries, treatment (history, current
-                                     regimen, intent, response, dose changes, current
-                                     medications), functional status (ECOG/KPS/NYHA/NIHSS/mRS/
-                                     GCS/Child-Pugh/MELD/Barthel/etc.), clinical status,
-                                     complications, and other information (comorbidities,
-                                     allergies, concurrent medications, pending investigations,
-                                     monitoring/follow-up).
-                                   • Automatic specialty adaptation — the model is told which
-                                     categories matter most for oncology, cardiology, neurology,
-                                     nephrology, gastroenterology/hepatology, pulmonology,
-                                     endocrinology, hematology, infectious disease,
-                                     rheumatology, orthopedics, and urology/gynecology, and
-                                     applies whichever are actually documented for the patient
-                                     at hand rather than a single hardcoded (e.g. oncology-only)
-                                     schema.
-                                   • An expanded BOLD-emphasis rule — beyond confirmed
-                                     diagnoses, the model now sparingly bolds other highly
-                                     clinically significant, patient-specific information (stage/
-                                     severity/classification, key pathology, major imaging
-                                     findings, tumor burden/organ involvement/metastatic
-                                     disease, critical lab abnormalities, biomarkers, major
-                                     procedures/surgeries, treatment history/current
-                                     treatment/intent/response, performance status, significant
-                                     toxicities, important complications, major comorbidities,
-                                     clinically significant allergies, critical concurrent
-                                     medications, current disease status, and the follow-up
-                                     plan) — while explicitly avoiding bolding every medical
-                                     term
-                                     In addition to confirmed diagnoses, also bold clinically important
-                                    measurements and quantitative values whenever they materially affect
-                                    clinical interpretation, including:
-
-                                    • Tumor/lesion/cyst/nodule size
-                                    • Organ measurements
-                                    • Mass dimensions
-                                    • Vessel diameter
-                                    • EF%, LVEF
-                                    • Laboratory abnormalities
-                                    • Cancer stage/grade/TNM
-                                    • Radiation dose and fractions
-                                    • Chemotherapy cycle number
-                                    • Drug dose when clinically significant
-                                    • Performance status
-                                    • Critical vital signs
-                                    • Biomarker values
-
-                                    Examples:
-                                    **3.8 × 2.6 cm**
-                                    **Stage IIIB**
-                                    **Hb 6.8 g/dL**
-                                    **EF 32%**
-                                    **Cycle 5 of FOLFOX**
-                                    **60 Gy in 30 fractions**
-
-                                    Do not bold every numeric value. Only bold values that are clinically
-                                    important and help a physician quickly scan the summary..
-                                   • A strict "missing information" rule — if a clinical
-                                     category is simply not documented, the model omits it
-                                     silently; it must never write placeholder phrases like
-                                     "not documented", "unknown", "unavailable", or "not
-                                     assessed" inside the narrative body (the diagnosis_header
-                                     JSON field keeps its own pre-existing, schema-required
-                                     "Not documented" fallback, since the output schema itself
-                                     is unchanged).
-                                 This change is SCOPED ENTIRELY to Pass 2's system/user prompt
-                                 text inside ClinicalSummaryAgent — Pass 1 fact extraction, the
-                                 deterministic merge, batching, A1, A3, Neo4j/Mongo retrieval,
-                                 and the OUTPUT JSON SCHEMA for A2 (diagnosis_header,
-                                 confirmed_diagnosis_present, confirmed_diagnoses, paragraphs,
-                                 full_text, source_coverage_check) are all UNCHANGED.
-
-                                 NEW IN v4.9 (THIS VERSION — closing gaps against the Clinical
-                                 Summary (A2) Enhancement Specification found on review of
-                                 v4.8): v4.8 correctly stopped the summary from reading as a
-                                 report-by-report or date-by-date log, but it never actually
-                                 gave the model the specific clinical-logic skeleton the spec
-                                 asks for, never required treatment to be presented in its
-                                 real-world sequence of care, never told the model how to
-                                 avoid enumerating routine/normal lab values, and never
-                                 enforced the spec's mandatory closing paragraph. v4.9 closes
-                                 all four gaps, again SCOPED ENTIRELY to Pass 2's prompt text:
-                                   • CLINICAL FLOW ORDERING — the model is now given the
-                                     spec's logical skeleton (diagnosis → key investigations →
-                                     disease extent → treatment history → current treatment →
-                                     current disease status → follow-up) as guidance for how
-                                     to sequence the narrative, while still writing flowing
-                                     prose/paragraphs rather than fixed headings, and skipping
-                                     any stage with no supporting data.
-                                   • TREATMENT IN ACTUAL SEQUENCE OF CARE — treatment history
-                                     must now be narrated in the real chronological order
-                                     treatment actually occurred (e.g. biopsy → surgery →
-                                     chemotherapy → radiotherapy → maintenance therapy →
-                                     current treatment), using each treatment event's own
-                                     document date internally to establish that order — never
-                                     presented out of sequence, even though the write-up must
-                                     still read as synthesized prose, not a dated log.
-                                   • LABORATORY VALUE SYNTHESIS — the model must no longer
-                                     enumerate individual normal/routine lab values (e.g.
-                                     "Hb 12.8, WBC 7.2, Platelets 256"); instead it states the
-                                     clinical impression in words (e.g. "stable hematological
-                                     parameters with preserved renal and hepatic function"),
-                                     citing an exact value only when that value is itself
+                                 v4.4 — v4.9 content history (all prompt-only, condensed here
+                                 — see prior revisions for full detail; the sequencing bullet
+                                 below is the rule REINSTATED by v5.2.0):
+                                   • Multiple documents of the same type are each described as
+                                     their own individual clinical event, never folded into one
+                                     generic combined sentence.
+                                   • Final synthesis writes ONE continuous, doctor-narrated
+                                     STORY sequenced by CLINICAL LOGIC rather than by mirroring
+                                     raw document/date order (v5.1.0 had temporarily replaced
+                                     this with strict document-date ordering; v5.2.0 reinstates
+                                     clinical-logic ordering while KEEPING v5.1.0's mandatory
+                                     procedure-detail rule). It is still ONE continuous
+                                     doctor-narrated story, using its own
+                                     SUMMARY_SYNTHESIS_MAX_TOKENS budget.
+                                   • Chemotherapy/radiotherapy/surgical/treatment-workflow
+                                     documents are the AUTHORITATIVE source for treatment
+                                     information (modality, intent, regimen, cycles, status,
+                                     response/toxicity); purely operational/administrative
+                                     workflow metadata (nurse/pharmacy verification, consent
+                                     capture, IV/venous access mechanics, drug labeling
+                                     checklists) is excluded unless it reflects an actual
+                                     clinical event.
+                                   • A generic, specialty-agnostic clinical checklist
+                                     (diagnosis, pathology, molecular/biomarkers, imaging, labs,
+                                     procedures, treatment, functional status, clinical status,
+                                     complications, other) is pulled from whenever documented,
+                                     auto-adapted to the patient's actual specialty/condition —
+                                     never a single hardcoded (e.g. oncology-only) schema.
+                                   • An expanded, sparing BOLD-emphasis rule covers confirmed
+                                     diagnoses plus other highly clinically significant facts and
+                                     clinically important measurements/values (sizes, EF%, labs,
+                                     stage/TNM, radiation dose/fractions, chemo cycle number,
+                                     clinically significant drug doses, performance status,
+                                     critical vitals, biomarker values) — never every numeric
+                                     value.
+                                   • A strict "missing information" rule — undocumented
+                                     categories are silently omitted, never flagged with
+                                     placeholder text like "not documented"/"unknown" inside the
+                                     narrative body (diagnosis_header keeps its own pre-existing
+                                     schema-required "Not documented" fallback).
+                                   • LABORATORY VALUE SYNTHESIS — routine/normal lab values are
+                                     stated as a plain-language clinical impression rather than
+                                     enumerated; an exact value is cited only when it is itself
                                      clinically important.
-                                   • MANDATORY FINAL PARAGRAPH — the summary's last paragraph
-                                     must now always function as a current-status close,
-                                     covering (whenever documented): current treatment status,
-                                     current disease status, significant toxicities or
-                                     complications, active/current medications, and the
-                                     follow-up/monitoring plan, rather than leaving these
-                                     scattered across earlier paragraphs only.
-                                 Pass 1 fact extraction, the deterministic merge, batching,
-                                 A1, A3, Neo4j/Mongo retrieval, and the OUTPUT JSON SCHEMA for
-                                 A2 (diagnosis_header, confirmed_diagnosis_present,
+                                   • MANDATORY FINAL PARAGRAPH — the last paragraph always
+                                     functions as a current-status close (current treatment
+                                     status, current disease status, significant toxicities/
+                                     complications, active medications, follow-up/monitoring
+                                     plan), whenever any of these is documented.
+                                 OUTPUT JSON SCHEMA for A2 is UNCHANGED across v5.1.0/v5.2.0
+                                 (diagnosis_header, confirmed_diagnosis_present,
                                  confirmed_diagnoses, paragraphs, full_text,
-                                 source_coverage_check) remain UNCHANGED.
+                                 source_coverage_check). v5.3.0 ADDS two oncology-only fields,
+                                 populated when and only when the confirmed diagnosis is a
+                                 malignancy (null/empty otherwise): oncology_case_type
+                                 (primary_malignancy / recurrence_local / recurrence_regional /
+                                 recurrence_distant / recurrence_unspecified /
+                                 second_primary_synchronous / second_primary_metachronous /
+                                 second_primary_unspecified / null) and oncology_case_chips
+                                 (2-4 short ALL-CAPS labels). See "CHANGE IN v5.3.0" above.
 
                                  BATCHED, TWO-PASS, LIKE A1 (bounded, regardless of patient
                                  document volume):
                                    Pass 1 (fact extraction): graph_documents are split into
                                    batches of SUMMARY_BATCH_SIZE (default 10) and processed
-                                   CONCURRENTLY. Each batch call only ever sees its own small
-                                   slice of documents.
+                                   CONCURRENTLY (throttled by LLM_CONCURRENCY). Each batch call
+                                   only ever sees its own small slice of documents.
                                    Merge (deterministic, no LLM): all batches' extracted
                                    facts are concatenated in Python.
                                    Pass 2 (synthesis): ONE final, much smaller LLM call takes
                                    the concatenated facts + a COMPACT projection of the A1
                                    timeline (date + documents + narrative only) and writes
-                                   the final physician-oriented clinical summary.
+                                   the final physician-oriented clinical summary, organized by
+                                   clinical logic (v5.2.0), using the timeline only to resolve
+                                   what is current and what the true treatment sequence was.
                                  The OUTPUT JSON SCHEMA for A2 is unchanged.
 
-  A3  Organ System Agent      → organ/system-wise consolidated analysis.
-
-                                 BATCHED, TWO-PASS, LIKE A1/A2:
-                                   Pass 1 (concurrent, per-batch extraction): graph_documents
-                                   are split into batches of ORGAN_BATCH_SIZE (default 10)
-                                   documents. Each batch call extracts a flat list of
-                                   {system, finding, date, source_document} entries.
-                                   Merge (deterministic, no LLM): all batches' findings are
-                                   grouped by system name in Python, first/latest documented
-                                   dates computed deterministically.
-                                   Pass 2 (single, final synthesis call): takes ONLY the
-                                   compact, deduplicated per-system findings list and asks
-                                   the LLM to write consolidated_status and trend per system.
-                                 OUTPUT JSON SCHEMA for A3 is unchanged.
-
 Design principles:
-  - No hardcoded disease logic, no demo/oncology-specific schemas.
+  - No hardcoded disease logic, no demo/oncology-specific schemas. This
+    extends explicitly to A2's procedure-detail rule: the set of
+    treatment/procedure types detailed (surgery, chemotherapy,
+    radiotherapy, or otherwise) is derived ENTIRELY from what is actually
+    present in graph_documents for that patient — never a fixed list
+    assumed to apply to every patient.
   - Every output must be traceable to entities actually present in
     `graph_documents` fetched from Neo4j. Nothing is invented or predicted.
+  - NOTHING IS EVER SUPPLEMENTED FROM THE MODEL'S OWN MEDICAL KNOWLEDGE OR
+    TRAINING DATA. Every agent's prompts explicitly forbid using general
+    medical knowledge, textbook expectations, or "typical" clinical
+    patterns to add, infer, or fill in anything not literally present in
+    the `graph_documents` given to that specific call. If it isn't in the
+    graph data handed to the model in that prompt, it does not appear in
+    the output.
   - The Clinical Summary agent explicitly must NOT recommend treatment or
     predict future course — it only reports what is documented (including
     documented referrals — reporting "patient was referred to X" is a fact,
@@ -300,24 +297,29 @@ Design principles:
     never a separate LLM call, so it can never blend documents together
     or silently fail into an unreadable dump.
   - Agents run sequentially so each stage builds on cleaner, more organized
-    input from the previous stage (Timeline -> Summary -> Organ Analysis).
+    input from the previous stage (Timeline -> Summary).
   - EVERY LLM call in the pipeline is sized so it does NOT scale linearly
-    with the patient's total raw document/entity volume — A1, A2, and A3
-    all batch their raw-document (or, for A1's narrative pass, flattened
+    with the patient's total raw document/entity volume — A1 and A2 both
+    batch their raw-document (or, for A1's narrative pass, flattened
     per-document) reads, merge/assemble deterministically in Python, and
     only ever run bounded-size calls — never a single call whose size
     scales with total patient document count.
+  - CONCURRENCY IS THROTTLED, NOT CONTENT. All batches within a stage still
+    run concurrently (via asyncio.gather) for speed, but a shared
+    asyncio.Semaphore(LLM_CONCURRENCY) ensures only a bounded number of
+    requests are ever in flight to the LLM provider at once, which avoids
+    provider-side rate-limit (429/TPM) errors WITHOUT reducing any batch's
+    size, any call's max_tokens budget, or any prompt's completeness
+    requirements. No data is ever dropped or shortened to achieve this.
   - Output JSON keys already relied upon by the frontend are never removed
-    or renamed — changes in this version are additive-only (new nested
-    fields) or internal/prompt-only (no schema impact). v4.5's story-style
-    rewrite is prompt-only: A2's output keys (diagnosis_header,
-    confirmed_diagnosis_present, confirmed_diagnoses, paragraphs, full_text,
-    source_coverage_check) are byte-for-byte the same shape as before. v4.6
-    is likewise prompt-only — same guarantee. The v4.6.1 narrative-ordering
-    fix, the v4.7 physician-synopsis rewrite, the v4.8 generic
-    multi-specialty content/bold-rule enhancement, and the v4.9
-    clinical-flow/treatment-sequence/lab-synthesis/final-paragraph
-    refinement are ALSO prompt-only — same guarantee again.
+    or renamed for keys that still exist — A1 and A2's shapes are
+    byte-for-byte the same as before. The ONLY schema/response change
+    versus v4.9 was the REMOVAL of the "organ_analysis" key (and the A3
+    agent that produced it) from ClinicalState and from the API response,
+    per explicit request in v5.0. v5.0.1, v5.1.0, and v5.2.0 all make NO
+    further schema changes — v5.2.0 changes A2's prompt content only
+    (clinical-logic ordering instead of document-date ordering, tighter
+    length guidance), not the JSON shape returned.
 """
 
 from __future__ import annotations
@@ -367,7 +369,7 @@ neo4j_driver = AsyncGraphDatabase.driver(
 # How many completion tokens each LLM call is allowed to produce. Set
 # explicitly (rather than relying on the client default, which can be much
 # smaller) so that the Clinical Summary letter and other longer outputs are
-# never silently truncated. Comfortably under llama-3.3-70b-versatile's
+# never silently truncated. Comfortably under openai/gpt-oss-120b's
 # published completion cap.
 GROQ_MAX_TOKENS = int(os.getenv("GROQ_MAX_TOKENS", "8000"))
 
@@ -377,30 +379,48 @@ GROQ_MAX_TOKENS = int(os.getenv("GROQ_MAX_TOKENS", "8000"))
 # sessions, etc.) can still need more completion budget even in synthesized
 # form, and this gives you a dedicated knob to avoid truncation WITHOUT
 # changing the token budget/cost of every other call in the pipeline (A1
-# batches, A2 fact-extraction batches, A3 batches all still use
-# GROQ_MAX_TOKENS as before). Defaults to GROQ_MAX_TOKENS if not set, so
-# behavior is unchanged unless you explicitly raise it in the environment.
+# batches, A2 fact-extraction batches all still use GROQ_MAX_TOKENS as
+# before). Defaults to GROQ_MAX_TOKENS if not set, so behavior is unchanged
+# unless you explicitly raise it in the environment.
 SUMMARY_SYNTHESIS_MAX_TOKENS = int(
     os.getenv("SUMMARY_SYNTHESIS_MAX_TOKENS", str(GROQ_MAX_TOKENS))
 )
 
-# Max tokens for A2's Pass-1 FACT-EXTRACTION calls specifically. v4.6 asks
-# each extraction batch to pull out more structured treatment-course detail
-# per workflow document (modality/intent/regimen/status/cycles/response or
-# toxicity) than before, which can make a batch's own JSON output longer —
-# especially a batch that happens to contain several chemo/radio workflow
-# documents. Splitting this out from GROQ_MAX_TOKENS gives a dedicated knob
-# to raise if you see extraction-pass truncation in logs (parse_llm_json
-# falling back to {"raw_output": ...}), without touching the token budget of
-# A1 or A3. Defaults to GROQ_MAX_TOKENS, so behavior/cost is unchanged unless
-# explicitly raised.
+# Max tokens for A2's Pass-1 FACT-EXTRACTION calls specifically. Each
+# extraction batch pulls out structured treatment-course detail per
+# workflow document (modality/intent/regimen/status/cycles/response or
+# toxicity), which can make a batch's own JSON output longer — especially a
+# batch that happens to contain several chemo/radio workflow documents.
+# Splitting this out from GROQ_MAX_TOKENS gives a dedicated knob to raise if
+# you see extraction-pass truncation in logs (parse_llm_json falling back to
+# {"raw_output": ...}), without touching the token budget of A1. Defaults to
+# GROQ_MAX_TOKENS, so behavior/cost is unchanged unless explicitly raised.
 SUMMARY_EXTRACTION_MAX_TOKENS = int(
     os.getenv("SUMMARY_EXTRACTION_MAX_TOKENS", str(GROQ_MAX_TOKENS))
 )
 
+# ------------------------------------------------------------------
+# LLM concurrency throttle (v5.0.1 rate-limit fix, unchanged in v5.2.0).
+#
+# How many LLM requests are allowed to be in flight to the provider at the
+# SAME TIME, across the ENTIRE pipeline (A1 batch-organization, A1
+# narrative generation, A2 fact-extraction, A2 synthesis all share this
+# one semaphore, since they all funnel through BaseAgent._invoke). This
+# does NOT limit how many documents/batches exist or how much content any
+# single call is allowed to produce — it only paces *when* each batch's
+# request is admitted to the provider, which is what actually caused the
+# TPM 429 bursts (many batches admitted in the same instant, each
+# reserving up to GROQ_MAX_TOKENS against the TPM ceiling).
+#
+# Tune this via the LLM_CONCURRENCY env var. Lower it if you still see
+# 429s in the logs; raise it (and/or upgrade your Groq tier) if you want
+# faster wall-clock completion and your TPM budget can sustain it.
+# ------------------------------------------------------------------
+LLM_CONCURRENCY = int(os.getenv("LLM_CONCURRENCY", "4"))
+
 # Single high-quality LLM used for all agents.
 llm_synthesis = ChatGroq(
-    model="llama-3.3-70b-versatile",
+    model="openai/gpt-oss-120b",
     temperature=0.1,
     groq_api_key=GROQ_API_KEY,
     max_tokens=GROQ_MAX_TOKENS,
@@ -427,20 +447,39 @@ NARRATIVE_BATCH_SIZE = int(os.getenv("NARRATIVE_BATCH_SIZE", "10"))
 # deterministically.
 SUMMARY_BATCH_SIZE = int(os.getenv("SUMMARY_BATCH_SIZE", "10"))
 
-# Organ-analysis batching — same idea again, for A3's per-system-finding
-# extraction pass. Keeps A3 from ever sending the full entity-level
-# timeline or the full A2 narrative in one call.
-ORGAN_BATCH_SIZE = int(os.getenv("ORGAN_BATCH_SIZE", "10"))
-
 
 def _chunk_list(items: List[Any], size: int) -> List[List[Any]]:
-    """Generic, shared chunking helper used by the Timeline, Clinical
-    Summary, and Organ Analysis agents to split raw documents (or, for
-    A1's narrative pass, flattened per-document entries) into small,
-    safely sized batches."""
+    """Generic, shared chunking helper used by the Timeline and Clinical
+    Summary agents to split raw documents (or, for A1's narrative pass,
+    flattened per-document entries) into small, safely sized batches."""
     if size <= 0:
         return [items] if items else []
     return [items[i:i + size] for i in range(0, len(items), size)]
+
+
+_ONCOLOGY_CASE_TYPE_LABELS: Dict[str, str] = {
+    "primary_malignancy":          "Primary malignancy",
+    "recurrence_local":            "Recurrence — local",
+    "recurrence_regional":         "Recurrence — regional",
+    "recurrence_distant":          "Recurrence — distant",
+    "recurrence_unspecified":      "Recurrence",
+    "second_primary_synchronous":  "Second primary malignancy — synchronous",
+    "second_primary_metachronous": "Second primary malignancy — metachronous",
+    "second_primary_unspecified":  "Second primary malignancy",
+}
+
+
+def _oncology_case_label(case_type: Optional[str]) -> Optional[str]:
+    """Deterministic, Python-side lookup from A2's raw
+    'oncology_case_type' enum value to the doctor-facing display label —
+    kept out of the LLM call entirely so the label text is never subject
+    to model wording drift and always matches the fixed vocabulary above.
+    Returns None (not a placeholder string) when case_type is None/unknown,
+    i.e. the patient is not oncological or the case could not be
+    classified from the documented facts."""
+    if not case_type:
+        return None
+    return _ONCOLOGY_CASE_TYPE_LABELS.get(case_type)
 
 
 def _safe_date_key(d: Optional[str]) -> str:
@@ -476,7 +515,6 @@ class ClinicalResponse(BaseModel):
     processing_time_ms: int
     summary:            Dict[str, Any]
     timeline:            Dict[str, Any]
-    organ_analysis:      Dict[str, Any]
     intermediate:        Optional[Dict[str, Any]] = None
 
 
@@ -501,9 +539,6 @@ class ClinicalState(TypedDict):
 
     # A2 — Clinical Summary (doctor-style narrative)
     clinical_summary: Optional[Dict]
-
-    # A3 — Organ System Analysis
-    organ_analysis: Optional[Dict]
 
     # Telemetry
     errors:        List[str]
@@ -681,6 +716,37 @@ def parse_llm_json(text: str):
         return {"raw_output": text}
 
 
+# Shared, verbatim rule block appended to every agent's system prompt so the
+# "never use outside/general medical knowledge" instruction is worded
+# identically everywhere and can't drift between agents.
+NO_EXTERNAL_KNOWLEDGE_RULE = (
+    "ABSOLUTE GROUNDING RULE — NO EXTERNAL DATA, EVER: you must use ONLY the "
+    "clinical data explicitly supplied to you inside THIS prompt (the raw "
+    "graph documents / entities / extracted facts / timeline given below, "
+    "as applicable). You must NEVER draw on your own general medical "
+    "knowledge, textbook knowledge, training data, typical/expected "
+    "clinical patterns, standard-of-care assumptions, or anything else "
+    "learned outside this conversation to add, infer, fill in, complete, "
+    "correct, or embellish any detail. If something is not literally "
+    "present in the data given to you in this call, it does not exist for "
+    "the purpose of your output — you leave it out rather than supplying it "
+    "from outside knowledge, even if it seems like an obvious or "
+    "well-known clinical fact. This applies to every field: dates, values, "
+    "names, doses, findings, diagnoses, staging, units — all of it must "
+    "trace back to the supplied data, never to what you already know about "
+    "medicine in general."
+)
+
+# ------------------------------------------------------------------
+# Shared semaphore instance (v5.0.1, unchanged in v5.2.0). Created once at
+# module load so it's shared across every agent instance and every request.
+# All LLM calls in the pipeline pass through BaseAgent._invoke(), so gating
+# there is sufficient to throttle the ENTIRE pipeline's concurrent provider
+# requests without touching any per-agent batching/gather code.
+# ------------------------------------------------------------------
+_llm_semaphore = asyncio.Semaphore(LLM_CONCURRENCY)
+
+
 class BaseAgent:
     def __init__(self, llm):
         self.llm = llm
@@ -690,12 +756,23 @@ class BaseAgent:
         per-call override (used by A2's fact-extraction and final
         synthesis passes so neither gets silently truncated) without
         changing the token budget of any other call, which keeps using
-        the client's default GROQ_MAX_TOKENS."""
+        the client's default GROQ_MAX_TOKENS.
+
+        Acquires the shared _llm_semaphore before making the request, so
+        at most LLM_CONCURRENCY requests from ANYWHERE in the pipeline (A1
+        or A2, any batch, any pass) are ever in flight to the provider at
+        once. This is purely a pacing mechanism — it does not change the
+        prompt, the data sent, the max_tokens budget, or the fallback
+        behavior below. Batches that would otherwise have been fired
+        simultaneously (and 429'd) now simply queue briefly and run as
+        soon as a slot frees up; nothing is skipped, shortened, or dropped
+        as a result."""
         llm = self.llm.bind(max_tokens=max_tokens) if max_tokens else self.llm
-        response = await llm.ainvoke([
-            SystemMessage(content=system),
-            HumanMessage(content=user),
-        ])
+        async with _llm_semaphore:
+            response = await llm.ainvoke([
+                SystemMessage(content=system),
+                HumanMessage(content=user),
+            ])
         return parse_llm_json(response.content)
 
     def _elapsed(self, start: float) -> float:
@@ -722,11 +799,12 @@ class BaseAgent:
 # bucket — each document keeps its own entity-type grouping AND its own
 # short narrative, in addition to the existing date-level narrative.
 #
-# Batches of TIMELINE_BATCH_SIZE documents are organized concurrently and
-# merged deterministically in Python (no LLM in the merge step, so nothing
-# can be lost or hallucinated there). Which source documents fall on which
-# date is also computed deterministically straight from the raw documents
-# (no LLM needed for that — it's just grouping by document_date).
+# Batches of TIMELINE_BATCH_SIZE documents are organized concurrently
+# (throttled by the shared LLM_CONCURRENCY semaphore in BaseAgent._invoke)
+# and merged deterministically in Python (no LLM in the merge step, so
+# nothing can be lost or hallucinated there). Which source documents fall
+# on which date is also computed deterministically straight from the raw
+# documents (no LLM needed for that — it's just grouping by document_date).
 #
 # NARRATIVES: generated in two steps.
 #   (1) PER-DOCUMENT narrative — every (date, document) pair across the
@@ -746,10 +824,8 @@ class BaseAgent:
 # Dates are returned LATEST FIRST (most recent date at the top), matching
 # how a clinician wants to scan a chart — newest information first.
 #
-# UNCHANGED IN v4.6.1 / v4.7 / v4.8 / v4.9 — this entire agent (A1) is
-# byte-for-byte identical to the previous version. All prompt/content
-# changes described in the module docstring are scoped entirely to A2's
-# Pass 2 synthesis prompt.
+# UNCHANGED IN v5.2.0 (and unchanged since v5.1.0) — A1 is not touched by
+# either version at all. Only A2's synthesis prompt content changed.
 # ============================================================
 
 class TimelineAgent(BaseAgent):
@@ -779,13 +855,15 @@ class TimelineAgent(BaseAgent):
             "batch — every single entity you are given must appear in your output, "
             "tagged with the document it came from. You never invent a date, value, "
             "or finding that is not present in the source data. "
+            + NO_EXTERNAL_KNOWLEDGE_RULE + " "
             "Always respond with valid JSON only."
         )
 
         prompt = f"""
 You are reading a BATCH of raw clinical graph documents (batch #{batch_index + 1}) for a
 patient being seen by a {specialty} specialist. This is a subset of the patient's full
-record — only organize what is given below.
+record — organize ONLY what is given below. Do not supplement it with anything from
+your own medical knowledge.
 
 RAW CLINICAL GRAPH DOCUMENTS IN THIS BATCH:
 {docs_json}
@@ -796,7 +874,8 @@ TASK — ORGANIZE THIS BATCH BY DATE, THEN BY ENTITY TYPE
 
 RULES (STRICT):
   1. Use ONLY the data given above. Do not add, infer, or predict anything not
-     explicitly present.
+     explicitly present. Do NOT use outside/general medical knowledge for any
+     part of this task — see the grounding rule in your system instructions.
   2. Group entities by document_date first. If a document's date is
      null/"None"/"null", its entities go into "undated" instead — do not
      guess a date.
@@ -1061,8 +1140,9 @@ Return ONLY valid JSON:
             "entities given for that specific document — never borrow content from any "
             "other document, even if it shares the same date. Do not compare documents, "
             "do not state trends, do not predict anything, and do not invent any "
-            "finding or value not present in the data. Always respond with valid JSON "
-            "only."
+            "finding or value not present in the data. "
+            + NO_EXTERNAL_KNOWLEDGE_RULE + " "
+            "Always respond with valid JSON only."
         )
 
         prompt = f"""
@@ -1078,7 +1158,10 @@ TASK — WRITE ONE NARRATIVE PER DOCUMENT
 
 For EACH document object above, generate one narrative using ONLY the entities
 belonging to that document. Never include entities from another document, even
-if it shares the same date as this one.
+if it shares the same date as this one. Never add any fact, value, or
+clinical detail that is not explicitly present in that document's own
+entities, no matter how standard or expected it might seem from general
+medical knowledge.
 
 COMPLETENESS REQUIREMENTS — this is a lossless clinical reconstruction, not a
 summary. Mention EVERY clinically relevant fact given for that document. Never
@@ -1103,6 +1186,7 @@ STRICT RULES:
   • Never hallucinate, never infer, never recommend, never predict.
   • Never merge entities from a different document into this narrative.
   • Never compress several workflow fields into one generic sentence.
+  • Never supplement with outside/general medical knowledge.
 
 Return ONLY valid JSON:
 {{
@@ -1127,12 +1211,13 @@ Return ONLY valid JSON:
     ) -> Dict[str, Dict[str, str]]:
         """Flattens every (date, document) pair across the WHOLE timeline
         into one list, batches it into groups of NARRATIVE_BATCH_SIZE
-        documents (dates mixed freely), runs those batches CONCURRENTLY,
-        and returns {date: {document: narrative}}. Each batch is a small,
-        independent, bounded call — a date with many documents piled onto
-        it can never cause a single oversized call here, because
-        documents from that date are simply spread across several
-        batches alongside documents from other dates."""
+        documents (dates mixed freely), runs those batches CONCURRENTLY
+        (throttled by the shared LLM_CONCURRENCY semaphore), and returns
+        {date: {document: narrative}}. Each batch is a small, independent,
+        bounded call — a date with many documents piled onto it can never
+        cause a single oversized call here, because documents from that
+        date are simply spread across several batches alongside documents
+        from other dates."""
 
         flat: List[tuple] = []
         for entry in merged_timeline.get("timeline", []) or []:
@@ -1158,7 +1243,8 @@ Return ONLY valid JSON:
 
         logger.info(
             f"{self.agent_id} · {len(flat)} documents (across all dates) split into "
-            f"{len(batches)} narrative batch(es) of up to {NARRATIVE_BATCH_SIZE}"
+            f"{len(batches)} narrative batch(es) of up to {NARRATIVE_BATCH_SIZE} "
+            f"(throttled to {LLM_CONCURRENCY} concurrent LLM requests)"
         )
 
         batch_results = await asyncio.gather(
@@ -1250,7 +1336,8 @@ Return ONLY valid JSON:
 
         logger.info(
             f"{self.agent_id} · {len(docs)} documents split into "
-            f"{len(batches)} batch(es) of up to {TIMELINE_BATCH_SIZE}"
+            f"{len(batches)} batch(es) of up to {TIMELINE_BATCH_SIZE} "
+            f"(throttled to {LLM_CONCURRENCY} concurrent LLM requests)"
         )
 
         batch_results = await asyncio.gather(
@@ -1272,7 +1359,7 @@ Return ONLY valid JSON:
 
         merged = self._merge_batches(clean_results, docs)
 
-        # Step (1): batched per-document narrative generation (bounded LLM calls).
+        # Step (1): batched per-document narrative generation (bounded, throttled LLM calls).
         try:
             per_doc_narratives = await self._generate_all_document_narratives(merged, specialty, state)
         except Exception as e:
@@ -1298,30 +1385,47 @@ Return ONLY valid JSON:
 
 # ============================================================
 # A2 · CLINICAL SUMMARY AGENT  (physician-oriented, generic multi-specialty
-#                                 CLINICAL SUMMARY, bold clinical emphasis,
-#                                 structured-workflow-aware, BATCHED)
+#                                 CLINICAL SUMMARY, ORGANIZED BY CLINICAL
+#                                 LOGIC as of v5.2.0 — reverted from
+#                                 v5.1.0's strict document-date ordering —
+#                                 bold clinical emphasis, structured-
+#                                 workflow-aware, mandatory graph-driven
+#                                 procedure detail, BATCHED)
 #
-# Written as ONE continuous, synthesized, paragraph-based physician
-# narrative: patient identification -> whatever of diagnosis / disease
-# burden / pathology / biomarkers / imaging / labs / procedures / treatment
-# course / functional status / clinical status / complications /
-# comorbidities / medications / follow-up is EXPLICITLY documented for this
-# patient, woven together naturally rather than narrated document-by-
-# document or date-by-date. Grounded strictly in graph_documents. No
+# As of v5.2.0, the final synthesized narrative is a GENERIC, CONCISE
+# clinical summary organized by CLINICAL LOGIC/TOPIC (diagnosis -> pathology
+# / findings -> biomarkers -> imaging -> labs -> procedures/treatment course
+# -> functional/clinical status -> complications -> other -> mandatory
+# current-status close) rather than by raw document/date order. Dates are
+# still stated next to a fact when clinically meaningful, and the A1
+# compact timeline is still used internally to resolve which finding/
+# treatment/status is most CURRENT and to establish the real sequence of
+# treatment events — but the paragraph structure itself follows clinical
+# logic, not chronology. Grounded strictly in graph_documents. No
 # recommendations, no predictions — but documented referrals/follow-up
 # plans ARE reported (facts, not AI suggestions).
 #
 # Any diagnosis explicitly CONFIRMED in the record (by histopathology,
 # biopsy, or other gold-standard confirmation — never a merely suspected or
 # radiologically-probable one) is wrapped in markdown **bold** wherever it
-# is stated in full, and in the diagnosis_header. Per v4.8, a small set of
-# OTHER highly clinically significant, patient-specific facts (stage,
-# pathology, major imaging findings, tumor burden, critical labs,
-# biomarkers, major procedures, treatment history/current
-# treatment/response, performance status, significant toxicities/
-# complications, major comorbidities, significant allergies, critical
-# concurrent medications, current disease status, and the follow-up plan)
-# are ALSO sparingly bolded — never every medical term.
+# is stated in full, and in the diagnosis_header. A small set of OTHER
+# highly clinically significant, patient-specific facts (stage, pathology,
+# major imaging findings, tumor burden, critical labs, biomarkers, major
+# procedures, treatment history/current treatment/response, performance
+# status, significant toxicities/complications, major comorbidities,
+# significant allergies, critical concurrent medications, current disease
+# status, and the follow-up plan) are ALSO sparingly bolded — never every
+# medical term.
+#
+# PROCEDURE DETAIL RULE (MANDATORY, GRAPH-DRIVEN ONLY, unchanged since
+# v5.1.0): for every treatment/procedure category actually present in the
+# patient's documents — surgery, chemotherapy, radiotherapy, or any other
+# documented procedure — the summary gives full, dated, doctor-ready detail
+# (modality, date, intent, protocol/regimen or operative detail, cycle/
+# session/fraction counts, dose and dose adjustments, concurrent therapy,
+# monitoring, response/toxicity). The set of procedures detailed is derived
+# ENTIRELY from what is present in graph_documents for THIS patient — never
+# a fixed "surgery/chemo/radio" template assumed to apply to every patient.
 #
 # This agent also fully mines STRUCTURED WORKFLOW DOCUMENTS — chemotherapy,
 # radiotherapy, surgical, nursing, treatment-planning forms, or any
@@ -1336,72 +1440,31 @@ Return ONLY valid JSON:
 # filtered out of the summary unless it reflects an actual clinical event
 # (a reaction, extravasation, or documented toxicity).
 #
-# v4.4: prompts strengthened for richer, more complete output. When the
-# record contains MULTIPLE documents of the same type (e.g. several
-# separate chemotherapy administration records on different dates/times,
-# several dictations), the extraction pass (Pass 1) still captures each one
-# individually as its own distinct clinical fact/event — never folded into
-# one generic combined sentence at extraction time.
-#
-# v4.5 / v4.6: Pass 2 wrote the summary as one continuous, doctor-narrated
-# STORY of the patient's course.
-#
-# v4.7: Pass 2 was briefly rewritten into a rigid, fixed-heading
-# "clinical synopsis" that avoided chronological connective phrasing
-# entirely and forbade date-based organization.
-#
-# v4.8 (per the Clinical Summary (A2) Enhancement Specification): Pass 2
-# was rewritten again so the output returns to being ONE continuous,
-# synthesized, paragraph-based physician narrative — same paragraph
-# structure, same continuous physician-style writing, same JSON schema as
-# always — requiring the model to (a) synthesize rather than enumerate; (b)
-# automatically recognize the patient's specialty/condition and pull in
-# whichever of a comprehensive, generic clinical checklist is actually
-# documented; (c) apply an expanded, but sparing, bold-emphasis rule; and
-# (d) never write a placeholder phrase for a missing category.
-#
-# v4.9 (THIS VERSION): closes four remaining gaps against the spec, again
-# scoped entirely to Pass 2's prompt text — (a) the model is now given the
-# spec's clinical-logic skeleton (diagnosis → investigations → disease
-# extent → treatment history → current treatment → current disease status
-# → follow-up) to sequence the narrative around; (b) treatment history must
-# be narrated in the ACTUAL SEQUENCE OF CARE it occurred in (e.g.
-# biopsy → surgery → chemotherapy → radiotherapy → maintenance → current),
-# using each event's own document date internally to establish that order;
-# (c) routine/normal laboratory values must be synthesized into a plain-
-# language clinical impression rather than enumerated; and (d) the LAST
-# paragraph of the summary is now mandatory and must close with current
-# treatment status, current disease status, significant toxicities/
-# complications, active medications, and the follow-up/monitoring plan.
-# Pass 1 fact extraction, the deterministic merge, batching, A1, A3, and
-# the OUTPUT JSON SCHEMA for A2 (diagnosis_header,
-# confirmed_diagnosis_present, confirmed_diagnoses, paragraphs, full_text,
-# source_coverage_check) are all UNCHANGED.
-#
 # BATCHED, TWO-PASS (bounded, regardless of patient document volume):
-#   Pass 1 (concurrent, per-batch fact extraction): graph_documents are
-#   split into batches of SUMMARY_BATCH_SIZE (default 10) documents.
+#   Pass 1 (concurrent, per-batch fact extraction, throttled by the shared
+#   LLM_CONCURRENCY semaphore): graph_documents are split into batches of
+#   SUMMARY_BATCH_SIZE (default 10) documents.
 #   Merge (deterministic, no LLM): all batches' facts are concatenated in
 #   Python.
 #   Pass 2 (single, final synthesis call): takes the concatenated facts +
 #   a COMPACT projection of the A1 timeline (date + documents + narrative
-#   only) and writes the final physician-oriented clinical summary. Uses
-#   its own SUMMARY_SYNTHESIS_MAX_TOKENS budget so a long, fully-documented
-#   summary is never silently truncated.
+#   only), used ONLY to resolve current status and true treatment sequence
+#   (not as the paragraph-ordering backbone), and writes the final
+#   physician-oriented clinical summary. Uses its own
+#   SUMMARY_SYNTHESIS_MAX_TOKENS budget so a long, fully-documented summary
+#   is never silently truncated.
 #
-# OUTPUT JSON SCHEMA for A2 is unchanged.
+# OUTPUT JSON SCHEMA for A2 is unchanged. The only change versus v5.1.0 is
+# A2's synthesis PROMPT CONTENT (clinical-logic ordering instead of
+# document-date ordering, tighter/more concise length guidance) — no
+# prompt, batch-size, or token-budget change to fact extraction, and no
+# change at all to the shared concurrency semaphore in BaseAgent._invoke().
 # ============================================================
 
 class ClinicalSummaryAgent(BaseAgent):
     agent_id = "A2"
 
     # ---- Pass 1: per-batch fact extraction ---------------------------------
-    # UNCHANGED IN v4.7 / v4.8 / v4.9 — per the enhancement spec, only Pass
-    # 2's prompts are modified. Pass 1 continues to extract dense,
-    # doctor-style facts (including full structured-workflow treatment
-    # detail, with repeated same-type documents kept as separate individual
-    # facts) exactly as before; it is Pass 2 that turns those facts into the
-    # final narrative.
 
     async def _extract_batch_facts(
         self, batch_docs: List[Dict], specialty: str, batch_index: int
@@ -1453,13 +1516,19 @@ class ClinicalSummaryAgent(BaseAgent):
             "gold-standard investigation (histopathology, biopsy, cytology, or "
             "another definitive method explicitly stated as producing that "
             "diagnosis) — as opposed to a merely suspected/probable one. "
+            + NO_EXTERNAL_KNOWLEDGE_RULE + " "
+            "Every fact you extract must be traceable to a specific document given "
+            "to you in this batch — never something you know to be typically true "
+            "in general medicine. "
             "Always respond with valid JSON only."
         )
 
         prompt = f"""
 You are reading a BATCH of raw clinical graph documents (batch #{batch_index + 1})
 for a patient being seen by a {specialty} specialist. This is only a subset of the
-patient's full record — extract facts ONLY from what is given below.
+patient's full record — extract facts ONLY from what is given below. Do not
+supplement with anything from your own general medical knowledge, even if it
+seems like an obvious or standard clinical fact.
 
 RAW CLINICAL GRAPH DOCUMENTS IN THIS BATCH:
 {docs_json}
@@ -1514,6 +1583,8 @@ extracted, just not the surrounding administrative checklist item.
 
 RULES (STRICT):
   • Use ONLY the data given above — never invent, infer, or predict.
+  • Never use outside/general medical knowledge to add, complete, or
+    "correct" a fact — every fact must trace to this batch's documents.
   • Do not omit any document in this batch — every document must
     contribute at least one fact line, even if another document in the
     batch is of the same type.
@@ -1567,12 +1638,6 @@ Return ONLY valid JSON:
         }
 
     # ---- Pass 2: final synthesis from batched facts + compact timeline ----
-    # v4.9: REWRITTEN per review against the Clinical Summary (A2)
-    # Enhancement Specification. Only the system/user prompt text below
-    # changed — the inputs (all_facts, all_confirmed_diagnoses, timeline),
-    # the compact/earliest-first timeline projection, the length-scaling
-    # logic, the JSON schema requested, and the SUMMARY_SYNTHESIS_MAX_TOKENS
-    # budget are all unchanged in shape/mechanics.
 
     async def _synthesize_summary(
         self,
@@ -1591,45 +1656,48 @@ Return ONLY valid JSON:
         graph_documents again — so its size does not scale with the
         patient's total document/entity volume.
 
-        v4.8: this call asks for ONE continuous, synthesized,
-        paragraph-based physician narrative (same shape/style as the
-        pipeline has always produced) that automatically adapts to the
+        As of v5.2.0, this call asks for a GENERIC, CONCISE, doctor-style
+        clinical summary organized by CLINICAL LOGIC/TOPIC — diagnosis,
+        pathology/findings, treatment course, current status — rather than
+        by raw document/date order (v5.1.0's chronological-by-date
+        requirement is reverted). The compact timeline below is still
+        supplied and is still used by the model to work out which finding/
+        treatment/status is most CURRENT, and to get the real sequence of
+        treatment events right — it is a resolution aid, not the
+        paragraph-ordering backbone. It still automatically adapts to the
         patient's specialty and pulls in whichever of a comprehensive,
-        generic clinical checklist is actually documented, with a
-        sparing but expanded bold-emphasis rule and a strict rule against
-        writing placeholder text for missing categories.
+        generic clinical checklist is actually documented, with a sparing
+        but expanded bold-emphasis rule, the unchanged mandatory
+        PROCEDURE DETAIL RULE, and a strict rule against writing
+        placeholder text for missing categories. Routine lab values are
+        still synthesized into a plain-language impression rather than
+        enumerated, and the final paragraph remains a mandatory
+        current-status close.
 
-        v4.9: additionally gives the model the spec's clinical-logic
-        skeleton to sequence the narrative around, requires treatment
-        history to be narrated in the actual real-world sequence of care,
-        requires routine lab values to be synthesized into a plain-
-        language impression rather than enumerated, and makes the final
-        paragraph a mandatory current-status close.
-
-        The compact timeline below is still sorted earliest-first, purely
-        so the model can reliably work out — INTERNALLY — which finding/
-        treatment/status is most CURRENT and resolve any conflicting or
-        superseded information, and (new in v4.9) so it can establish the
-        real chronological sequence of treatment events. Uses its own
-        SUMMARY_SYNTHESIS_MAX_TOKENS budget so a long, fully-documented
-        summary for a heavily-documented patient is never silently
-        truncated."""
+        Uses its own SUMMARY_SYNTHESIS_MAX_TOKENS budget so a long,
+        fully-documented summary for a heavily-documented patient is never
+        silently truncated — though as of v5.2.0 the target length itself
+        is intentionally tighter/more concise than v5.1.0's, since the
+        goal is a short, generic, at-a-glance clinical summary rather than
+        a full chronological narrative retelling."""
 
         facts_text = "\n".join(f"- {f}" for f in all_facts)
         num_facts = len(all_facts)
 
-        # NOTE: this compact timeline is sorted earliest-first purely as a
-        # CHRONOLOGY-RESOLUTION AID for the model — so it can reliably work
-        # out which finding/treatment/status is the most recent/current one,
-        # detect when a later document supersedes or changes an earlier one
-        # (e.g. a dose later reduced, a status later updated), and establish
-        # the true real-world sequence of care for treatment events (e.g.
-        # confirming that surgery preceded chemotherapy, which preceded
-        # radiotherapy). It is NOT meant to be used as the organizing
-        # structure of the summary itself, and the summary must not be
-        # written as a walk through this list. This re-sort is local to this
-        # function only; it does NOT touch state["timeline"] or change A1's
-        # own output/order in the API response in any way.
+        # This compact timeline is sorted earliest-first purely so the
+        # model can reliably work out sequence (which event came before
+        # which) and CURRENCY (which finding/treatment/status is the most
+        # recent one, detecting when a later document supersedes or
+        # changes an earlier one — e.g. a dose later reduced, a status
+        # later updated) — establishing the true real-world sequence of
+        # care for treatment events (e.g. confirming that surgery preceded
+        # chemotherapy, which preceded radiotherapy). As of v5.2.0 this is
+        # explicitly a RESOLUTION AID ONLY — it does NOT dictate the order
+        # paragraphs are written in; paragraph order follows clinical
+        # logic/topic instead (see the system prompt).
+        # This re-sort is local to this function only; it does NOT touch
+        # state["timeline"] or change A1's own output/order in the API
+        # response in any way (A1's own timeline stays latest-first).
         compact_timeline = sorted(
             (
                 {
@@ -1654,81 +1722,120 @@ Return ONLY valid JSON:
         # workflow documents, many distinct facts) still gets a
         # proportionally thorough summary instead of an artificially
         # short one — while a lightly-documented patient gets a genuinely
-        # concise one, rather than padding.
+        # concise one, rather than padding. As of v5.2.0 these ranges are
+        # intentionally tighter than v5.1.0's, since the goal is a short,
+        # generic, doctor-readable SUMMARY, not a long chronological
+        # narrative — the PROCEDURE DETAIL RULE still guarantees every
+        # documented treatment/procedure gets full detail regardless of
+        # the overall summary's brevity.
         if num_facts >= 60:
             length_guidance = (
-                "This patient has EXTENSIVE documentation. Write a thorough clinical "
-                "summary — typically 20-35 dense sentences across several short "
-                "paragraphs — long enough to preserve every clinically important "
-                "fact and every clinically significant treatment event (dose "
-                "reductions, toxicity, progression, regimen changes, interruptions, "
-                "hospitalization), but still written as a synthesized narrative, "
-                "never as a per-document or per-date log and never repeating the "
-                "same medication or follow-up plan more than once."
+                "This patient has extensive documentation. Write a concise but "
+                "COMPLETE clinical summary — typically 12-18 dense sentences across "
+                "a small number of short paragraphs organized by CLINICAL LOGIC "
+                "(diagnosis, pathology/findings, treatment course per the mandatory "
+                "procedure detail rule, current status) — long enough to preserve "
+                "every clinically important fact and every clinically significant "
+                "treatment/procedure event (dose reductions, toxicity, progression, "
+                "regimen changes, interruptions, hospitalization), but written as a "
+                "tight, doctor-style summary, never as a document-by-document or "
+                "date-by-date log, and never repeating the same medication or "
+                "follow-up plan more than once."
             )
         elif num_facts >= 25:
             length_guidance = (
-                "This patient has substantial documentation. Write a focused "
-                "clinical summary of roughly 12-20 dense sentences across a few "
-                "short paragraphs, covering every clinically important fact and "
-                "significant treatment event without repeating the same medication "
-                "or follow-up plan more than once."
+                "This patient has substantial documentation. Write a focused, "
+                "concise clinical summary of roughly 8-12 dense sentences across a "
+                "couple of short paragraphs, organized by CLINICAL LOGIC (diagnosis, "
+                "findings, treatment course, current status), covering every "
+                "clinically important fact and significant treatment/procedure event "
+                "without repeating the same medication or follow-up plan more than "
+                "once."
             )
         else:
             length_guidance = (
-                "Write a concise clinical summary of roughly 6-14 dense sentences "
-                "— fewer only if the source facts themselves are limited — covering "
-                "every clinically important fact without padding or repetition."
+                "Write a short, concise clinical summary of roughly 4-8 dense "
+                "sentences — fewer only if the source facts themselves are limited "
+                "— organized by CLINICAL LOGIC (diagnosis, findings, treatment, "
+                "current status) and covering every clinically important fact "
+                "without padding or repetition."
             )
 
         system = (
             f"You are a senior {specialty} specialist writing the physician-oriented "
             "CLINICAL SUMMARY section of a patient's chart. Your summary must read "
-            "as ONE continuous, synthesized physician narrative — the same "
-            "paragraph-based, continuous physician-style writing a consultant uses "
-            "in a chart note — so that any physician understands this patient's "
-            "complete clinical picture within a few paragraphs. "
-            "CORE PRINCIPLE — SYNTHESIZE, DO NOT ENUMERATE: you are given "
-            "pre-extracted facts drawn from many individual documents/reports. Do "
-            "NOT describe each report individually and do NOT narrate the record "
-            "report-by-report or date-by-date. Instead, synthesize the clinically "
-            "important information across ALL reports into one cohesive account — "
-            "each report should contribute only its most clinically relevant "
-            "finding(s) to the final picture, not a full restatement of everything "
-            "in it. Integrate findings naturally, in flowing prose, the way a "
-            "physician describes a patient they know well. Avoid repetition. "
-            "Mention a date only when the date itself is clinically important (e.g. "
-            "when a diagnosis was established, a key procedure was done) — do not "
-            "organize the summary as a chronological log of dated events, and do "
-            "not simply follow the record's date order; instead emphasize the "
-            "patient's LATEST, clinically current status throughout. Natural "
-            "clinical transitions are fine when they help the narrative flow, but "
-            "the write-up as a whole must be a synthesized account, not a "
-            "date-by-date recitation. "
-            "CLINICAL FLOW ORGANIZATION: sequence the overall narrative around this "
-            "general clinical logic, using only the stages that actually have "
-            "supporting data and skipping any that don't: (1) diagnosis — what the "
-            "patient has and how it was confirmed; (2) the important investigations "
-            "that established it; (3) disease extent/staging/severity; (4) treatment "
-            "history, narrated in the ACTUAL SEQUENCE OF CARE the patient received it "
-            "(e.g. biopsy, then surgery, then chemotherapy, then radiotherapy, then "
-            "maintenance therapy — never presented out of that real-world order); "
-            "(5) current treatment; (6) current disease status; (7) follow-up/"
-            "monitoring plan. This is a logical skeleton for sequencing flowing "
-            "paragraphs, NOT a set of headings to print, and it adapts freely to "
-            "whatever specialty and stages are actually documented for this patient. "
-            "TREATMENT SEQUENCE OF CARE: when narrating treatment history, use each "
-            "treatment event's own document date internally to work out the true "
-            "chronological order it actually happened in, and narrate it in that "
-            "real order (earliest treatment event first, most recent/current last) "
-            "— never scrambled, never reordered by document type, and never simply "
-            "in the order the facts happen to be listed below. "
-            "USE OF DATES INTERNALLY: use the dates on the facts/timeline given to "
-            "you to work out, internally, which diagnosis, investigation, "
-            "treatment, medication, or status entry is the most CURRENT one, and to "
-            "resolve any conflicting or superseded information (e.g. a dose later "
-            "reduced, a status later updated, a regimen later changed) so the "
-            "summary reflects the patient's TRUE CURRENT state. "
+            "as ONE continuous, doctor-narrated physician narrative — concise, and "
+            "GENERICALLY structured by CLINICAL LOGIC/TOPIC, not by raw document/"
+            "date order — so that any physician understands this patient's complete "
+            "clinical course within a short, quick read. "
+            "CORE PRINCIPLE — CONCISE, CLINICALLY-LOGICAL NARRATIVE: you are given "
+            "pre-extracted facts drawn from many individual documents/reports, each "
+            "traceable to its own document date, plus a compact date-wise timeline. "
+            "Organize the summary by CLINICAL LOGIC — e.g. diagnosis and how it was "
+            "reached, pathology/findings, disease extent, treatment/procedure course, "
+            "current status — rather than by mechanically walking through documents "
+            "or dates in order. Use the dates given to you (a) to state a specific "
+            "date/period next to a fact when that date is itself clinically "
+            "meaningful (e.g. date of diagnosis, date of surgery, date a critical lab "
+            "was drawn), and (b) internally, to work out which finding/treatment/"
+            "status is the most CURRENT one and to get the real sequence of "
+            "treatment events right (e.g. confirming that surgery preceded "
+            "chemotherapy, which preceded radiotherapy) — but do NOT force the "
+            "paragraph-by-paragraph structure of the summary to follow document or "
+            "date order. Grouping by topic, and only mentioning a specific date where "
+            "it adds clinical value, is expected and correct. Every date you do state "
+            "must come directly from the facts/timeline given to you below — never "
+            "invented or approximated. "
+            + NO_EXTERNAL_KNOWLEDGE_RULE + " Synthesizing and connecting the given "
+            "facts into flowing, clinically-organized prose is expected and "
+            "required — but every clinical fact, value, date, or finding that "
+            "appears in your narrative must trace back to the extracted facts or "
+            "timeline given to you below. Never fill a gap, complete a partial "
+            "finding, or add a 'typically expected' detail using your own medical "
+            "knowledge. "
+            "CLINICAL FLOW: structure the narrative around whichever of the "
+            "following categories are documented — diagnosis and how it was "
+            "confirmed; the investigations that established it; disease extent/"
+            "staging/severity; each treatment/procedure event (surgery, "
+            "chemotherapy, radiotherapy, or other procedure); changes in disease "
+            "status; and the follow-up/monitoring plan — in that CLINICAL-LOGIC "
+            "order, not a chronological document-by-document order. Only surface a "
+            "category that is actually documented, and skip any category with no "
+            "supporting data. "
+            "TREATMENT / PROCEDURE SEQUENCE OF CARE: within the treatment/procedure "
+            "portion of the summary, still state each treatment or procedure event's "
+            "own documented date and present multiple events in the real "
+            "chronological order they actually happened relative to each other "
+            "(earliest event first, most recent/current last) — never scrambled and "
+            "never simply in the order the facts happen to be listed below — even "
+            "though the summary as a whole is organized by topic rather than by "
+            "date. "
+            "PROCEDURE DETAIL RULE (MANDATORY, GRAPH-DRIVEN ONLY, unchanged): for "
+            "EVERY treatment/procedure category that is actually present in this "
+            "patient's documents — surgery, chemotherapy, radiotherapy, or any "
+            "other procedure type found in the graph data — give the reading "
+            "physician full, dated, doctor-ready detail on what was actually done, "
+            "drawn only from the extracted facts/timeline below: the procedure/"
+            "modality name, its date, treatment intent, protocol/regimen or "
+            "operative procedure name, cycle numbers or session/fraction counts, "
+            "dose (and any dose adjustments with reason), concurrent therapy, "
+            "administration/operative details actually documented, monitoring "
+            "observations, and documented response or toxicity/complication. Do "
+            "NOT invent or assume a procedure category that has no supporting "
+            "document — if this patient has no surgical document, do not mention "
+            "surgery at all; if there is no radiotherapy document, do not mention "
+            "radiotherapy; the set of procedures you detail must come ENTIRELY "
+            "from what is actually present in the graph-derived facts, never from "
+            "a fixed template of 'surgery/chemo/radio' assumed to apply to every "
+            "patient. "
+            "USE OF DATES: use the dates on the facts/timeline given to you to work "
+            "out which diagnosis, investigation, treatment, medication, or status "
+            "entry is the most CURRENT one, resolving any conflicting or superseded "
+            "information (e.g. a dose later reduced, a status later updated, a "
+            "regimen later changed), so the summary's current-status close reflects "
+            "the patient's TRUE CURRENT state — while still writing the summary's "
+            "overall structure by clinical logic/topic rather than in strict date "
+            "order. "
             "COMPREHENSIVE, SPECIALTY-AGNOSTIC CONTENT: automatically recognize the "
             "patient's specialty/condition from the facts given, and weave in "
             "whichever of the following is EXPLICITLY documented (never invent, "
@@ -1760,11 +1867,13 @@ Return ONLY valid JSON:
             "or a value that directly drove a treatment decision).\n"
             "  • Procedures / surgeries — biopsy, surgery, endoscopy, colonoscopy, "
             "bronchoscopy, angioplasty, PCI, CABG, dialysis, device implantation, "
-            "transplantation, or other interventional procedures.\n"
-            "  • Treatment — treatment history (in actual sequence of care), current "
-            "treatment/regimen, line of therapy, treatment intent, treatment "
-            "response, dose modification, treatment interruption/discontinuation, "
-            "current medications.\n"
+            "transplantation, or other interventional procedures — see the "
+            "PROCEDURE DETAIL RULE above for the level of detail required.\n"
+            "  • Treatment — treatment history (in true sequence of care, each "
+            "with its own date), current treatment/regimen, line of therapy, "
+            "treatment intent, treatment response, dose modification, treatment "
+            "interruption/discontinuation, current medications — see the "
+            "PROCEDURE DETAIL RULE above.\n"
             "  • Functional status — performance status/ECOG/KPS/NYHA/NIHSS/mRS/"
             "GCS/Child-Pugh/MELD/Barthel Index or other disease-specific functional "
             "scores, when documented.\n"
@@ -1802,13 +1911,13 @@ Return ONLY valid JSON:
             "primary source for the patient's treatment course — always surface "
             "treatment modality, intent, regimen/protocol, current status, cycles "
             "completed versus planned, and any documented response or toxicity when "
-            "present, woven naturally into the narrative — IN THE ACTUAL ORDER "
-            "TREATMENT OCCURRED — rather than a cycle-by-cycle log. Purely "
-            "operational/administrative workflow metadata (nurse verification, "
-            "pharmacy verification, consent capture, IV/venous-access mechanics, "
-            "drug labeling/preparation checklists) is excluded unless it reflects "
-            "an actual clinical event (a reaction, extravasation, or documented "
-            "toxicity/tolerance note). "
+            "present, woven naturally into the treatment portion of the summary "
+            "with each event's own documented date — rather than a cycle-by-cycle "
+            "log. Purely operational/administrative workflow metadata (nurse "
+            "verification, pharmacy verification, consent capture, IV/venous-"
+            "access mechanics, drug labeling/preparation checklists) is excluded "
+            "unless it reflects an actual clinical event (a reaction, "
+            "extravasation, or documented toxicity/tolerance note). "
             "BOLD FORMATTING — CLINICAL EMPHASIS: to help a physician rapidly "
             "understand the patient's condition, wrap the MOST clinically "
             "significant, patient-specific pieces of information in markdown "
@@ -1840,6 +1949,39 @@ Return ONLY valid JSON:
             "suspected/probable/imaging-only one. The first full statement of each "
             "confirmed diagnosis (with staging/grading if documented) is wrapped in "
             "** bold **; a suspected/probable diagnosis is never bolded. "
+            "ONCOLOGY CASE CLASSIFICATION RULE (applies ONLY when the confirmed "
+            "diagnosis is a malignancy — skip entirely for non-oncology patients): "
+            "using ONLY the facts/timeline given to you, classify the case using "
+            "standard oncology charting terminology, never invented labels: "
+            "(1) PRIMARY MALIGNANCY — no prior cancer diagnosis is documented "
+            "anywhere in this patient's facts/timeline; this is a de novo "
+            "diagnosis. "
+            "(2) RECURRENCE — a prior cancer diagnosis IS documented (with its own "
+            "treatment history and, where documented, a disease-free interval), and "
+            "the new finding is the SAME histology arising in the same or a related "
+            "site/field, explicitly described in the record as recurrent or "
+            "relapsed. Where the documents support it, further specify LOCAL "
+            "recurrence (same organ/site as the original tumor), REGIONAL "
+            "recurrence (nearby nodes/tissue), or DISTANT recurrence (metastatic "
+            "relapse to another organ) — leave this sub-type unspecified if the "
+            "documents do not clearly support one. "
+            "(3) SECOND PRIMARY MALIGNANCY (SPM) — a prior cancer diagnosis IS "
+            "documented, but the new finding is a DIFFERENT histology and/or an "
+            "unrelated primary site, and the record supports it being an "
+            "independent primary rather than a recurrence or metastasis of the "
+            "first cancer (e.g. explicit pathology language distinguishing it from "
+            "the original tumor, or a wholly different organ/histology). Where "
+            "dates support it, further specify SYNCHRONOUS (diagnosed at or near "
+            "the same time as the first cancer, conventionally within about 6 "
+            "months) or METACHRONOUS (diagnosed after a longer interval) — leave "
+            "this timing unspecified if the documents do not clearly support one. "
+            "Do NOT force a classification if the evidence is ambiguous or a prior "
+            "cancer history is not clearly documented — in that case leave the "
+            "classification null rather than guessing, and never infer a prior "
+            "cancer that is not explicitly stated. Never use this rule's "
+            "terminology anywhere in the narrative paragraphs themselves unless "
+            "the source documents themselves use that language — the "
+            "classification is a separate structured field, not narrative prose. "
             "MANDATORY FINAL PARAGRAPH: the LAST paragraph you write must always "
             "function as a current-status close for the reading physician. It must "
             "cover, whenever documented: current treatment status, current disease "
@@ -1863,10 +2005,15 @@ Return ONLY valid JSON:
 
         prompt = f"""
 Write this patient's clinical summary for their chart, for a {specialty}
-specialist about to see them. This must read as ONE synthesized, continuous
-physician narrative — NOT a report-by-report or date-by-date recitation. The
-goal is for the reading physician to understand, within a few paragraphs, the
-patient's complete and current clinical picture.
+specialist about to see them. This must read as ONE continuous, doctor-style
+physician narrative, organized by CLINICAL LOGIC — grouped by topic
+(diagnosis, pathology/findings, treatment course, current status) — NOT a
+raw chronological document-by-document or date-by-date retelling. The goal
+is a GENERIC, CONCISE summary that any physician can read at a glance while
+still getting every clinically relevant piece of documented content,
+including full doctor-ready detail on every procedure that was actually
+done. Use ONLY the facts and timeline given to you below — never anything
+from your own general medical knowledge or training data.
 
 ══════════════════════════════════════════════════════════
 PATIENT IDENTIFICATION
@@ -1878,13 +2025,13 @@ Sex: {sex}
 ══════════════════════════════════════════════════════════
 PRE-EXTRACTED DENSE CLINICAL FACTS (from ALL {num_facts} facts extracted
 batch-by-batch across the patient's documents in an earlier pass — this is
-your primary source of truth; every fact below is already grounded in the
-raw record; repeated same-type events are kept as separate individual
-facts, not merged. These facts are NOT guaranteed to be listed in
-chronological order — use each fact's own date only to work out what is
-CURRENT/LATEST, to resolve conflicts, and to establish the real sequence of
-care for treatment events; do not use this list's order to structure your
-write-up, and do not restate every fact individually — synthesize.)
+your ONLY source of truth; every fact below is already grounded in the raw
+record; repeated same-type events are kept as separate individual facts,
+not merged. Each fact carries its own date — use those dates only where a
+specific date adds clinical value, and to work out what is CURRENT/LATEST
+and resolve conflicts. Do not restate every fact individually — synthesize
+the facts that belong to each clinical topic into natural, concise prose.
+Do not add anything beyond what is listed here.)
 ══════════════════════════════════════════════════════════
 {facts_text}
 
@@ -1896,18 +2043,21 @@ apply the CONFIRMED DIAGNOSIS bold rule to these)
 
 ══════════════════════════════════════════════════════════
 COMPACT DATE-WISE TIMELINE (A1 output, narrative form — sorted earliest date
-first, given to you PURELY so you can reliably determine which finding,
-treatment, medication, or status is most CURRENT, detect where a later
-document supersedes an earlier one, and establish the true real-world
-sequence in which treatment events occurred. Use it as an internal
-reference only — do not narrate through it, do not mention "the timeline"
-itself, and do not write the summary in the order it appears here.)
+first. Use this ONLY to resolve what is most CURRENT and to establish the
+true chronological sequence of treatment/procedure events relative to each
+other — it is a resolution aid, NOT the structure your paragraphs should
+follow. Do not mention "the timeline" itself by name in your prose, and do
+not copy its per-date narrative text verbatim — synthesize the
+corresponding facts into your own concise, topic-organized, doctor-style
+prose.)
 ══════════════════════════════════════════════════════════
 {timeline_json}
 
 ══════════════════════════════════════════════════════════
-WHAT TO SYNTHESIZE (only what is EXPLICITLY documented for this patient —
-never invent, infer, or force a category that isn't there)
+WHAT TO COVER, ORGANIZED BY CLINICAL LOGIC/TOPIC (only what is EXPLICITLY
+documented for this patient in the facts/timeline above — never invent,
+infer, or force a category that isn't there, and never supplement with
+outside medical knowledge)
 ══════════════════════════════════════════════════════════
   • Diagnosis — primary/secondary diagnoses, associated disease, current
     disease status, severity, classification, stage, grade.
@@ -1928,13 +2078,17 @@ never invent, infer, or force a category that isn't there)
     Platelets 256" — instead "stable hematological parameters with
     preserved renal and hepatic function"). Cite an exact value only when
     it is itself a significant abnormality or clinically decisive.
-  • Procedures/surgeries actually performed.
+  • Procedures/surgeries actually performed — apply the PROCEDURE DETAIL
+    RULE: full, dated, doctor-ready detail for each procedure category
+    actually present in the data (surgery, chemotherapy, radiotherapy, or
+    any other documented procedure) — never a category with no supporting
+    document.
   • Treatment — history presented in the ACTUAL SEQUENCE OF CARE (e.g.
     biopsy → surgery → chemotherapy → radiotherapy → maintenance therapy →
-    current treatment, using each event's own date internally to confirm
-    the real order — never presented out of sequence), current regimen,
-    line of therapy, intent, response, dose modification, interruption/
-    discontinuation, current medications.
+    current treatment, each with its own date — never presented out of
+    sequence), current regimen, line of therapy, intent, response, dose
+    modification, interruption/discontinuation, current medications. See
+    the PROCEDURE DETAIL RULE.
   • Functional status — ECOG/KPS/NYHA/NIHSS/mRS/GCS/Child-Pugh/MELD/Barthel
     or other disease-specific score, if documented.
   • Clinical status — symptoms, pain, weight loss, nutrition, functional
@@ -1947,6 +2101,22 @@ Let the patient's own facts determine which of these categories actually
 apply — do not force a category that has no supporting data, and do not
 write a placeholder ("not documented", "unknown", etc.) for one that's
 missing; simply leave it out.
+
+══════════════════════════════════════════════════════════
+PROCEDURE DETAIL RULE (MANDATORY, GRAPH-DRIVEN ONLY — repeated for
+emphasis)
+══════════════════════════════════════════════════════════
+For every treatment/procedure category actually present in this patient's
+data — surgery, chemotherapy, radiotherapy, or any other documented
+procedure — give full, dated, doctor-ready detail wherever that topic is
+discussed: modality/procedure name, date, treatment intent, protocol/
+regimen or operative detail, cycle/session/fraction counts, dose and any
+dose adjustments (with reason if given), concurrent therapy, administration/
+operative details actually documented, monitoring observations, and
+documented response or toxicity/complication. Do NOT invent or assume a
+procedure category that has no supporting document in the facts above —
+the set of procedures you detail must come entirely from what this
+specific patient's graph data actually contains.
 
 ══════════════════════════════════════════════════════════
 BOLD RULE (MANDATORY)
@@ -1981,32 +2151,40 @@ BOLD RULE (MANDATORY)
 ══════════════════════════════════════════════════════════
 TASK
 ══════════════════════════════════════════════════════════
-Write this patient's clinical summary as ONE synthesized, continuous
-physician narrative, in flowing paragraph-based prose — the same
-continuous, physician-style writing a consultant uses in a chart note. Do
-NOT narrate the record report-by-report or date-by-date; instead, pull the
-clinically important information from all the facts above into a cohesive
-account of who this patient is, what is wrong, how it was established, what
-has been done (in the real sequence it was done, for treatment), and where
-things stand now. Sequence the account loosely around: diagnosis → key
-investigations → disease extent → treatment history in actual sequence of
-care → current treatment → current disease status → follow-up — as flowing
-paragraphs, not headings, skipping any stage without supporting data.
-Mention a date only when the date itself is clinically significant. Every
-clinically important fact given to you above — especially the confirmed
-diagnosis and staging, the full treatment course in its real order, any
-clinically significant treatment events (dose reductions, toxicity,
-progression, regimen changes, interruptions, hospitalization), and the
-current disease/treatment status — must be reflected somewhere in the
-summary, but through synthesis, not a chronological or per-document
-retelling. Combine routine, repetitive same-type events (e.g. multiple
-uneventful cycles of the same regimen) into one natural descriptive passage
-rather than listing each one separately. Never mention a clinical category
-that has no supporting data in the facts above, and never use a placeholder
-phrase for missing information. The FINAL paragraph must close with the
-patient's current treatment status, current disease status, any significant
-toxicities/complications, active medications, and the follow-up/monitoring
-plan, whenever any of these is documented.
+Write this patient's clinical summary as ONE continuous, doctor-style
+narrative, organized by CLINICAL LOGIC — diagnosis → pathology/findings →
+disease extent → treatment/procedure course → current status — not
+chronologically document-by-document or date-by-date. State a specific
+date only where it is clinically meaningful (e.g. date of diagnosis, date
+of a procedure, date of a critical lab). For EVERY treatment/procedure
+category actually present in the data (surgery, chemotherapy, radiotherapy,
+or any other documented procedure), give full, dated, doctor-ready detail —
+modality, date, intent, protocol/regimen or operative details, cycle/
+session counts, dose and dose changes, response, and toxicity/
+complications — exactly as the PROCEDURE DETAIL RULE requires, presenting
+multiple treatment events in their true relative chronological order; never
+invent a procedure category that has no supporting document. Keep the
+overall summary GENERIC and CONCISE — short enough to read at a glance —
+while still covering everything clinically relevant that is documented.
+Never mention a clinical category that has no supporting data in the facts
+above, and never use a placeholder phrase for missing information. Never
+add a fact, value, or clinical detail that is not present in the facts/
+timeline above, even if it seems like an obvious or standard clinical
+assumption. The FINAL paragraph must still close with the patient's current
+treatment status, current disease status, any significant toxicities/
+complications, active medications, and the follow-up/monitoring plan,
+whenever any of these is documented.
+
+ONCOLOGY CASE CLASSIFICATION (only if the confirmed diagnosis is a
+malignancy — see the ONCOLOGY CASE CLASSIFICATION RULE above for the exact
+definitions of each value): decide whether this is a PRIMARY MALIGNANCY, a
+RECURRENCE (optionally LOCAL/REGIONAL/DISTANT), or a SECOND PRIMARY
+MALIGNANCY (optionally SYNCHRONOUS/METACHRONOUS), based strictly on the
+facts/timeline above. Populate "oncology_case_type" and
+"oncology_case_chips" accordingly. If this patient's diagnosis is not
+oncological, or a prior-cancer relationship cannot be determined from the
+documents, set "oncology_case_type" to null and "oncology_case_chips" to an
+empty list — do not guess.
 
 {length_guidance}
 
@@ -2015,10 +2193,12 @@ Return ONLY valid JSON:
   "diagnosis_header": "One-line diagnosis exactly as documented (including staging/grading if explicitly present). Wrapped in ** bold ** ONLY if confirmed. If only a working/suspected diagnosis exists, state it in PLAIN text and note '(not yet confirmed)'. If no diagnosis at all, use 'Not documented'.",
   "confirmed_diagnosis_present": true,
   "confirmed_diagnoses": ["exact bolded-equivalent text of each confirmed diagnosis, without ** markers"],
+  "oncology_case_type": "primary_malignancy | recurrence_local | recurrence_regional | recurrence_distant | recurrence_unspecified | second_primary_synchronous | second_primary_metachronous | second_primary_unspecified | null — null if not oncology or not determinable",
+  "oncology_case_chips": ["2-4 short ALL-CAPS labels, e.g. 'RECURRENT DISEASE', 'LOCAL RECURRENCE', 'PRIOR BREAST CANCER · 2019', 'HER2 POSITIVE' — empty list if oncology_case_type is null"],
   "paragraphs": [
-    "Full summary paragraph 1 text...",
-    "Full summary paragraph 2 text if warranted...",
-    "Additional paragraphs as needed, with the LAST paragraph closing on current treatment status, current disease status, toxicities/complications, active medications, and follow-up plan..."
+    "Full summary paragraph 1 text (diagnosis / how it was reached / disease extent)...",
+    "Additional paragraph(s) as needed, organized by clinical topic (e.g. treatment/procedure course per the procedure detail rule)...",
+    "Final paragraph — current treatment status, current disease status, toxicities/complications, active medications, and follow-up plan..."
   ],
   "full_text": "All paragraphs joined together, exactly as they should be read in sequence, preserving ** bold ** markers.",
   "source_coverage_check": {{
@@ -2035,7 +2215,7 @@ Return ONLY valid JSON:
     # ---- Main run -----------------------------------------------------------
 
     async def run(self, state: ClinicalState) -> ClinicalState:
-        logger.info(f"{self.agent_id} · ClinicalSummaryAgent (batched, generic multi-specialty) — START")
+        logger.info(f"{self.agent_id} · ClinicalSummaryAgent (batched, clinical-logic-organized, generic multi-specialty) — START")
         t0 = datetime.now().timestamp()
 
         specialty    = state.get("specialty", "General Medicine")
@@ -2049,7 +2229,8 @@ Return ONLY valid JSON:
 
         logger.info(
             f"{self.agent_id} · {len(docs)} documents split into "
-            f"{len(batches)} batch(es) of up to {SUMMARY_BATCH_SIZE} for fact extraction"
+            f"{len(batches)} batch(es) of up to {SUMMARY_BATCH_SIZE} for fact extraction "
+            f"(throttled to {LLM_CONCURRENCY} concurrent LLM requests)"
         )
 
         batch_results = await asyncio.gather(
@@ -2098,6 +2279,8 @@ Return ONLY valid JSON:
                 "diagnosis_header": "Not documented",
                 "confirmed_diagnosis_present": bool(dedup_confirmed),
                 "confirmed_diagnoses": dedup_confirmed,
+                "oncology_case_type": None,
+                "oncology_case_chips": [],
                 "paragraphs": all_facts,
                 "full_text": " ".join(all_facts),
                 "source_coverage_check": {
@@ -2116,367 +2299,10 @@ Return ONLY valid JSON:
 
 
 # ============================================================
-# A3 · ORGAN SYSTEM ANALYSIS AGENT  (BATCHED, TWO-PASS)
-#
-# Consolidates fragmented, multi-date findings into organ/system-level
-# status entries.
-#
-#   Pass 1 (concurrent, per-batch extraction): graph_documents are split
-#   into batches of ORGAN_BATCH_SIZE (default 10). Each batch call reads
-#   ONLY its own small slice of raw documents and extracts a flat list of
-#   {system, finding, date, source_document} entries — which organ/body
-#   system each entity belongs to, plus the finding itself. No trend
-#   analysis or prose yet — that's deliberately deferred to Pass 2 so this
-#   call stays small and bounded.
-#
-#   Merge (deterministic, no LLM): all batches' findings are grouped by
-#   system name in Python, and each system's first/latest documented dates
-#   are computed with a simple deterministic string-sort — no LLM needed.
-#
-#   Pass 2 (single, final synthesis call): takes ONLY the compact,
-#   deduplicated per-system findings list (with first/latest dates already
-#   attached) — never the raw graph_documents, never the full entity-level
-#   timeline, never the full A2 narrative — and asks the LLM to write the
-#   consolidated_status and trend text per system. This call's size scales
-#   with the number of distinct findings, not with the patient's raw
-#   document/entity volume.
-#
-# UNCHANGED IN v4.6.1 / v4.7 / v4.8 / v4.9 — this entire agent (A3) is
-# byte-for-byte identical to the previous version. All content/prompt
-# changes described in the module docstring are scoped entirely to
-# ClinicalSummaryAgent's Pass 2.
-#
-# OUTPUT JSON SCHEMA for A3 is unchanged.
-# ============================================================
-
-class OrganAnalysisAgent(BaseAgent):
-    agent_id = "A3"
-
-    # ---- Pass 1: per-batch system-finding extraction -----------------------
-
-    async def _extract_batch_system_findings(
-        self, batch_docs: List[Dict], specialty: str, batch_index: int
-    ) -> Dict[str, Any]:
-        """Extract a flat list of {system, finding, date, source_document}
-        entries from ONE small batch of raw documents. Deliberately does
-        NOT attempt trend analysis or prose — that's left to the final
-        synthesis pass over the much smaller, merged result."""
-
-        docs_json = json.dumps(batch_docs, indent=2, default=str)
-
-        system = (
-            f"You are an expert {specialty} physician doing systems-based clinical "
-            "triage on a BATCH of raw clinical graph documents. Your only job here is "
-            "to identify, for every entity in this batch, which organ or body system "
-            "it belongs to (e.g. genitourinary, hepatobiliary, renal, cardiovascular, "
-            "respiratory, gastrointestinal, musculoskeletal, neurological, "
-            "otolaryngological, etc. — based purely on what the entity actually "
-            "concerns) and restate the finding as a short, exact clinical phrase with "
-            "its date. You do NOT write a consolidated status or assess a trend yet — "
-            "that happens later, once all batches are combined. You never invent, "
-            "infer, or predict anything not explicitly present in this batch. Always "
-            "respond with valid JSON only."
-        )
-
-        prompt = f"""
-You are reading a BATCH of raw clinical graph documents (batch #{batch_index + 1})
-for a patient being seen by a {specialty} specialist. This is only a subset of the
-patient's full record — extract findings ONLY from what is given below.
-
-RAW CLINICAL GRAPH DOCUMENTS IN THIS BATCH:
-{docs_json}
-
-══════════════════════════════════════════════════════════
-TASK — TAG EVERY ENTITY IN THIS BATCH WITH ITS ORGAN/BODY SYSTEM
-══════════════════════════════════════════════════════════
-
-For EVERY clinically relevant entity in this batch (diagnoses, findings,
-procedures, investigations, laboratory results, vital signs, measurements,
-medications, treatments), produce one entry with:
-  • "system": the organ/body system this entity belongs to, based only on
-    what it actually concerns (e.g. "Genitourinary", "Hepatobiliary",
-    "Renal", "Cardiovascular", "Respiratory", "Gastrointestinal",
-    "Musculoskeletal", "Neurological", "Otolaryngological",
-    "Hematological/Oncological", etc.) — use the most specific and
-    clinically accurate system, do not force everything into a generic
-    bucket.
-  • "finding": a short, exact clinical phrase for what was found/done,
-    preserving exact values (sizes, lab values, drug names, doses).
-  • "date": the document_date this entity was recorded on (or null if
-    undated — never guess a date).
-  • "source_document": the document name this entity came from.
-
-RULES (STRICT):
-  • Use ONLY the data given above — never invent, infer, or predict.
-  • Do not omit any clinically relevant entity in this batch.
-  • Do not assess trend, status, or significance here — just tag and
-    restate. That step happens later.
-  • This is only ONE batch — just extract exactly what you were given.
-
-Return ONLY valid JSON:
-{{
-  "system_findings": [
-    {{
-      "system": "...",
-      "finding": "...",
-      "date": "YYYY-MM-DD or null",
-      "source_document": "..."
-    }}
-  ]
-}}
-"""
-        result = await self._invoke(system, prompt)
-        if not isinstance(result, dict) or "system_findings" not in result:
-            logger.warning(
-                f"{self.agent_id} · batch {batch_index + 1} system-finding "
-                f"extraction returned unparseable output — falling back to a "
-                f"minimal deterministic extraction for this batch"
-            )
-            return self._deterministic_system_fallback(batch_docs)
-        return result
-
-    def _deterministic_system_fallback(self, batch_docs: List[Dict]) -> Dict[str, Any]:
-        """If a batch's LLM extraction fails entirely, build a minimal,
-        purely deterministic findings list in Python (tagged as
-        'Unclassified' since we can't safely infer a system without the
-        LLM) so nothing is silently dropped from the organ analysis."""
-        findings: List[Dict[str, Any]] = []
-        for doc in batch_docs:
-            doc_name = doc.get("document", "unknown")
-            doc_date = doc.get("document_date")
-            for e in doc.get("entities", []) or []:
-                name = e.get("name")
-                if name:
-                    findings.append({
-                        "system": "Unclassified",
-                        "finding": name,
-                        "date": doc_date,
-                        "source_document": doc_name,
-                    })
-        return {"system_findings": findings}
-
-    # ---- Deterministic merge (no LLM) --------------------------------------
-
-    def _merge_system_findings(
-        self, batch_results: List[Dict[str, Any]]
-    ) -> Dict[str, List[Dict[str, Any]]]:
-        """Group all batches' findings by system name. Purely deterministic
-        — nothing can be lost or hallucinated here."""
-        merged: Dict[str, List[Dict[str, Any]]] = {}
-        for r in batch_results:
-            for item in r.get("system_findings", []) or []:
-                if not isinstance(item, dict):
-                    continue
-                sysname = (item.get("system") or "Unclassified").strip() or "Unclassified"
-                merged.setdefault(sysname, []).append({
-                    "finding":         item.get("finding"),
-                    "date":            item.get("date"),
-                    "source_document": item.get("source_document"),
-                })
-        return merged
-
-    def _compute_first_last(self, findings: List[Dict[str, Any]]) -> (Optional[str], Optional[str]):
-        """Deterministic first/latest documented date for one system's
-        findings — simple ISO-date string sort, no LLM needed."""
-        dates = sorted(
-            {
-                f.get("date") for f in findings
-                if f.get("date") and f.get("date") not in ("None", "null", "NaT")
-            }
-        )
-        if not dates:
-            return None, None
-        return dates[0], dates[-1]
-
-    # ---- Pass 2: final synthesis from merged per-system findings ----------
-
-    async def _synthesize_organ_analysis(
-        self, merged_systems: Dict[str, List[Dict[str, Any]]], specialty: str
-    ) -> Dict[str, Any]:
-        """The ONLY call in A3 that produces the final organ-system
-        analysis. Its input is the compact, deduplicated per-system
-        findings list (with first/latest dates already computed
-        deterministically) — never the raw graph_documents, never the
-        full entity-level timeline, never the full A2 narrative — so its
-        size scales with the number of distinct findings, not with the
-        patient's raw document/entity volume."""
-
-        systems_payload = []
-        for sysname, findings in merged_systems.items():
-            first_d, last_d = self._compute_first_last(findings)
-            systems_payload.append({
-                "system": sysname,
-                "findings": findings,
-                "first_documented_computed": first_d,
-                "latest_documented_computed": last_d,
-            })
-        # Order systems by how much is documented (most-documented first)
-        # purely for readability — this has no bearing on content.
-        systems_payload.sort(key=lambda s: len(s["findings"]), reverse=True)
-
-        payload_json = json.dumps(systems_payload, indent=2, default=str)
-
-        system = (
-            "You are an expert physician trained in systems-based clinical reasoning. "
-            "You are given a pre-extracted, per-system list of findings (already "
-            "grouped by organ/body system across the patient's entire record, with "
-            "each system's first- and latest-documented dates already computed "
-            "deterministically). Your job is to write, for EACH system, a "
-            "consolidated_status (what is documented about this system, referencing "
-            "the specific findings and their dates) and a trend assessment. You do "
-            "not recommend treatment and you do not predict outcomes — you describe "
-            "documented status only, using ONLY the findings given below. Only assert "
-            "a trend (worsening/stable/improving/resolved) if the findings across "
-            "multiple dates for that system actually support it; otherwise use "
-            "'undetermined' or 'single data point, no trend assessable'. Always "
-            "respond with valid JSON only."
-        )
-
-        prompt = f"""
-Consolidate this patient's documented findings by organ/body system, for a
-{specialty} specialist.
-
-══════════════════════════════════════════════════════════
-PRE-EXTRACTED, PER-SYSTEM FINDINGS (deterministically grouped from the
-patient's entire record; first_documented_computed / latest_documented_computed
-are already computed — use them as-is unless a finding's own date
-contradicts them, which should not happen)
-══════════════════════════════════════════════════════════
-{payload_json}
-
-══════════════════════════════════════════════════════════
-TASK
-══════════════════════════════════════════════════════════
-
-For EACH system object above, write:
-  • "consolidated_status": one or two dense sentences describing what is
-    documented for this system, referencing the specific findings and
-    their dates given above.
-  • "key_findings": copy through the "finding"/"date"/"source_document"
-    entries as given (do not invent new ones, do not drop any).
-  • "trend": "worsening|stable|improving|resolved|undetermined|single data
-    point, no trend assessable" — only assert a real trend if the given
-    findings across multiple dates actually support it.
-  • "first_documented" / "latest_documented": use the
-    first_documented_computed / latest_documented_computed values given
-    above.
-
-DO NOT:
-  • Recommend any treatment or monitoring plan.
-  • Predict future course.
-  • Invent a system-level status that isn't backed by the given findings.
-  • Drop a system entirely, even if it only has one finding.
-
-Return ONLY valid JSON:
-{{
-  "organ_systems": [
-    {{
-      "system": "...",
-      "consolidated_status": "...",
-      "key_findings": [
-        {{"finding": "...", "date": "...", "source_document": "..."}}
-      ],
-      "trend": "worsening|stable|improving|resolved|undetermined|single data point, no trend assessable",
-      "first_documented": "...",
-      "latest_documented": "..."
-    }}
-  ],
-  "systems_summary_note": "One or two sentences noting how many systems have documented findings and which system has the most extensive documentation, based only on the data above.",
-  "completeness_check": {{
-    "all_documented_findings_assigned_to_a_system": true,
-    "notes": "..."
-  }}
-}}
-"""
-        return await self._invoke(system, prompt)
-
-    def _deterministic_organ_fallback(
-        self, merged_systems: Dict[str, List[Dict[str, Any]]]
-    ) -> Dict[str, Any]:
-        """If the final synthesis call fails entirely, build a minimal,
-        purely deterministic organ_systems array (no trend/prose) so the
-        pipeline still returns something useful."""
-        organ_systems = []
-        for sysname, findings in merged_systems.items():
-            first_d, last_d = self._compute_first_last(findings)
-            organ_systems.append({
-                "system": sysname,
-                "consolidated_status": (
-                    "; ".join(
-                        f"{f.get('finding')} ({f.get('date')})"
-                        for f in findings if f.get("finding")
-                    ) or "No further detail available."
-                ),
-                "key_findings": findings,
-                "trend": "undetermined",
-                "first_documented": first_d,
-                "latest_documented": last_d,
-            })
-        return {
-            "organ_systems": organ_systems,
-            "systems_summary_note": (
-                f"{len(organ_systems)} system(s) had documented findings. "
-                "This is a fallback consolidation — the final synthesis call failed."
-            ),
-            "completeness_check": {
-                "all_documented_findings_assigned_to_a_system": True,
-                "notes": "Built deterministically after the synthesis LLM call failed.",
-            },
-        }
-
-    # ---- Main run -----------------------------------------------------------
-
-    async def run(self, state: ClinicalState) -> ClinicalState:
-        logger.info(f"{self.agent_id} · OrganAnalysisAgent (batched) — START")
-        t0 = datetime.now().timestamp()
-
-        specialty = state.get("specialty", "General Medicine")
-        docs = state["graph_documents"]
-        batches = _chunk_list(docs, ORGAN_BATCH_SIZE)
-
-        logger.info(
-            f"{self.agent_id} · {len(docs)} documents split into "
-            f"{len(batches)} batch(es) of up to {ORGAN_BATCH_SIZE} for system-finding extraction"
-        )
-
-        batch_results = await asyncio.gather(
-            *[
-                self._extract_batch_system_findings(batch, specialty, i)
-                for i, batch in enumerate(batches)
-            ],
-            return_exceptions=True,
-        )
-
-        clean_results = []
-        for i, r in enumerate(batch_results):
-            if isinstance(r, Exception):
-                logger.error(f"{self.agent_id} · system-finding batch {i + 1} failed: {r}")
-                state["errors"].append(f"A3-batch-{i + 1}: {str(r)}")
-                clean_results.append(self._deterministic_system_fallback(batches[i]))
-            else:
-                clean_results.append(r)
-
-        merged_systems = self._merge_system_findings(clean_results)
-
-        try:
-            raw = await self._synthesize_organ_analysis(merged_systems, specialty)
-        except Exception as e:
-            logger.error(f"{self.agent_id} · final synthesis failed: {e}")
-            state["errors"].append(f"A3-synthesis: {str(e)}")
-            raw = self._deterministic_organ_fallback(merged_systems)
-
-        state["organ_analysis"] = raw
-        state["agent_timings"][self.agent_id] = self._elapsed(t0)
-        logger.info(
-            f"{self.agent_id} · OrganAnalysisAgent — DONE "
-            f"({state['agent_timings'][self.agent_id]}ms) | "
-            f"{len(merged_systems)} system(s) identified"
-        )
-        return state
-
-
-# ============================================================
 # WORKFLOW GRAPH DEFINITION
+#
+# A3 (Organ System Agent) remains removed (as of v5.0). The pipeline is:
+#   A1_TIMELINE -> A2_SUMMARY -> END
 # ============================================================
 
 def create_ccgi_workflow() -> Any:
@@ -2484,12 +2310,10 @@ def create_ccgi_workflow() -> Any:
 
     workflow.add_node("A1_TIMELINE", TimelineAgent(llm_synthesis).run)
     workflow.add_node("A2_SUMMARY",  ClinicalSummaryAgent(llm_synthesis).run)
-    workflow.add_node("A3_ORGAN",    OrganAnalysisAgent(llm_synthesis).run)
 
     workflow.set_entry_point("A1_TIMELINE")
     workflow.add_edge("A1_TIMELINE", "A2_SUMMARY")
-    workflow.add_edge("A2_SUMMARY", "A3_ORGAN")
-    workflow.add_edge("A3_ORGAN", END)
+    workflow.add_edge("A2_SUMMARY", END)
 
     return workflow.compile()
 
@@ -2521,7 +2345,6 @@ def build_initial_state(
         patient_name=patient_name,
         timeline=None,
         clinical_summary=None,
-        organ_analysis=None,
         errors=[],
         agent_timings={},
     )
@@ -2541,10 +2364,18 @@ async def trigger_summary(request: Clinical):
 @router.post("/internal/run-reasoning")
 async def run_reasoning(request: ClinicalRequest):
     """
-    Lean 3-agent CCGI clinical reasoning pipeline (v4.9, with the v4.9 A2
-    clinical-flow/treatment-sequence/lab-synthesis/final-paragraph
-    refinement described in the module docstring, per the Clinical Summary
-    (A2) Enhancement Specification).
+    Lean 2-agent CCGI clinical reasoning pipeline (v5.2.0). A1 (Timeline)
+    and the overall pipeline shape (A1 -> A2, A3 removed) and the v5.0.1
+    LLM_CONCURRENCY rate-limit fix are all unchanged. The only content
+    change in v5.2.0 is A2's final synthesis prompt: the v5.1.0 rule that
+    forced the clinical summary to be organized chronologically by
+    document date is REVERTED — the narrative is once again organized by
+    CLINICAL LOGIC/TOPIC (a concise, generic, doctor-readable summary),
+    while the v5.1.0 mandatory, graph-driven-only procedure detail rule
+    for surgery/chemotherapy/radiotherapy/other procedures is KEPT
+    unchanged. No batch size, schema, or token budget was changed to
+    achieve this — see the module docstring's "CHANGE IN v5.2.0" section
+    for the full rationale.
 
       A1 — Timeline: date-wise reconstruction from graph documents, grouped
            by ENTITY TYPE within each date (not a per-document dump).
@@ -2555,59 +2386,62 @@ async def run_reasoning(request: ClinicalRequest):
            never sent to the LLM in one oversized call), and the
            date-level narrative is then assembled with ZERO additional
            LLM calls by deterministically concatenating each date's
-           document narratives. UNCHANGED from prior version.
-      A2 — Clinical Summary: ONE continuous, synthesized, paragraph-based
-           physician narrative, grounded strictly in graph document data,
-           no recommendations or predictions. Confirmed diagnoses
-           (gold-standard confirmed, not merely suspected) are wrapped in
-           markdown **bold**, along with a sparing set of other highly
-           clinically significant facts (stage, pathology, major imaging
-           findings, tumor burden, critical labs, biomarkers, major
-           procedures, treatment history/current treatment/response,
-           performance status, significant toxicities/complications,
-           major comorbidities, significant allergies, critical
-           concurrent medications, current disease status, follow-up
-           plan). Structured workflow documents (chemo/radio/surgical/
-           nursing/treatment planning) are treated as the AUTHORITATIVE
-           source for treatment information and are fully mined for
-           treatment-management detail (modality, intent, regimen,
-           status, cycles, response/toxicity). The model automatically
+           document narratives.
+      A2 — Clinical Summary: ONE continuous, doctor-style narrative,
+           grounded strictly in graph document data, no recommendations or
+           predictions, organized by CLINICAL LOGIC/TOPIC (diagnosis →
+           pathology/findings → treatment course → current status) rather
+           than by raw document/date order, using the A1 compact timeline
+           only to resolve what is current and the true sequence of
+           treatment events. Confirmed diagnoses (gold-standard confirmed,
+           not merely suspected) are wrapped in markdown **bold**, along
+           with a sparing set of other highly clinically significant facts
+           (stage, pathology, major imaging findings, tumor burden,
+           critical labs, biomarkers, major procedures, treatment history/
+           current treatment/response, performance status, significant
+           toxicities/complications, major comorbidities, significant
+           allergies, critical concurrent medications, current disease
+           status, follow-up plan). Structured workflow documents (chemo/
+           radio/surgical/nursing/treatment planning) are treated as the
+           AUTHORITATIVE source for treatment information and are fully
+           mined for treatment-management detail (modality, intent,
+           regimen, status, cycles, response/toxicity). A MANDATORY,
+           GRAPH-DRIVEN-ONLY procedure detail rule requires full, dated,
+           doctor-ready detail for every treatment/procedure category
+           (surgery, chemotherapy, radiotherapy, or any other) actually
+           present in the patient's documents — never a fixed template
+           assumed to apply to every patient. The model automatically
            recognizes the patient's specialty/condition and pulls in
            whichever of a comprehensive, generic clinical checklist
            (diagnosis, pathology, molecular/biomarkers, imaging, labs,
            procedures, treatment, functional status, clinical status,
            complications, other information) is actually documented,
-           rather than a single hardcoded schema. The narrative is now
-           sequenced around the spec's clinical-logic skeleton (diagnosis
-           → investigations → disease extent → treatment history in its
-           actual sequence of care → current treatment → current disease
-           status → follow-up), treatment events are narrated in the real
-           order they occurred (using document dates internally to
-           establish that order), routine/normal laboratory values are
-           synthesized into a plain-language impression instead of
-           enumerated, and the summary's final paragraph is mandatory and
-           must close on current treatment status, current disease status,
-           significant toxicities/complications, active medications, and
-           the follow-up plan. Dates are otherwise used internally to
-           determine the most current diagnosis, investigations,
-           treatment, medications, and disease status, and to resolve
-           conflicting/superseded information, but the narrative itself
-           stays a synthesized account rather than a chronological log,
-           and never writes placeholder text for a category that simply
-           isn't documented. BATCHED (SUMMARY_BATCH_SIZE docs per
-           fact-extraction call, each with its own
-           SUMMARY_EXTRACTION_MAX_TOKENS budget — UNCHANGED from prior
-           version — then one small synthesis call whose target length
-           scales with how much was documented, using its own
-           SUMMARY_SYNTHESIS_MAX_TOKENS budget).
-      A3 — Organ Analysis: organ/system-wise consolidation of documented
-           findings. BATCHED (ORGAN_BATCH_SIZE docs per system-tagging
-           call, then one small synthesis call over the compact, merged
-           per-system findings). UNCHANGED from prior version.
+           rather than a single hardcoded schema. Routine/normal
+           laboratory values are synthesized into a plain-language
+           impression instead of enumerated, and the summary's final
+           paragraph is mandatory and must close on current treatment
+           status, current disease status, significant toxicities/
+           complications, active medications, and the follow-up plan. The
+           overall length is intentionally CONCISE (see length_guidance in
+           code) so the result reads as a true, generic summary rather
+           than a long narrative retelling. BATCHED (SUMMARY_BATCH_SIZE
+           docs per fact-extraction call, each with its own
+           SUMMARY_EXTRACTION_MAX_TOKENS budget, then one small synthesis
+           call whose target length scales modestly with how much was
+           documented, using its own SUMMARY_SYNTHESIS_MAX_TOKENS budget).
+
+    EVERY prompt in both agents carries an explicit, non-negotiable "no
+    external knowledge" rule: the model must use ONLY the
+    graph_documents-derived data supplied inside that specific call, and
+    must never supplement, infer, or "fill in" using its own general
+    medical/training knowledge. This applies equally to the procedure-
+    detail rule: the set of procedures detailed comes entirely from what
+    is present in this patient's graph data, never from a hardcoded
+    assumption of what procedures "should" exist.
     """
     start_ms = datetime.now().timestamp() * 1000
     logger.info(
-        f"CCGI (lean v4.9) request | patient={request.patient_id} | doctor={request.doctor_id}"
+        f"CCGI (lean v5.3.0) request | patient={request.patient_id} | doctor={request.doctor_id}"
     )
 
     try:
@@ -2643,7 +2477,6 @@ async def run_reasoning(request: ClinicalRequest):
             "processing_time_ms":  elapsed,
             "summary":             result.get("clinical_summary", {}),
             "timeline":            result.get("timeline", {}),
-            "organ_analysis":      result.get("organ_analysis", {}),
             "agent_timings":       result.get("agent_timings", {}),
             "errors":              result.get("errors", []),
         }
@@ -2654,14 +2487,13 @@ async def run_reasoning(request: ClinicalRequest):
             logger.error(f"MongoDB save failed: {e}")
 
         logger.info(
-            f"CCGI (lean v4.9) complete | patient={request.patient_id} | "
+            f"CCGI (lean v5.3.0) complete | patient={request.patient_id} | "
             f"{elapsed}ms | {len(graph_docs)} documents"
         )
 
-        # NOTE: response shape is unchanged — "timeline" is still the full
-        # A1 output object, "summary" and "organ_analysis" still carry the
-        # same keys as before. No existing key was removed/renamed, so any
-        # frontend reading only the old keys keeps working unmodified.
+        # NOTE: response shape — "timeline" is still the full A1 output
+        # object, "summary" still carries the same keys as before. No
+        # response-shape change versus v5.1.0/v5.0.1.
         response = {
             "patient_id":          request.patient_id,
             "doctor_id":           request.doctor_id,
@@ -2670,26 +2502,29 @@ async def run_reasoning(request: ClinicalRequest):
             "processing_time_ms":  elapsed,
             "agent_timings":       result.get("agent_timings", {}),
             "errors":              result.get("errors", []),
-            "version":             "lean-4.9.0",
+            "version":             "lean-5.3.0",
 
             "summary": {
                 "diagnosis_header":            result.get("clinical_summary", {}).get("diagnosis_header", "Not documented"),
                 "confirmed_diagnosis_present": result.get("clinical_summary", {}).get("confirmed_diagnosis_present", False),
                 "confirmed_diagnoses":         result.get("clinical_summary", {}).get("confirmed_diagnoses", []),
+                "oncology_classification": {
+                    "applicable":  bool(result.get("clinical_summary", {}).get("oncology_case_type")),
+                    "case_type":   result.get("clinical_summary", {}).get("oncology_case_type"),
+                    "case_label":  _oncology_case_label(result.get("clinical_summary", {}).get("oncology_case_type")),
+                    "chips":       result.get("clinical_summary", {}).get("oncology_case_chips", []) or [],
+                },
                 "paragraphs":                  result.get("clinical_summary", {}).get("paragraphs", []),
                 "full_text":                   result.get("clinical_summary", {}).get("full_text", ""),
             },
 
             "timeline": result.get("timeline", {}),
-
-            "organ_analysis": result.get("organ_analysis", {}),
         }
 
         if request.include_intermediates:
             response["intermediate"] = {
                 "clinical_summary_raw": result.get("clinical_summary", {}),
                 "timeline_raw":         result.get("timeline", {}),
-                "organ_analysis_raw":   result.get("organ_analysis", {}),
             }
 
         return response
@@ -2698,7 +2533,7 @@ async def run_reasoning(request: ClinicalRequest):
         raise
     except Exception as e:
         logger.exception(
-            f"CCGI (lean v4.9) pipeline failed | patient={request.patient_id} | {e}"
+            f"CCGI (lean v5.3.0) pipeline failed | patient={request.patient_id} | {e}"
         )
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -2707,16 +2542,16 @@ async def run_reasoning(request: ClinicalRequest):
 async def health():
     return {
         "status": "ok",
-        "version": "lean-4.9.0",
-        "agents": 3,
+        "version": "lean-5.3.0",
+        "agents": 2,
         "workflow_compiled": ccgi_workflow is not None,
         "timeline_batch_size": TIMELINE_BATCH_SIZE,
         "narrative_batch_size": NARRATIVE_BATCH_SIZE,
         "summary_batch_size": SUMMARY_BATCH_SIZE,
-        "organ_batch_size": ORGAN_BATCH_SIZE,
         "groq_max_tokens": GROQ_MAX_TOKENS,
         "summary_synthesis_max_tokens": SUMMARY_SYNTHESIS_MAX_TOKENS,
         "summary_extraction_max_tokens": SUMMARY_EXTRACTION_MAX_TOKENS,
+        "llm_concurrency": LLM_CONCURRENCY,
         "agent_pipeline": [
             "A1-Timeline           [batched by "
             f"{TIMELINE_BATCH_SIZE} docs for entity organization, merged "
@@ -2726,40 +2561,83 @@ async def health():
             f"{NARRATIVE_BATCH_SIZE} (flattened across all dates — a date with many "
             "documents is never sent to the LLM in one oversized call), with the "
             "date-level narrative then assembled deterministically (zero extra LLM "
-            "calls) by concatenating each date's document narratives. UNCHANGED.]",
+            "calls) by concatenating each date's document narratives. Grounded "
+            "strictly in graph_documents — no external/general medical knowledge "
+            "used.]",
             "A2-ClinicalSummary    [BATCHED by "
             f"{SUMMARY_BATCH_SIZE} docs for fact extraction (concurrent, own "
             f"{SUMMARY_EXTRACTION_MAX_TOKENS}-token budget, treats chemo/radio/"
             "surgical/treatment-workflow docs as the AUTHORITATIVE source for "
             "treatment-course detail and excludes purely operational/administrative "
-            "workflow metadata — UNCHANGED), merged deterministically, then ONE "
-            "final synthesis call over the merged facts + a compact, earliest-"
-            "first-sorted timeline (used to resolve what is most CURRENT and to "
-            "establish the real sequence of treatment events), writing ONE "
-            "continuous, synthesized, paragraph-based physician narrative that "
-            "auto-adapts to the patient's specialty, is sequenced around a "
-            "diagnosis→investigations→disease-extent→treatment-history-in-actual-"
-            "sequence-of-care→current-treatment→current-status→follow-up clinical "
-            "skeleton, pulls in whichever of a comprehensive generic clinical "
-            "checklist is actually documented, synthesizes lab values into a "
-            "plain-language impression instead of enumerating normal results, and "
-            "always closes with a mandatory final paragraph covering current "
-            "treatment status/current disease status/toxicities-complications/"
-            "active medications/follow-up plan — target length scales with how "
-            "much was documented, the full treatment course is always surfaced but "
-            "narrated naturally in its real order (clinically significant events "
-            "such as dose reductions/toxicity/progression/regimen changes/"
-            "interruptions/hospitalization preserved; routine repeats and serial "
-            "imaging merged; meds/follow-up stated once), a sparing but expanded "
-            "bold-emphasis rule highlights the most clinically significant facts, "
-            "missing categories are silently omitted rather than flagged with "
-            "placeholder text, and the synthesis call uses its own token budget "
+            "workflow metadata), merged deterministically, then ONE final synthesis "
+            "call over the merged facts + a compact, earliest-first-sorted timeline "
+            "used ONLY to resolve current status and the true treatment sequence, "
+            "writing ONE continuous, doctor-style physician narrative organized by "
+            "CLINICAL LOGIC/TOPIC (diagnosis, findings, treatment course, current "
+            "status) rather than by document date, auto-adapting to the patient's "
+            "specialty, pulling in whichever of a comprehensive generic clinical "
+            "checklist is actually documented, giving MANDATORY, GRAPH-DRIVEN-ONLY "
+            "doctor-ready detail (modality, date, intent, protocol, cycles/"
+            "sessions, dose, response/toxicity) for every treatment/procedure "
+            "category (surgery, chemotherapy, radiotherapy, or any other) actually "
+            "present in the data — never a fixed procedure template — synthesizing "
+            "lab values into a plain-language impression instead of enumerating "
+            "normal results, and always closing with a mandatory final paragraph "
+            "covering current treatment status/current disease status/toxicities-"
+            "complications/active medications/follow-up plan — target length is "
+            "intentionally CONCISE and scales only modestly with how much was "
+            "documented, routine repeats are merged into one passage, meds/"
+            "follow-up stated once, a sparing but expanded bold-emphasis rule "
+            "highlights the most clinically significant facts, missing categories "
+            "are silently omitted rather than flagged with placeholder text, and "
+            "the synthesis call uses its own token budget "
             f"({SUMMARY_SYNTHESIS_MAX_TOKENS} tokens) so long summaries aren't "
-            "truncated. No recommendations/predictions]",
-            "A3-OrganAnalysis      [BATCHED by "
-            f"{ORGAN_BATCH_SIZE} docs for system-finding extraction (concurrent), "
-            "merged deterministically by system name, then ONE final synthesis call "
-            "over the compact per-system findings. UNCHANGED.]",
+            "truncated. Grounded strictly in graph_documents — no external/general "
+            "medical knowledge used. No recommendations/predictions]",
+        ],
+        "rate_limit_fix": (
+            f"All LLM calls across A1 and A2 share a single asyncio.Semaphore "
+            f"(LLM_CONCURRENCY={LLM_CONCURRENCY}) inside BaseAgent._invoke(), so "
+            "at most that many requests are ever in flight to the provider at "
+            "once — this paces request admission to avoid Groq TPM 429s without "
+            "reducing any batch size, max_tokens budget, or prompt content. "
+            "Tune via the LLM_CONCURRENCY env var. (Unchanged since v5.0.1.)"
+        ),
+        "v5_2_0_change": (
+            "A2's final synthesis narrative is REVERTED from v5.1.0's strict "
+            "chronological-by-document-date ordering back to being organized by "
+            "CLINICAL LOGIC/TOPIC — a concise, generic, doctor-readable summary "
+            "(diagnosis, findings, treatment course, current status) rather than "
+            "a date-by-date walk-through. The A1 compact timeline is still used, "
+            "but only to resolve what is CURRENT and the true relative order of "
+            "treatment events. The v5.1.0 MANDATORY, GRAPH-DRIVEN-ONLY procedure "
+            "detail rule (full, dated, doctor-ready detail for every treatment/"
+            "procedure category actually present in the patient's documents) is "
+            "KEPT, unchanged. Length guidance is also tightened so the result "
+            "stays a true, concise summary. No schema, batch-size, or token-"
+            "budget change."
+        ),
+        "v5_3_0_change": (
+            "A2's final synthesis call ADDITIONALLY classifies oncology patients "
+            "using standard charting terminology — PRIMARY MALIGNANCY (no prior "
+            "cancer documented), RECURRENCE (same histology/site as a prior "
+            "documented cancer, optionally LOCAL/REGIONAL/DISTANT), or SECOND "
+            "PRIMARY MALIGNANCY (a distinct histology/site in a patient with a "
+            "cancer history, optionally SYNCHRONOUS/METACHRONOUS) — derived "
+            "strictly from the same facts/timeline already used for the "
+            "narrative, never guessed when evidence is ambiguous or absent. Adds "
+            "'oncology_case_type' and 'oncology_case_chips' to A2's JSON schema, "
+            "and a new 'oncology_classification' block (applicable / case_type / "
+            "case_label / chips) inside the API response's 'summary' object; "
+            "case_label is looked up deterministically in Python from a fixed "
+            "vocabulary, never generated by the model. Non-oncology patients get "
+            "'applicable': false and an unchanged narrative. No other schema, "
+            "batch-size, or token-budget change."
+        ),
+        "removed_in_prior_version": [
+            "A3-OrganAnalysis (organ/system-wise consolidated analysis agent) was "
+            "removed from the pipeline, ClinicalState, and the API response in "
+            "v5.0. The 'organ_analysis' response key does not exist."
         ],
     }
 

@@ -30,7 +30,7 @@ logger = logging.getLogger("MedicalCodingAPI")
 # ============================================================
 
 class LLMConfig:
-    MODEL       = "llama-3.3-70b-versatile"
+    MODEL       = "openai/gpt-oss-120b"
     TEMPERATURE = 0.1
     MAX_TOKENS  = 4096
     MAX_RETRIES = 3

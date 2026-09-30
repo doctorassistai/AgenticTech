@@ -90,7 +90,7 @@ the way the first six are.
                  and groq_client stays None otherwise - unlike
                  protocol_master.py/data.py, this file checks for the key's
                  presence before calling Groq()). Used in 4 places, all
-                 with model "llama-3.3-70b-versatile", forced JSON
+                 with model "openai/gpt-oss-120b", forced JSON
                  response_format, temperature=0:
                    1. _llm_synthesize_treatment_history - synthesizes
                       treatment_history from raw fallback sources

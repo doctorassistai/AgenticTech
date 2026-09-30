@@ -50,7 +50,12 @@ class Evidence(BaseModel):
     document_type: str
     document_date: Optional[str] = None
     evidence_text: str
+
+    # Traceability / source location
     page_number: Optional[int] = None
+    source_area: Optional[str] = None
+    source_location: Optional[str] = None
+
     confidence: float
     extraction_date: datetime
 
@@ -149,6 +154,8 @@ class EnhancedMedicalKnowledgeGraph:
             document_date:$document_date,
             evidence_text: $evidence_text,
             page_number: $page_number,
+            source_area: $source_area,
+            source_location: $source_location,
             confidence: $evidence_confidence,
             extraction_date: $extraction_date
         })
@@ -181,6 +188,8 @@ class EnhancedMedicalKnowledgeGraph:
                 document_date=evidence.document_date,
                 evidence_text=evidence.evidence_text,
                 page_number=evidence.page_number,
+                source_area=evidence.source_area,
+                source_location=evidence.source_location,
                 evidence_confidence=evidence.confidence,
                 extraction_date=evidence.extraction_date.isoformat()
             )
@@ -237,6 +246,8 @@ class EnhancedMedicalKnowledgeGraph:
             document_date:$document_date,
             evidence_text: $evidence_text,
             page_number: $page_number,
+            source_area: $source_area,
+            source_location: $source_location,
             confidence: $evidence_confidence,
             extraction_date: $extraction_date
         })
@@ -262,6 +273,8 @@ class EnhancedMedicalKnowledgeGraph:
                 document_date=evidence.document_date,
                 evidence_text=evidence.evidence_text,
                 page_number=evidence.page_number,
+                source_area=evidence.source_area,
+                source_location=evidence.source_location,
                 evidence_confidence=evidence.confidence,
                 extraction_date=evidence.extraction_date.isoformat()
             )
@@ -322,6 +335,8 @@ class EnhancedMedicalKnowledgeGraph:
             document_date:$document_date,
             evidence_text: $evidence_text,
             page_number: $page_number,
+            source_area: $source_area,
+            source_location: $source_location,
             confidence: $evidence_confidence,
             extraction_date: $extraction_date
         })
@@ -350,6 +365,8 @@ class EnhancedMedicalKnowledgeGraph:
                 document_date=evidence.document_date,
                 evidence_text=evidence.evidence_text,
                 page_number=evidence.page_number,
+                source_area=evidence.source_area,
+                source_location=evidence.source_location,
                 evidence_confidence=evidence.confidence,
                 extraction_date=evidence.extraction_date.isoformat()
             )
@@ -408,6 +425,8 @@ class EnhancedMedicalKnowledgeGraph:
             document_date:$document_date,
             evidence_text: $evidence_text,
             page_number: $page_number,
+            source_area: $source_area,
+            source_location: $source_location,
             confidence: $evidence_confidence,
             extraction_date: $extraction_date
         })
@@ -438,6 +457,8 @@ class EnhancedMedicalKnowledgeGraph:
                 document_date=evidence.document_date,
                 evidence_text=evidence.evidence_text,
                 page_number=evidence.page_number,
+                source_area=evidence.source_area,
+                source_location=evidence.source_location,
                 evidence_confidence=evidence.confidence,
                 extraction_date=evidence.extraction_date.isoformat()
             )
@@ -481,6 +502,8 @@ class EnhancedMedicalKnowledgeGraph:
             document_date:$document_date,
             evidence_text: $evidence_text,
             page_number: $page_number,
+            source_area: $source_area,
+            source_location: $source_location,
             confidence: $evidence_confidence,
             extraction_date: $extraction_date
         })
@@ -507,6 +530,8 @@ class EnhancedMedicalKnowledgeGraph:
                 document_date=evidence.document_date,
                 evidence_text=evidence.evidence_text,
                 page_number=evidence.page_number,
+                source_area=evidence.source_area,
+                source_location=evidence.source_location,
                 evidence_confidence=evidence.confidence,
                 extraction_date=evidence.extraction_date.isoformat()
             )
@@ -547,10 +572,12 @@ class EnhancedMedicalKnowledgeGraph:
             document_name:$document_name,
             document_type:$document_type,
             document_date:$document_date,
-            evidence_text:$evidence_text,
-            page_number:$page_number,
-            confidence:$confidence,
-            extraction_date:$extraction_date
+            evidence_text: $evidence_text,
+            page_number: $page_number,
+            source_area: $source_area,
+            source_location: $source_location,
+            confidence: $evidence_confidence,
+            extraction_date: $extraction_date
         })
 
         CREATE (a)-[:SUPPORTED_BY_EVIDENCE]->(e)
@@ -571,7 +598,9 @@ class EnhancedMedicalKnowledgeGraph:
                 document_date=evidence.document_date,
                 evidence_text=evidence.evidence_text,
                 page_number=evidence.page_number,
-                confidence=evidence.confidence,
+                source_area=evidence.source_area,
+                source_location=evidence.source_location,
+                evidence_confidence=evidence.confidence,
                 extraction_date=evidence.extraction_date.isoformat()
             )
             
@@ -612,10 +641,12 @@ class EnhancedMedicalKnowledgeGraph:
             document_name:$document_name,
             document_type:$document_type,
             document_date:$document_date,
-            evidence_text:$evidence_text,
-            page_number:$page_number,
-            confidence:$confidence,
-            extraction_date:$extraction_date
+            evidence_text: $evidence_text,
+            page_number: $page_number,
+            source_area: $source_area,
+            source_location: $source_location,
+            confidence: $evidence_confidence,
+            extraction_date: $extraction_date
         })
 
         CREATE (f)-[:SUPPORTED_BY_EVIDENCE]->(e)
@@ -636,7 +667,9 @@ class EnhancedMedicalKnowledgeGraph:
                 document_date=evidence.document_date,
                 evidence_text=evidence.evidence_text,
                 page_number=evidence.page_number,
-                confidence=evidence.confidence,
+                source_area=evidence.source_area,
+                source_location=evidence.source_location,
+                evidence_confidence=evidence.confidence,
                 extraction_date=evidence.extraction_date.isoformat()
             )
         logger.info(f"✅ Diagnosis added with evidence:" )  
@@ -678,10 +711,12 @@ class EnhancedMedicalKnowledgeGraph:
             document_name:$document_name,
             document_type:$document_type,
             document_date:$document_date,
-            evidence_text:$evidence_text,
-            page_number:$page_number,
-            confidence:$confidence,
-            extraction_date:$extraction_date
+            evidence_text: $evidence_text,
+            page_number: $page_number,
+            source_area: $source_area,
+            source_location: $source_location,
+            confidence: $evidence_confidence,
+            extraction_date: $extraction_date
         })
 
         CREATE (pr)-[:SUPPORTED_BY_EVIDENCE]->(e)
@@ -702,7 +737,9 @@ class EnhancedMedicalKnowledgeGraph:
                 document_date=evidence.document_date,
                 evidence_text=evidence.evidence_text,
                 page_number=evidence.page_number,
-                confidence=evidence.confidence,
+                source_area=evidence.source_area,
+                source_location=evidence.source_location,
+                evidence_confidence=evidence.confidence,
                 extraction_date=evidence.extraction_date.isoformat()
             )
         logger.info(f"✅ Diagnosis added with evidence:" )  
@@ -742,10 +779,12 @@ class EnhancedMedicalKnowledgeGraph:
             document_name:$document_name,
             document_type:$document_type,
             document_date:$document_date,
-            evidence_text:$evidence_text,
-            page_number:$page_number,
-            confidence:$confidence,
-            extraction_date:$extraction_date
+            evidence_text: $evidence_text,
+            page_number: $page_number,
+            source_area: $source_area,
+            source_location: $source_location,
+            confidence: $evidence_confidence,
+            extraction_date: $extraction_date
         })
 
         CREATE (m)-[:SUPPORTED_BY_EVIDENCE]->(e)
@@ -766,7 +805,9 @@ class EnhancedMedicalKnowledgeGraph:
                 document_date=evidence.document_date,
                 evidence_text=evidence.evidence_text,
                 page_number=evidence.page_number,
-                confidence=evidence.confidence,
+                source_area=evidence.source_area,
+                source_location=evidence.source_location,
+                evidence_confidence=evidence.confidence,
                 extraction_date=evidence.extraction_date.isoformat()
             )
         logger.info(f"✅ Diagnosis added with evidence:" )  
@@ -808,7 +849,9 @@ class EnhancedMedicalKnowledgeGraph:
             document_date: $document_date,
             evidence_text: $evidence_text,
             page_number: $page_number,
-            confidence: $confidence,
+            source_area: $source_area,
+            source_location: $source_location,
+            confidence: $evidence_confidence,
             extraction_date: $extraction_date
         })
 
@@ -833,13 +876,106 @@ class EnhancedMedicalKnowledgeGraph:
                 document_date=evidence.document_date,
                 evidence_text=evidence.evidence_text,
                 page_number=evidence.page_number,
-                confidence=evidence.confidence,
+                source_area=evidence.source_area,
+                source_location=evidence.source_location,
+                evidence_confidence=evidence.confidence,
                 extraction_date=evidence.extraction_date.isoformat()
             )
 
         logger.info(f"✅ Treatment added with evidence: {treatment}")
 
         return treatment_id
+    async def add_investigation_with_evidence(
+        self,
+        patient_id: str,
+        investigation: str,
+        details: str,
+        investigation_date: str,
+        evidence: Evidence,
+        visit_date: Optional[str] = None
+    ) -> str:
+
+        investigation_id = f"inv_{uuid4().hex[:12]}"
+
+        query = """
+        MATCH (p:Patient {patient_id:$patient_id})
+
+        CREATE (i:Investigation{
+            investigation_id:$investigation_id,
+            name:$investigation,
+            details:$details,
+            ordered_on:$investigation_date,
+            created_at:datetime()
+        })
+
+        CREATE (p)-[:HAS_INVESTIGATION{
+            ordered_on:$investigation_date,
+            visit_date:$visit_date
+        }]->(i)
+
+        CREATE (e:Evidence{
+            evidence_id:$evidence_id,
+            document_id:$document_id,
+            document_name:$document_name,
+            document_type:$document_type,
+            document_date:$document_date,
+            evidence_text: $evidence_text,
+            page_number: $page_number,
+            source_area: $source_area,
+            source_location: $source_location,
+            confidence: $evidence_confidence,
+            extraction_date: $extraction_date
+        })
+
+        CREATE (i)-[:SUPPORTED_BY_EVIDENCE]->(e)
+
+        RETURN i,e
+        """
+
+        async with self.driver.session() as session:
+
+            await session.run(
+                query,
+
+                patient_id=patient_id,
+
+                investigation_id=investigation_id,
+
+                investigation=investigation,
+
+                details=details,
+
+                investigation_date=investigation_date,
+
+                visit_date=visit_date or datetime.utcnow().isoformat(),
+
+                evidence_id=evidence.evidence_id,
+
+                document_id=evidence.document_id,
+
+                document_name=evidence.document_name,
+
+                document_type=evidence.document_type,
+
+                document_date=evidence.document_date,
+
+                evidence_text=evidence.evidence_text,
+
+                page_number=evidence.page_number,
+                source_area=evidence.source_area,
+                source_location=evidence.source_location,
+
+                evidence_confidence=evidence.confidence,
+
+                extraction_date=evidence.extraction_date.isoformat()
+
+            )
+
+        logger.info(
+            f"✅ Investigation added: {investigation}"
+        )
+
+        return investigation_id
     # =====================================================================
     # FOLLOW-UP VISIT CHANGE TRACKING
     # =====================================================================

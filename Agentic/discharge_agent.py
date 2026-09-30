@@ -79,7 +79,7 @@ neo4j_driver = AsyncGraphDatabase.driver(
 
 # Fast model for labeling (reads evidence content — needs comprehension)
 llm_label = ChatGroq(
-    model="llama-3.3-70b-versatile",
+    model="openai/gpt-oss-120b",
     temperature=0.0,
     max_tokens=512,
     groq_api_key=GROQ_API_KEY,
@@ -87,7 +87,7 @@ llm_label = ChatGroq(
 
 # Heavy model for clinical extraction (full evidence, all categories)
 llm_synthesis = ChatGroq(
-    model="llama-3.3-70b-versatile",
+    model="openai/gpt-oss-120b",
     temperature=0.0,
     max_tokens=8000,
     groq_api_key=GROQ_API_KEY,
@@ -95,7 +95,7 @@ llm_synthesis = ChatGroq(
 
 # Light model for aggregation / quality
 llm_light = ChatGroq(
-    model="llama-3.1-8b-instant",
+    model="openai/gpt-oss-20b",
     temperature=0.1,
     max_tokens=4000,
     groq_api_key=GROQ_API_KEY,

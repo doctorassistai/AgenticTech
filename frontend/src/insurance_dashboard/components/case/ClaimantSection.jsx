@@ -1,3 +1,9 @@
+const isVisible = (mode, requiredKeys, key) => {
+  if (!mode || mode === 'all') return true
+  const isReq = (requiredKeys || []).includes(key)
+  return mode === 'required' ? isReq : !isReq
+}
+
 export default function ClaimantSection({
   formData,
   handleChange,
@@ -6,8 +12,15 @@ export default function ClaimantSection({
   sectionProgress,
   SectionBadge,
   extractedSuggestions = {},
-  unfilledFields = new Set()   // ← add this
+  unfilledFields = new Set(),
+  mode = 'all',
+  requiredKeys = [],
+  bare = false,
 }) {
+  const vis = (key) => isVisible(mode, requiredKeys, key)
+  const gridStyle = mode === 'required'
+    ? { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 260px))', gap: '14px 16px' }
+    : undefined
   // Generate initials avatar from name
   const initials = (formData.claimantName || '')
     .split(' ')
@@ -28,17 +41,8 @@ export default function ClaimantSection({
 
   const relColor = relationshipColors[formData.relationship] || 'var(--muted)'
 
-  return (
-    <div className="panel" ref={sectionRefs.claimant}>
-      <div className="panel-header">
-        <div className="panel-title">
-          <div className="dot" style={{ background: 'var(--purple)' }} />
-          Claimant Details
-        </div>
-        <SectionBadge pct={sectionProgress('claimant')} color="var(--purple)" />
-      </div>
-
-      <div className="panel-body" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+const body = (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
         {/* ── Identity Card strip ── */}
         <div style={{
@@ -97,11 +101,80 @@ export default function ClaimantSection({
           )}
         </div>
 
+        {mode === 'required' && (
+        <div className="form-grid cols-3" style={gridStyle}>
+          {vis('claimantName') && (
+            <div className="field">
+              <label>Full Name <span className="req">*</span></label>
+              <input
+                type="text"
+                placeholder="As on policy / Aadhaar"
+                value={formData.claimantName}
+                onChange={e => handleChange('claimantName', e.target.value)}
+                style={{
+                  borderColor: unfilledFields.has('claimantName') ? '#ef4444' : undefined,
+                  boxShadow: unfilledFields.has('claimantName') ? '0 0 0 3px rgb(239 68 68 / 15%)' : undefined,
+                }}
+              />
+            </div>
+          )}
+          {vis('claimantMobile') && (
+            <div className="field">
+              <label>Primary Mobile <span className="req">*</span></label>
+              <input
+                type="tel"
+                placeholder="10-digit number"
+                maxLength={10}
+                value={formData.claimantMobile}
+                onChange={e => handleChange('claimantMobile', e.target.value.replace(/\D/g, ''))}
+                style={{
+                  borderColor: fieldErrors.claimantMobile
+                    ? 'var(--red)'
+                    : unfilledFields.has('claimantMobile') ? '#ef4444' : undefined,
+                  boxShadow: unfilledFields.has('claimantMobile') && !fieldErrors.claimantMobile
+                    ? '0 0 0 3px rgb(239 68 68 / 15%)'
+                    : undefined,
+                }}
+              />
+              {fieldErrors.claimantMobile && (
+                <span style={{ color: 'var(--red)', fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}>
+                  ⚠ {fieldErrors.claimantMobile}
+                </span>
+              )}
+            </div>
+          )}
+          {vis('pinCode') && (
+            <div className="field">
+              <label>PIN Code <span className="req">*</span></label>
+              <input
+                type="text"
+                placeholder="6-digit PIN"
+                maxLength={6}
+                value={formData.pinCode}
+                onChange={e => handleChange('pinCode', e.target.value.replace(/\D/g, ''))}
+                style={{
+                  borderColor: fieldErrors.pinCode ? 'var(--red)' : unfilledFields.has('pinCode') ? '#ef4444' : undefined,
+                  boxShadow: unfilledFields.has('pinCode') && !fieldErrors.pinCode ? '0 0 0 3px rgb(239 68 68 / 15%)' : undefined,
+                }}
+              />
+              {fieldErrors.pinCode && (
+                <span style={{ color: 'var(--red)', fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}>
+                  ⚠ {fieldErrors.pinCode}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+        )}
+
+        {mode !== 'required' && (
+        <>
         {/* ── Section: Personal Info ── */}
         <div className="section-divider"><span>Personal Info</span></div>
 
-        <div className="form-grid cols-3">
+        <div className="form-grid cols-3" style={gridStyle}>
 
+          {vis('claimantName') && (
           <div className="field">
             <label>Full Name <span className="req">*</span></label>
             <input
@@ -115,7 +188,9 @@ export default function ClaimantSection({
   }}
             />
           </div>
+          )}
 
+          {vis('claimantAge') && (
           <div className="field">
             <label>Age</label>
             <input
@@ -124,10 +199,12 @@ export default function ClaimantSection({
               min={0}
               max={120}
               value={formData.claimantAge}
-              onChange={e => handleChange('claimantAge', e.target.value)}
+             onChange={e => handleChange('claimantAge', e.target.value)}
             />
           </div>
+          )}
 
+          {vis('relationship') && (
           <div className="field">
             <label>Relationship to Insured</label>
             <select
@@ -143,14 +220,16 @@ export default function ClaimantSection({
               <option>Other</option>
             </select>
           </div>
+          )}
 
         </div>
 
         {/* ── Section: Contact ── */}
         <div className="section-divider"><span>Contact</span></div>
 
-        <div className="form-grid cols-3">
+        <div className="form-grid cols-3" style={gridStyle}>
 
+          {vis('claimantMobile') && (
           <div className="field">
             <label>Primary Mobile <span className="req">*</span></label>
             <input
@@ -174,7 +253,9 @@ export default function ClaimantSection({
               </span>
             )}
           </div>
+          )}
 
+          {vis('altContact') && (
           <div className="field">
             <label>Alternate Contact</label>
             <input
@@ -184,7 +265,9 @@ export default function ClaimantSection({
               onChange={e => handleChange('altContact', e.target.value)}
             />
           </div>
+          )}
 
+          {vis('claimantEmail') && (
           <div className="field">
             <label>Email Address</label>
             <input
@@ -194,14 +277,18 @@ export default function ClaimantSection({
               onChange={e => handleChange('claimantEmail', e.target.value)}
             />
           </div>
+          )}
 
         </div>
 
+        {vis('idProofType') && vis('idProofNumber') !== undefined && (
+        <>
         {/* ── Section: Identity Proof ── */}
         <div className="section-divider"><span>Identity Proof</span></div>
 
-        <div className="form-grid cols-3">
+        <div className="form-grid cols-3" style={gridStyle}>
 
+          {vis('idProofType') && (
           <div className="field">
             <label>ID Proof Type</label>
             <select
@@ -215,7 +302,9 @@ export default function ClaimantSection({
               <option value="voter">Voter ID</option>
             </select>
           </div>
+          )}
 
+          {vis('idProofNumber') && (
           <div className="field span-2">
             <label>ID Number</label>
             <input
@@ -230,14 +319,20 @@ export default function ClaimantSection({
               onChange={e => handleChange('idProofNumber', e.target.value)}
             />
           </div>
+          )}
 
         </div>
+        </>
+        )}
 
-        {/* ── Section: Address ── */}
+        {(vis('claimantAddress') || vis('city') || vis('district') || vis('pinCode')) && (
+        <>
+       {/* ── Section: Address ── */}
         <div className="section-divider"><span>Address</span></div>
 
-        <div className="form-grid cols-3">
+        <div className="form-grid cols-3" style={gridStyle}>
 
+          {vis('claimantAddress') && (
           <div className="field span-3">
             <label>Residential Address</label>
             <textarea
@@ -246,7 +341,9 @@ export default function ClaimantSection({
               onChange={e => handleChange('claimantAddress', e.target.value)}
             />
           </div>
+          )}
 
+          {vis('city') && (
           <div className="field">
             <label>City</label>
             <input
@@ -256,7 +353,9 @@ export default function ClaimantSection({
               onChange={e => handleChange('city', e.target.value)}
             />
           </div>
+          )}
 
+          {vis('district') && (
           <div className="field">
             <label>District</label>
             <input
@@ -266,7 +365,9 @@ export default function ClaimantSection({
               onChange={e => handleChange('district', e.target.value)}
             />
           </div>
+          )}
 
+          {vis('pinCode') && (
           <div className="field">
             <label>PIN Code <span className="req">*</span></label>
             <input
@@ -286,10 +387,30 @@ export default function ClaimantSection({
               </span>
             )}
           </div>
+          )}
 
         </div>
+        </>
+        )}
 
+        </>
+        )}
+
+    </div>
+  )
+
+  if (bare) return body
+
+  return (
+    <div className="panel" ref={sectionRefs.claimant}>
+      <div className="panel-header">
+        <div className="panel-title">
+          <div className="dot" style={{ background: 'var(--purple)' }} />
+          Claimant Details
+        </div>
+        <SectionBadge pct={sectionProgress('claimant')} color="var(--purple)" />
       </div>
+      <div className="panel-body">{body}</div>
     </div>
   )
 }

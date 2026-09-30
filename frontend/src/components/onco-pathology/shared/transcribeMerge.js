@@ -86,4 +86,63 @@ export const safeMerge = (prev, incoming, enumFields = {}, numberFields = []) =>
   return next;
 };
 
+/**
+ * Convert a dictated date-time phrase into the local `YYYY-MM-DDTHH:MM` format
+ * a `datetime-local` input expects. Handles full ISO-ish datetimes, date-only,
+ * 12/24-hour times, "midnight"/"noon", and "today"/"yesterday"/"tonight" day
+ * anchors. Returns "" when nothing usable is stated — the field is then left for
+ * manual entry rather than writing a malformed timestamp.
+ *
+ * @param {string} value  model-extracted datetime text ("2026-09-01 20:00",
+ *                        "8pm", "8:30 pm", "yesterday 6am", "20:00", "noon")
+ * @param {Date} [now]    anchor for relative-day phrases (defaults to now)
+ */
+export const coerceDateTime = (value, now = new Date()) => {
+  if (!value) return "";
+  const text = String(value).trim();
+  if (!text) return "";
+
+  // Full local datetime: 2026-09-01[T ]20:00(:ss)?
+  const full = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})[T ](\d{1,2}):(\d{2})(?::\d{2})?$/);
+  if (full) {
+    const [, y, mo, d, hh, mi] = full;
+    return `${y}-${mo.padStart(2, "0")}-${d.padStart(2, "0")}T${hh.padStart(2, "0")}:${mi}`;
+  }
+
+  // Relative-day anchor before resolving a bare time.
+  let dayOffset = 0;
+  const lower = text.toLowerCase();
+  if (/\byesterday\b|\blast night\b/.test(lower)) dayOffset = -1;
+  const anchor = new Date(now.getTime() + dayOffset * 86400000);
+
+  let hour = null;
+  let minute = 0;
+  if (/midnight/.test(lower)) {
+    hour = 0;
+  } else if (/noon/.test(lower)) {
+    hour = 12;
+  } else {
+    const ampm = text.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i);
+    if (ampm) {
+      let h = parseInt(ampm[1], 10);
+      minute = ampm[2] ? parseInt(ampm[2], 10) : 0;
+      if (/pm/i.test(ampm[3]) && h < 12) h += 12;
+      if (/am/i.test(ampm[3]) && h === 12) h = 0;
+      hour = h;
+    } else {
+      const h24 = text.match(/(?:^|\s)([01]?\d|2[0-3]):([0-5]\d)(?:\s|$)/);
+      if (h24) {
+        hour = parseInt(h24[1], 10);
+        minute = parseInt(h24[2], 10);
+      }
+    }
+  }
+  if (hour == null) return "";
+
+  const y = anchor.getFullYear();
+  const mo = String(anchor.getMonth() + 1).padStart(2, "0");
+  const d = String(anchor.getDate()).padStart(2, "0");
+  return `${y}-${mo}-${d}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+};
+
 export default safeMerge;

@@ -26,7 +26,7 @@ class LLMIntentClassifier:
     def __init__(
         self,
         llm_client,
-        model: str = "llama-3.1-8b-instant",
+        model: str = "openai/gpt-oss-20b",
         intents: List[str] = None,
         confidence_threshold: float = 0.7,
     ):
@@ -107,7 +107,7 @@ JSON format:
 
 # classifier = LLMIntentClassifier(
 #     llm_client=groq_client,
-#     model="llama-3.1-8b-instant"
+#     model="openai/gpt-oss-20b"
 # )
 
 # result = classifier.classify(

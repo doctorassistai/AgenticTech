@@ -381,6 +381,10 @@ const DoctorAssistApiReference = () => {
   const [labReportsLanguage, setLabReportsLanguage] = useState('python');
   const [visitHistoryLanguage, setVisitHistoryLanguage] = useState('python');
 
+  // ── PII Redactor tab state ──
+  const [piiSubSection, setPiiSubSection] = useState('pii-overview');
+  const [piiLanguage, setPiiLanguage] = useState('python');
+
   // ── Save Endpoint shared state ──
   const [saveEndpointUrl, setSaveEndpointUrl] = useState('');
   const [saveClientId, setSaveClientId] = useState('');
@@ -441,6 +445,31 @@ const DoctorAssistApiReference = () => {
       items: [
         { id: 'w-globaldata', label: 'Global Data Object', method: 'REF' },
         { id: 'w-fullexample', label: 'Full HTML Example', method: 'HTML' },
+      ],
+    },
+  ];
+
+  const piiNavSections = [
+    {
+      label: "Getting Started",
+      items: [
+        { id: 'pii-overview', label: 'Overview', method: 'PKG' },
+        { id: 'pii-install', label: 'Installation', method: 'PKG' },
+      ],
+    },
+    {
+      label: "Usage",
+      items: [
+        { id: 'pii-quickstart', label: 'Quick Start', method: 'PY' },
+        { id: 'pii-inputs', label: 'Supported Inputs', method: 'REF' },
+      ],
+    },
+    {
+      label: "API Reference",
+      items: [
+        { id: 'pii-redactor-class', label: 'Redactor Class', method: 'CLS' },
+        { id: 'pii-amask', label: 'amask()', method: 'FN' },
+        { id: 'pii-response', label: 'Response Format', method: 'REF' },
       ],
     },
   ];
@@ -1534,26 +1563,39 @@ public class TokenManager {
 }`,
   };
 
-  const languageButtonStyle = (isActive) => ({
+  const languageButtonStyle = (isActive, isDisabled) => ({
     padding: '6px 14px',
     fontSize: '0.7rem',
     fontWeight: isActive ? 400 : 300,
     fontFamily: "'Open Sans', sans-serif",
     background: isActive ? T.text : 'transparent',
-    color: isActive ? T.bg : T.textSec,
-    border: `1px solid ${isActive ? T.text : T.border}`,
+    color: isActive ? T.bg : isDisabled ? T.border : T.textSec,
+    border: `1px solid ${isActive ? T.text : isDisabled ? T.border : T.border}`,
     borderRadius: '2px',
-    cursor: 'pointer',
+    cursor: isDisabled ? 'not-allowed' : 'pointer',
     transition: 'all 0.2s ease',
+    opacity: isDisabled ? 0.45 : 1,
   });
 
   const LanguageButtons = ({ activeLang, onLangChange }) => (
     <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
       {['python', 'java', 'c', 'cpp'].map((lang) => (
-        <button key={lang} onClick={() => onLangChange(lang)} style={languageButtonStyle(activeLang === lang)}>
+        <button key={lang} onClick={() => onLangChange(lang)} style={languageButtonStyle(activeLang === lang, false)}>
           {lang.toUpperCase()}
         </button>
       ))}
+    </div>
+  );
+
+  // Language buttons for PII tab — all clickable; non-Python shows blank
+  const PiiLanguageButtons = ({ activeLang, onLangChange }) => (
+    <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+      {['python', 'java', 'c', 'cpp'].map((lang) => (
+        <button key={lang} onClick={() => onLangChange(lang)} style={languageButtonStyle(activeLang === lang, false)}>
+          {lang === 'cpp' ? 'C++' : lang.toUpperCase()}
+        </button>
+      ))}
+      <span style={{ fontSize: '0.65rem', color: T.textMuted, marginLeft: '4px', fontStyle: 'italic' }}>More languages coming soon</span>
     </div>
   );
 
@@ -2162,6 +2204,448 @@ documentationOutputs: [
       },
     },
   ];
+
+  // ─── PII Code Examples ───
+  const piiCodeExamples = {
+    quickstart: {
+      python: `import asyncio
+from pii_redactor import Redactor
+
+# Initialize the redactor — store= is required
+# It points to a SQLite .db file used to consistently map patient IDs
+# to their redacted tokens across multiple calls.
+redactor = Redactor(store='database.db')
+
+async def process_patient_record():
+    # ── Your work happens here ──────────────────────────────────
+    # Build or fetch your patient data however your system works.
+    # patient_data can be a dict, list, string, image path, or PDF path.
+    #
+    # Example:
+    #   patient_data = {
+    #       "name": "John Doe",
+    #       "dob": "1990-01-01",
+    #       "phone": "+1-555-123-4567",
+    #       "notes": "Patient visited on 12th March..."
+    #   }
+    # ────────────────────────────────────────────────────────────
+
+    # Pass your data to amask() — returns the same structure with PII redacted
+    redacted = await redactor.amask(patient_data)
+
+    # Use redacted data safely — share, store, or forward as needed
+    return redacted
+
+asyncio.run(process_patient_record())`,
+      java: ``,
+      c: ``,
+      cpp: ``,
+    },
+  };
+
+  // ─── PII Redactor Content ───
+  const renderPiiContent = () => {
+    switch (piiSubSection) {
+
+      case 'pii-overview':
+        return (
+          <div>
+            <div style={{ marginBottom: '1.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px', flexWrap: 'wrap' }}>
+                <span style={{ ...S.methodBadge, background: '#2a2a2a', color: '#fff', borderColor: '#2a2a2a' }}>PACKAGE</span>
+                <code style={{ fontSize: '0.78rem', color: T.textSec, background: T.bgAlt, padding: '4px 8px', borderRadius: '2px' }}>pii_redactor</code>
+                <span style={S.statHighlight}>Python</span>
+              </div>
+              <h1 style={{ fontSize: '1.4rem', fontWeight: 300, letterSpacing: '-0.02em', marginBottom: '0.75rem' }}>Patient Information Masking</h1>
+              <p style={{ fontSize: '0.85rem', color: T.textSec, lineHeight: 1.6, marginBottom: '1rem' }}>
+                <code>pii_redactor</code> is a local, offline Python package that automatically detects and redacts
+                Personally Identifiable Information (PII) from patient data. It combines <strong>rule-based pattern matching</strong> with
+                a <strong>Named Entity Recognition (NER) NLP model</strong> to identify and mask sensitive information across
+                structured and unstructured data formats.
+              </p>
+              <div style={S.infoBox}>
+                <strong>No data leaves your server.</strong> All processing is done locally using bundled models —
+                no external API calls, no cloud dependency.
+              </div>
+            </div>
+
+            <h3 style={{ fontSize: '0.75rem', fontWeight: 400, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.75rem', color: T.textMuted }}>What gets redacted</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.5rem' }}>
+              {[
+                { label: 'Names', desc: 'Patient, doctor, and contact names via NER' },
+                { label: 'Phone Numbers', desc: 'Local and international formats via pattern matching' },
+                { label: 'Dates of Birth', desc: 'Dates in common formats (DD/MM/YYYY, MM-DD-YY, etc.)' },
+                { label: 'Email Addresses', desc: 'Standard email patterns' },
+                { label: 'National IDs', desc: 'ID card numbers, SSNs, Aadhaar-style identifiers' },
+                { label: 'Addresses', desc: 'Street addresses and location references via NER' },
+                { label: 'Medical Record Numbers', desc: 'MRN and patient ID patterns' },
+                { label: 'Embedded PII in Files', desc: 'Text extracted from images and PDFs then redacted' },
+              ].map((item, i) => (
+                <div key={i} style={S.widgetCard}>
+                  <p style={S.widgetCardTitle}>{item.label}</p>
+                  <p style={S.widgetCardSub}>{item.desc}</p>
+                </div>
+              ))}
+            </div>
+
+            <h3 style={{ fontSize: '0.75rem', fontWeight: 400, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.75rem', color: T.textMuted }}>How to use it</h3>
+            {[
+              { step: 1, title: 'Download & Install', desc: 'Download the zip (models included), unzip, and run pip install -e . in the package directory.' },
+              { step: 2, title: 'Import the Redactor', desc: 'from pii_redactor import Redactor — one import, no configuration required.' },
+              { step: 3, title: 'Instantiate once', desc: 'Create a single Redactor instance at startup. NLP models are loaded once and reused.' },
+              { step: 4, title: 'Call amask() on your data', desc: 'Pass any dict, list, string, image path, or PDF path to amask(). Receive the same structure back with PII replaced.' },
+            ].map((item) => (
+              <div key={item.step} style={{ display: 'flex', gap: '12px', marginBottom: '0.875rem', alignItems: 'flex-start' }}>
+                <span style={S.stepBadge}>{item.step}</span>
+                <div>
+                  <p style={{ margin: '0 0 2px', fontSize: '0.8rem', fontWeight: 400, color: T.text }}>{item.title}</p>
+                  <p style={{ margin: 0, fontSize: '0.72rem', color: T.textSec, lineHeight: 1.5 }}>{item.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+
+      case 'pii-install':
+        return (
+          <div>
+            <div style={{ marginBottom: '1.5rem' }}>
+              <h1 style={{ fontSize: '1.4rem', fontWeight: 300, letterSpacing: '-0.02em', marginBottom: '0.75rem' }}>Installation</h1>
+              <p style={{ fontSize: '0.85rem', color: T.textSec, lineHeight: 1.6 }}>
+                The package ships as a self-contained zip that includes the NLP models, so no separate model download is needed.
+              </p>
+            </div>
+
+            <div style={{ marginBottom: '1.5rem' }}>
+              <h3 style={{ fontSize: '0.75rem', fontWeight: 400, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.75rem', color: T.textMuted }}>Step 1 — Download the package</h3>
+              <div style={{ ...S.infoBox, marginBottom: '0.75rem' }}>
+                Download <strong>patient_info_masking.zip</strong> directly using the link below. The zip includes the complete source code and all bundled NLP model files required for offline operation.
+              </div>
+              <a
+                href="https://doctorassist.ai/api/hms/users/data/context/download-patient-masking"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '8px 16px',
+                  fontSize: '0.75rem',
+                  fontWeight: 400,
+                  fontFamily: "'Open Sans', sans-serif",
+                  background: '#000',
+                  color: '#fff',
+                  border: '1px solid #000',
+                  borderRadius: '2px',
+                  textDecoration: 'none',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.color = '#000'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = '#000'; e.currentTarget.style.color = '#fff'; }}
+              >
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                  <path d="M8 1V11M8 11L11 8M8 11L5 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M3 13H13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                </svg>
+                Download Package (.zip)
+              </a>
+            </div>
+
+            <div style={{ marginBottom: '1.5rem' }}>
+              <h3 style={{ fontSize: '0.75rem', fontWeight: 400, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.75rem', color: T.textMuted }}>Step 2 — Unzip</h3>
+              <div style={{ position: 'relative' }}>
+                <button onClick={() => copyToClipboard('unzip patient_info_masking.zip -d patient_info_masking', 'pii-unzip')} style={S.copyBtn}>{copiedText === 'pii-unzip' ? '✓ Copied' : 'Copy'}</button>
+                <pre style={S.codeBlock}><code>{`unzip patient_info_masking.zip -d patient_info_masking\ncd patient_info_masking`}</code></pre>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '1.5rem' }}>
+              <h3 style={{ fontSize: '0.75rem', fontWeight: 400, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.75rem', color: T.textMuted }}>Step 3 — Run Installation Script</h3>
+              <p style={{ fontSize: '0.78rem', color: T.textSec, marginBottom: '8px' }}>
+                On Windows, double-click or run <code>install.bat</code> from the unzipped directory to install the package and verify setup automatically:
+              </p>
+              <div style={{ position: 'relative', marginBottom: '8px' }}>
+                <button onClick={() => copyToClipboard('.\\install.bat', 'pii-install-bat')} style={S.copyBtn}>{copiedText === 'pii-install-bat' ? '✓ Copied' : 'Copy'}</button>
+                <pre style={S.codeBlock}><code>.\\install.bat</code></pre>
+              </div>
+              <p style={{ fontSize: '0.72rem', color: T.textMuted, margin: '8px 0 4px', lineHeight: 1.5 }}>
+                Alternatively, run <code>pip install -e .</code> manually:
+              </p>
+              <div style={{ position: 'relative' }}>
+                <button onClick={() => copyToClipboard('pip install -e .', 'pii-install-cmd')} style={S.copyBtn}>{copiedText === 'pii-install-cmd' ? '✓ Copied' : 'Copy'}</button>
+                <pre style={S.codeBlock}><code>pip install -e .</code></pre>
+              </div>
+              <p style={{ fontSize: '0.72rem', color: T.textMuted, marginTop: '0.5rem', lineHeight: 1.5 }}>
+                The <code>-e</code> flag installs in editable mode so the package resolves paths to the bundled models correctly. Do not move the unzipped folder after installation.
+              </p>
+            </div>
+
+            <div style={{ marginBottom: '1.5rem' }}>
+              <h3 style={{ fontSize: '0.75rem', fontWeight: 400, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.75rem', color: T.textMuted }}>Step 4 — Verify</h3>
+              <div style={{ position: 'relative' }}>
+                <button onClick={() => copyToClipboard('from pii_redactor import Redactor\nprint("pii_redactor loaded successfully")', 'pii-verify')} style={S.copyBtn}>{copiedText === 'pii-verify' ? '✓ Copied' : 'Copy'}</button>
+                <pre style={S.codeBlock}><code>{`from pii_redactor import Redactor\nprint("pii_redactor loaded successfully")`}</code></pre>
+              </div>
+            </div>
+
+            <div style={S.warningBox}>
+              <strong>Requirements:</strong> Python 3.8 or higher. The first time you instantiate <code>Redactor()</code>, the NLP model is loaded into memory — this may take a few seconds on first run.
+            </div>
+          </div>
+        );
+
+      case 'pii-quickstart':
+        return (
+          <div>
+            <div style={{ marginBottom: '1.5rem' }}>
+              <h1 style={{ fontSize: '1.4rem', fontWeight: 300, letterSpacing: '-0.02em', marginBottom: '0.75rem' }}>Quick Start</h1>
+              <p style={{ fontSize: '0.85rem', color: T.textSec, lineHeight: 1.6 }}>
+                Three steps: import, instantiate, mask. The <code>amask()</code> method accepts your data in its native form and returns the same structure with all detected PII replaced.
+              </p>
+            </div>
+
+            <div style={{ marginBottom: '1.5rem' }}>
+              <h3 style={{ fontSize: '0.75rem', fontWeight: 400, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.75rem', color: T.textMuted }}>Example</h3>
+              <div style={{ position: 'relative' }}>
+                <PiiLanguageButtons activeLang={piiLanguage} onLangChange={setPiiLanguage} />
+                <button onClick={() => copyToClipboard(piiCodeExamples.quickstart[piiLanguage], 'pii-quickstart-code')} style={S.copyBtn}>{copiedText === 'pii-quickstart-code' ? '✓ Copied' : 'Copy'}</button>
+                <pre style={S.codeBlock}><code>{piiCodeExamples.quickstart[piiLanguage]}</code></pre>
+              </div>
+            </div>
+
+            <div style={S.infoBox}>
+              <strong>Tip:</strong> Create the <code>Redactor</code> instance once at module level (outside your async function) so models are only loaded once, not on every call.
+            </div>
+          </div>
+        );
+
+
+      case 'pii-inputs':
+        return (
+          <div>
+            <div style={{ marginBottom: '1.5rem' }}>
+              <h1 style={{ fontSize: '1.4rem', fontWeight: 300, letterSpacing: '-0.02em', marginBottom: '0.75rem' }}>Supported Inputs</h1>
+              <p style={{ fontSize: '0.85rem', color: T.textSec, lineHeight: 1.6 }}>
+                <code>amask()</code> accepts a single <code>data</code> argument. The type of <code>data</code> determines how it is processed.
+                Nested structures are handled recursively — every string value within a dict or list is independently scanned.
+              </p>
+            </div>
+
+            <table style={S.table}>
+              <thead><tr><th style={S.th}>Type</th><th style={S.th}>Example</th><th style={S.th}>Behaviour</th></tr></thead>
+              <tbody>
+                {[
+                  { type: 'dict', example: '{"name": "John", "dob": "1990-01-01"}', desc: 'All string values scanned recursively. Keys are preserved unchanged.' },
+                  { type: 'list', example: '[{"name": "Jane"}, "call 555-1234"]', desc: 'Each element processed recursively. Mixed types are supported.' },
+                  { type: 'str', example: '"Patient John called on 12th Aug"', desc: 'Plain text scanned for PII. Returns redacted string.' },
+                  { type: 'str (image path)', example: '"/path/to/report.jpg"', desc: 'Image is OCR-processed, PII is redacted in the extracted text, and the redacted text is returned.' },
+                  { type: 'str (PDF path)', example: '"/path/to/discharge.pdf"', desc: 'PDF text is extracted per page, scanned, and returned as redacted text.' },
+                ].map((row, i) => (
+                  <tr key={i} style={{ borderBottom: `1px solid ${T.border}` }}>
+                    <td style={S.td}><code>{row.type}</code></td>
+                    <td style={{ ...S.td, fontFamily: 'monospace', fontSize: '0.7rem', color: T.textMuted }}>{row.example}</td>
+                    <td style={S.td}>{row.desc}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            <div style={{ ...S.infoBox, marginTop: '1.5rem' }}>
+              <strong>Recursive masking:</strong> When <code>data</code> is a deeply nested dict (e.g. a full patient record with sub-objects), <code>amask()</code> walks the entire structure and redacts every string leaf — you do not need to flatten your data first.
+            </div>
+          </div>
+        );
+
+      case 'pii-redactor-class':
+        return (
+          <div>
+            <div style={{ marginBottom: '1.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px', flexWrap: 'wrap' }}>
+                <span style={{ ...S.methodBadge, background: '#2a2a2a', color: '#fff', borderColor: '#2a2a2a' }}>CLASS</span>
+                <code style={{ fontSize: '0.78rem', color: T.textSec, background: T.bgAlt, padding: '4px 8px', borderRadius: '2px' }}>pii_redactor.Redactor</code>
+              </div>
+              <h1 style={{ fontSize: '1.4rem', fontWeight: 300, letterSpacing: '-0.02em', marginBottom: '0.75rem' }}>Redactor Class</h1>
+              <p style={{ fontSize: '0.85rem', color: T.textSec, lineHeight: 1.6 }}>
+                The main entry point of the package. Instantiate it once and reuse across calls. On first instantiation, the NLP model is loaded from the bundled <code>models/</code> directory.
+              </p>
+            </div>
+
+            <div style={{ marginBottom: '1.5rem' }}>
+              <h3 style={{ fontSize: '0.75rem', fontWeight: 400, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.75rem', color: T.textMuted }}>Signature</h3>
+              <div style={{ position: 'relative' }}>
+                <button onClick={() => copyToClipboard('from pii_redactor import Redactor\nredactor = Redactor(store="database.db")', 'pii-class-sig')} style={S.copyBtn}>{copiedText === 'pii-class-sig' ? '✓ Copied' : 'Copy'}</button>
+                <pre style={S.codeBlock}><code>{`from pii_redactor import Redactor
+
+# store= is required — path to the SQLite database used for patient ID mapping
+redactor = Redactor(store='database.db')`}</code></pre>
+              </div>
+            </div>
+
+            <h3 style={{ fontSize: '0.75rem', fontWeight: 400, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.75rem', color: T.textMuted }}>Constructor Parameters</h3>
+            <table style={S.table}>
+              <thead><tr><th style={S.th}>Parameter</th><th style={S.th}>Type</th><th style={S.th}>Required</th><th style={S.th}>Default</th><th style={S.th}>Description</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td style={S.td}><code>store</code></td>
+                  <td style={S.td}>str</td>
+                  <td style={S.td}><span style={{ ...S.methodBadge, ...S.methodBadgePost }}>Yes</span></td>
+                  <td style={S.td}><code>—</code></td>
+                  <td style={S.td}>
+                    Path to a SQLite <code>.db</code> file. <strong>Required.</strong> The Redactor uses this as a key-value store to map original patient identifiers to their redacted tokens, ensuring the same patient ID is always replaced by the same <code>[REDACTED]</code> token consistently across multiple calls. Without it, cross-call consistency cannot be guaranteed.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div style={{ ...S.infoBox, marginTop: '1.5rem' }}>
+              <strong>Best practice:</strong> Create a single <code>Redactor</code> instance at module or application startup. Re-creating it on every request reloads the NLP model unnecessarily and adds latency.
+            </div>
+          </div>
+        );
+
+      case 'pii-amask':
+        return (
+          <div>
+            <div style={{ marginBottom: '1.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px', flexWrap: 'wrap' }}>
+                <span style={{ ...S.methodBadge, background: '#2a2a2a', color: '#fff', borderColor: '#2a2a2a' }}>ASYNC METHOD</span>
+                <code style={{ fontSize: '0.78rem', color: T.textSec, background: T.bgAlt, padding: '4px 8px', borderRadius: '2px' }}>Redactor.amask(data)</code>
+              </div>
+              <h1 style={{ fontSize: '1.4rem', fontWeight: 300, letterSpacing: '-0.02em', marginBottom: '0.75rem' }}>amask()</h1>
+              <p style={{ fontSize: '0.85rem', color: T.textSec, lineHeight: 1.6 }}>
+                The primary method for redacting PII. It accepts your data in its native form, scans it using pattern matching and NER, and returns the same structure with all detected PII replaced with <code>[REDACTED]</code> tokens.
+              </p>
+            </div>
+
+            <div style={{ marginBottom: '1.5rem' }}>
+              <h3 style={{ fontSize: '0.75rem', fontWeight: 400, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.75rem', color: T.textMuted }}>Signature</h3>
+              <div style={{ position: 'relative' }}>
+                <button onClick={() => copyToClipboard('result = await redactor.amask(data)', 'pii-amask-sig')} style={S.copyBtn}>{copiedText === 'pii-amask-sig' ? '✓ Copied' : 'Copy'}</button>
+                <pre style={S.codeBlock}><code>{`result = await redactor.amask(data)`}</code></pre>
+              </div>
+            </div>
+
+            <h3 style={{ fontSize: '0.75rem', fontWeight: 400, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.75rem', color: T.textMuted }}>Parameters</h3>
+            <table style={S.table}>
+              <thead><tr><th style={S.th}>Parameter</th><th style={S.th}>Type</th><th style={S.th}>Required</th><th style={S.th}>Description</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td style={S.td}><code>data</code></td>
+                  <td style={S.td}>dict | list | str</td>
+                  <td style={S.td}><span style={S.methodBadge}>Yes</span></td>
+                  <td style={S.td}>
+                    The data to redact. Accepts: a <code>dict</code> (nested or flat), a <code>list</code> of dicts/strings,
+                    a plain <code>str</code>, a file path to an image (<code>.jpg</code>, <code>.png</code>), or a file path to a <code>.pdf</code>.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div style={{ marginTop: '1.5rem', marginBottom: '1.5rem' }}>
+              <h3 style={{ fontSize: '0.75rem', fontWeight: 400, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.75rem', color: T.textMuted }}>Returns</h3>
+              <div style={{ background: T.bgAlt, padding: '1rem', border: `1px solid ${T.border}`, borderRadius: '4px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                  <span style={{ ...S.methodBadge, background: T.text, color: T.bg }}>same type as input</span>
+                </div>
+                <p style={{ margin: 0, fontSize: '0.78rem', color: T.textSec, lineHeight: 1.5 }}>
+                  Returns the same type and shape as <code>data</code>. Every string value that contained PII is replaced with the appropriate <code>[REDACTED]</code> token inline. The structure (keys, nesting, list order) is preserved exactly.
+                </p>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '1.5rem' }}>
+              <h3 style={{ fontSize: '0.75rem', fontWeight: 400, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.75rem', color: T.textMuted }}>Usage Example</h3>
+              <div style={{ position: 'relative' }}>
+                <PiiLanguageButtons activeLang={piiLanguage} onLangChange={setPiiLanguage} />
+                <button onClick={() => copyToClipboard(piiCodeExamples.quickstart[piiLanguage], 'pii-amask-example')} style={S.copyBtn}>{copiedText === 'pii-amask-example' ? '✓ Copied' : 'Copy'}</button>
+                <pre style={S.codeBlock}><code>{piiCodeExamples.quickstart[piiLanguage]}</code></pre>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'pii-response':
+        return (
+          <div>
+            <div style={{ marginBottom: '1.5rem' }}>
+              <h1 style={{ fontSize: '1.4rem', fontWeight: 300, letterSpacing: '-0.02em', marginBottom: '0.75rem' }}>Response Format</h1>
+              <p style={{ fontSize: '0.85rem', color: T.textSec, lineHeight: 1.6 }}>
+                <code>amask()</code> always returns the <strong>same type and shape</strong> as the input. PII values are replaced in-place — all other values and keys are untouched.
+              </p>
+            </div>
+
+            <div style={{ marginBottom: '1.5rem' }}>
+              <h3 style={{ fontSize: '0.75rem', fontWeight: 400, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.75rem', color: T.textMuted }}>Input → Output Example</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div>
+                  <p style={{ fontSize: '0.7rem', color: T.textMuted, marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Input</p>
+                  <div style={{ position: 'relative' }}>
+                    <button onClick={() => copyToClipboard(
+`{
+  "patient_name": "John Doe",
+  "dob": "15/03/1985",
+  "phone": "+1-555-234-5678",
+  "email": "john.doe@email.com",
+  "notes": "John visited on 5th Aug 2026 ..."
+}`, 'pii-input-ex')} style={S.copyBtn}>{copiedText === 'pii-input-ex' ? '✓ Copied' : 'Copy'}</button>
+                    <pre style={{ ...S.codeBlock }}><code>{`{
+  "patient_name": "John Doe",
+  "dob": "15/03/1985",
+  "phone": "+1-555-234-5678",
+  "email": "john.doe@email.com",
+  "notes": "John visited on 5th Aug 2026 ..."
+}`}</code></pre>
+                  </div>
+                </div>
+                <div>
+                  <p style={{ fontSize: '0.7rem', color: T.textMuted, marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Output (redacted)</p>
+                  <div style={{ position: 'relative' }}>
+                    <button onClick={() => copyToClipboard(
+`{
+  "patient_name": "J. D*e",
+  "dob": "[REDACTED]",
+  "phone": "[REDACTED]",
+  "email": "[REDACTED]",
+  "notes": "Jo** visited on [REDACTED] ..."
+}`, 'pii-output-ex')} style={S.copyBtn}>{copiedText === 'pii-output-ex' ? '✓ Copied' : 'Copy'}</button>
+                    <pre style={{ ...S.codeBlock }}><code>{`{
+  "patient_name": "J. D*e",
+  "dob": "[REDACTED]",
+  "phone": "[REDACTED]",
+  "email": "[REDACTED]",
+  "notes": "Jo** visited on [REDACTED] ..."
+}`}</code></pre>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <h3 style={{ fontSize: '0.75rem', fontWeight: 400, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.75rem', color: T.textMuted }}>Response Rules</h3>
+            <table style={S.table}>
+              <thead><tr><th style={S.th}>Rule</th><th style={S.th}>Detail</th></tr></thead>
+              <tbody>
+                {[
+                  { rule: 'Same type returned', detail: 'If input is dict, output is dict. If input is list, output is list. If input is str, output is str.' },
+                  { rule: 'Structure preserved', detail: 'All keys, nesting depth, and list order are identical to the input.' },
+                  { rule: 'Non-PII values untouched', detail: 'Only values that contain detected PII are modified. All other values are returned as-is.' },
+                  { rule: '[REDACTED] placeholder', detail: 'Detected PII is replaced with the literal string [REDACTED]. For partial matches within a sentence, only the PII span is replaced.' },
+                  { rule: 'File inputs return string', detail: 'For image or PDF file paths, amask() returns the extracted and redacted text as a plain string.' },
+                ].map((row, i) => (
+                  <tr key={i} style={{ borderBottom: `1px solid ${T.border}` }}>
+                    <td style={{ ...S.td, fontWeight: 400, color: T.text }}>{row.rule}</td>
+                    <td style={S.td}>{row.detail}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
 
   const renderWidgetContent = () => {
     if (widgetSubSection === 'overview') {
@@ -2811,9 +3295,9 @@ documentationOutputs: [
     }
   };
 
-  const currentNavSections = activeTab === 'api' ? navSections : widgetNavSections;
-  const currentSection = activeTab === 'api' ? selectedSection : widgetSubSection;
-  const setCurrentSection = activeTab === 'api' ? setSelectedSection : setWidgetSubSection;
+  const currentNavSections = activeTab === 'api' ? navSections : activeTab === 'widgets' ? widgetNavSections : piiNavSections;
+  const currentSection = activeTab === 'api' ? selectedSection : activeTab === 'widgets' ? widgetSubSection : piiSubSection;
+  const setCurrentSection = activeTab === 'api' ? setSelectedSection : activeTab === 'widgets' ? setWidgetSubSection : setPiiSubSection;
 
   const getSectionTitle = () => {
     if (activeTab === 'api') {
@@ -2824,7 +3308,7 @@ documentationOutputs: [
         labReports: 'Lab Reports', visitHistory: 'Patient Visit History',
       };
       return map[selectedSection] || '';
-    } else {
+    } else if (activeTab === 'widgets') {
       const map = {
         overview: 'Widget Overview', setup: 'Setup & Installation', validation: 'Session Validation',
         'w-patient': 'Patient Summary Widget', 'w-transcription': 'Transcription Widget',
@@ -2834,6 +3318,17 @@ documentationOutputs: [
         'w-fullexample': 'Full HTML Example',
       };
       return map[widgetSubSection] || '';
+    } else {
+      const map = {
+        'pii-overview': 'Package Overview',
+        'pii-install': 'Installation',
+        'pii-quickstart': 'Quick Start',
+        'pii-inputs': 'Supported Inputs',
+        'pii-redactor-class': 'Redactor Class',
+        'pii-amask': 'amask() Method',
+        'pii-response': 'Response Format',
+      };
+      return map[piiSubSection] || '';
     }
   };
 
@@ -2891,8 +3386,8 @@ documentationOutputs: [
       <aside style={S.sidebar}>
         <div style={S.sidebarHeader}>
           <div style={S.brandRow}><span style={S.brandName}>DoctorAssist.AI</span></div>
-          <span style={S.sectionLabel}>{activeTab === 'api' ? 'API Reference' : 'Widget Docs'}</span>
-          <p style={S.doctorName}>HMS Integration</p>
+          <span style={S.sectionLabel}>{activeTab === 'api' ? 'API Reference' : activeTab === 'widgets' ? 'Widget Docs' : 'Package Docs'}</span>
+          <p style={S.doctorName}>{activeTab === 'pii' ? 'Patient Info Masking' : 'HMS Integration'}</p>
         </div>
         <div className="da-menu-scroll" style={S.menuScroll}>
           {currentNavSections.map((sec, si) => (
@@ -2948,16 +3443,17 @@ documentationOutputs: [
         <div style={S.tabBar}>
           <button style={{ ...S.tabBtn, ...(activeTab === 'api' ? S.tabBtnActive : {}) }} onClick={() => { setActiveTab('api'); setSelectedSection('authentication'); }}>API Reference</button>
           <button style={{ ...S.tabBtn, ...(activeTab === 'widgets' ? S.tabBtnActive : {}) }} onClick={() => { setActiveTab('widgets'); setWidgetSubSection('overview'); }}>Widgets</button>
+          <button style={{ ...S.tabBtn, ...(activeTab === 'pii' ? S.tabBtnActive : {}) }} onClick={() => { setActiveTab('pii'); setPiiSubSection('pii-overview'); }}>Patient Info Masking</button>
         </div>
 
         <div style={S.body}>
           <div className="da-content" key={`${activeTab}-${currentSection}`} style={S.sectionCard}>
             <div style={S.sectionHeader}>
               <h2 style={S.sectionTitle}>{getSectionTitle()}</h2>
-              <p style={S.sectionSub}>{activeTab === 'api' ? 'API endpoint documentation' : 'Widget integration documentation'}</p>
+              <p style={S.sectionSub}>{activeTab === 'api' ? 'API endpoint documentation' : activeTab === 'widgets' ? 'Widget integration documentation' : 'Package documentation'}</p>
             </div>
             <div style={S.contentArea}>
-              {activeTab === 'api' ? renderApiContent() : renderWidgetContent()}
+              {activeTab === 'api' ? renderApiContent() : activeTab === 'widgets' ? renderWidgetContent() : renderPiiContent()}
             </div>
           </div>
         </div>

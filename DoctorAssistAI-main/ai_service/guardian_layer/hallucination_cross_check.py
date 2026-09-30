@@ -10,7 +10,7 @@ class _GroqLLMAdapter:
         generate(prompt: str, temperature: float) -> str
     """
 
-    def __init__(self, groq_client, model: str = "llama-3.1-8b-instant"):
+    def __init__(self, groq_client, model: str = "openai/gpt-oss-20b"):
         self.client = groq_client
         self.model = model
 

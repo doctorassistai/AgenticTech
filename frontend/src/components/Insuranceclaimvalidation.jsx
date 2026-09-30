@@ -4,6 +4,7 @@ import {
   Download, Edit3, X, Check, AlertCircle, RefreshCw,
   FileText, ChevronDown, ChevronUp, Stethoscope, ClipboardList,
   FlaskConical, Scissors, ShieldCheck, PlayCircle, CheckCircle2,
+  Info,
 } from "lucide-react";
 
 import { THEMES } from "../dashboard/themes";
@@ -19,6 +20,8 @@ const API_BASE_URL = "https://doctorassist.ai/api/";
 //        finalized: true, finalized_at }
 const RUN_VALIDATION_ENDPOINT = `${API_BASE_URL}hms/users/ai-legacy/internal/run-claim-validation`;
 const FINAL_SAVE_ENDPOINT = `${API_BASE_URL}hms/users/data/context/finalize-claim-validation`;
+const INSURANCE_SEARCH_ENDPOINT = `${API_BASE_URL}hms/users/speciality/insurance/search`;
+const ORDERING_ENDPOINT = `${API_BASE_URL}hms/users/ai-legacy/internal/investigation-ordering/validate`;
 
 /* ─── THEME TOKENS ─── */
 const themeName = localStorage.getItem("theme") || "BlackWhite";
@@ -212,7 +215,6 @@ const S = {
     whiteSpace: "nowrap",
     borderRadius: "2px",
   },
-  /* ─── TABLE STYLES ─── */
   tableWrap: {
     overflowX: "auto",
     marginTop: "0.5rem",
@@ -382,6 +384,16 @@ function textToList(text) {
     .filter(Boolean);
 }
 
+function getRejectionReasons(item) {
+  if (Array.isArray(item.flags) && item.flags.length > 0) {
+    return item.flags.filter(Boolean);
+  }
+  return (item.reason_for_rejection || "")
+    .split(";")
+    .map((r) => r.trim())
+    .filter(Boolean);
+}
+
 function getStatusColor(status) {
   const map = {
     "Approved": "#2e7d32",
@@ -451,59 +463,117 @@ function BoolToggle({ value, onChange }) {
 }
 
 /* ─── INVESTIGATION TABLE ROW ─── */
-function InvestigationTableRow({ item, idx, editing, onUpdate }) {
+function InvestigationCard({ item, idx, editing, onUpdate }) {
+  const [expanded, setExpanded] = useState(false);
   const set = (key, val) => onUpdate({ ...item, [key]: val });
+  const reasons = getRejectionReasons(item);
+  const conditions = Array.isArray(item.conditions) ? item.conditions : [];
 
   return (
-    <tr>
-      <td style={S.td}>
-        {editing ? (
-          <input style={S.input} value={item.test_name || ""} onChange={(e) => set("test_name", e.target.value)} />
-        ) : (
-          <span style={{ fontWeight: 400 }}>{item.test_name || "—"}</span>
-        )}
-      </td>
-      <td style={S.td}>
-        {editing ? (
-          <select style={S.select} value={item.claim_remarks || ""} onChange={(e) => set("claim_remarks", e.target.value)}>
-            <option value="Billable Test under Insurance">Billable Test under Insurance</option>
-            <option value="Non Billable Test Insurance">Non Billable Test Insurance</option>
-          </select>
-        ) : (
-          <span style={{
-            ...S.statusBadge,
-            ...(item.claim_remarks === "Billable Test under Insurance" ? S.claimRemarksBillable : S.claimRemarksNonBillable)
-          }}>
-            {item.claim_remarks || "—"}
-          </span>
-        )}
-      </td>
-      <td style={S.td}>
-        {editing ? (
-          <textarea style={{ ...S.textarea, minHeight: 40, fontSize: "0.7rem" }} value={item.system_remarks || ""} onChange={(e) => set("system_remarks", e.target.value)} />
-        ) : (
-          <span style={{ fontSize: "0.72rem" }}>{item.system_remarks || "—"}</span>
-        )}
-      </td>
-      <td style={S.td}>
-        {editing ? (
-          <select style={S.select} value={item.status || ""} onChange={(e) => set("status", e.target.value)}>
-            {STATUS_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
-          </select>
-        ) : (
-          <span style={statusBadgeStyle(item.status)}>{item.status || "—"}</span>
-        )}
-      </td>
-      <td style={S.td}>
-        {editing ? (
-          <input style={S.input} value={item.reason_for_rejection || ""} onChange={(e) => set("reason_for_rejection", e.target.value)} />
-        ) : (
-          <span style={{ fontSize: "0.72rem", color: item.reason_for_rejection ? "#c62828" : T.textMuted }}>
-            {item.reason_for_rejection || "—"}
-          </span>
-        )}
-      </td>
-    </tr>
+    <div style={S.itemCard}>
+      <div style={S.itemHeader} onClick={() => setExpanded((v) => !v)}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {editing ? (
+            <input
+              style={{ ...S.input, marginBottom: "0.4rem" }}
+              value={item.test_name || ""}
+              onClick={(e) => e.stopPropagation()}
+              onChange={(e) => set("test_name", e.target.value)}
+            />
+          ) : (
+            <div style={S.itemName}>{item.test_name || "—"}</div>
+          )}
+          <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap", marginTop: "0.35rem", alignItems: "center" }}>
+            <span style={statusBadgeStyle(item.status)}>{item.status || "—"}</span>
+            <span style={{
+              ...S.statusBadge,
+              ...(item.claim_remarks === "Billable Test under Insurance" ? S.claimRemarksBillable : S.claimRemarksNonBillable),
+            }}>
+              {item.claim_remarks || "—"}
+            </span>
+            {item.status !== "Approved" && reasons.length > 0 && (
+              <span style={{ fontSize: "0.68rem", color: "#c62828" }}>
+                {reasons[0]}{reasons.length > 1 ? ` (+${reasons.length - 1} more)` : ""}
+              </span>
+            )}
+          </div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+        </div>
+      </div>
+
+      {expanded && (
+        <div style={S.itemBody}>
+          <Field label="Claim Remarks" editing={editing} value={item.claim_remarks}>
+            <select style={S.select} value={item.claim_remarks || ""} onChange={(e) => set("claim_remarks", e.target.value)}>
+              <option value="Billable Test under Insurance">Billable Test under Insurance</option>
+              <option value="Non Billable Test Insurance">Non Billable Test Insurance</option>
+            </select>
+          </Field>
+
+          <Field label="System Remarks" editing={editing} value={item.system_remarks}>
+            <textarea style={{ ...S.textarea, minHeight: 70 }} value={item.system_remarks || ""} onChange={(e) => set("system_remarks", e.target.value)} />
+          </Field>
+
+          <Field label="Status" editing={editing} value={item.status}>
+            <select style={S.select} value={item.status || ""} onChange={(e) => set("status", e.target.value)}>
+              {STATUS_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+            </select>
+          </Field>
+
+          <Field label="Rejection Reason" editing={editing} value={item.reason_for_rejection}>
+            <input style={S.input} value={item.reason_for_rejection || ""} onChange={(e) => set("reason_for_rejection", e.target.value)} />
+          </Field>
+
+          {!editing && item.status !== "Approved" && reasons.length > 1 && (
+            <div style={S.fieldRow}>
+              <span style={S.fieldLabel}>All Reasons</span>
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+                {reasons.map((r, i) => (
+                  <span key={i} style={{ fontSize: "0.78rem", color: "#c62828" }}>{r}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {conditions.length > 0 && (
+            <div style={{ marginTop: "0.9rem" }}>
+              <div style={{
+                fontSize: "0.62rem",
+                textTransform: "uppercase",
+                letterSpacing: "0.1em",
+                color: T.textMuted,
+                marginBottom: "0.5rem",
+              }}>
+                Conditions Checked ({conditions.length})
+              </div>
+              <div style={{ border: `1px solid ${T.border}`, borderRadius: "3px", overflow: "hidden" }}>
+                {conditions.map((c, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      gap: "0.75rem",
+                      padding: "0.5rem 0.75rem",
+                      borderBottom: i < conditions.length - 1 ? `1px solid ${T.border}` : "none",
+                      background: c.status === "Failed" ? T.bgAlt : T.bg,
+                    }}
+                  >
+                    <span style={{ fontSize: "0.76rem", color: T.textSec }}>{c.condition}</span>
+                    <span style={statusBadgeStyle(c.status === "Failed" ? "Rejected" : "Approved")}>
+                      {c.status === "Failed" ? "Rejected" : "Approved"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -561,6 +631,192 @@ function ProcedureTableRow({ item, idx, editing, onUpdate }) {
         )}
       </td>
     </tr>
+  );
+}
+
+/* ─── INSURANCE CLAIM SEARCH SECTION ─── */
+// Populated straight from claim.insurance_database_search, which the
+// backend already computed deterministically (plain Mongo find against
+// excel_full_collection, no LLM) during /internal/run-claim-validation.
+// Renders on load — no separate fetch, no loading state, no re-search.
+function InsuranceClaimSearch({ claim }) {
+  const [expandedKey, setExpandedKey] = useState(null);
+
+  const dbSearch = claim?.insurance_database_search;
+  const diagnosisName = dbSearch?.diagnosis?.name || claim?.primary_diagnosis?.diagnosis || "";
+  const icdCode = dbSearch?.diagnosis?.icd10_code || claim?.primary_diagnosis?.icd10_code || "";
+  const results = dbSearch?.results || [];
+  const summary = dbSearch?.summary;
+
+  if (!diagnosisName || results.length === 0) {
+    return (
+      <div style={S.card}>
+        <div style={S.cardHeader}>
+          <p style={S.cardHeaderTitle}>
+            <ShieldCheck size={13} /> Insurance Database Search
+          </p>
+        </div>
+        <div style={S.cardBody}>
+          <div style={S.emptyState}>
+            {!diagnosisName
+              ? "No primary diagnosis available to search."
+              : "No investigations ordered in this visit."}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={S.card}>
+      <div style={S.cardHeader}>
+        <p style={S.cardHeaderTitle}>
+          <ShieldCheck size={13} /> Insurance Database Search
+        </p>
+      </div>
+
+      <div style={S.cardBody}>
+        <div style={{
+          padding: "0.65rem 0.85rem",
+          border: `1px solid ${T.border}`,
+          background: T.bgAlt,
+          marginBottom: "1rem",
+          borderRadius: "3px",
+          fontSize: "0.75rem",
+        }}>
+          <div style={{ marginBottom: "0.35rem" }}>
+            <span style={{ color: T.textMuted, fontSize: "0.62rem", textTransform: "uppercase", letterSpacing: "0.1em" }}>
+              Will search for:
+            </span>
+          </div>
+          <div style={{ fontWeight: 400, color: T.text, marginBottom: "0.35rem" }}>
+            🔍 <strong>Diagnosis:</strong> {diagnosisName}
+            {icdCode && (
+              <span style={{ color: T.textMuted, marginLeft: "0.35rem" }}>
+                ({icdCode})
+              </span>
+            )}
+          </div>
+          <div style={{ fontWeight: 400, color: T.text }}>
+            🧪 <strong>Investigations:</strong> {results.length} test(s)
+          </div>
+        </div>
+
+        {summary && (
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+            gap: "0.75rem",
+            marginBottom: "1rem",
+            padding: "0.75rem",
+            border: `1px solid ${T.border}`,
+            background: T.bgAlt,
+            borderRadius: "3px",
+          }}>
+            <div>
+              <div style={{ fontSize: "0.6rem", textTransform: "uppercase", letterSpacing: "0.1em", color: T.textMuted }}>
+                Total Pairs
+              </div>
+              <div style={{ fontSize: "1rem", fontWeight: 400, color: T.text }}>
+                {summary.total_pairs}
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: "0.6rem", textTransform: "uppercase", letterSpacing: "0.1em", color: T.textMuted }}>
+                Total Matches
+              </div>
+              <div style={{ fontSize: "1rem", fontWeight: 400, color: T.text }}>
+                {summary.total_matches}
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: "0.6rem", textTransform: "uppercase", letterSpacing: "0.1em", color: T.textMuted }}>
+                Approved
+              </div>
+              <div style={{ fontSize: "1rem", fontWeight: 400, color: "#2e7d32" }}>
+                {summary.approved_count} <span style={{ fontSize: "0.7rem" }}>({summary.approved_percentage})</span>
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: "0.6rem", textTransform: "uppercase", letterSpacing: "0.1em", color: T.textMuted }}>
+                Rejected
+              </div>
+              <div style={{ fontSize: "1rem", fontWeight: 400, color: "#c62828" }}>
+                {summary.rejected_count} <span style={{ fontSize: "0.7rem" }}>({summary.rejected_percentage})</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {results.map((result, idx) => {
+          const key = `${result.test_name}-${idx}`;
+          const isExpanded = expandedKey === key;
+          const hasMatch = !!result.matched;
+          const isRejected = (result.status || "").toLowerCase() === "rejected";
+
+          return (
+            <div
+              key={key}
+              style={{
+                border: `1px solid ${T.border}`,
+                marginBottom: "0.6rem",
+                borderRadius: "3px",
+                overflow: "hidden",
+              }}
+            >
+              <div
+                style={{
+                  padding: "0.6rem 0.85rem",
+                  background: T.bgAlt,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "0.75rem",
+                  cursor: hasMatch ? "pointer" : "default",
+                }}
+                onClick={() => hasMatch && setExpandedKey(isExpanded ? null : key)}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: "0.78rem", fontWeight: 400, color: T.text, marginBottom: "0.15rem" }}>
+                    🧪 {result.test_name}
+                  </div>
+                  <div style={{ fontSize: "0.65rem", color: T.textMuted }}>
+                    {hasMatch
+                      ? `${result.match_count || 1} match${(result.match_count || 1) !== 1 ? "es" : ""} found`
+                      : "No matching records found"}
+                  </div>
+                </div>
+
+                {hasMatch && (
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                    <span style={{
+                      ...S.badge,
+                      borderColor: isRejected ? "#c62828" : "#2e7d32",
+                      color: isRejected ? "#c62828" : "#2e7d32",
+                      fontSize: "0.58rem",
+                    }}>
+                      {isRejected ? "✗" : "✓"} {result.status}
+                    </span>
+                    {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                  </div>
+                )}
+              </div>
+
+              {isExpanded && hasMatch && (
+                <div style={{ padding: "0.75rem", borderTop: `1px solid ${T.border}` }}>
+                  <Field label="Service Description" editing={false} value={result.service_description} />
+                  <Field label="Claim Number" editing={false} value={result.claim_number != null ? String(result.claim_number) : ""} />
+                  <Field label="Status" editing={false} value={result.status} />
+                  {result.reason_for_rejection && (
+                    <Field label="Reason for Rejection" editing={false} value={result.reason_for_rejection} />
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -644,11 +900,11 @@ export default function InsuranceClaimValidation({ doctorId: doctorIdProp, patie
         body: JSON.stringify(payload),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.detail || "Failed to save the claim.");
+      if (!res.ok) throw new Error(data.detail || "Failed to proceed to claim.");
       setResponse((prev) => ({ ...prev, claim }));
       setEditing(false);
       setFinalized(true);
-      setToast({ message: "Claim saved.", type: "success" });
+      setToast({ message: "Proceeding to claim.", type: "success" });
     } catch (err) {
       setToast({ message: err.message || "Failed to save the claim.", type: "error" });
     } finally {
@@ -680,6 +936,10 @@ export default function InsuranceClaimValidation({ doctorId: doctorIdProp, patie
         * { box-sizing: border-box; }
         .icv-btn:hover { background: ${T.bgAlt} !important; }
         .icv-btn-primary:hover { opacity: 0.85; }
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
         @media print {
           body * { visibility: hidden; }
           #claim-validation-print-root, #claim-validation-print-root * { visibility: visible; }
@@ -738,7 +998,7 @@ export default function InsuranceClaimValidation({ doctorId: doctorIdProp, patie
               onClick={handleFinalSave}
               disabled={finalizing}
             >
-              <CheckCircle2 size={13} /> {finalizing ? "Saving…" : "Final Save"}
+              <CheckCircle2 size={13} /> {finalizing ? "Processing…" : "Proceed to Claim"}
             </button>
           )}
         </div>
@@ -747,7 +1007,7 @@ export default function InsuranceClaimValidation({ doctorId: doctorIdProp, patie
       {finalized && (
         <div style={S.finalizedBanner}>
           <CheckCircle2 size={13} color={T.text} />
-          This claim has been saved.
+          This claim has been finalized and is ready to proceed.
         </div>
       )}
 
@@ -759,8 +1019,29 @@ export default function InsuranceClaimValidation({ doctorId: doctorIdProp, patie
         <div style={S.centerState}>No validated claim yet. Click "Generate Validation" to run it.</div>
       )}
 
-      {claim && (
+{claim && (
         <>
+          {/* ── VALIDATION DETAILS ── */}
+          {response && (
+            <div style={S.card}>
+              <div style={S.cardHeader}>
+                <p style={S.cardHeaderTitle}><Info size={13} /> Validation Details</p>
+              </div>
+              <div style={S.cardBody}>
+                <Field label="Policy Number" editing={false} value={response.policy_number_used} />
+                <Field label="Generated At" editing={false} value={response.generated_at ? new Date(response.generated_at).toLocaleString() : ""} />
+                <Field label="Processing Time" editing={false} value={response.processing_time_ms != null ? `${(response.processing_time_ms / 1000).toFixed(1)}s` : ""} />
+                <Field label="Lab Reports on File" editing={false} value={response.lab_reports_on_file != null ? String(response.lab_reports_on_file) : ""} />
+                <Field label="Periodicity Rules Loaded" editing={false} value={response.periodicity_rules_loaded != null ? String(response.periodicity_rules_loaded) : ""} />
+                <Field label="Previous Visits Used" editing={false} value={(response.previous_visits_used || []).join(", ")} />
+                <Field label="Secondary Diagnosis Source Found" editing={false} value={response.secondary_diagnosis_source_found ? "Yes" : "No"} />
+                {response.errors && response.errors.length > 0 && (
+                  <Field label="Errors" editing={false} value={response.errors.join(", ")} />
+                )}
+              </div>
+            </div>
+          )}
+
           {/* ── PATIENT SUMMARY ── */}
           <div style={S.card}>
             <div style={S.cardHeader}>
@@ -846,33 +1127,23 @@ export default function InsuranceClaimValidation({ doctorId: doctorIdProp, patie
               {(claim.investigations || []).length === 0 ? (
                 <div style={S.emptyState}>No investigations ordered in this visit.</div>
               ) : (
-                <div style={S.tableWrap}>
-                  <table style={S.table}>
-                    <thead>
-                      <tr>
-                        <th style={S.th}>Test Name</th>
-                        <th style={S.th}>Claim Remarks</th>
-                        <th style={S.th}>System Remarks</th>
-                        <th style={S.th}>Status</th>
-                        <th style={S.th}>Reason for Rejection</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {claim.investigations.map((item, idx) => (
-                        <InvestigationTableRow
-                          key={idx}
-                          item={item}
-                          idx={idx}
-                          editing={editing}
-                          onUpdate={(updated) => updateInvestigation(idx, updated)}
-                        />
-                      ))}
-                    </tbody>
-                  </table>
+                <div>
+                  {claim.investigations.map((item, idx) => (
+                    <InvestigationCard
+                      key={idx}
+                      item={item}
+                      idx={idx}
+                      editing={editing}
+                      onUpdate={(updated) => updateInvestigation(idx, updated)}
+                    />
+                  ))}
                 </div>
               )}
             </div>
           </div>
+
+          {/* ── INSURANCE DATABASE SEARCH ── */}
+          <InsuranceClaimSearch claim={claim} doctorId={doctorId} />
 
           {/* ── PROCEDURES TABLE ── */}
           <div style={S.card}>
@@ -940,9 +1211,6 @@ export default function InsuranceClaimValidation({ doctorId: doctorIdProp, patie
               </div>
             </div>
           )}
-
-          {/* ── DECISION SUMMARY ── */}
-          
         </>
       )}
 

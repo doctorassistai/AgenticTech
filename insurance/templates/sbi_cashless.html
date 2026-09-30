@@ -10,29 +10,13 @@
     body { font-family: Arial, sans-serif; font-size: 10px; color: #000; background: #fff; }
     .page { width: 186mm; margin: 0 auto; background: #fff; }
 
-    /* HEADER */
     .header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
       border-top: 4px solid #4caf50;
       border-bottom: 2px solid #4caf50;
       padding: 8px 0;
       margin-bottom: 10px;
     }
-    .header-left {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .header-logo { height: 40px; object-fit: contain; }
-    .header-company { font-weight: bold; font-size: 11px; color: #000; }
-    .header-addr {
-      font-size: 8px;
-      line-height: 1.6;
-      color: #333;
-      text-align: right;
-    }
+    .header-logo { width: 100%; height: auto; display: block; }
 
     /* REPORT TITLE */
     .report-title {
@@ -94,21 +78,10 @@
        HEADER — PAGE 1
   ══════════════════════════════════════════════ -->
   <div class="header">
-    <div class="header-left">
-      {% if header_image %}
-        <img src="{{ header_image }}" class="header-logo" alt="Optimus Medical Services">
-      {% endif %}
-      <div class="header-company">Optimus Medical Services Pvt.Ltd.</div>
-    </div>
-    <div class="header-addr">
-      #99, Second Floor, DD Milestone,<br>
-      Kadavanthra, Kochi, Kerala<br>
-      Tel.: 755 990 4333, 0484-4069017<br>
-      E-mail: mail@letchek.in<br>
-      www.letchek.in
-    </div>
+    {% if header_image %}
+      <img src="{{ header_image }}" class="header-logo" alt="Optimus Medical Services">
+    {% endif %}
   </div>
-
   <div class="report-title">Review REPORT</div>
 
   <table>
@@ -423,30 +396,10 @@
     </tr>
 
   </table>
-
-  <!-- ══════════════════════════════════════════════
-       PAGE 2 — STAMP
-  ══════════════════════════════════════════════ -->
-  <div class="page-break"></div>
-
-  <div class="header">
-    <div class="header-left">
-      {% if header_image %}
-        <img src="{{ header_image }}" class="header-logo" alt="Optimus Medical Services">
-      {% endif %}
-      <div class="header-company">Optimus Medical Services Pvt.Ltd.</div>
-    </div>
-    <div class="header-addr">
-      #99, Second Floor, DD Milestone,<br>
-      Kadavanthra, Kochi, Kerala<br>
-      Tel.: 755 990 4333, 0484-4069017<br>
-      E-mail: mail@letchek.in<br>
-      www.letchek.in
-    </div>
-  </div>
+  </table>
 
   {% if show_stamp and stamp_image %}
-  <div class="stamp-area">
+  <div class="stamp-area" style="page-break-inside: avoid;">
     <img src="{{ stamp_image }}" class="stamp-img" alt="Optimus Stamp">
   </div>
   {% endif %}

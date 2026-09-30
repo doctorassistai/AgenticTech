@@ -22,7 +22,7 @@ logger.add(sys.stdout, level="INFO", enqueue=True)
 # LLM SETUP
 # =========================
 llm = ChatGroq(
-    model="llama-3.3-70b-versatile",
+    model="openai/gpt-oss-120b",
     temperature=0.1,
     groq_api_key=os.getenv("GROQ_API_KEY")
 )

@@ -777,7 +777,12 @@ const savePrognosisData = async () => {
             ? 'No Clinical Dictation Available' 
             : 'Ready to Generate Analysis'}
         </h4>
-        <p style={{ margin: 0, fontSize: '14px', maxWidth: '400px', lineHeight: '1.5', margin: '0 auto' }}>
+        <p style={{ 
+          margin: '0 auto',
+          fontSize: '14px',
+          maxWidth: '400px',
+          lineHeight: '1.5'
+        }}>
           {!dictation || dictation.trim().length === 0 
             ? 'Please provide clinical dictation first to enable analysis.'
             : 'Click the button below to generate analysis based on your dictation.'}

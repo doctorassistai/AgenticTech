@@ -1,61 +1,117 @@
 
-// Holds the specimen-in-the-lab pathology lifecycle following the histology
-// workflow order: Case → Gross → Processing → Sectioning → Staining →
-// Microscopy → Synoptic → TNM. One document per case (case_id); sections are
-// written through the whitelisted saveSection endpoint.
+// Holds the specimen-in-the-lab pathology lifecycle. The sidebar follows the
+// bench and the microscope: the histology bench (Grossing → Staining), Primary
+// Microscopy, then the review/testing stage (Ancillary Work, Microscopy Review,
+// Molecular Testing, Cytopathology), then synthesis (Integrated Diagnosis →
+// Synoptic → TNM → Final Diagnosis).
 //
-// Built tabs: Case Registry, Grossing Bench, Synoptic Report, TNM & Final
-// Diagnosis. Processing / Sectioning / Staining / Microscopy are placeholder
-// stubs shown for the full workflow view (wired up later).
+// Molecular deliberately does NOT return to the microscope: it is DNA/RNA with no
+// slide. Cytopathology is cells on a slide and keeps its own specimen stream. Both
+// converge in Integrated Diagnosis, which is where every stream reaches the final
+// report. One document per case (case_id); sections are written through the
+// whitelisted saveSection endpoint.
 
 import React, { useState, useEffect } from "react";
-import { Box, Typography, Button, Snackbar, IconButton } from "@mui/material";
-import { BiotechRounded, CloseRounded } from "@mui/icons-material";
+import { Box, Typography, Button, Snackbar, IconButton, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle } from "@mui/material";
+import { BiotechRounded, CloseRounded, WarningAmberRounded, LockRounded } from "@mui/icons-material";
 import { motion } from "framer-motion";
 
-import { C, FONT, FW_LIGHT, FW_NORMAL } from "../shared/designTokens";
+import { C, FONT, FW_LIGHT, FW_NORMAL, FW_BOLD, outlineBtnSx } from "../shared/designTokens";
 import { usePathologyCase } from "./shared/usePathologyCase";
-import { createCase, saveSection, signOutCase } from "./shared/api";
+import { createCase, saveSection, signOutCase, getPathologyRequest } from "./shared/api";
+import { EMPTY_CASE_REGISTRY, pathologyRequestToCaseRegistry } from "./shared/caseRegistryModel";
+import { tabApplicability } from "./shared/caseClass";
 import CaseRegistryTab from "./tabs/CaseRegistryTab";
 import GrossingBenchTab from "./tabs/GrossingBenchTab";
+import ProcessingTab from "./tabs/ProcessingTab";
+import SectioningTab from "./tabs/SectioningTab";
+import StainingTab from "./tabs/StainingTab";
+import MolecularTestingTab from "./tabs/MolecularTestingTab";
+import CytopathologyTab from "./tabs/CytopathologyTab";
+import MicroscopyTab from "./tabs/MicroscopyTab";
+import IntegratedDiagnosisTab from "./tabs/IntegratedDiagnosisTab";
 import SynopticReportTab from "./tabs/SynopticReportTab";
 import TNMStagingTab from "./tabs/TNMStagingTab";
-import PathologyHistoryAccordion from "./PathologyHistoryAccordion";
+import FinalDiagnosisTab from "./tabs/FinalDiagnosisTab";
+
+const AMBER = "#b76e00";
 
 const MAIN_TABS = [
   { key: "case-register", label: "Case Registry", part: "Path A" },
   { key: "grossing", label: "Grossing Bench", part: "Path B" },
-  { key: "processing", label: "Processing", part: "Path C", stub: true },
-  { key: "sectioning", label: "Sectioning", part: "Path D", stub: true },
-  { key: "staining", label: "Staining", part: "Path E", stub: true },
-  { key: "micro", label: "Microscopy", part: "Path F", stub: true },
-  { key: "synoptic", label: "Synoptic Report", part: "Path G" },
-  { key: "tnm", label: "TNM & Final Diagnosis", part: "Path H" },
+  { key: "processing", label: "Processing & Embedding", part: "Path C" },
+  { key: "sectioning", label: "Sectioning", part: "Path D" },
+  { key: "staining", label: "Staining", part: "Path E" },
+  { key: "primary-micro", label: "Primary Microscopy", part: "Path F" },
+  { key: "ancillary-work", label: "Ancillary Work", part: "Path G" },
+  { key: "micro-review", label: "Microscopy Review", part: "Path H" },
+  { key: "molecular", label: "Molecular Testing", part: "Path I" },
+  { key: "cytopathology", label: "Cytopathology", part: "Path J" },
+  { key: "integration", label: "Integrated Diagnosis", part: "Path K" },
+  { key: "synoptic", label: "Synoptic Report", part: "Path L" },
+  { key: "tnm", label: "TNM Staging", part: "Path M" },
+  { key: "final-diagnosis", label: "Final Diagnosis", part: "Path N" },
+];
+
+// Visual boxed stage groupings for the sidebar
+const SIDEBAR_STAGE_GROUPS = [
+  {
+    title: "1 · Specimen & Bench",
+    tabIndices: [0, 1, 2, 3, 4],
+  },
+  {
+    title: "2 · Diagnostic Work",
+    tabIndices: [5, 6, 7, 8, 9],
+  },
+  {
+    title: "3 · Synthesis & Sign-Out",
+    tabIndices: [10, 11, 12, 13],
+  },
 ];
 
 // Sidebar-tab key → backend section path (case_register uses underscore).
 const SECTION_PATH = {
   "case-register": "case_register",
   grossing: "grossing",
+  processing: "processing",
+  sectioning: "sectioning",
+  staining: "staining",
+  molecular: "molecular",
+  cytopathology: "cytopathology",
+  "primary-micro": "microscopy",
+  "ancillary-work": "microscopy",
+  "micro-review": "microscopy",
+  integration: "integration",
   synoptic: "synoptic",
   tnm: "tnm.latest",
+  "final-diagnosis": "final_diagnosis",
 };
 
-// Placeholder for lab-workflow stages that exist in the pipeline but aren't
-// built yet (Processing → Sectioning → Staining → Microscopy). Shown for
-// visualising the full histology workflow; wired up later.
-const TabStub = ({ label }) => (
-  <Box sx={{ p: 6, textAlign: "center", border: `1px dashed ${C.border}`, background: C.bgSecondary }}>
-    <Typography sx={{ fontSize: 15, fontFamily: FONT, fontWeight: FW_NORMAL, mb: 0.5 }}>{label}</Typography>
-    <Typography sx={{ fontSize: 12, fontFamily: FONT, color: C.textMuted }}>Coming soon.</Typography>
-  </Box>
-);
-
-const OncoPathologyWorkflow = ({ doctorId, patientId: propPatientId, doctorName }) => {
+const OncoPathologyWorkflow = ({ doctorId, patientId: propPatientId, doctorName, pathologyRequestId }) => {
   const [activeTab, setActiveTab] = useState(0);
   const [patientId, setPatientId] = useState(propPatientId || "");
   const [hospitalId] = useState("");
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
+  const [pathologyRequest, setPathologyRequest] = useState(null);
+  const [requestLoading, setRequestLoading] = useState(false);
+  const [requestError, setRequestError] = useState("");
+  const [newCaseMode, setNewCaseMode] = useState(false);
+  // A "New Case" on an open case that is not yet signed out is gated: it opens a
+  // warning dialog offering a forced sign-out of the current case first.
+  const [forceNewCaseOpen, setForceNewCaseOpen] = useState(false);
+  const [signOutBusy, setSignOutBusy] = useState(false);
+  // Cytopathology needs a liquid/aspirate specimen, and only Case Registry mints a
+  // specimen_id. Rather than dead-ending, it asks the workflow to open Case
+  // Registry with a specimen of that type already started.
+  const [seedSpecimenType, setSeedSpecimenType] = useState("");
+  const goToAccessioning = (specimenType) => {
+    setSeedSpecimenType(specimenType || "");
+    setActiveTab(0);
+  };
+  // A "New Case" started while a pathology request is loaded is detached from
+  // that request: the created case must not consume it, and the request stays
+  // pending in the requests table.
+  const [unlinkRequest, setUnlinkRequest] = useState(false);
 
   const {
     cases,
@@ -63,12 +119,36 @@ const OncoPathologyWorkflow = ({ doctorId, patientId: propPatientId, doctorName 
     currentCaseData,
     isLoading,
     refetch,
-    switchCase,
   } = usePathologyCase(patientId, doctorId);
 
   useEffect(() => { if (propPatientId) setPatientId(propPatientId); }, [propPatientId]);
 
+  useEffect(() => {
+    if (!pathologyRequestId) {
+      setPathologyRequest(null);
+      setRequestError("");
+      return;
+    }
+    let cancelled = false;
+    setRequestLoading(true);
+    getPathologyRequest(pathologyRequestId)
+      .then((result) => {
+        if (cancelled) return;
+        const request = result.request || null;
+        setPathologyRequest(request);
+        if (request?.patient_id) setPatientId(request.patient_id);
+        setRequestError("");
+      })
+      .catch((err) => { if (!cancelled) setRequestError(err.message || "Unable to load pathology request"); })
+      .finally(() => { if (!cancelled) setRequestLoading(false); });
+    return () => { cancelled = true; };
+  }, [pathologyRequestId]);
+  useEffect(() => { if (pathologyRequestId) setActiveTab(0); }, [pathologyRequestId]);
+
   const hasCase = !!currentCaseId;
+  const activeRequestCase = pathologyRequest?.active_case || null;
+  const requestDraft = pathologyRequest ? pathologyRequestToCaseRegistry(pathologyRequest, patientId) : null;
+  const requestBlockedByActiveCase = !!pathologyRequestId && !!activeRequestCase;
   const activeKey = MAIN_TABS[activeTab]?.key;
   const activeIsStub = !!MAIN_TABS[activeTab]?.stub;
   // Real tabs (except Case Registry) need an active case; stubs are viewable anytime.
@@ -77,15 +157,25 @@ const OncoPathologyWorkflow = ({ doctorId, patientId: propPatientId, doctorName 
   // ─── Save dispatch ────────────────────────────────────────────────────────
   const handleSave = async (tabKey, data) => {
     try {
-      if (tabKey === "case-register" && !currentCaseId) {
+      if (tabKey === "case-register" && !unlinkRequest && pathologyRequestId && requestBlockedByActiveCase) {
+        setSnackbar({ open: true, message: "An active pathology case already exists for this patient. Continue that case instead.", severity: "error" });
+        return;
+      }
+      if (tabKey === "case-register" && (!currentCaseId || pathologyRequestId || newCaseMode)) {
         // No case yet → create one (backend generates the case_id + makes it active).
         const result = await createCase({
           patient_id: patientId,
           doctor_id: doctorId,
           hospital_id: hospitalId || undefined,
           data,
+          // A detached new case omits the request link so it never consumes the
+          // request (JSON.stringify drops undefined, so the key is simply absent).
+          pathology_request_id: unlinkRequest ? undefined : (pathologyRequestId || undefined),
         });
         await refetch();
+        setNewCaseMode(false);
+        setUnlinkRequest(false);
+        if (!unlinkRequest && pathologyRequestId) window.dispatchEvent(new CustomEvent("pathologyRequestChanged", { detail: { requestId: pathologyRequestId } }));
         setSnackbar({ open: true, message: "Case created successfully", severity: "success" });
         return result;
       }
@@ -108,10 +198,10 @@ const OncoPathologyWorkflow = ({ doctorId, patientId: propPatientId, doctorName 
   };
 
   // ─── Sign out (finalize) the current case ─────────────────────────────────
-  const handleSignOut = async () => {
+  const handleSignOut = async (finalData) => {
     if (!currentCaseId) return;
-    if (!window.confirm("Sign out and finalize this case? It will be marked 'Signed-out' and closed for editing.")) return;
     try {
+      await saveSection(currentCaseId, "final_diagnosis", finalData);
       await signOutCase(currentCaseId);
       await refetch();
       setSnackbar({ open: true, message: "Case signed out successfully", severity: "success" });
@@ -121,33 +211,74 @@ const OncoPathologyWorkflow = ({ doctorId, patientId: propPatientId, doctorName 
     }
   };
 
-  // ─── Start a new case (auto-close the current one first) ──────────────────
-  const handleNewCase = async () => {
-    if (currentCaseId) {
-      const proceed = window.confirm(
-        "Close the current case and start a new one? The current case will be signed out."
-      );
-      if (!proceed) return;
-      try {
-        await signOutCase(currentCaseId);
-        await refetch();
-      } catch (err) {
-        console.error("[OncoPathologyWorkflow] auto-close error:", err);
-        setSnackbar({ open: true, message: "Could not close the current case.", severity: "error" });
-        return;
-      }
-    }
-    // Land on Case Registry with a blank form; saving there creates the new case.
+  // ─── Start a new case without changing or finalizing the current one ─────
+  const startNewCase = (signedOutCurrent = false) => {
+    setNewCaseMode(true);
+    setUnlinkRequest(!!pathologyRequestId);
     setActiveTab(0);
-    setSnackbar({ open: true, message: "Enter details for the new case, then Save.", severity: "success" });
+    setSnackbar({
+      open: true,
+      message: signedOutCurrent
+        ? "Current case signed out. Enter details for the new case, then Save."
+        : (currentCaseId
+          ? "The current case remains unchanged. Save Case Registry details to create a separate case."
+          : "Enter details for the new case, then Save."),
+      severity: "success",
+    });
   };
 
-  const caseRegister = currentCaseData?.case_register || {};
+  // An open case that is not yet signed out gates a new case. Rather than send
+  // the user through Final Diagnosis, the warning dialog offers to force sign-out
+  // the current case right here (completeness checks bypassed, recorded as forced).
+  const handleNewCase = () => {
+    if (currentCaseId && !isSignedOut) {
+      setForceNewCaseOpen(true);
+      return;
+    }
+    startNewCase();
+  };
+
+  const confirmForceNewCase = async () => {
+    if (!currentCaseId) { setForceNewCaseOpen(false); startNewCase(); return; }
+    setSignOutBusy(true);
+    try {
+      await signOutCase(currentCaseId, { force: true, by: doctorName || doctorId });
+      await refetch();
+      setForceNewCaseOpen(false);
+      startNewCase(true);
+    } catch (err) {
+      console.error("[OncoPathologyWorkflow] force sign-out error:", err);
+      setSnackbar({ open: true, message: "Failed to sign out the current case. Please try again.", severity: "error" });
+    } finally {
+      setSignOutBusy(false);
+    }
+  };
+
+  const caseRegister = newCaseMode ? EMPTY_CASE_REGISTRY : (requestDraft && !hasCase ? requestDraft : currentCaseData?.case_register || {});
+  const accessionId = currentCaseData?.accession_id || "";
   const grossing = currentCaseData?.grossing || {};
+  const processing = currentCaseData?.processing || {};
+  const sectioning = currentCaseData?.sectioning || {};
+  const staining = currentCaseData?.staining || {};
+  const molecular = currentCaseData?.molecular || {};
+  const cytopathology = currentCaseData?.cytopathology || {};
+  const microscopy = currentCaseData?.microscopy || {};
+  const integration = currentCaseData?.integration || {};
   const synoptic = currentCaseData?.synoptic || {};
   const tnm = currentCaseData?.tnm?.latest || {};
+  const finalDiagnosis = currentCaseData?.final_diagnosis || {};
   const caseStatus = currentCaseData?.status || "";
   const isSignedOut = caseStatus === "Signed-out";
+
+  // Which tabs this case's specimens actually make applicable. A not-applicable
+  // tab is marked, never hidden: a mixed case needs all of them, and a
+  // pathologist must be able to see why something does not apply.
+  const applicability = tabApplicability(caseRegister);
+  const notApplicable = {
+    cytopathology: hasCase && !applicability.cytopathology.applicable,
+    synoptic: hasCase && !applicability.synoptic.applicable,
+    tnm: false,
+  };
 
   return (
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
@@ -165,9 +296,9 @@ const OncoPathologyWorkflow = ({ doctorId, patientId: propPatientId, doctorName 
             </Box>
           </Box>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
-            {caseRegister.accession_id && (
+            {accessionId && (
               <Box sx={{ px: 1.5, py: 0.5, border: `1px solid ${C.border}`, background: C.white, fontSize: 11, fontFamily: FONT, color: C.textMuted }}>
-                {caseRegister.accession_id}
+                {accessionId}
               </Box>
             )}
             {currentCaseId && caseStatus && (
@@ -179,19 +310,6 @@ const OncoPathologyWorkflow = ({ doctorId, patientId: propPatientId, doctorName 
               }}>
                 {caseStatus}
               </Box>
-            )}
-            {currentCaseId && !isSignedOut && (
-              <Button
-                onClick={handleSignOut}
-                sx={{
-                  px: 2, py: 0.75, fontSize: 12, fontFamily: FONT, fontWeight: FW_NORMAL,
-                  background: C.white, color: C.black, border: `1px solid ${C.black}`,
-                  textTransform: "none", borderRadius: 0,
-                  "&:hover": { background: C.black, color: C.white },
-                }}
-              >
-                Sign Out Report
-              </Button>
             )}
             <Button
               onClick={handleNewCase}
@@ -207,29 +325,101 @@ const OncoPathologyWorkflow = ({ doctorId, patientId: propPatientId, doctorName 
           </Box>
         </Box>
 
-        {/* History Table */}
-        {patientId && (
-          <Box sx={{ px: 2.5, pt: 2.5 }}>
-            <PathologyHistoryAccordion
-              cases={cases}
-              currentCaseId={currentCaseId}
-              switchCase={switchCase}
-            />
-          </Box>
-        )}
+        {/* Past pathology cases are listed in Case Registry → Clinical History,
+            where View opens them in a read-only dialog instead of loading them
+            into this workflow. */}
 
         {/* Layout: Sub-sidebar + Content */}
         <Box sx={{ display: "flex", minHeight: "65vh" }}>
-          <Box sx={{ width: 240, borderRight: `1px solid ${C.border}`, background: C.bgSecondary, flexShrink: 0 }}>
-            {MAIN_TABS.map((tab, i) => (
-              <Box key={tab.key} onClick={() => setActiveTab(i)}
+          <Box sx={{ width: 250, borderRight: `1px solid ${C.border}`, background: C.bgSecondary, flexShrink: 0, p: 1.5, overflowY: "auto" }}>
+            {SIDEBAR_STAGE_GROUPS.map((grp, gIdx) => (
+              <Box
+                key={grp.title}
                 sx={{
-                  px: 2.5, py: 1.75, borderBottom: `1px solid ${C.border}`,
-                  borderLeft: activeTab === i ? `3px solid ${C.black}` : "3px solid transparent",
-                  background: activeTab === i ? C.black : "transparent", cursor: "pointer", transition: "all 0.15s",
-                  "&:hover": { background: activeTab === i ? C.black : C.white },
-                }}>
-                <Typography sx={{ fontSize: 13, fontFamily: FONT, color: activeTab === i ? C.white : C.textSecond, fontWeight: activeTab === i ? FW_NORMAL : FW_LIGHT }}>{tab.label}</Typography>
+                  background: C.white,
+                  border: `1px solid ${C.border}`,
+                  borderRadius: 1,
+                  overflow: "hidden",
+                  mb: gIdx < SIDEBAR_STAGE_GROUPS.length - 1 ? 1.75 : 0,
+                  boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
+                }}
+              >
+                {/* Box Header Bar */}
+                <Box
+                  sx={{
+                    px: 1.75,
+                    py: 0.9,
+                    background: C.bgTertiary,
+                    borderBottom: `1px solid ${C.border}`,
+                    userSelect: "none",
+                  }}
+                >
+                  <Typography
+                    sx={{
+                      fontSize: 10,
+                      fontFamily: FONT,
+                      fontWeight: FW_BOLD,
+                      color: C.textSecond,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.08em",
+                    }}
+                  >
+                    {grp.title}
+                  </Typography>
+                </Box>
+
+                {/* Tabs inside Box */}
+                <Box sx={{ "& > :not(:last-child)": { borderBottom: `1px solid ${C.border}` } }}>
+                  {grp.tabIndices.map((i) => {
+                    const tab = MAIN_TABS[i];
+                    const isActive = activeTab === i;
+                    return (
+                      <Box
+                        key={tab.key}
+                        onClick={() => setActiveTab(i)}
+                        sx={{
+                          px: 1.75,
+                          py: 1.25,
+                          background: isActive ? C.black : "transparent",
+                          cursor: "pointer",
+                          transition: "all 0.15s",
+                          "&:hover": { background: isActive ? C.black : C.bgSecondary },
+                        }}
+                      >
+                        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1 }}>
+                          <Typography
+                            sx={{
+                              fontSize: 12.5,
+                              fontFamily: FONT,
+                              color: isActive ? C.white : C.textSecond,
+                              fontWeight: isActive ? FW_NORMAL : FW_LIGHT,
+                            }}
+                          >
+                            {tab.label}
+                          </Typography>
+                          {notApplicable[tab.key] && (
+                            <Typography
+                              sx={{
+                                fontSize: 9,
+                                fontFamily: FONT,
+                                letterSpacing: "0.1em",
+                                textTransform: "uppercase",
+                                px: 0.6,
+                                py: 0.15,
+                                border: `1px solid ${isActive ? C.white : C.border}`,
+                                color: isActive ? C.white : C.textMuted,
+                                borderRadius: 0.5,
+                                flexShrink: 0,
+                              }}
+                            >
+                              N/A
+                            </Typography>
+                          )}
+                        </Box>
+                      </Box>
+                    );
+                  })}
+                </Box>
               </Box>
             ))}
           </Box>
@@ -257,19 +447,50 @@ const OncoPathologyWorkflow = ({ doctorId, patientId: propPatientId, doctorName 
               </Box>
             )}
 
+            {pathologyRequestId && requestLoading && (
+              <Box sx={{ p: 3, border: `1px solid ${C.border}`, background: C.white, mb: 2 }}>Loading pathology request...</Box>
+            )}
+            {pathologyRequestId && requestError && (
+              <Box sx={{ p: 3, border: `1px solid ${C.borderStrong}`, background: C.white, mb: 2 }}>{requestError}</Box>
+            )}
+            {requestBlockedByActiveCase && (
+              <Box sx={{ p: 2, mb: 2, border: `1px solid ${C.borderStrong}`, background: C.bgSecondary }}>
+                <Typography sx={{ fontSize: 13, fontFamily: FONT, mb: 0.5 }}>Active pathology case already exists</Typography>
+                <Typography sx={{ fontSize: 12, fontFamily: FONT, color: C.textSecond }}>
+                  {activeRequestCase.accession_id || activeRequestCase.case_id} · {activeRequestCase.status || "Active"}
+                </Typography>
+                <Button onClick={() => { window.location.href = `/dashboard?doctor_id=${doctorId}&patient_id=${patientId}`; }} sx={{ mt: 1, ...outlineBtnSx }}>
+                  Continue Active Case
+                </Button>
+              </Box>
+            )}
+            {pathologyRequestId && pathologyRequest?.related_pending_count > 0 && (
+              <Box sx={{ p: 1.5, mb: 2, border: `1px solid ${C.border}`, background: C.bgSecondary }}>
+                <Typography sx={{ fontSize: 12, fontFamily: FONT, color: C.textSecond }}>
+                  Warning: this patient has {pathologyRequest.related_pending_count} other pending pathology request{pathologyRequest.related_pending_count === 1 ? "" : "s"}.
+                </Typography>
+              </Box>
+            )}
+
             <Box sx={{
               filter: (gated && (isLoading || !hasCase)) ? "blur(3px)" : "none",
               pointerEvents: (gated && (isLoading || !hasCase)) ? "none" : "auto",
             }}>
               {activeKey === "case-register" && (
                 <CaseRegistryTab
-                  key={`case-register-${currentCaseId || "new"}`}
+                  key={`case-register-${currentCaseId || "new"}-${newCaseMode ? "new-mode" : "current"}-${pathologyRequestId || "none"}-${requestLoading ? "loading" : "ready"}`}
                   patientId={patientId}
                   doctorId={doctorId}
                   doctorName={doctorName}
                   hospitalId={hospitalId}
+                  newCaseMode={newCaseMode}
                   caseId={currentCaseId}
+                  accessionId={accessionId}
                   initialData={caseRegister}
+                  cases={cases}
+                  casesLoading={isLoading}
+                  seedSpecimenType={seedSpecimenType}
+                  onSeedConsumed={() => setSeedSpecimenType("")}
                   onSave={handleSave}
                 />
               )}
@@ -277,7 +498,128 @@ const OncoPathologyWorkflow = ({ doctorId, patientId: propPatientId, doctorName 
                 <GrossingBenchTab
                   key={`grossing-${currentCaseId || "none"}`}
                   caseId={currentCaseId}
+                  accessionId={accessionId}
                   initialData={grossing}
+                  caseRegister={caseRegister}
+                  patientId={patientId}
+                  doctorId={doctorId}
+                  doctorName={doctorName}
+                  hospitalId={hospitalId}
+                  onSave={handleSave}
+                />
+              )}
+              {activeKey === "processing" && (
+                <ProcessingTab
+                  key={`processing-${currentCaseId || "none"}`}
+                  caseId={currentCaseId}
+                  accessionId={accessionId}
+                  initialData={processing}
+                  grossing={grossing}
+                  cytopathology={cytopathology}
+                  caseRegister={caseRegister}
+                  patientId={patientId}
+                  doctorId={doctorId}
+                  doctorName={doctorName}
+                  hospitalId={hospitalId}
+                  onSave={handleSave}
+                />
+              )}
+              {activeKey === "sectioning" && (
+                <SectioningTab
+                  key={`sectioning-${currentCaseId || "none"}`}
+                  caseId={currentCaseId}
+                  accessionId={accessionId}
+                  initialData={sectioning}
+                  processing={processing}
+                  grossing={grossing}
+                  microscopy={microscopy}
+                  staining={staining}
+                  molecular={molecular}
+                  patientId={patientId}
+                  doctorId={doctorId}
+                  doctorName={doctorName}
+                  hospitalId={hospitalId}
+                  onSave={handleSave}
+                />
+              )}
+              {activeKey === "staining" && (
+                <StainingTab
+                  key={`staining-${currentCaseId || "none"}`}
+                  caseId={currentCaseId}
+                  accessionId={accessionId}
+                  initialData={staining}
+                  sectioning={sectioning}
+                  grossing={grossing}
+                  microscopy={microscopy}
+                  patientId={patientId}
+                  doctorId={doctorId}
+                  doctorName={doctorName}
+                  hospitalId={hospitalId}
+                  onSave={handleSave}
+                />
+              )}
+              {activeKey === "molecular" && (
+                <MolecularTestingTab
+                  key={`molecular-${currentCaseId || "none"}`}
+                  caseId={currentCaseId}
+                  initialData={molecular}
+                  processing={processing}
+                  sectioning={sectioning}
+                  staining={staining}
+                  microscopy={microscopy}
+                  grossing={grossing}
+                  doctorId={doctorId}
+                  doctorName={doctorName}
+                  onSave={handleSave}
+                />
+              )}
+              {activeKey === "cytopathology" && (
+                <CytopathologyTab
+                  key={`cytopathology-${currentCaseId || "none"}`}
+                  caseId={currentCaseId}
+                  initialData={cytopathology}
+                  caseRegister={caseRegister}
+                  processing={processing}
+                  sectioning={sectioning}
+                  staining={staining}
+                  molecular={molecular}
+                  doctorId={doctorId}
+                  doctorName={doctorName}
+                  onAccessionSpecimen={goToAccessioning}
+                  onSave={handleSave}
+                />
+              )}
+              {(activeKey === "primary-micro" || activeKey === "ancillary-work" || activeKey === "micro-review") && (
+                <MicroscopyTab
+                  key={`${activeKey}-${currentCaseId || "none"}`}
+                  caseId={currentCaseId}
+                  initialData={microscopy}
+                  caseRegister={caseRegister}
+                  processing={processing}
+                  sectioning={sectioning}
+                  staining={staining}
+                  molecular={molecular}
+                  grossing={grossing}
+                  doctorId={doctorId}
+                  doctorName={doctorName}
+                  mode={activeKey === "micro-review" ? "review" : activeKey === "ancillary-work" ? "ancillary" : "primary"}
+                  onSave={handleSave}
+                />
+              )}
+              {activeKey === "integration" && (
+                <IntegratedDiagnosisTab
+                  key={`integration-${currentCaseId || "none"}`}
+                  caseId={currentCaseId}
+                  accessionId={accessionId}
+                  patientId={patientId}
+                  initialData={integration}
+                  caseRegister={caseRegister}
+                  microscopyData={microscopy}
+                  stainingData={staining}
+                  molecularData={molecular}
+                  cytopathologyData={cytopathology}
+                  doctorId={doctorId}
+                  doctorName={doctorName}
                   onSave={handleSave}
                 />
               )}
@@ -286,7 +628,14 @@ const OncoPathologyWorkflow = ({ doctorId, patientId: propPatientId, doctorName 
                   key={`synoptic-${currentCaseId || "none"}`}
                   caseId={currentCaseId}
                   initialData={synoptic}
+                  caseRegister={caseRegister}
                   grossingData={grossing}
+                  microscopyData={microscopy}
+                  integrationData={integration}
+                  stainingData={staining}
+                  molecularData={molecular}
+                  doctorId={doctorId}
+                  doctorName={doctorName}
                   onSave={handleSave}
                 />
               )}
@@ -296,11 +645,38 @@ const OncoPathologyWorkflow = ({ doctorId, patientId: propPatientId, doctorName 
                   caseId={currentCaseId}
                   initialData={tnm}
                   synopticData={synoptic}
+                  caseRegister={caseRegister}
+                  microscopyData={microscopy}
+                  integrationData={integration}
                   grossingData={grossing}
+                  molecularData={molecular}
+                  cytopathologyData={cytopathology}
+                  doctorId={doctorId}
+                  doctorName={doctorName}
                   onSave={handleSave}
                 />
               )}
-              {activeIsStub && <TabStub label={MAIN_TABS[activeTab].label} />}
+              {activeKey === "final-diagnosis" && (
+                <FinalDiagnosisTab
+                  key={`final-diagnosis-${currentCaseId || "none"}`}
+                  caseId={currentCaseId}
+                  accessionId={accessionId}
+                  initialData={finalDiagnosis}
+                  caseRegister={caseRegister}
+                  grossingData={grossing}
+                  microscopyData={microscopy}
+                  integrationData={integration}
+                  stainingData={staining}
+                  molecularData={molecular}
+                  cytopathologyData={cytopathology}
+                  synopticData={synoptic}
+                  tnmData={tnm}
+                  doctorId={doctorId}
+                  doctorName={doctorName}
+                  onSave={handleSave}
+                  onSignOut={handleSignOut}
+                />
+              )}
             </Box>
           </Box>
         </Box>
@@ -315,6 +691,47 @@ const OncoPathologyWorkflow = ({ doctorId, patientId: propPatientId, doctorName 
           <IconButton size="small" onClick={() => setSnackbar((p) => ({ ...p, open: false }))} sx={{ color: C.white, p: 0.5 }}><CloseRounded fontSize="small" /></IconButton>
         </Box>
       </Snackbar>
+
+      <Dialog open={forceNewCaseOpen} onClose={() => { if (!signOutBusy) setForceNewCaseOpen(false); }} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: C.bgSecondary, borderBottom: `1px solid ${C.border}`, py: 1.5 }}>
+          <Typography sx={{ fontFamily: FONT, fontWeight: FW_NORMAL, fontSize: 16 }}>Start New Case</Typography>
+          <IconButton onClick={() => setForceNewCaseOpen(false)} size="small" disabled={signOutBusy}><CloseRounded /></IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ p: 2.5, "&:first-of-type": { pt: 3 }, fontFamily: FONT }}>
+          <Typography sx={{ display: "flex", alignItems: "center", gap: 1, fontSize: 13, fontWeight: FW_NORMAL, fontFamily: FONT, color: AMBER, mb: 1.25 }}>
+            <WarningAmberRounded sx={{ fontSize: 20, flexShrink: 0 }} />
+            The current case is not signed out.
+          </Typography>
+          <Typography sx={{ fontSize: 12.5, fontFamily: FONT, color: C.textSecond, mb: 1.5 }}>
+            {accessionId ? `Accession ${accessionId}` : "Current case"} · Status: {caseStatus || "Active"}
+          </Typography>
+          <Typography sx={{ fontSize: 12.5, fontFamily: FONT, color: C.textSecond }}>
+            A new case cannot be opened until the current case is signed out. Signing out now bypasses the usual
+            completeness checks and records this case as signed out (with the action noted as forced), so a new case
+            can be started. The current case stays available in the patient's previous pathology cases.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 2, borderTop: `1px solid ${C.border}`, background: C.bgSecondary }}>
+          <Button sx={outlineBtnSx} onClick={() => setForceNewCaseOpen(false)} disabled={signOutBusy}>
+            Cancel
+          </Button>
+          <Button
+            sx={{
+              ...outlineBtnSx,
+              px: 2, py: 0.75, background: C.black, color: C.white,
+              border: `1px solid ${C.black}`,
+              "&:hover": { background: "#222" },
+            }}
+            onClick={confirmForceNewCase}
+            disabled={signOutBusy}
+          >
+            {signOutBusy
+              ? <CircularProgress size={14} sx={{ mr: 1, color: C.white }} />
+              : <LockRounded sx={{ mr: 0.75, fontSize: 16 }} />}
+            Sign Out &amp; New Case
+          </Button>
+        </DialogActions>
+      </Dialog>
     </motion.div>
   );
 };

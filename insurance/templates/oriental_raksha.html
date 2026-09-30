@@ -280,7 +280,7 @@
     </tr>
     <tr>
       <td class="lbl">Treatment</td>
-      <td class="val">{{ critical.get('treatment','') if critical.get else '' or additional.get('initialTreatment','') if additional.get else '' }}</td>
+      <td class="val">{{ critical.get('treatment') or additional.get('initialTreatment') or '' }}</td>
     </tr>
     <tr>
       <td class="lbl">Hospital Name and Address</td>
@@ -299,8 +299,7 @@
     <tr class="sec-hdr"><td colspan="2">Ailment details</td></tr>
     <tr>
       <td class="lbl">Onset of symptoms</td>
-      <td class="val">{{ additional.get('onsetOfSymptoms','') if additional.get else '' or case.dateOfIncident or '' }}</td>
-    </tr>
+      <td class="val">{{ additional.get('onsetOfSymptoms') or case.dateOfIncident or '' }}</td>    </tr>
     <tr>
       <td class="lbl">First consultation</td>
       <td class="val">{{ additional.get('firstConsultation','') if additional.get else '' }}</td>

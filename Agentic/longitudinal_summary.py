@@ -101,7 +101,7 @@ if not GROQ_API_KEY:
     raise RuntimeError("GROQ_API_KEY is not set")
 
 llm = ChatGroq(
-    model=os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile"),
+    model=os.getenv("GROQ_MODEL", "openai/gpt-oss-120b"),
     groq_api_key=GROQ_API_KEY,
     temperature=0.1,
     max_tokens=4000,

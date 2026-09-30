@@ -52,6 +52,7 @@ const NurseRegister       = lazy(() => import("./register/NurseRegister"));
 const ClinicalNurseRegister = lazy(() => import("./webpage/ClinicalNurseRegister"));
 const ClinicDoctorRegister= lazy(() => import("./webpage/ClinicDoctorRegister"));
 const QualityCheckerRegistration = lazy(() => import("./components/QualityCheckerRegistration"));
+const VoiceDoctorAssistant =lazy(() => import("./components/VoiceDoctorAssistant"))
 
 // ─────────────────────────────────────────────
 // CHUNK GROUP 2 — Doctor workflows
@@ -85,7 +86,7 @@ const Profile             = lazy(() => import("./Abha/Profile"));
 // CHUNK GROUP 4 — Hospital & Admin
 // ─────────────────────────────────────────────
 const HospitalDashboard   = lazy(() => import("./dashboard/HospitalDashboard"));
-const AdminDashboard      = lazy(() => import("./dashboard/AdminDashboard"));
+const InsuranceClaimsRAG  = lazy(() => import("./dashboard/InsuranceDashboard"));const AdminDashboard      = lazy(() => import("./dashboard/AdminDashboard"));
 const AdminRuleConfig     = lazy(() => import("./Admin/AdminReportRule"));
 const ReportRuleSettings  = lazy(() => import("./Admin/ReportRuleSettings"));
 const HospitalAdminStaff  = lazy(() => import("./dashboard/HospitalAdminStaff"));
@@ -152,6 +153,8 @@ const DataProcessing      = lazy(() => import("./components/DataProcessing"));
 const ReportUpload        = lazy(() => import("./components/ReportUpload"));
 const PreApprovedInsuranceUpload = lazy(() => import("./components/pre_approved_insurance_upload"));
 const Preventivescreening = lazy(() => import("./components/Preventivescreening"))
+const SystemSettings = lazy(() => import("./dashboard/SystemSettings"))
+const MactConsole = lazy(() => import("./mact/MactConsole"))
 // ─────────────────────────────────────────────
 // CHUNK GROUP 10 — Public / marketing pages
 // ─────────────────────────────────────────────
@@ -165,6 +168,8 @@ const AuthRedirect        = lazy(() => import("./components/Authredirect"));
 const OncologyDashboard = lazy(() => import("./dashboard/OncologyDashboard"));
 const DoctorChat           = lazy(() => import("./components/Chat"));
 const PatientRAGTest       = lazy(() => import("./components/TestChat"));
+const DoctorUploadMulti = lazy(() => import("./dashboard/DoctorUploadMulti"));
+const EpicPatientLookup = lazy(() => import("./components/EpicPatientLookup"));
 
 
 
@@ -212,6 +217,8 @@ const App = memo(function App() {
       <Route path="/clinical-nurse-register"  element={<R component={ClinicalNurseRegister} />} />
       <Route path="/clinic-doctor-register"   element={<R component={ClinicDoctorRegister} />} />
       <Route path="/QualityCheckerRegistration" element={<R component={QualityCheckerRegistration} />} />
+      <Route path="/voice" element={<R component={VoiceDoctorAssistant} />} />
+
 
       {/* ── Doctor ── */}
       <Route path="/doctor-dashboard"         element={<R component={DoctorDashboard} />} />
@@ -241,7 +248,7 @@ const App = memo(function App() {
 
       {/* ── Hospital & Admin ── */}
       <Route path="/hospital-dashboard"       element={<R component={HospitalDashboard} />} />
-      <Route path="/admin-dashboard"          element={<R component={AdminDashboard} />} />
+      <Route path="/insurance-dashboard"      element={<R component={InsuranceClaimsRAG} />} />      <Route path="/admin-dashboard"          element={<R component={AdminDashboard} />} />
       <Route path="/admin-rule-config"        element={<R component={AdminRuleConfig} />} />
       <Route path="/report-rule-settings"     element={<R component={ReportRuleSettings} />} />
       <Route path="/hospital-admin-staff"     element={<R component={HospitalAdminStaff} />} />
@@ -303,6 +310,8 @@ const App = memo(function App() {
       <Route path="/data-processing"          element={<R component={DataProcessing} />} />
       <Route path="/report-upload"            element={<R component={ReportUpload} />} />
       <Route path="/pre-approved-insurance-upload" element={<R component={PreApprovedInsuranceUpload} />} />
+      <Route path="/system-settings"          element={<R component={SystemSettings} />} />
+      <Route path="/mact-console"             element={<R component={MactConsole} />} />
 
       {/* ── Public / Marketing ── */}
       <Route path="/"                         element={<R component={HomePage} />} />
@@ -314,6 +323,8 @@ const App = memo(function App() {
       <Route path="/auth-redirect"            element={<R component={AuthRedirect} />} />
       <Route path="/onco-dashboard"       element={<R component={OncologyDashboard} />} />
       <Route path="/patient-rag-test"         element={<R component={PatientRAGTest} />} />
+      <Route path="/doctor-upload-multi"      element={<R component={DoctorUploadMulti} />} />
+      <Route path="/epic-patient-lookup"      element={<R component={EpicPatientLookup} />} />
     </Routes>
   );
 });

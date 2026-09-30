@@ -116,13 +116,18 @@ OPD_Doctor_timings_collection = database["OPD_Doctor_timings"]
 transcription_formats_collection = database["transcription_formats"]
 dictation_collection = database["dictation"]
 
-
+strategy_collection              = database["strategy"]
 documentation_investigation_notes_collection = database["documentation-investigation-notes"]
 documentation_medication_analysis_collection = database["documentation-medication-analysis"]
 patient_visit_history_collection = database["patientVisitHistory"]
 integration_lab_reports_collection = database["integration_lab_reports"]
+periodicity_rules_collection = database["periodicity_rules"]
+bundle_collection = database["bundle"]
+tob_collection = database["tob"]
+wellkins_current_visit_data_collection = database["wellkins_current_visit_data"]
+excel_full_collection = database["excel_full"]
 
-
+strategy_collection = database["strategy"]
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -330,7 +335,8 @@ def create_doctor_from_excel_data(data: dict, hospital_sys_user_id: str):
     # 4️⃣ Generate doctor SYS USER ID
     sys_user_id = generate_doctor_id()
     created_at = datetime.now()
-    hashed_pw = hash_password(data["password"])
+    password = str(data["password"])
+    hashed_pw = hash_password(password)
 
     doctor_obj = Doctor(
         name=data["name"],
@@ -3141,4 +3147,929 @@ async def get_all_patient_lab_reports():
 
         "data": records
 
+    }
+@router.post("/upload-periodicity-rules")
+async def upload_periodicity_rules(
+    file: UploadFile = File(...)
+):
+    try:
+        # Validate file
+        if not file.filename.endswith((".xlsx", ".xls")):
+            raise HTTPException(
+                status_code=400,
+                detail="Only Excel files are allowed"
+            )
+
+        # Read excel
+        contents = await file.read()
+
+        df = pd.read_excel(
+            BytesIO(contents),
+            sheet_name="Periodicity Rules",
+            header=None
+        )
+
+
+        # Find header row dynamically
+        header_row = None
+
+        for index, row in df.iterrows():
+            values = row.astype(str).tolist()
+
+            if (
+                "Test Name" in values and
+                "CPT Code" in values and
+                "Repeat Interval (Periodicity)" in values
+            ):
+                header_row = index
+                break
+
+
+        if header_row is None:
+            raise HTTPException(
+                status_code=400,
+                detail="Required columns not found in Excel"
+            )
+
+
+        # Reload dataframe with correct headers
+        df = pd.read_excel(
+            BytesIO(contents),
+            sheet_name="Periodicity Rules",
+            header=header_row
+        )
+
+
+        records = []
+
+
+        for _, row in df.iterrows():
+
+            test_name = row.get("Test Name")
+            cpt_code = row.get("CPT Code")
+            interval = row.get("Repeat Interval (Periodicity)")
+
+
+            if pd.isna(test_name):
+                continue
+
+
+            data = {
+                "test_name": str(test_name).strip(),
+                "cpt_code": str(cpt_code).strip(),
+                "interval": str(interval).strip()
+            }
+
+            records.append(data)
+
+
+        if not records:
+            raise HTTPException(
+                status_code=400,
+                detail="No valid records found"
+            )
+
+
+        # Remove old data (optional)
+        await periodicity_rules_collection.delete_many({})
+
+
+        # Insert new data
+        result = await periodicity_rules_collection.insert_many(records)
+
+        for record, inserted_id in zip(records, result.inserted_ids):
+            record["_id"] = str(inserted_id)
+
+
+        return {
+            "status": "success",
+            "message": "Periodicity rules uploaded successfully",
+            "count": len(records)
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
+        
+        
+        
+import re
+from io import BytesIO
+
+import pandas as pd
+from fastapi import APIRouter, UploadFile, File, HTTPException
+
+
+import re
+from io import BytesIO
+
+import pandas as pd
+from fastapi import APIRouter, UploadFile, File, HTTPException
+
+
+@router.post("/upload-bundle")
+async def upload_bundle(
+    file: UploadFile = File(...)
+):
+    try:
+        # =========================================================
+        # 1. VALIDATE FILE
+        # =========================================================
+
+        if not file.filename:
+            raise HTTPException(
+                status_code=400,
+                detail="File is required"
+            )
+
+        if not file.filename.lower().endswith((".xlsx", ".xls")):
+            raise HTTPException(
+                status_code=400,
+                detail="Only Excel files are allowed"
+            )
+
+        # =========================================================
+        # 2. READ EXCEL
+        # =========================================================
+
+        contents = await file.read()
+
+        try:
+            file_ext = file.filename.lower().split(".")[-1]
+
+            engine = "xlrd" if file_ext == "xls" else "openpyxl"
+
+            df = pd.read_excel(
+                BytesIO(contents),
+                sheet_name="ProviderclaimDetailedReport",
+                header=0,
+                engine=engine
+            )
+
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail="Sheet 'ProviderclaimDetailedReport' not found"
+            )
+
+        # =========================================================
+        # 3. CLEAN COLUMN NAMES
+        # =========================================================
+
+        df.columns = [
+            str(column).strip()
+            for column in df.columns
+        ]
+
+        # =========================================================
+        # HELPER: CLEAN ROW FOR MONGODB
+        # =========================================================
+
+        def clean_record(record):
+            cleaned = {}
+
+            for key, value in record.items():
+
+                clean_key = str(key).strip()
+
+                if value is None:
+                    cleaned[clean_key] = None
+
+                elif isinstance(value, pd.Timestamp):
+                    cleaned[clean_key] = value.to_pydatetime()
+
+                elif hasattr(value, "item"):
+                    try:
+                        cleaned[clean_key] = value.item()
+                    except Exception:
+                        cleaned[clean_key] = value
+
+                elif pd.isna(value):
+                    cleaned[clean_key] = None
+
+                else:
+                    cleaned[clean_key] = value
+
+            return cleaned
+
+        # =========================================================
+        # PART 1: BUNDLE
+        #
+        # ONLY CHECK DENIAL REASON
+        # =========================================================
+
+        if "DENIAL REASON" not in df.columns:
+            raise HTTPException(
+                status_code=400,
+                detail="DENIAL REASON column not found in Excel"
+            )
+
+        target_denial_reason = (
+            "Payment is included in the allowance for another service"
+        )
+
+        bundle_df = df[
+            df["DENIAL REASON"]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+            .eq(target_denial_reason)
+        ].copy()
+
+        bundle_records = []
+
+        if not bundle_df.empty:
+
+            for record in bundle_df.to_dict(
+                orient="records"
+            ):
+                bundle_records.append(
+                    clean_record(record)
+                )
+
+        # =========================================================
+        # INSERT BUNDLE RECORDS
+        # =========================================================
+
+        bundle_count = 0
+
+        if bundle_records:
+
+            bundle_result = await bundle_collection.insert_many(
+                bundle_records
+            )
+
+            bundle_count = len(
+                bundle_result.inserted_ids
+            )
+
+        # =========================================================
+        # PART 2: TOB
+        #
+        # ONLY CHECK:
+        #   1. DENIAL REASON
+        #   2. FINAL REMARKS
+        #
+        # If TOB exists in either column,
+        # save the ENTIRE ROW.
+        # =========================================================
+
+        tob_records = []
+
+        # Columns that should be checked
+        tob_columns = [
+            "DENIAL REASON",
+            "FINAL REMARKS"
+        ]
+
+        # Check which columns actually exist
+        available_tob_columns = [
+            column
+            for column in tob_columns
+            if column in df.columns
+        ]
+
+        # Make sure at least one exists
+        if not available_tob_columns:
+
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Neither 'DENIAL REASON' nor "
+                    "'FINAL REMARKS' column found in Excel"
+                )
+            )
+
+        # =========================================================
+        # CHECK EACH ROW
+        # =========================================================
+
+        for _, row in df.iterrows():
+
+            tob_found = False
+
+            # -----------------------------------------
+            # Check ONLY DENIAL REASON and FINAL REMARKS
+            # -----------------------------------------
+
+            for column in available_tob_columns:
+
+                value = row[column]
+
+                # Ignore empty values
+                if pd.isna(value):
+                    continue
+
+                cell_value = str(value).strip()
+
+                # -----------------------------------------
+                # Check standalone TOB
+                #
+                # Examples that MATCH:
+                #
+                # TOB
+                # TOB.
+                # TOB:
+                # TOB 111
+                # Copay deducted as per policy TOB.
+                # 10% Copay deducted as per policy TOB.
+                #
+                # Examples that DON'T MATCH:
+                #
+                # STOB
+                # TOBACCO
+                # TOBY
+                # -----------------------------------------
+
+                if re.search(
+                    r"\bTOB\b",
+                    cell_value,
+                    re.IGNORECASE
+                ):
+                    tob_found = True
+                    break
+
+            # -----------------------------------------
+            # If TOB found in either column,
+            # save the FULL ROW
+            # -----------------------------------------
+
+            if tob_found:
+
+                record = row.to_dict()
+
+                cleaned_record = clean_record(record)
+
+                tob_records.append(
+                    cleaned_record
+                )
+
+        # =========================================================
+        # INSERT TOB RECORDS
+        # =========================================================
+
+        tob_count = 0
+
+        if tob_records:
+
+            tob_result = await tob_collection.insert_many(
+                tob_records
+            )
+
+            tob_count = len(
+                tob_result.inserted_ids
+            )
+
+        # =========================================================
+        # PART 3: FULL DATA
+        #
+        # SAVE THE ENTIRE SHEET AS-IS, NO FILTERING
+        # =========================================================
+
+        full_records = []
+
+        for record in df.to_dict(orient="records"):
+            full_records.append(
+                clean_record(record)
+            )
+
+        full_count = 0
+
+        if full_records:
+
+            full_result = await excel_full_collection.insert_many(
+                full_records
+            )
+
+            full_count = len(
+                full_result.inserted_ids
+            )
+
+        # =========================================================
+        # RESPONSE
+        # =========================================================
+
+        return {
+            "status": "success",
+            "message": "Excel processed successfully",
+            "bundle_count": bundle_count,
+            "tob_count": tob_count,
+            "full_count": full_count,
+            "tob_checked_columns": available_tob_columns,
+            "denial_reason": target_denial_reason
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
+        
+import math
+from datetime import date, datetime
+from bson import ObjectId
+from fastapi import HTTPException
+
+
+def clean_for_json(value):
+
+    # ObjectId
+    if isinstance(value, ObjectId):
+        return str(value)
+
+    # datetime / date
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+
+    # Float: handle NaN / Infinity
+    if isinstance(value, float):
+        if math.isnan(value) or math.isinf(value):
+            return None
+
+        return value
+
+    # Dictionary
+    if isinstance(value, dict):
+        return {
+            str(key): clean_for_json(val)
+            for key, val in value.items()
+        }
+
+    # List / tuple
+    if isinstance(value, (list, tuple)):
+        return [
+            clean_for_json(item)
+            for item in value
+        ]
+
+    # None / string / int / bool
+    return value
+
+
+@router.get("/bundles")
+async def get_bundles():
+    try:
+
+        records = await bundle_collection.find({}).to_list(
+            length=None
+        )
+
+        # Clean every MongoDB document
+        cleaned_records = [
+            clean_for_json(record)
+            for record in records
+        ]
+
+        return {
+            "status": "success",
+            "count": len(cleaned_records),
+            "data": cleaned_records
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
+        
+@router.get("/tobs")
+async def get_tobs():
+    try:
+        records = await tob_collection.find({}).to_list(length=None)
+
+        for record in records:
+            record["_id"] = str(record["_id"])
+
+        return {
+            "status": "success",
+            "count": len(records),
+            "data": records
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
+        
+        
+@router.get("/check-bundle")
+async def check_bundle(
+    investigation_name: str
+):
+    try:
+        # -----------------------------------------
+        # Validate investigation name
+        # -----------------------------------------
+        if not investigation_name or not investigation_name.strip():
+            raise HTTPException(
+                status_code=400,
+                detail="Investigation name is required"
+            )
+
+        investigation_name = investigation_name.strip()
+
+        # -----------------------------------------
+        # Case-insensitive exact match
+        #
+        # CBC == cbc == Cbc
+        # -----------------------------------------
+        rejected_count = await bundle_collection.count_documents({
+            "SERVICE DESCRIPTION": {
+                "$regex": f"^{re.escape(investigation_name)}$",
+                "$options": "i"
+            },
+            "STATUS": {
+                "$regex": "^Rejected$",
+                "$options": "i"
+            }
+        })
+
+        # -----------------------------------------
+        # Rejected bundle found
+        # -----------------------------------------
+        if rejected_count > 0:
+
+            return {
+                "status": "bill not payable",
+                "count": rejected_count,
+                "text": (
+                    f"Due to bundle rule, "
+                    f"{investigation_name} is not payable."
+                )
+            }
+
+        # -----------------------------------------
+        # No rejected bundle found
+        # -----------------------------------------
+        return {
+            "status": "bill payable",
+            "count": 0,
+            "text": (
+                f"No rejected bundle found for "
+                f"{investigation_name}."
+            )
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
+        
+        
+import re
+
+@router.get("/check-tob")
+async def check_tob(
+    policy_no: str,
+    investigation_name: str
+):
+    try:
+        # -----------------------------------------
+        # Validate policy number
+        # -----------------------------------------
+        if not policy_no or not policy_no.strip():
+            raise HTTPException(
+                status_code=400,
+                detail="Policy number is required"
+            )
+
+        # -----------------------------------------
+        # Validate investigation name
+        # -----------------------------------------
+        if not investigation_name or not investigation_name.strip():
+            raise HTTPException(
+                status_code=400,
+                detail="Investigation name is required"
+            )
+
+        policy_no = policy_no.strip()
+        investigation_name = investigation_name.strip()
+
+        # -----------------------------------------
+        # Search TOB collection
+        #
+        # POLICY NO           -> policy_no
+        # SERVICE DESCRIPTION -> investigation_name
+        # STATUS               -> Rejected
+        #
+        # All case-insensitive
+        # -----------------------------------------
+
+        rejected_count = await tob_collection.count_documents({
+            "POLICY NO": {
+                "$regex": f"^{re.escape(policy_no)}$",
+                "$options": "i"
+            },
+            "SERVICE DESCRIPTION": {
+                "$regex": f"^{re.escape(investigation_name)}$",
+                "$options": "i"
+            },
+            "STATUS": {
+                "$regex": "^Rejected$",
+                "$options": "i"
+            }
+        })
+
+        # -----------------------------------------
+        # Rejected TOB found
+        # -----------------------------------------
+        if rejected_count > 0:
+
+            return {
+                "status": "bill not payable",
+                "count": rejected_count,
+                "text": (
+                    f"Due to TOB rule, "
+                    f"{investigation_name} is not payable "
+                    f"for policy {policy_no}."
+                )
+            }
+
+        # -----------------------------------------
+        # No rejected TOB found
+        # -----------------------------------------
+        return {
+            "status": "bill payable",
+            "count": 0,
+            "text": (
+                f"No rejected TOB rule found for "
+                f"{investigation_name} "
+                f"under policy {policy_no}."
+            )
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
+
+@router.get("/wellkins-current-visit-data")
+async def get_wellkins_current_visit_data():
+    try:
+        data = await wellkins_current_visit_data_collection.find({}).to_list(length=None)
+
+        if not data:
+            return {
+                "status": "success",
+                "count": 0,
+                "message": "No data available",
+                "data": []
+            }
+
+        # Convert ObjectId to string
+        for item in data:
+            if "_id" in item:
+                item["_id"] = str(item["_id"])
+
+        return {
+            "status": "success",
+            "count": len(data),
+            "data": data
+        }
+
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={
+                "status": "error",
+                "message": str(e)
+            }
+        )
+
+
+
+# ============================================================
+# SCHEMAS
+# ============================================================
+
+class SaveStrategyRequest(BaseModel):
+    patient_id:    str = Field(..., description="Patient ID")
+    doctor_id:     str = Field(..., description="Doctor ID")
+    strategy:      str = Field(
+        ...,
+        description="Strategy identifier or 'id — name' string, "
+                    "e.g. 'A — Neoadjuvant systemic therapy, then surgery'",
+    )
+    strategy_id:   Optional[str] = Field(None, description="Optional strategy id, e.g. 'A'")
+    strategy_name: Optional[str] = Field(None, description="Optional strategy name")
+    intent:        Optional[str] = Field(None, description="Treatment intent, e.g. 'Neoadjuvant'")
+    saved_by:      Optional[str] = Field(None, description="Doctor ID or name of the person who saved")
+    note:          Optional[str] = Field(None, description="Optional free-text note")
+
+    # ── NEW — everything the doctor saw for this strategy at save time ──
+    regimen:       Optional[str] = Field(None, description="Regimen options for the selected strategy")
+    evidence:      Optional[str] = Field(None, description="Supporting evidence for the selected strategy")
+    role:          Optional[str] = Field(None, description="Strategy role, e.g. 'Neoadjuvant'")
+    why:           Optional[str] = Field(None, description="Why this strategy was considered")
+    prerequisites: Optional[str] = Field(None, description="Prerequisites for this strategy")
+    constraints:   Optional[str] = Field(None, description="Constraints for this strategy")
+
+
+class SaveStrategyResponse(BaseModel):
+    status:        str
+    patient_id:    str
+    doctor_id:     str
+    strategy:      str
+    strategy_id:   Optional[str] = None
+    strategy_name: Optional[str] = None
+    intent:        Optional[str] = None
+    saved_by:      Optional[str] = None
+    note:          Optional[str] = None
+    saved_at:      str
+    revision:      int = 1
+    active:        bool = True
+
+    # ── NEW ──
+    regimen:       Optional[str] = None
+    evidence:      Optional[str] = None
+    role:          Optional[str] = None
+    why:           Optional[str] = None
+    prerequisites: Optional[str] = None
+    constraints:   Optional[str] = None
+
+
+# ============================================================
+# SERIALIZER
+# ============================================================
+
+def _serialize(doc: Dict[str, Any]) -> Dict[str, Any]:
+    """Convert a Mongo document into the response shape."""
+    return {
+        "status":        "success",
+        "patient_id":    doc.get("patient_id", ""),
+        "doctor_id":     doc.get("doctor_id", ""),
+        "strategy":      doc.get("strategy", ""),
+        "strategy_id":   doc.get("strategy_id"),
+        "strategy_name": doc.get("strategy_name"),
+        "intent":        doc.get("intent"),
+        "saved_by":      doc.get("saved_by"),
+        "note":          doc.get("note"),
+        "saved_at": (
+            doc["saved_at"].isoformat()
+            if isinstance(doc.get("saved_at"), datetime)
+            else str(doc.get("saved_at") or "")
+        ),
+        "revision": int(doc.get("revision", 1)),
+        "active":   bool(doc.get("active", True)),
+
+        # ── NEW ──
+        "regimen":       doc.get("regimen"),
+        "evidence":      doc.get("evidence"),
+        "role":          doc.get("role"),
+        "why":           doc.get("why"),
+        "prerequisites": doc.get("prerequisites"),
+        "constraints":   doc.get("constraints"),
+    }
+
+
+# ============================================================
+# ENDPOINTS
+# ============================================================
+
+@router.post("/save_strategy", response_model=SaveStrategyResponse)
+async def save_selected_strategy(payload: SaveStrategyRequest) -> SaveStrategyResponse:
+    """
+    Persist the doctor's selected strategy for this patient.
+
+    Behaviour:
+      • Deactivates any previous active revision for (patient_id, doctor_id).
+      • Inserts a new active revision with revision = previous + 1.
+      • The old revisions stay in the collection for audit.
+    """
+    if not payload.patient_id.strip() or not payload.doctor_id.strip():
+        raise HTTPException(status_code=400, detail="patient_id and doctor_id are required.")
+    if not payload.strategy.strip():
+        raise HTTPException(status_code=400, detail="strategy is required.")
+
+    coll = strategy_collection
+    now  = datetime.now(timezone.utc)
+
+    # Find the current active revision (if any) to know the next revision number.
+    existing = await coll.find_one(
+        {"patient_id": payload.patient_id, "doctor_id": payload.doctor_id, "active": True},
+        sort=[("revision", -1)],
+    )
+    next_revision = (int(existing["revision"]) + 1) if existing else 1
+
+    # Deactivate the previous active revision.
+    if existing:
+        await coll.update_one(
+            {"_id": existing["_id"]},
+            {"$set": {"active": False, "superseded_at": now}},
+        )
+
+    # Insert the new active revision.
+    doc = {
+        "patient_id":    payload.patient_id,
+        "doctor_id":     payload.doctor_id,
+        "strategy":      payload.strategy.strip(),
+        "strategy_id":   (payload.strategy_id or "").strip() or None,
+        "strategy_name": (payload.strategy_name or "").strip() or None,
+        "intent":        (payload.intent or "").strip() or None,
+        "saved_by":      (payload.saved_by or payload.doctor_id).strip(),
+        "note":          (payload.note or "").strip() or None,
+        "saved_at":      now,
+        "active":        True,
+        "revision":      next_revision,
+        "superseded_at": None,
+
+        # ── NEW — persist the strategy detail ──
+        "regimen":       (payload.regimen or "").strip() or None,
+        "evidence":      (payload.evidence or "").strip() or None,
+        "role":          (payload.role or "").strip() or None,
+        "why":           (payload.why or "").strip() or None,
+        "prerequisites": (payload.prerequisites or "").strip() or None,
+        "constraints":   (payload.constraints or "").strip() or None,
+    }
+    result = await coll.insert_one(doc)
+    doc["_id"] = result.inserted_id
+
+    logger.info(
+        f"[saved_strategy] saved strategy patient={payload.patient_id} "
+        f"doctor={payload.doctor_id} revision={next_revision} strategy={doc['strategy']!r}"
+    )
+
+    return SaveStrategyResponse(**_serialize(doc))
+
+
+@router.get("/get_strategy", response_model=SaveStrategyResponse)
+async def get_saved_strategy(
+    patient_id: str = Query(..., description="Patient ID"),
+    doctor_id:  str = Query(..., description="Doctor ID"),
+) -> SaveStrategyResponse:
+    """Return the currently active saved strategy for this patient + doctor."""
+    doc = await strategy_collection.find_one(
+        {"patient_id": patient_id, "doctor_id": doctor_id, "active": True},
+        sort=[("revision", -1)],
+    )
+    if not doc:
+        raise HTTPException(
+            status_code=404,
+            detail="No saved strategy for this patient and doctor.",
+        )
+    return SaveStrategyResponse(**_serialize(doc))
+
+
+@router.get("/get_strategy_history")
+async def get_saved_strategy_history(
+    patient_id: str = Query(..., description="Patient ID"),
+    doctor_id:  str = Query(..., description="Doctor ID"),
+    limit:      int = Query(20, ge=1, le=200),
+) -> Dict[str, Any]:
+    """
+    Return the full revision history for this patient + doctor, newest first.
+    Useful for audit: the doctor can see every strategy they've saved.
+    """
+    cursor = (
+        strategy_collection
+            .find({"patient_id": patient_id, "doctor_id": doctor_id})
+            .sort("revision", -1)
+            .limit(limit)
+    )
+    items: List[Dict[str, Any]] = []
+    async for d in cursor:
+        items.append(_serialize(d))
+    return {
+        "status":     "success",
+        "patient_id": patient_id,
+        "doctor_id":  doctor_id,
+        "count":      len(items),
+        "items":      items,
+    }
+
+
+@router.delete("/clear_strategy")
+async def clear_saved_strategy(
+    patient_id: str = Query(..., description="Patient ID"),
+    doctor_id:  str = Query(..., description="Doctor ID"),
+) -> Dict[str, Any]:
+    """
+    Clear the currently active strategy (soft delete — keeps history).
+    """
+    now = datetime.now(timezone.utc)
+    result = await strategy_collection.update_many(
+        {"patient_id": patient_id, "doctor_id": doctor_id, "active": True},
+        {"$set": {"active": False, "superseded_at": now}},
+    )
+    return {
+        "status":     "success",
+        "cleared":    result.modified_count > 0,
+        "modified":   result.modified_count,
+        "patient_id": patient_id,
+        "doctor_id":  doctor_id,
     }

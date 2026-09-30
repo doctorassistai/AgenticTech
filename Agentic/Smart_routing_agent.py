@@ -51,14 +51,14 @@ agent_results_collection = mongo_db["intake_agent_results"]
 
 # Parallel agents — larger token budget to prevent truncated JSON
 llm = ChatGroq(
-    model="llama-3.1-8b-instant",
+    model="openai/gpt-oss-20b",
     temperature=0.1,
     max_tokens=16384,  # CHANGED: from 12000 to maximum
     groq_api_key=GROQ_API_KEY,
 )
 
 llm_synthesis = ChatGroq(
-    model="llama-3.3-70b-versatile",
+    model="openai/gpt-oss-120b",
     temperature=0.1,
     max_tokens=16384,  # CHANGED: from 15000 to maximum
     groq_api_key=GROQ_API_KEY,
@@ -1623,8 +1623,8 @@ async def agents_health():
             "PA3 · Memory Agent    — Fully dynamic: drug interactions from actual meds, blood group MTP, allergy safety [PARALLEL]",
             "PS  · Synthesis Agent — Cross-agent conflict detection + integrated risk summary",
         ],
-        "llm_fast":      "llama-3.1-8b-instant  (PA1, PA2, PA3) — 8000 tokens",
-        "llm_synthesis": "llama-3.3-70b-versatile (PS) — 10000 tokens",
+        "llm_fast":      "openai/gpt-oss-20b  (PA1, PA2, PA3) — 8000 tokens",
+        "llm_synthesis": "openai/gpt-oss-120b (PS) — 10000 tokens",
         "parallel_execution": True,
         "dynamic_features": [
             "All prompts built 100% from DB records — no hardcoded patient data",

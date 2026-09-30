@@ -1,15 +1,37 @@
 """
-qc_review.py — QC Review backend router (v3)
+qc_review.py — QC Review backend router (v4)
+
+Checklist-building logic (_normalize_doc_key, _find_form_val, _get_path,
+_get_document_id, _get_file_name, _is_not_applicable, _get_skip_reason,
+_is_accounted, DOC_KEY_LABELS, TEXT_KEYS, build_investigations) now lives in
+routes/agents/investigation_checklist.py and is imported from there, so QC's
+idea of "what's missing" and the new field-officer conclusion/findings
+generators' idea of "what's missing" can never drift apart (design decision
+#3 in the field-officer pipeline rewrite). No behavior change from v3 is
+intended by this refactor — see the two spots marked NOTE below for the only
+places call sites had to adjust to the shared module's shape.
+
+INV_TYPES / INV_LABELS are GONE (design decision #1): the shared module's
+count_docs()/build_investigations() discover whichever inv_type codes are
+actually present on claim['investigations'] at runtime, and label_for_inv_type()
+supplies a best-effort label (falling back to title-casing unknown codes)
+instead of this file hardcoding the type set.
 """
 
 import os
-import re
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 
+import uuid
 from fastapi import APIRouter, HTTPException, Request
 from pymongo import MongoClient
 from pydantic import BaseModel
+from celery_client import celery_client
+
+from routes.agents.investigation_checklist import (
+    count_docs,
+    build_investigations,
+)
 
 # ─── Init ──────────────────────────────────────────────────────────────────────
 
@@ -20,86 +42,16 @@ _db = _client["doctorassistai"]
 
 CLAIMS          = _db["insurance_claims_new"]
 SUBMISSIONS     = _db["task_submissions"]
-PROCESSED_DOCS  = _db["processed_documents"]
 USER_AUTH       = _db["user_auth"]
+ADV_TASKS       = _db["advanced_upload_tasks"]
 
 STORAGE_BASE = "https://doctorassist.ai/uploads"
 
-INV_TYPES = ["MV", "HV", "HVI", "TELE", "BILL"]
 
-INV_LABELS = {
-    "MV":   "Medical Visit",
-    "HV":   "Hospital Visit",
-    "HVI":  "Home / Neighbour Visit",
-    "TELE": "Telephone Verification",
-    "BILL": "Bill Verification",
-}
-
-TEXT_KEYS = {
-    "mv_visit_date", "mv_remarks",
-    "hv_doctor_name", "hv_observations",
-    "hvi_neighbour", "hvi_remarks",
-    "tele_person", "tele_datetime", "tele_summary",
-    "bill_amount", "bill_notes",
-}
-
-DOC_KEY_LABELS = {
-    "id_proof_of_patient":               "ID Proof – Patient",
-    "policy_card___health_card":         "Policy / Health Card",
-    "id_of_person_filling_mvf":          "ID – MVF Filler",
-    "discharge_summary":                 "Discharge Summary",
-    "doctor_statement":                  "Doctor Statement",
-    "hospital_records":                  "Hospital Records",
-    "op_card":                           "OP Card",
-    "neighbour_statement":               "Neighbour Statement",
-    "residence_proof":                   "Residence Proof",
-    "call_recording":                    "Call Recording",
-    "pharmacy_bill":                     "Pharmacy Bill",
-    "discharge_bill":                    "Discharge Bill",
-    "report_format":                     "Report Format",
-    "check_for_cl___rsby_availability":  "CL / RSBY Check",
-    "id_proof_patient":                  "ID Proof – Patient",
-    "id_proof_mvf":                      "ID Proof – MVF",
-    "policy_card":                       "Policy Card",
-    "investigation_reports":             "Investigation Reports",
-    "bill_copy":                         "Bill Copy",
-    "driving_license":                   "Driving License",
-    "scar_photo":                        "Scar Photo",
-}
-
-
-# ─── Helpers ───────────────────────────────────────────────────────────────────
-
-def _get_path(value) -> Optional[str]:
-    if not value:
-        return None
-    if isinstance(value, str):
-        v = value.strip()
-        # ✅ Accept voice-note sentinel in addition to paths/URLs
-        return v if v and ("/" in v or v.startswith("http") or v == "voice-note") else None
-    if isinstance(value, dict):
-        path = value.get("path", "")
-        if isinstance(path, str):
-            p = path.strip()
-            return p if p and ("/" in p or p.startswith("http") or p == "voice-note") else None
-    return None
-
-
-def _get_document_id(value) -> Optional[str]:
-    if isinstance(value, dict):
-        return value.get("document_id") or None
-    return None
-
-
-def _get_file_name(value) -> Optional[str]:
-    if isinstance(value, dict):
-        return value.get("file_name") or None
-    return None
-
-
-def _is_file(value) -> bool:
-    return _get_path(value) is not None
-
+# ─── Helpers (QC-local — not part of the shared checklist module) ────────────
+# Everything below is either QC-display-only (formatting, URLs) or reads from
+# collections (SUBMISSIONS/PROCESSED_DOCS) the shared checklist module has no
+# business knowing about, so these stay here.
 
 def _full_url(path: str) -> Optional[str]:
     if not path or not isinstance(path, str):
@@ -107,7 +59,7 @@ def _full_url(path: str) -> Optional[str]:
     v = path.strip()
     if not v:
         return None
-    # ✅ Voice notes have no real file URL — return None so the View button isn't shown
+    # Voice notes have no real file URL — return None so the View button isn't shown
     if v == "voice-note":
         return None
     if v.startswith("http://") or v.startswith("https://"):
@@ -128,15 +80,6 @@ def _fmt(dt) -> str:
         return str(dt)
 
 
-def _get_submission_for_entry(all_subs: dict, inv_type: str, user_id: str) -> dict:
-    inv_subs = all_subs.get(inv_type, {})
-    if not inv_subs:
-        return {}
-    if user_id and user_id in inv_subs:
-        return inv_subs[user_id]
-    return next(iter(inv_subs.values()), {})
-
-
 def _load_submissions(case_id: str) -> dict:
     doc = SUBMISSIONS.find_one({"task_id": case_id}, {"_id": 0})
     if not doc:
@@ -145,186 +88,37 @@ def _load_submissions(case_id: str) -> dict:
 
 
 def _get_extracted_for_file(case_id: str, form_value) -> dict:
-    """Returns entities, raw_markdown, and sections for a file."""
-    if not form_value:
-        return {"entities": [], "raw_markdown": None, "sections": None}
-
-    doc = None
-
-    # Strategy 1: match by document_id
-    document_id = _get_document_id(form_value)
-    if document_id:
-        doc = PROCESSED_DOCS.find_one(
-            {"document_id": document_id},
-            {"entities": 1, "file_url": 1, "file_name": 1,
-             "raw_markdown": 1, "sections": 1, "_id": 0}
-        )
-
-    # Strategy 2: match by filename + patient_id
-    if not doc:
-        path = _get_path(form_value)
-        if path:
-            filename = path.strip().split("/")[-1]
-            doc = PROCESSED_DOCS.find_one(
-                {
-                    "patient_id": case_id,
-                    "$or": [
-                        {"file_name": filename},
-                        {"metadata.file_name": filename},
-                        {"file_url": {"$regex": filename, "$options": "i"}},
-                    ]
-                },
-                {"entities": 1, "file_url": 1, "file_name": 1,
-                 "raw_markdown": 1, "sections": 1, "_id": 0}
-            )
-
-    if not doc:
-        return {"entities": [], "raw_markdown": None, "sections": None}
-
-    entities = doc.get("entities", [])
-    filtered_entities = [
-        {
-            "entity_type":   e.get("entity_type", ""),
-            "entity_name":   e.get("entity_name", ""),
-            "entity_value":  e.get("entity_value"),
-            "confidence":    round(float(e.get("confidence", 0.9)), 2),
-            "evidence_text": e.get("evidence_text", ""),
-        }
-        for e in entities
-        if e.get("entity_type") not in ("Document Date",) and e.get("entity_name")
-    ][:30]
-
-    return {
-        "entities":     filtered_entities,
-        "raw_markdown": doc.get("raw_markdown"),
-        "sections":     doc.get("sections"),
-    }
+    """
+    QC reviews the RAW PDF only — parsing (and therefore entities/raw
+    markdown) doesn't happen until after QC verifies and assigns a
+    doctor (see verify_claim below, which enqueues
+    field_investigation_parse.run). So there's nothing to look up here
+    at QC time; this always returns empty. Passed into
+    build_investigations() as its injectable extractor (see that
+    function's docstring) rather than being hardcoded into it, since a
+    future caller with real extracted content needs a different one.
+    """
+    return {"entities": [], "raw_markdown": None, "sections": None}
 
 
-def _normalize_doc_key(label: str) -> str:
-    key = label.lower()
-    key = re.sub(r'[^a-z0-9]+', '_', key)
-    key = key.strip('_')
-    return key
-
-
-def _find_form_val(form_data: dict, normalized_key: str):
-    if normalized_key in form_data:
-        return form_data[normalized_key]
-    for k, v in form_data.items():
-        if _normalize_doc_key(k) == normalized_key:
-            return v
-    return None
-
-
-def _count_docs(claim: dict, all_subs: dict) -> dict:
-    total = submitted = 0
-    inv = claim.get("investigations", {})
-    for inv_type in INV_TYPES:
-        entries = inv.get(inv_type, [])
-        for entry in entries:
-            if not isinstance(entry, dict):
-                continue
-
-            assigned = entry.get("documents", [])
-            assigned_keys = [_normalize_doc_key(d) for d in assigned]
-            total += len(assigned_keys)
-
-            user_id = entry.get("investigatorId", "")
-            ts = _get_submission_for_entry(all_subs, inv_type, user_id)
-            form_data = ts.get("form_data", {}) or entry.get("submission", {}).get("form_data", {}) or {}
-
-            for dk in assigned_keys:
-                if _is_file(_find_form_val(form_data, dk)):
-                    submitted += 1
-
-            for dk, fv in form_data.items():
-                if dk not in assigned_keys and dk not in TEXT_KEYS and _is_file(fv):
-                    total += 1
-                    submitted += 1
-
-    return {"total": total, "submitted": submitted}
-
-
-def _build_investigations(case_id: str, claim: dict, all_subs: dict) -> dict:
-    inv_raw = claim.get("investigations", {})
-    result = {}
-
-    for inv_type in INV_TYPES:
-        entries = inv_raw.get(inv_type, [])
-        if not entries:
-            continue
-
-        for entry in entries:
-            if not isinstance(entry, dict):
-                continue
-
-            inv_name = entry.get("investigatorName") or entry.get("investigator") or "Unknown"
-            user_id  = entry.get("investigatorId") or ""
-            req_docs = entry.get("documents", [])
-            if not isinstance(req_docs, list):
-                req_docs = []
-            req_docs = [_normalize_doc_key(d) for d in req_docs]
-
-            ts       = _get_submission_for_entry(all_subs, inv_type, user_id)
-            embedded = entry.get("submission") or {}
-
-            if ts:
-                form_data    = ts.get("form_data", {}) or {}
-                submitted_at = ts.get("submitted_at")
-                status       = ts.get("status", "PENDING")
-            elif embedded:
-                form_data    = embedded.get("form_data", {}) or {}
-                submitted_at = embedded.get("submitted_at")
-                status       = embedded.get("status", "PARTIAL")
-            else:
-                form_data    = {}
-                submitted_at = None
-                status       = "PENDING"
-
-            docs_detail = []
-            for dk in req_docs:
-                form_val  = _find_form_val(form_data, dk)
-                path      = _get_path(form_val)
-                doc_id    = _get_document_id(form_val)
-                orig_name = _get_file_name(form_val)
-                file_url  = _full_url(path) if path else None
-                extracted = _get_extracted_for_file(case_id, form_val) if path else {}
-
-                docs_detail.append({
-                    "key":          dk,
-                    "label":        DOC_KEY_LABELS.get(dk, dk.replace("_", " ").title()),
-                    "submitted":    bool(path),
-                    "file_url":     file_url,
-                    "file_name":    orig_name or (path.split("/")[-1] if path else None),
-                    "document_id":  doc_id,
-                    "entities":     extracted.get("entities", []),
-                    "raw_markdown": extracted.get("raw_markdown"),
-                    "sections":     extracted.get("sections"),
-                })
-
-            text_fields = {
-                k: v for k, v in form_data.items()
-                if k in TEXT_KEYS and v
-            }
-
-            submission_out = None
-            if form_data or status != "PENDING":
-                submission_out = {
-                    "status":       status,
-                    "submitted_at": _fmt(submitted_at) if submitted_at else None,
-                    "text_fields":  text_fields,
-                }
-
-            result[inv_type] = {
-                "label":            INV_LABELS.get(inv_type, inv_type),
-                "investigatorName": inv_name,
-                "investigatorId":   user_id,
-                "docs":             docs_detail,
-                "submission":       submission_out,
-            }
-
-    return result
+def _attach_file_urls_and_format_dates(investigations: dict) -> dict:
+    """
+    Post-process the shared module's build_investigations() output for QC
+    display purposes only:
+      - resolve each doc's storage path into a full viewable URL (the
+        shared module intentionally has no STORAGE_BASE / URL concept)
+      - format submission.submitted_at as a display string via _fmt()
+        (the shared module intentionally returns the raw value so a
+        non-QC caller isn't forced into QC's date-format opinion)
+    This is applied in place and the same dict is returned for convenience.
+    """
+    for inv in investigations.values():
+        for doc in inv.get("docs", []):
+            doc["file_url"] = _full_url(doc.pop("_path", None)) if "_path" in doc else doc.get("file_url")
+        submission = inv.get("submission")
+        if submission and submission.get("submitted_at"):
+            submission["submitted_at"] = _fmt(submission["submitted_at"])
+    return investigations
 
 
 # ─── Request Models ─────────────────────────────────────────────────────────────
@@ -336,8 +130,9 @@ class VerifyRequest(BaseModel):
 
 
 class FlaggedDoc(BaseModel):
-    invType: str
-    docKey:  str
+    invType:        str
+    docKey:         str
+    investigatorId: Optional[str] = ""
 
 
 class ReinvestigateRequest(BaseModel):
@@ -376,7 +171,7 @@ def get_qc_claims(
     if status and status not in ("All", ""):
         query["status"] = status
     else:
-        query["status"] = {"$in": ["ALLOCATED", "COMPLETED", "IN_PROGRESS"]}
+        query["status"] = {"$in": ["ALLOCATED", "COMPLETED", "IN_PROGRESS", "VERIFIED"]}
 
     if search:
         query["$or"] = [
@@ -395,7 +190,7 @@ def get_qc_claims(
     for claim in raw_claims:
         case_id    = claim.get("caseId", "")
         all_subs   = _load_submissions(case_id)
-        doc_counts = _count_docs(claim, all_subs)
+        doc_counts = count_docs(claim, all_subs)
 
         claim_mode = claim.get("claimMode", "") or ""
         claim_sub  = claim.get("claimSubtype", "") or claim.get("claimSubType", "") or ""
@@ -433,8 +228,23 @@ def get_qc_claim_detail(case_id: str):
         raise HTTPException(status_code=404, detail="Claim not found")
 
     all_subs       = _load_submissions(case_id)
-    doc_counts     = _count_docs(claim, all_subs)
-    investigations = _build_investigations(case_id, claim, all_subs)
+    doc_counts     = count_docs(claim, all_subs)
+    investigations = build_investigations(
+        case_id, claim, all_subs, get_extracted_for_file=_get_extracted_for_file
+    )
+
+    # NOTE (call-site adjustment #1): build_investigations() returns each
+    # doc's raw storage `path` rather than a resolved URL (the shared
+    # module has no STORAGE_BASE concept — that's display-layer, QC-only),
+    # and returns submission.submitted_at unformatted (the raw stored
+    # value, so a non-QC caller isn't forced into QC's date-display
+    # opinion). Resolve both here, same end result as v3's response shape.
+    for inv in investigations.values():
+        for doc in inv.get("docs", []):
+            doc["file_url"] = _full_url(doc.pop("path", None))
+        submission = inv.get("submission")
+        if submission and submission.get("submitted_at"):
+            submission["submitted_at"] = _fmt(submission["submitted_at"])
 
     claim_mode = claim.get("claimMode", "") or ""
     claim_sub  = claim.get("claimSubtype", "") or ""
@@ -452,8 +262,6 @@ def get_qc_claim_detail(case_id: str):
         "docsTotal":      doc_counts["total"],
         "investigations": investigations,
     }
-
-
 @router.post("/claims/{case_id}/verify")
 def verify_claim(case_id: str, body: VerifyRequest):
     claim = CLAIMS.find_one({"caseId": case_id}, {"_id": 0, "caseId": 1})
@@ -476,6 +284,39 @@ def verify_claim(case_id: str, body: VerifyRequest):
             }
         },
     )
+    # ── PARSING DISABLED ─────────────────────────────────────────────────
+    # Field-officer investigation documents (MV/HV/HVI/etc.) are no longer
+    # parsed on verify — they only need to be stored and shown to the
+    # doctor as PDFs (see get_doctor_case_detail's investigationDocuments
+    # handling in the doctor router, which is unaffected by this change).
+    # The old flow enqueued a Celery task that parsed every
+    # "queued_for_parse" entry and then kicked off findings regeneration.
+    # Commented out rather than removed, so it can be restored later.
+    #
+    # task_id = f"fieldparse_{uuid.uuid4().hex}"
+    # now = datetime.utcnow()
+    # ADV_TASKS.insert_one({
+    #     "task_id":       task_id,
+    #     "case_id":       case_id,
+    #     "doc_id":        None,
+    #     "task_type":     "field_investigation_parse",
+    #     "file_name":     "Field investigation documents",
+    #     "display_label": "Field investigation documents",
+    #     "supervisor_id": None,
+    #     "status":        "queued",
+    #     "result":        None,
+    #     "error":         None,
+    #     "total_pages":   None,
+    #     "created_at":    now,
+    #     "updated_at":    now,
+    # })
+    # celery_client.send_task(
+    #     "field_investigation_parse.run",
+    #     kwargs={"task_id": task_id, "case_id": case_id},
+    #     task_id=task_id,
+    #     queue="advanced_upload_queue",
+    # )
+    # ─────────────────────────────────────────────────────────────────────
 
     return {
         "status":  "success",
@@ -483,40 +324,111 @@ def verify_claim(case_id: str, body: VerifyRequest):
         "caseId":  case_id,
     }
 
-
 @router.post("/claims/{case_id}/reinvestigate")
 def reinvestigate_claim(case_id: str, body: ReinvestigateRequest):
+    """
+    Sends specific documents back for re-collection. This has to clear the
+    stale file reference in every place it's stored, not just flip a status
+    flag — otherwise the doc still "counts" as submitted for QC review,
+    doctor findings, and the mobile app's own completion check.
+
+    Layers touched per flagged doc:
+      1. CLAIMS.investigations.{inv_type}.$.submission.form_data — the copy
+         QC's own completion counting (count_docs / build_investigations)
+         reads.
+      2. SUBMISSIONS.submissions.{inv_type}.{investigatorId}.form_data — the
+         copy GET /app/tasks/{user_id} reads to populate mySubmittedFormData,
+         which is what the mobile app's TaskStepsScreen uses to decide
+         whether a step is already filled.
+      3. CLAIMS.investigationDocuments[] — the entry is neutralized (file
+         reference nulled, status flipped) but NOT deleted. The mobile
+         submit endpoint (/app/tasks/submit) finds this exact entry by
+         (inv_type, step_key, investigator_id) and overwrites it in place
+         on resubmit, reusing the same doc_id — so keeping the entry alive
+         is what makes "find and replace on resubmit" work.
+      4. SUBMISSIONS.reinvestigation.{inv_type}.{doc_key} — audit trail +
+         remarks, shown back to the field officer. Cleared automatically
+         by /app/tasks/submit once that exact field is resubmitted.
+    """
     claim = CLAIMS.find_one({"caseId": case_id}, {"_id": 0, "caseId": 1, "investigations": 1})
     if not claim:
         raise HTTPException(status_code=404, detail="Claim not found")
 
-    flagged = [{"invType": f.invType, "docKey": f.docKey} for f in body.flaggedDocs]
+    flagged = [
+        {"invType": f.invType, "docKey": f.docKey, "investigatorId": f.investigatorId or ""}
+        for f in body.flaggedDocs
+    ]
 
     for flag in body.flaggedDocs:
         inv_type = flag.invType
         doc_key  = flag.docKey
+        user_id  = flag.investigatorId or ""
 
-        CLAIMS.update_many(
-            {
-                "caseId": case_id,
-                f"investigations.{inv_type}": {"$exists": True},
-            },
+        # 1. Clear the field + flip status on the claim's investigation
+        #    submission — targeted at the specific investigator's entry
+        #    when we know who it is, otherwise falls back to every entry
+        #    under that inv_type (old behaviour, kept for safety).
+        unset_ops = {f"investigations.{inv_type}.$[elem].submission.form_data.{doc_key}": ""}
+        set_ops   = {f"investigations.{inv_type}.$[elem].submission.status": "REINVESTIGATE"}
+
+        if user_id:
+            CLAIMS.update_one(
+                {"caseId": case_id},
+                {"$unset": unset_ops, "$set": set_ops},
+                array_filters=[{"elem.investigatorId": user_id}],
+            )
+        else:
+            CLAIMS.update_one(
+                {"caseId": case_id, f"investigations.{inv_type}": {"$exists": True}},
+                {"$unset": unset_ops, "$set": set_ops},
+                array_filters=[{"elem.investigatorId": {"$exists": True}}],
+            )
+
+        # 2. Clear the same field in task_submissions — this is the copy
+        #    GET /app/tasks/{user_id} actually serves to the mobile app.
+        if user_id:
+            SUBMISSIONS.update_one(
+                {"task_id": case_id},
+                {
+                    "$unset": {
+                        f"submissions.{inv_type}.{user_id}.form_data.{doc_key}":            "",
+                        f"submissions.{inv_type}.{user_id}.parsed_document_ids.{doc_key}":  "",
+                    },
+                    "$set": {
+                        f"submissions.{inv_type}.{user_id}.status": "REINVESTIGATE",
+                    },
+                },
+            )
+
+        # 3. Neutralize (don't delete) the matching investigationDocuments
+        #    entry so it can't be viewed or parsed, while preserving doc_id
+        #    continuity for the resubmit-in-place logic in /app/tasks/submit.
+        doc_match: Dict[str, Any] = {"inv_type": inv_type, "step_key": doc_key}
+        if user_id:
+            doc_match["investigator_id"] = user_id
+
+        CLAIMS.update_one(
+            {"caseId": case_id, "investigationDocuments": {"$elemMatch": doc_match}},
             {
                 "$set": {
-                    f"investigations.{inv_type}.$[].submission.status":             "REINVESTIGATE",
-                    f"investigations.{inv_type}.$[].submission.reinvestigate_docs": flagged,
+                    "investigationDocuments.$.status":       "REINVESTIGATION_REQUESTED",
+                    "investigationDocuments.$.pdf_url":      None,
+                    "investigationDocuments.$.storage_path": None,
+                    "investigationDocuments.$.raw_markdown": None,
                 }
             },
         )
 
+        # 4. Audit trail / remarks for this specific field.
         SUBMISSIONS.update_one(
             {"task_id": case_id},
             {
                 "$set": {
                     f"reinvestigation.{inv_type}.{doc_key}": {
-                        "status":       "REQUIRED",
-                        "requested_at": datetime.utcnow(),
-                        "remarks":      body.remarks or "",
+                        "status":         "REQUIRED",
+                        "requested_at":   datetime.utcnow(),
+                        "remarks":        body.remarks or "",
+                        "investigatorId": user_id,
                     }
                 }
             },

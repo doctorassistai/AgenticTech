@@ -1,4 +1,8 @@
 from fastapi import APIRouter, HTTPException, Request
+from jose import jwt, JWTError
+from passlib.context import CryptContext
+from bson import ObjectId
+import re
 from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo.errors import DuplicateKeyError
 from datetime import datetime, timezone, date
@@ -7,6 +11,8 @@ from typing import Optional, List, Dict, Any
 from twilio.rest import Client as TwilioClient
 import os
 import uuid
+import secrets
+import asyncio
 import logging
 logger = logging.getLogger(__name__)
 from dotenv import load_dotenv
@@ -18,13 +24,818 @@ load_dotenv()
 
 router = APIRouter(prefix="/web", tags=["Insurance"])
 
+MD_ROLES = {"md", "managing-director", "super-admin"}
+OPERATIONS_ROLE = "operations-head"
+
+# Spec roles (TPA_Verification_System_Functional_Requirements.md §2, §8, §9, §13, §16)
+STATE_TEAM_ROLE = "state-team"
+REPORTING_MANAGER_ROLES = {"reporting-manager"}  # spec §87: one today, do not hard-limit to one
+QC_MANAGER_ROLE = "qc-manager"
+PORTAL_TEAM_ROLE = "portal-team"
+DOCTOR_ROLE = "auditing-doctor-new"
+
+# Roles the Operations Head may provision (spec §16 matrix: Operations Head is the sole user-registration authority)
+PROVISIONABLE_ROLES = {STATE_TEAM_ROLE, "reporting-manager", QC_MANAGER_ROLE, PORTAL_TEAM_ROLE, "field-officer"}
+
+_INACTIVE_STATUSES = {"inactive", "deactivated", "disabled"}
+_passwords = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+
+class MDLogin(BaseModel):
+    username: str
+    password: str
+
+
+class MDRegistration(BaseModel):
+    username: str
+    password: str
+    full_name: str
+    email: Optional[str] = None
+
+
+class OperationsHeadAssignment(MDRegistration):
+    pass
+
+
+@router.post("/md/register", status_code=201)
+async def register_first_md(body: MDRegistration):
+    """Create the first MD account; registration closes after initial use."""
+    username = body.username.strip()
+    full_name = body.full_name.strip()
+    email = body.email.strip().lower() if body.email else None
+    if not re.fullmatch(r"[A-Za-z0-9._-]{3,64}", username):
+        raise HTTPException(status_code=400, detail="Username must be 3–64 letters, numbers, dots, underscores or hyphens")
+    if not full_name:
+        raise HTTPException(status_code=400, detail="Full name is required")
+    if len(body.password) < 12 or len(body.password.encode("utf-8")) > 72:
+        raise HTTPException(status_code=400, detail="Password must be at least 12 characters and at most 72 bytes")
+    if email and ("@" not in email or len(email) > 254):
+        raise HTTPException(status_code=400, detail="Invalid email address")
+
+    users = db["user_auth"]
+    if await users.find_one({"role": {"$in": list(MD_ROLES)}}, {"_id": 1}):
+        raise HTTPException(status_code=409, detail="A Managing Director account already exists")
+    identifiers = [{"username": username}]
+    if email:
+        identifiers.append({"email": email})
+    if await users.find_one({"$or": identifiers}, {"_id": 1}):
+        raise HTTPException(status_code=409, detail="Username or email already in use")
+
+    guard = db["setup_guards"]
+    try:
+        await guard.insert_one({"_id": "first-md-account", "created_at": datetime.now(timezone.utc)})
+    except DuplicateKeyError:
+        raise HTTPException(status_code=409, detail="MD registration has already been used")
+
+    user_id = str(uuid.uuid4())
+    try:
+        user = {
+            "sys_user_id": user_id,
+            "username": username,
+            "full_name": full_name,
+            "password": _passwords.hash(body.password),
+            "role": "managing-director",
+            "status": "active",
+            "created_at": datetime.now(timezone.utc),
+        }
+        if email:
+            user["email"] = email
+        await users.insert_one(user)
+    except Exception:
+        await guard.delete_one({"_id": "first-md-account"})
+        logger.exception("MD registration failed")
+        raise HTTPException(status_code=500, detail="Unable to create Managing Director account")
+
+    return {"message": "Managing Director account created", "username": username, "user_id": user_id}
+
+
+async def _require_md(request: Request):
+    authorization = request.headers.get("Authorization", "")
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Sign in as Managing Director")
+    try:
+        payload = jwt.decode(
+            authorization[7:], os.getenv("SECRET_KEY"),
+            algorithms=[os.getenv("ALGORITHM", "HS256")],
+        )
+    except (JWTError, ValueError, TypeError):
+        raise HTTPException(status_code=401, detail="Invalid or expired session")
+    if payload.get("role") not in MD_ROLES:
+        raise HTTPException(status_code=403, detail="Managing Director access required")
+    subject = payload.get("sub")
+    if not subject:
+        raise HTTPException(status_code=401, detail="Invalid session")
+    identifiers = [{"sys_user_id": subject}]
+    if ObjectId.is_valid(subject):
+        identifiers.append({"_id": ObjectId(subject)})
+    user = await db["user_auth"].find_one({"$or": identifiers})
+    if not user or user.get("role") not in MD_ROLES or str(user.get("status", "active")).lower() in {"inactive", "deactivated", "disabled"}:
+        raise HTTPException(status_code=403, detail="Managing Director access required")
+    return payload
+
+
+@router.post("/md/login")
+async def md_login(body: MDLogin):
+    return await _login_for_roles(body, MD_ROLES)
+
+
+async def _login_for_roles(body: MDLogin, roles: set[str]):
+    username = body.username.strip()
+    if not username or not body.password:
+        raise HTTPException(status_code=400, detail="Username and password are required")
+    user = await db["user_auth"].find_one({
+        "$or": [{"username": username}, {"email": username}],
+        "role": {"$in": list(roles)},
+    })
+    password_hash = user.get("password") if user else None
+    try:
+        valid_password = bool(password_hash and _passwords.verify(body.password, password_hash))
+    except (ValueError, TypeError):
+        valid_password = False
+    if not valid_password or str(user.get("status", "active")).lower() in {"inactive", "deactivated", "disabled"}:
+        raise HTTPException(status_code=401, detail="Invalid credentials or inactive account")
+    secret = os.getenv("SECRET_KEY")
+    if not secret:
+        raise HTTPException(status_code=503, detail="Authentication is unavailable")
+    now = datetime.now(timezone.utc)
+    token = jwt.encode({
+        "sub": str(user.get("sys_user_id") or user["_id"]),
+        "role": user["role"],
+        "iat": now,
+        "exp": now + timedelta(hours=8),
+    }, secret, algorithm=os.getenv("ALGORITHM", "HS256"))
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "role": user["role"],
+        "user_id": str(user.get("sys_user_id") or user["_id"]),
+        "full_name": user.get("full_name") or user.get("fullName") or username,
+    }
+
+
+@router.post("/operations/login")
+async def operations_login(body: MDLogin):
+    return await _login_for_roles(body, {OPERATIONS_ROLE})
+
+
+async def _require_operations(request: Request):
+    authorization = request.headers.get("Authorization", "")
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Sign in as Operations Head")
+    try:
+        payload = jwt.decode(
+            authorization[7:], os.getenv("SECRET_KEY"),
+            algorithms=[os.getenv("ALGORITHM", "HS256")],
+        )
+    except (JWTError, ValueError, TypeError):
+        raise HTTPException(status_code=401, detail="Invalid or expired session")
+    if payload.get("role") != OPERATIONS_ROLE:
+        raise HTTPException(status_code=403, detail="Operations Head access required")
+    user = await db["user_auth"].find_one({"sys_user_id": payload.get("sub"), "role": OPERATIONS_ROLE})
+    if not user or str(user.get("status", "active")).lower() in {"inactive", "deactivated", "disabled"}:
+        raise HTTPException(status_code=403, detail="Operations Head access required")
+    return payload
+
+
+@router.get("/md/operations-heads")
+async def list_operations_heads(request: Request):
+    await _require_md(request)
+    cursor = db["user_auth"].find(
+        {"role": OPERATIONS_ROLE},
+        {"_id": 0, "username": 1, "full_name": 1, "email": 1, "status": 1, "created_at": 1},
+    )
+    return {"users": await cursor.to_list(length=100)}
+
+
+@router.post("/md/operations-heads", status_code=201)
+async def assign_operations_head(request: Request, body: OperationsHeadAssignment):
+    md = await _require_md(request)
+    username = body.username.strip()
+    full_name = body.full_name.strip()
+    email = body.email.strip().lower() if body.email else None
+    if not re.fullmatch(r"[A-Za-z0-9._-]{3,64}", username):
+        raise HTTPException(status_code=400, detail="Username must be 3–64 letters, numbers, dots, underscores or hyphens")
+    if not full_name:
+        raise HTTPException(status_code=400, detail="Full name is required")
+    if len(body.password) < 12 or len(body.password.encode("utf-8")) > 72:
+        raise HTTPException(status_code=400, detail="Password must be at least 12 characters and at most 72 bytes")
+    if email and ("@" not in email or len(email) > 254):
+        raise HTTPException(status_code=400, detail="Invalid email address")
+    identifiers = [{"username": username}]
+    if email:
+        identifiers.append({"email": email})
+    users = db["user_auth"]
+    if await users.find_one({"$or": identifiers}, {"_id": 1}):
+        raise HTTPException(status_code=409, detail="Username or email already in use")
+    user_id = str(uuid.uuid4())
+    record = {
+        "sys_user_id": user_id,
+        "username": username,
+        "full_name": full_name,
+        "password": _passwords.hash(body.password),
+        "role": OPERATIONS_ROLE,
+        "status": "active",
+        "created_at": datetime.now(timezone.utc),
+        "created_by": md["sub"],
+    }
+    if email:
+        record["email"] = email
+    try:
+        await users.insert_one(record)
+    except DuplicateKeyError:
+        raise HTTPException(status_code=409, detail="Username or email already in use")
+    return {"message": "Operations Head assigned", "username": username, "user_id": user_id}
+
+
+# -------------------- SPEC ROLES: guards, logins, provisioning --------------------
+
+async def _require_roles(request: Request, allowed: set, label: str):
+    """Shared Bearer-token guard: decode, check role claim, re-verify the user is active."""
+    authorization = request.headers.get("Authorization", "")
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail=f"Sign in as {label}")
+    try:
+        payload = jwt.decode(
+            authorization[7:], os.getenv("SECRET_KEY"),
+            algorithms=[os.getenv("ALGORITHM", "HS256")],
+        )
+    except (JWTError, ValueError, TypeError):
+        raise HTTPException(status_code=401, detail="Invalid or expired session")
+    if payload.get("role") not in allowed:
+        raise HTTPException(status_code=403, detail=f"{label} access required")
+    subject = payload.get("sub")
+    if not subject:
+        raise HTTPException(status_code=401, detail="Invalid session")
+    identifiers = [{"sys_user_id": subject}]
+    if ObjectId.is_valid(subject):
+        identifiers.append({"_id": ObjectId(subject)})
+    user = await db["user_auth"].find_one({"$or": identifiers})
+    if not user or user.get("role") not in allowed or str(user.get("status", "active")).lower() in _INACTIVE_STATUSES:
+        raise HTTPException(status_code=403, detail=f"{label} access required")
+    return payload
+
+
+async def _require_state_team(request: Request):
+    return await _require_roles(request, {STATE_TEAM_ROLE}, "State Team")
+
+
+async def _require_reporting_manager(request: Request):
+    return await _require_roles(request, REPORTING_MANAGER_ROLES, "Reporting Manager")
+
+
+async def _require_qc_manager(request: Request):
+    return await _require_roles(request, {QC_MANAGER_ROLE}, "QC Manager")
+
+
+async def _require_portal_team(request: Request):
+    return await _require_roles(request, {PORTAL_TEAM_ROLE}, "Portal Team")
+
+
+@router.post("/state-team/login")
+async def state_team_login(body: MDLogin):
+    return await _login_for_roles(body, {STATE_TEAM_ROLE})
+
+
+@router.post("/reporting-manager/login")
+async def reporting_manager_login(body: MDLogin):
+    return await _login_for_roles(body, REPORTING_MANAGER_ROLES)
+
+
+@router.post("/qc-manager/login")
+async def qc_manager_login(body: MDLogin):
+    return await _login_for_roles(body, {QC_MANAGER_ROLE})
+
+
+@router.post("/portal-team/login")
+async def portal_team_login(body: MDLogin):
+    return await _login_for_roles(body, {PORTAL_TEAM_ROLE})
+
+
+class RoleUserCreate(BaseModel):
+    role: str
+    username: str
+    password: str
+    full_name: Optional[str] = None
+    email: Optional[str] = None
+    states: Optional[List[str]] = None
+
+
+@router.get("/operations/users")
+async def list_role_users(request: Request, role: Optional[str] = None):
+    await _require_operations(request)
+    if role:
+        if role not in PROVISIONABLE_ROLES:
+            raise HTTPException(status_code=400, detail="Unknown role")
+        query = {"role": role}
+    else:
+        query = {"role": {"$in": list(PROVISIONABLE_ROLES)}}
+    cursor = db["user_auth"].find(
+        query,
+        {"_id": 0, "sys_user_id": 1, "username": 1, "full_name": 1, "email": 1,
+         "role": 1, "status": 1, "states": 1, "created_at": 1},
+    )
+    return {"users": await cursor.to_list(length=500)}
+
+
+@router.post("/operations/users", status_code=201)
+async def create_role_user(request: Request, body: RoleUserCreate):
+    """Operations Head provisions a spec-role user (spec §16). Minimal: username + password."""
+    ops = await _require_operations(request)
+    role = body.role.strip()
+    if role not in PROVISIONABLE_ROLES:
+        raise HTTPException(status_code=400, detail="Role is not provisionable here")
+    username = body.username.strip()
+    full_name = (body.full_name or "").strip() or username
+    email = body.email.strip().lower() if body.email else None
+    if not re.fullmatch(r"[A-Za-z0-9._-]{3,64}", username):
+        raise HTTPException(status_code=400, detail="Username must be 3–64 letters, numbers, dots, underscores or hyphens")
+    if len(body.password) < 8 or len(body.password.encode("utf-8")) > 72:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters and at most 72 bytes")
+    if email and ("@" not in email or len(email) > 254):
+        raise HTTPException(status_code=400, detail="Invalid email address")
+    states = None
+    if role == STATE_TEAM_ROLE:
+        states = [s.strip() for s in (body.states or []) if s and s.strip()]
+        if not states:
+            raise HTTPException(status_code=400, detail="At least one state is required for a State Team user")
+    identifiers = [{"username": username}]
+    if email:
+        identifiers.append({"email": email})
+    users = db["user_auth"]
+    if await users.find_one({"$or": identifiers}, {"_id": 1}):
+        raise HTTPException(status_code=409, detail="Username or email already in use")
+    user_id = str(uuid.uuid4())
+    record = {
+        "sys_user_id": user_id,
+        "username": username,
+        "full_name": full_name,
+        "password": _passwords.hash(body.password),
+        "role": role,
+        "status": "active",
+        "created_at": datetime.now(timezone.utc),
+        "created_by": ops.get("sub"),
+    }
+    if email:
+        record["email"] = email
+    if states is not None:
+        record["states"] = states
+    try:
+        await users.insert_one(record)
+    except DuplicateKeyError:
+        raise HTTPException(status_code=409, detail="Username or email already in use")
+    return {"message": "User created", "username": username, "user_id": user_id, "role": role}
+
+
+class RoleUserUpdate(BaseModel):
+    full_name: Optional[str] = None
+    email: Optional[str] = None
+    role: Optional[str] = None
+    status: Optional[str] = None
+    states: Optional[List[str]] = None
+
+
+# Human-friendly generated passwords: an easy-to-read word + separator + digits.
+# Deliberately simple (spec: minimal provisioning) — copy/paste and share, then
+# the user can change it later. Avoids ambiguous characters.
+_PWD_WORDS = ["Falcon", "Harbor", "Maple", "Orbit", "Pine", "River", "Summit", "Willow", "Cobalt", "Ember"]
+
+
+def _generate_password() -> str:
+    word = secrets.choice(_PWD_WORDS)
+    digits = "".join(secrets.choice("23456789") for _ in range(4))
+    return f"{word}-{digits}"
+
+
+async def _find_provisioned_user(user_id: str):
+    user = await db["user_auth"].find_one({"sys_user_id": user_id})
+    if not user or user.get("role") not in PROVISIONABLE_ROLES:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
+
+
+@router.patch("/operations/users/{user_id}")
+async def update_role_user(request: Request, user_id: str, body: RoleUserUpdate):
+    """Operations Head edits an existing provisioned user's fields."""
+    await _require_operations(request)
+    users = db["user_auth"]
+    user = await _find_provisioned_user(user_id)
+    update: Dict[str, Any] = {}
+
+    new_role = user.get("role")
+    if body.role is not None:
+        new_role = body.role.strip()
+        if new_role not in PROVISIONABLE_ROLES:
+            raise HTTPException(status_code=400, detail="Role is not provisionable here")
+        update["role"] = new_role
+
+    if body.full_name is not None:
+        update["full_name"] = body.full_name.strip() or user.get("username")
+
+    if body.email is not None:
+        email = body.email.strip().lower()
+        if email:
+            if "@" not in email or len(email) > 254:
+                raise HTTPException(status_code=400, detail="Invalid email address")
+            clash = await users.find_one({"email": email, "sys_user_id": {"$ne": user_id}}, {"_id": 1})
+            if clash:
+                raise HTTPException(status_code=409, detail="Email already in use")
+            update["email"] = email
+        else:
+            update["email"] = None
+
+    if body.status is not None:
+        status = body.status.strip().lower()
+        if status not in {"active", "inactive"}:
+            raise HTTPException(status_code=400, detail="Status must be 'active' or 'inactive'")
+        update["status"] = status
+
+    # State restriction (spec §89) applies to State Team users. Keep states
+    # consistent with the effective role after any role change.
+    if new_role == STATE_TEAM_ROLE:
+        if body.states is not None:
+            states = [s.strip() for s in body.states if s and s.strip()]
+            if not states:
+                raise HTTPException(status_code=400, detail="At least one state is required for a State Team user")
+            update["states"] = states
+        elif not user.get("states"):
+            raise HTTPException(status_code=400, detail="At least one state is required for a State Team user")
+    elif body.role is not None and new_role != STATE_TEAM_ROLE:
+        update["states"] = []
+    elif body.states is not None:
+        update["states"] = [s.strip() for s in body.states if s and s.strip()]
+
+    if not update:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    update["updated_at"] = datetime.now(timezone.utc)
+    await users.update_one({"sys_user_id": user_id}, {"$set": update})
+    return {"message": "User updated", "user_id": user_id}
+
+
+@router.post("/operations/users/{user_id}/reset-password")
+async def reset_role_user_password(request: Request, user_id: str):
+    """Operations Head resets a user's password to a fresh auto-generated one.
+    Returns the plaintext once so it can be copied and shared securely."""
+    ops = await _require_operations(request)
+    user = await _find_provisioned_user(user_id)
+    new_password = _generate_password()
+    await db["user_auth"].update_one(
+        {"sys_user_id": user_id},
+        {"$set": {
+            "password": _passwords.hash(new_password),
+            "password_reset_at": datetime.now(timezone.utc),
+            "password_reset_by": ops.get("sub"),
+        }},
+    )
+    return {"message": "Password reset", "username": user.get("username"), "password": new_password}
+
+
+# ==================== Doctor registration + probation (Operations Head) ====================
+# Doctors are user_auth docs with role DOCTOR_ROLE. Probation is configuration-driven
+# (spec §25): a global default duration (operations_config singleton) that Operations
+# Head can edit, applied at registration, with per-doctor extend / end-early actions.
+# Dates are stored as ISO date strings (YYYY-MM-DD) in IST to keep this date-granular
+# concept free of the UTC/IST datetime ambiguity elsewhere in this file.
+
+DEFAULT_PROBATION_MONTHS = 3
+_OPS_CONFIG_ID = "operations-config"
+
+
+async def _get_operations_config() -> Dict[str, Any]:
+    doc = await db["operations_config"].find_one({"_id": _OPS_CONFIG_ID}) or {}
+    return {"probation_months": int(doc.get("probation_months", DEFAULT_PROBATION_MONTHS))}
+
+
+def _today_ist() -> date:
+    return datetime.now(IST).date()
+
+
+def _add_months(iso_date: str, months: int) -> str:
+    """Add calendar months to an ISO date string, clamping the day to month length."""
+    d = date.fromisoformat(iso_date)
+    total = (d.year * 12 + (d.month - 1)) + months
+    year, month = divmod(total, 12)
+    month += 1
+    # Clamp day to the last valid day of the target month.
+    if month == 12:
+        next_month_first = date(year + 1, 1, 1)
+    else:
+        next_month_first = date(year, month + 1, 1)
+    last_day = (next_month_first - timedelta(days=1)).day
+    return date(year, month, min(d.day, last_day)).isoformat()
+
+
+def _effective_probation_status(doc: Dict[str, Any]) -> str:
+    """Derive the current status: an explicit end stays; otherwise auto-complete once
+    the end date has passed."""
+    status = doc.get("probation_status")
+    if status == "ended-early":
+        return "ended-early"
+    end = doc.get("probation_end")
+    if end and _today_ist().isoformat() >= end:
+        return "completed"
+    return status or "active"
+
+
+def _doctor_query(user_id: str) -> Dict[str, Any]:
+    """Match a doctor by our own sys_user_id or by Mongo _id, so doctors created
+    here AND ones registered through the external HMS flow (which only have an
+    _id) are all manageable from the one Operations page — a single doctor pool."""
+    ors: List[Dict[str, Any]] = [{"sys_user_id": user_id}]
+    try:
+        ors.append({"_id": ObjectId(user_id)})
+    except Exception:
+        pass
+    return {"role": DOCTOR_ROLE, "$or": ors}
+
+
+async def _find_doctor(user_id: str) -> Dict[str, Any]:
+    doc = await db["user_auth"].find_one(_doctor_query(user_id))
+    if not doc:
+        raise HTTPException(status_code=404, detail="Doctor not found")
+    return doc
+
+
+def _doctor_public(doc: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        # Stable handle for actions: prefer our UUID, else the Mongo _id string.
+        "id": doc.get("sys_user_id") or str(doc.get("_id")),
+        "sys_user_id": doc.get("sys_user_id"),
+        "full_name": doc.get("full_name"),
+        "username": doc.get("username"),
+        "email": doc.get("email"),
+        "phone_number": doc.get("phone_number"),
+        "specialization": doc.get("specialization"),
+        "qualification": doc.get("qualification"),
+        "registration_number": doc.get("registration_number"),
+        "experience": doc.get("experience"),
+        "status": doc.get("status", "active"),
+        "date_of_joining": doc.get("date_of_joining"),
+        "probation_months": doc.get("probation_months"),
+        "probation_end": doc.get("probation_end"),
+        "probation_status": _effective_probation_status(doc),
+    }
+
+
+class OpsConfigUpdate(BaseModel):
+    probation_months: int
+
+
+@router.get("/operations/config")
+async def get_operations_config(request: Request):
+    await _require_operations(request)
+    return await _get_operations_config()
+
+
+@router.put("/operations/config")
+async def update_operations_config(request: Request, body: OpsConfigUpdate):
+    ops = await _require_operations(request)
+    if body.probation_months < 1 or body.probation_months > 36:
+        raise HTTPException(status_code=400, detail="Probation duration must be between 1 and 36 months")
+    await db["operations_config"].update_one(
+        {"_id": _OPS_CONFIG_ID},
+        {"$set": {
+            "probation_months": body.probation_months,
+            "updated_at": datetime.now(timezone.utc),
+            "updated_by": ops.get("sub"),
+        }},
+        upsert=True,
+    )
+    return await _get_operations_config()
+
+
+class DoctorCreate(BaseModel):
+    full_name: str
+    username: str
+    password: str
+    email: Optional[str] = None
+    phone_number: Optional[str] = None
+    specialization: Optional[str] = None
+    qualification: Optional[str] = None
+    registration_number: Optional[str] = None
+    experience: Optional[str] = None
+    date_of_joining: Optional[str] = None
+    probation_months: Optional[int] = None
+
+
+@router.get("/operations/doctors")
+async def list_doctors(request: Request):
+    await _require_operations(request)
+    cursor = db["user_auth"].find({"role": DOCTOR_ROLE})
+    return {"doctors": [_doctor_public(d) for d in await cursor.to_list(length=500)]}
+
+
+@router.post("/operations/doctors", status_code=201)
+async def create_doctor(request: Request, body: DoctorCreate):
+    """Operations Head registers an auditing doctor with an auto-calculated probation."""
+    ops = await _require_operations(request)
+    username = body.username.strip()
+    full_name = (body.full_name or "").strip() or username
+    email = body.email.strip().lower() if body.email else None
+    if not re.fullmatch(r"[A-Za-z0-9._-]{3,64}", username):
+        raise HTTPException(status_code=400, detail="Username must be 3–64 letters, numbers, dots, underscores or hyphens")
+    if len(body.password) < 8 or len(body.password.encode("utf-8")) > 72:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters and at most 72 bytes")
+    if email and ("@" not in email or len(email) > 254):
+        raise HTTPException(status_code=400, detail="Invalid email address")
+
+    # Date of joining defaults to today (IST); probation duration defaults to config.
+    if body.date_of_joining:
+        try:
+            doj = date.fromisoformat(body.date_of_joining).isoformat()
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Date of joining must be YYYY-MM-DD")
+    else:
+        doj = _today_ist().isoformat()
+    cfg = await _get_operations_config()
+    months = body.probation_months if body.probation_months is not None else cfg["probation_months"]
+    if months < 1 or months > 36:
+        raise HTTPException(status_code=400, detail="Probation duration must be between 1 and 36 months")
+
+    identifiers = [{"username": username}]
+    if email:
+        identifiers.append({"email": email})
+    users = db["user_auth"]
+    if await users.find_one({"$or": identifiers}, {"_id": 1}):
+        raise HTTPException(status_code=409, detail="Username or email already in use")
+
+    user_id = str(uuid.uuid4())
+    record = {
+        "sys_user_id": user_id,
+        "username": username,
+        "full_name": full_name,
+        "password": _passwords.hash(body.password),
+        "role": DOCTOR_ROLE,
+        "status": "active",
+        "specialization": (body.specialization or "").strip() or None,
+        "qualification": (body.qualification or "").strip() or None,
+        "registration_number": (body.registration_number or "").strip() or None,
+        "experience": (body.experience or "").strip() or None,
+        "date_of_joining": doj,
+        "probation_months": months,
+        "probation_end": _add_months(doj, months),
+        "probation_status": "active",
+        "probation_history": [],
+        "created_at": datetime.now(timezone.utc),
+        "created_by": ops.get("sub"),
+    }
+    if email:
+        record["email"] = email
+    if body.phone_number and body.phone_number.strip():
+        record["phone_number"] = body.phone_number.strip()
+    try:
+        await users.insert_one(record)
+    except DuplicateKeyError:
+        raise HTTPException(status_code=409, detail="Username or email already in use")
+    return {"message": "Doctor registered", "username": username, "user_id": user_id,
+            "probation_end": record["probation_end"]}
+
+
+class DoctorUpdate(BaseModel):
+    full_name: Optional[str] = None
+    email: Optional[str] = None
+    phone_number: Optional[str] = None
+    specialization: Optional[str] = None
+    qualification: Optional[str] = None
+    registration_number: Optional[str] = None
+    experience: Optional[str] = None
+    status: Optional[str] = None
+
+
+@router.patch("/operations/doctors/{user_id}")
+async def update_doctor(request: Request, user_id: str, body: DoctorUpdate):
+    await _require_operations(request)
+    users = db["user_auth"]
+    doctor = await _find_doctor(user_id)
+    update: Dict[str, Any] = {}
+
+    if body.full_name is not None:
+        update["full_name"] = body.full_name.strip() or doctor.get("username")
+    if body.email is not None:
+        email = body.email.strip().lower()
+        if email:
+            if "@" not in email or len(email) > 254:
+                raise HTTPException(status_code=400, detail="Invalid email address")
+            clash = await users.find_one({"email": email, "sys_user_id": {"$ne": user_id}}, {"_id": 1})
+            if clash:
+                raise HTTPException(status_code=409, detail="Email already in use")
+            update["email"] = email
+        else:
+            update["email"] = None
+    if body.status is not None:
+        status = body.status.strip().lower()
+        if status not in {"active", "inactive"}:
+            raise HTTPException(status_code=400, detail="Status must be 'active' or 'inactive'")
+        update["status"] = status
+    for field in ("phone_number", "specialization", "qualification", "registration_number", "experience"):
+        value = getattr(body, field)
+        if value is not None:
+            update[field] = value.strip() or None
+
+    if not update:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    update["updated_at"] = datetime.now(timezone.utc)
+    await users.update_one({"_id": doctor["_id"]}, {"$set": update})
+    return {"message": "Doctor updated", "user_id": user_id}
+
+
+@router.post("/operations/doctors/{user_id}/reset-password")
+async def reset_doctor_password(request: Request, user_id: str):
+    ops = await _require_operations(request)
+    doctor = await _find_doctor(user_id)
+    new_password = _generate_password()
+    await db["user_auth"].update_one(
+        {"_id": doctor["_id"]},
+        {"$set": {
+            "password": _passwords.hash(new_password),
+            "password_reset_at": datetime.now(timezone.utc),
+            "password_reset_by": ops.get("sub"),
+        }},
+    )
+    return {"message": "Password reset", "username": doctor.get("username"), "password": new_password}
+
+
+class ProbationAction(BaseModel):
+    action: str  # set-duration | extend | end-early
+    months: Optional[int] = None
+    end_date: Optional[str] = None
+
+
+@router.post("/operations/doctors/{user_id}/probation")
+async def update_doctor_probation(request: Request, user_id: str, body: ProbationAction):
+    """Change probation duration, extend, or end early. Every action is recorded."""
+    ops = await _require_operations(request)
+    doctor = await _find_doctor(user_id)
+    doj = doctor.get("date_of_joining") or _today_ist().isoformat()
+    action = body.action.strip()
+    set_fields: Dict[str, Any] = {}
+    history: Dict[str, Any] = {"action": action, "at": datetime.now(timezone.utc), "by": ops.get("sub")}
+
+    if action == "set-duration":
+        if body.months is None or body.months < 1 or body.months > 36:
+            raise HTTPException(status_code=400, detail="months must be between 1 and 36")
+        set_fields["probation_months"] = body.months
+        set_fields["probation_end"] = _add_months(doj, body.months)
+        set_fields["probation_status"] = "active"
+        history["months"] = body.months
+    elif action == "extend":
+        if body.end_date:
+            try:
+                new_end = date.fromisoformat(body.end_date).isoformat()
+            except ValueError:
+                raise HTTPException(status_code=400, detail="end_date must be YYYY-MM-DD")
+        elif body.months and body.months > 0:
+            current_end = doctor.get("probation_end") or _add_months(doj, doctor.get("probation_months") or DEFAULT_PROBATION_MONTHS)
+            new_end = _add_months(current_end, body.months)
+        else:
+            raise HTTPException(status_code=400, detail="Provide months (>0) or an end_date to extend")
+        set_fields["probation_end"] = new_end
+        set_fields["probation_status"] = "extended"
+        history["end_date"] = new_end
+        if body.months:
+            history["months"] = body.months
+    elif action == "end-early":
+        set_fields["probation_end"] = _today_ist().isoformat()
+        set_fields["probation_status"] = "ended-early"
+        history["end_date"] = set_fields["probation_end"]
+    else:
+        raise HTTPException(status_code=400, detail="Unknown action")
+
+    await db["user_auth"].update_one(
+        {"_id": doctor["_id"]},
+        {"$set": set_fields, "$push": {"probation_history": history}},
+    )
+    refreshed = await _find_doctor(user_id)
+    return {"message": "Probation updated", "user_id": user_id,
+            "probation_end": refreshed.get("probation_end"),
+            "probation_status": _effective_probation_status(refreshed)}
+
 MONGO_URI = os.getenv("MONGO_URI")
 MONGO_DB  = os.getenv("MONGO_DB", "doctorassistai")
 
 motor_client = AsyncIOMotorClient(MONGO_URI)
 db = motor_client[MONGO_DB]
 collection = db["insurance_claims_new"]
-case_documents_col = db["case_documents"]   # ← add this
+
+CASE_LIST_PROJECTION = {
+    "_id": 0,
+    "caseId": 1,
+    "insurerRef": 1,
+    "insurer": 1,
+    "policyNumber": 1,
+    "claimantName": 1,
+    "claimantMobile": 1,
+    "hospitalDetails.name": 1,
+    "hospitalDetails.type": 1,
+    "doctor_assigned": 1,
+    "tags": 1,
+    "claimedAmount": 1,
+    "claimPriority": 1,
+    "status": 1,
+    "investigations": 1,
+    "targetDate": 1,
+    "createdAt": 1,
+    "updatedAt": 1,
+}
 
 
 async def ensure_indexes():
@@ -32,6 +843,8 @@ async def ensure_indexes():
     await collection.create_index("caseId", unique=True)
     await collection.create_index("claimantMobile")
     await collection.create_index("createdAt")
+    await collection.create_index("status")
+    await collection.create_index("tags")
 
 
 # -------------------- MODEL --------------------
@@ -515,11 +1328,10 @@ async def get_cases(
                 {"claimantMobile": {"$regex": search, "$options": "i"}},
             ]
 
-        cursor = collection.find(query).sort("createdAt", -1).skip(skip).limit(limit)
+        cursor = collection.find(query, CASE_LIST_PROJECTION).sort("createdAt", -1).skip(skip).limit(limit)
         cases  = await cursor.to_list(length=limit)
 
         for case in cases:
-            case["_id"] = str(case["_id"])
             if isinstance(case.get("createdAt"), datetime):
                 case["createdAt"] = case["createdAt"].isoformat()
             if isinstance(case.get("updatedAt"), datetime):
@@ -538,14 +1350,14 @@ async def get_case_stats():
     returns one page's worth of documents at a time).
     """
     try:
-        total     = await collection.count_documents({})
-        active    = await collection.count_documents(
-            {"status": {"$nin": ["COMPLETED", "CLOSED", "DRAFT"]}}
-        )
-        completed = await collection.count_documents({"status": "COMPLETED"})
-
         start_of_day_ist = datetime.now(IST).replace(hour=0, minute=0, second=0, microsecond=0)
-        today = await collection.count_documents({"createdAt": {"$gte": start_of_day_ist}})
+
+        total, active, completed, today = await asyncio.gather(
+            collection.count_documents({}),
+            collection.count_documents({"status": {"$nin": ["COMPLETED", "CLOSED", "DRAFT"]}}),
+            collection.count_documents({"status": "COMPLETED"}),
+            collection.count_documents({"createdAt": {"$gte": start_of_day_ist}}),
+        )
 
         return {"total": total, "active": active, "today": today, "completed": completed}
     except Exception as e:
@@ -812,6 +1624,55 @@ async def get_doctor_stats(
         },
     }
 
+@router.patch("/debug-case/{case_id}/fields")
+async def debug_patch_fields(case_id: str, request: Request):
+    """
+    TEST-ONLY endpoint: patch arbitrary top-level fields on a case without
+    the full InsuranceCase validation (no required-field checks). Use this
+    from Postman to quickly try different insurer / tpaName combinations
+    and confirm the format lands correctly in Mongo.
+
+    Body: any subset of top-level fields, e.g.
+      { "insurer": "Niva Bupa Health Insurance", "tpaName": "Optimus Medical Services" }
+
+    Notes:
+    - Does NOT touch nested cashlessDetails.tpaName — pass that explicitly
+      too if you want both in sync, e.g.
+        {
+          "insurer": "...",
+          "tpaName": "...",
+          "cashlessDetails.tpaName": "..."   <-- dotted key, handled below
+        }
+    - Does NOT run TPA_OPTIONS / insurer-list validation — this is raw,
+      so you can also test *invalid* values to see how the frontend
+      dropdowns react to unexpected strings.
+    - Remove or gate this behind an env flag before shipping to prod.
+    """
+    body = await request.json()
+    if not isinstance(body, dict) or not body:
+        raise HTTPException(status_code=400, detail="Body must be a non-empty JSON object")
+
+    existing = await collection.find_one({"caseId": case_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Case not found")
+
+    set_doc = {}
+    for k, v in body.items():
+        # allow dotted keys like "cashlessDetails.tpaName" to reach nested fields
+        set_doc[k] = v
+
+    set_doc["updatedAt"] = datetime.now(IST)
+
+    await collection.update_one({"caseId": case_id}, {"$set": set_doc})
+
+    # read back so you can immediately confirm the stored format in Postman
+    updated = await collection.find_one(
+        {"caseId": case_id},
+        {"_id": 0, "caseId": 1, "insurer": 1, "tpaName": 1, "cashlessDetails.tpaName": 1}
+    )
+
+    return {"success": True, "caseId": case_id, "applied": body, "current": updated}
+    
 @router.get("/debug-case/{case_id}")
 async def debug_case(case_id: str):
 
@@ -908,3 +1769,354 @@ async def reassign_investigation(case_id: str, request: Request):
     )
 
     return {"success": True, "case_id": case_id, "inv_type": inv_type, "new_investigator": new_name}
+
+@router.get("/analytics/overview")
+async def get_analytics_overview():
+    """
+    Aggregate stats for the Analytics/Stats sidebar page: KPI cards,
+    status/tag/priority/claim-mode breakdowns, insurer breakdown, and a
+    30-day new-case trend.
+
+    NOTE: the case document only has createdAt/updatedAt — no per-stage
+    timestamp log — so this deliberately does NOT compute TAT or a
+    genuine/suspicious/repudiated split. Those fields don't exist on the
+    model; add stage timestamps first if you want real TAT later.
+    """
+    try:
+        cursor = collection.find({}, {
+            "_id": 0, "status": 1, "tags": 1, "claimPriority": 1,
+            "claimMode": 1, "claimSubtype": 1, "insurer": 1,
+            "claimedAmount": 1, "createdAt": 1, "updatedAt": 1, "targetDate": 1,
+            "claimSource": 1,
+        })
+        cases = await cursor.to_list(length=100000)
+
+        now_ist = datetime.now(IST)
+        today_start = now_ist.replace(hour=0, minute=0, second=0, microsecond=0)
+        week_start  = today_start - timedelta(days=today_start.weekday())
+        month_start = today_start.replace(day=1)
+
+        def _aware(dt):
+            if not isinstance(dt, datetime):
+                return None
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt.astimezone(IST)
+
+        def _parse_target(v):
+            # targetDate is stored exactly as the frontend sent it (often
+            # DD/MM/YYYY) — never normalised server-side, unlike
+            # dateOfIncident/dateOfIntimation. Handle both shapes here.
+            if not v:
+                return None
+            s = str(v).strip()
+            try:
+                if len(s) == 10 and s[2] == "/" and s[5] == "/":
+                    dd, mm, yyyy = s.split("/")
+                    s = f"{yyyy}-{mm}-{dd}"
+                d = datetime.fromisoformat(s)
+                return d if d.tzinfo else d.replace(tzinfo=IST)
+            except Exception:
+                return None
+
+        total = len(cases)
+        status_counts, tag_counts, priority_counts, mode_counts, source_counts = {}, {}, {}, {}, {}
+        insurer_agg: Dict[str, Dict[str, Any]] = {}
+        total_claimed = 0.0
+        claimed_n = 0
+        today_n = week_n = month_n = 0
+        sla_breached = 0
+        daily_new: Dict[str, int] = {}
+
+        OPEN_STATUSES = {"ALLOCATED", "IN_PROGRESS", "EVIDENCE_COLLECTION", "UNDER_REVIEW", "QC_PENDING"}
+
+        for c in cases:
+            status = c.get("status") or "UNKNOWN"
+            status_counts[status] = status_counts.get(status, 0) + 1
+            source = c.get("claimSource") or "Unspecified"
+            source_counts[source] = source_counts.get(source, 0) + 1
+
+            for t in (c.get("tags") or []):
+                tag_counts[t] = tag_counts.get(t, 0) + 1
+
+            pri = c.get("claimPriority") or "Normal"
+            priority_counts[pri] = priority_counts.get(pri, 0) + 1
+
+            mode = c.get("claimMode") or "unspecified"
+            mode_counts[mode] = mode_counts.get(mode, 0) + 1
+
+            amt = c.get("claimedAmount")
+            if isinstance(amt, (int, float)):
+                total_claimed += amt
+                claimed_n += 1
+
+            insurer = c.get("insurer") or "Unknown"
+            bucket = insurer_agg.setdefault(insurer, {
+                "count": 0, "total_claimed": 0.0, "claimed_n": 0, "status_counts": {},
+            })
+            bucket["count"] += 1
+            if isinstance(amt, (int, float)):
+                bucket["total_claimed"] += amt
+                bucket["claimed_n"] += 1
+            bucket["status_counts"][status] = bucket["status_counts"].get(status, 0) + 1
+
+            created = _aware(c.get("createdAt"))
+            if created:
+                if created >= today_start:
+                    today_n += 1
+                if created >= week_start:
+                    week_n += 1
+                if created >= month_start:
+                    month_n += 1
+                day = created.date().isoformat()
+                daily_new[day] = daily_new.get(day, 0) + 1
+
+            if status in OPEN_STATUSES:
+                td = _parse_target(c.get("targetDate"))
+                if td and td < now_ist:
+                    sla_breached += 1
+
+        insurer_breakdown = [
+            {
+                "insurer": name,
+                "count": b["count"],
+                "total_claimed": round(b["total_claimed"], 2),
+                "avg_claimed": round(b["total_claimed"] / b["claimed_n"], 2) if b["claimed_n"] else None,
+                "status_counts": b["status_counts"],
+            }
+            for name, b in insurer_agg.items()
+        ]
+        insurer_breakdown.sort(key=lambda x: x["count"], reverse=True)
+
+        last_30_days = sorted(daily_new.keys())[-30:]
+        daily_trend = [{"date": d, "new_cases": daily_new[d]} for d in last_30_days]
+
+        return {
+            "success": True,
+            "kpis": {
+                "total_cases": total,
+                "active": sum(status_counts.get(s, 0) for s in OPEN_STATUSES),
+                "completed": status_counts.get("COMPLETED", 0),
+                "draft": status_counts.get("DRAFT", 0),
+                "closed": status_counts.get("CLOSED", 0),
+                "total_claimed_amount": round(total_claimed, 2),
+                "avg_claimed_amount": round(total_claimed / claimed_n, 2) if claimed_n else None,
+                "today": today_n,
+                "this_week": week_n,
+                "this_month": month_n,
+                "sla_breached": sla_breached,
+            },
+            "status_breakdown": [{"status": s, "count": n} for s, n in status_counts.items()],
+            "source_breakdown": [{"source": s, "count": n} for s, n in source_counts.items()],
+            "priority_breakdown": [{"priority": p, "count": n} for p, n in priority_counts.items()],
+            "tag_breakdown": [{"tag": t, "count": n} for t, n in tag_counts.items()],
+            "claim_mode_breakdown": [{"mode": m, "count": n} for m, n in mode_counts.items()],
+            "insurer_breakdown": insurer_breakdown,
+            "daily_trend": daily_trend,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error building analytics overview: {str(e)}")
+
+
+@router.get("/md/analytics/overview")
+async def get_md_analytics_overview(request: Request):
+    await _require_md(request)
+    return await get_analytics_overview()
+
+
+@router.get("/md/doctors/stats")
+async def get_md_doctor_stats(request: Request):
+    await _require_md(request)
+    return await get_doctor_stats()
+
+
+@router.get("/operations/analytics/overview")
+async def get_operations_analytics_overview(request: Request):
+    await _require_operations(request)
+    return await get_analytics_overview()
+
+
+@router.get("/operations/doctors/stats")
+async def get_operations_doctor_stats(request: Request):
+    await _require_operations(request)
+    return await get_doctor_stats()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Extended MD / Operations analytics (spec §20.1 / §20.2)
+#
+# Plain async function — deliberately NOT exposed as an unguarded /web route.
+# Only the guarded /md and /operations wrappers below call it, so this
+# (heavier, privileged) data never leaks to the public dashboard overview.
+#
+# Only the analytics whose data actually exists in the current model are
+# computed. The `blocked` list explains, per spec section, why the rest are
+# not — they need per-stage audit timestamps and a per-visit `state` field
+# that the schema does not yet capture. The frontend renders `blocked` as an
+# explicit "requires stage/audit logging" stub rather than hiding it.
+# ─────────────────────────────────────────────────────────────────────────────
+async def get_performance_overview():
+    try:
+        cases = await collection.find({}, {
+            "_id": 0, "caseId": 1, "status": 1, "insurer": 1,
+            "targetDate": 1, "investigations": 1, "qcDecision": 1,
+            "claimPriority": 1,
+        }).to_list(length=100000)
+
+        # ── Field Officer performance + reassignment (from investigations) ──
+        fo_agg: Dict[str, Dict[str, Any]] = {}
+        reassign_total = 0
+        reassign_by_type: Dict[str, int] = {}
+        decline_reasons: Dict[str, int] = {}
+
+        def _fo_bucket(oid, name):
+            b = fo_agg.setdefault(oid, {
+                "officer_id": oid, "name": name or oid,
+                "assigned": 0, "accepted": 0, "declined": 0,
+                "reassigned_away": 0, "pending": 0,
+            })
+            # Backfill a real name if a later entry carries one.
+            if name and b["name"] == oid:
+                b["name"] = name
+            return b
+
+        for c in cases:
+            invs = c.get("investigations") or {}
+            if not isinstance(invs, dict):
+                continue
+            for inv_type, entries in invs.items():
+                for e in (entries or []):
+                    if not isinstance(e, dict):
+                        continue
+                    oid = e.get("investigatorId")
+                    if not oid:
+                        continue
+                    b = _fo_bucket(oid, e.get("investigatorName"))
+                    b["assigned"] += 1
+                    resp = e.get("assignmentResponse")
+                    if resp == "accepted":
+                        b["accepted"] += 1
+                    elif resp == "declined":
+                        b["declined"] += 1
+                    else:
+                        b["pending"] += 1
+
+                    reason = (e.get("declineReason") or "").strip()
+                    if reason:
+                        decline_reasons[reason] = decline_reasons.get(reason, 0) + 1
+
+                    if e.get("reassignedFrom"):
+                        reassign_total += 1
+                        reassign_by_type[inv_type] = reassign_by_type.get(inv_type, 0) + 1
+                        prev = _fo_bucket(e.get("reassignedFrom"), None)
+                        prev["reassigned_away"] += 1
+
+        # Join current availability / leave status onto each officer.
+        avail = await db["field_officer_availability"].find({}, {
+            "_id": 0, "userId": 1, "status": 1, "leaveFrom": 1,
+        }).to_list(length=10000)
+        avail_by_id = {a.get("userId"): a for a in avail}
+        for oid, b in fo_agg.items():
+            a = avail_by_id.get(oid)
+            b["availability"] = a.get("status") if a else "Unknown"
+            b["on_leave"] = bool(a and a.get("leaveFrom"))
+
+        field_officers = sorted(fo_agg.values(), key=lambda x: x["assigned"], reverse=True)
+
+        # ── SLA / overdue open cases (targetDate parse mirrors overview) ──
+        now_ist = datetime.now(IST)
+        OPEN_STATUSES = {"ALLOCATED", "IN_PROGRESS", "EVIDENCE_COLLECTION", "UNDER_REVIEW", "QC_PENDING"}
+
+        def _parse_target(v):
+            if not v:
+                return None
+            s = str(v).strip()
+            try:
+                if len(s) == 10 and s[2] == "/" and s[5] == "/":
+                    dd, mm, yyyy = s.split("/")
+                    s = f"{yyyy}-{mm}-{dd}"
+                d = datetime.fromisoformat(s)
+                return d if d.tzinfo else d.replace(tzinfo=IST)
+            except Exception:
+                return None
+
+        overdue = []
+        for c in cases:
+            if c.get("status") in OPEN_STATUSES:
+                td = _parse_target(c.get("targetDate"))
+                if td and td < now_ist:
+                    overdue.append({
+                        "caseId": c.get("caseId"),
+                        "insurer": c.get("insurer") or "Unknown",
+                        "status": c.get("status"),
+                        "priority": c.get("claimPriority") or "Normal",
+                        "targetDate": c.get("targetDate"),
+                        "days_overdue": (now_ist - td).days,
+                    })
+        overdue.sort(key=lambda x: x["days_overdue"], reverse=True)
+
+        # ── QC performance (from qcDecision written by the QC router) ──
+        qc_approve = qc_reinvestigate = 0
+        qc_by_doctor: Dict[str, Dict[str, Any]] = {}
+        for c in cases:
+            qc = c.get("qcDecision")
+            if not isinstance(qc, dict):
+                continue
+            action = qc.get("action")
+            if action == "APPROVE":
+                qc_approve += 1
+            elif action == "REINVESTIGATE":
+                qc_reinvestigate += 1
+            docname = qc.get("doctor") or qc.get("doctor_id")
+            if docname:
+                d = qc_by_doctor.setdefault(docname, {"doctor": docname, "approved": 0, "reinvestigate": 0})
+                if action == "APPROVE":
+                    d["approved"] += 1
+                elif action == "REINVESTIGATE":
+                    d["reinvestigate"] += 1
+
+        return {
+            "success": True,
+            "field_officers": field_officers,
+            "reassignment": {
+                "total": reassign_total,
+                "by_type": [{"inv_type": t, "count": n} for t, n in sorted(reassign_by_type.items(), key=lambda x: -x[1])],
+                "decline_reasons": [{"reason": r, "count": n} for r, n in sorted(decline_reasons.items(), key=lambda x: -x[1])],
+            },
+            "sla": {
+                "overdue_count": len(overdue),
+                "overdue": overdue[:100],
+            },
+            "qc": {
+                "approved": qc_approve,
+                "reinvestigate": qc_reinvestigate,
+                "reviewed": qc_approve + qc_reinvestigate,
+                "by_doctor": sorted(qc_by_doctor.values(), key=lambda x: (x["approved"] + x["reinvestigate"]), reverse=True),
+            },
+            "blocked": [
+                {"key": "stage_tat", "label": "Stage turnaround & minute-level timing",
+                 "reason": "Cases store only createdAt/updatedAt — no per-stage timestamp/audit log yet (spec §15.1)."},
+                {"key": "state_performance", "label": "State performance",
+                 "reason": "No per-visit `state` field exists on cases yet (spec §6)."},
+                {"key": "reporting_manager", "label": "Reporting Manager performance",
+                 "reason": "No reporting-manager allocation records are captured yet (spec §9)."},
+                {"key": "portal_team", "label": "Portal Team performance",
+                 "reason": "No portal download/processing events are logged yet (spec §11.2)."},
+                {"key": "no_resource_events", "label": "No-available-doctor / field-officer events",
+                 "reason": "These conditions are not persisted as events yet (spec §20.1)."},
+            ],
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error building performance overview: {str(e)}")
+
+
+@router.get("/md/analytics/performance")
+async def get_md_performance_overview(request: Request):
+    await _require_md(request)
+    return await get_performance_overview()
+
+
+@router.get("/operations/analytics/performance")
+async def get_operations_performance_overview(request: Request):
+    await _require_operations(request)
+    return await get_performance_overview()

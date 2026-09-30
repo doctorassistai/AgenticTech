@@ -109,9 +109,27 @@ const statusBadge = (status) => {
   return { ...S.badge, borderColor: s.border, color: s.color };
 };
 
+const PRIORITY_COLORS = {
+  Red: "#c0392b",
+  Orange: "#d35400",
+  Yellow: "#b7950b",
+  Green: "#1e8449",
+};
+
+// IFT Priority Level -> 4-tier triage colour (SOW §9/§7). Deterministic
+// table lookup, same principle as PRIORITY_MAP in the backend for Primary
+// Case complaints — dispatcher doesn't override.
+const IFT_PRIORITY_MAP = {
+  Emergency: 'Red',
+  Urgent: 'Orange',
+  Scheduled: 'Yellow',
+  Routine: 'Green',
+};
+
 const triageBadge = (level) => {
-  const map = {
-    "Red": { border: "#000", color: "#000", bg: "#fff" }, "Yellow": { border: "#888", color: "#444", bg: "#fafafa" },
+    const map = {
+    "Red": { border: "#000", color: "#000", bg: "#fff" }, "Orange": { border: "#000", color: "#000", bg: "#fafafa" },
+    "Yellow": { border: "#888", color: "#444", bg: "#fafafa" },
     "Green": { border: T.border, color: T.textMuted, bg: "#fff" }, "Black": { border: "#000", color: T.textMuted, bg: "#fafafa" },
   };
   const s = map[level] || map["Green"];
@@ -157,6 +175,89 @@ const MOCK_TIMELINE = [
   { ts: "10:24:30 AM", source: "System — AI", text: "Voice analysis complete. Condition worsening detected for Victim 1. Re-evaluating hospital options. Manipal HAL confirmed as optimal — Level I Trauma, ER load Moderate, ETA 8 min.", dot: "solid" },
   { ts: "10:26:05 AM", source: "Ambulance — Voice", text: "Voice note: 'Victim 1 BP dropping — 90/60. Requesting reroute check.'", dot: "solid" },
   { ts: "10:26:20 AM", source: "System — AI", text: "Condition critical. Reroute analysis: Current target Manipal HAL remains optimal. No closer Level I facility. Maintain route. Pre-arrival alert sent to Manipal ER.", dot: "solid" },
+];
+
+const IFT_SECTIONS = [
+  {
+    title: "1. Request & Identification",
+    fields: [
+      { key: "requestDateTime", label: "Date/Time of Request", type: "datetime-local" },
+      { key: "requestingFacility", label: "Requesting Facility", type: "text", required: true },      { key: "callerName", label: "Caller's Name", type: "text" },
+      { key: "callerDesignation", label: "Caller's Designation", type: "text" },
+      { key: "callerContact", label: "Caller Contact Number", type: "text" },
+      { key: "patientFullName", label: "Patient Full Name", type: "text", required: true },      { key: "patientRecordNumber", label: "Hospital / Medical Record Number", type: "text" },
+      { key: "patientAge", label: "Age", type: "number" },
+      { key: "patientSex", label: "Sex", type: "select", options: ["Male", "Female", "Other"], required: true },      { key: "patientDob", label: "Date of Birth", type: "date" },
+    ],
+  },
+  {
+    title: "2. Location & Facilities",
+    fields: [
+      { key: "referringHospitalName", label: "Referring Hospital Name", type: "text" },
+      { key: "referringWardUnit", label: "Ward / Unit", type: "text" },
+      { key: "referringBedNumber", label: "Bed Number", type: "text" },
+      { key: "referringAddress", label: "Full Address", type: "text" },
+      { key: "referringContact", label: "Contact Number", type: "text" },
+      { key: "receivingHospitalName", label: "Receiving Hospital Name", type: "text" },
+      { key: "receivingDeptUnit", label: "Receiving Department / Unit", type: "text" },
+      { key: "receivingPhysician", label: "Receiving Physician", type: "text" },
+      { key: "receivingContact", label: "Receiving Contact Number", type: "text" },
+      { key: "reasonForTransfer", label: "Reason for Transfer", type: "select", options: ["Definitive Treatment", "Specialist Consultation", "Higher Level of Care", "Diagnostic Procedure", "Repatriation", "Step-down Care"] },
+    ],
+  },
+  {
+    title: "3. Clinical Status",
+    fields: [
+      { key: "primaryDiagnosis", label: "Primary Diagnosis / Relevant History", type: "textarea" },
+      { key: "patientCondition", label: "Patient Condition", type: "select", options: ["Stable", "Potentially Unstable", "Unstable", "Critical"] },
+      { key: "vitalsBP", label: "BP", type: "text" },
+      { key: "vitalsHR", label: "HR", type: "text" },
+      { key: "vitalsRR", label: "RR", type: "text" },
+      { key: "vitalsSpO2", label: "SpO2", type: "text" },
+      { key: "vitalsTemp", label: "Temperature", type: "text" },
+      { key: "vitalsGCS", label: "GCS", type: "text" },
+      { key: "vitalsPainScore", label: "Pain Score", type: "text" },
+      { key: "airwayStatus", label: "Airway Status", type: "select", options: ["Patent", "Oxygen Therapy", "Airway Adjunct", "Intubated", "Tracheostomy"] },
+      { key: "breathingSupport", label: "Breathing / Respiratory Support", type: "text" },
+      { key: "circulationAccess", label: "Circulation (IV/Central/Arterial line, active bleeding, vasopressors)", type: "text" },
+      { key: "neuroStatus", label: "Neurological Status (conscious level, pupils, seizures, sedation)", type: "text" },
+      { key: "monitoringRequired", label: "Monitoring Required", type: "text" },
+    ],
+  },
+  {
+    title: "4. Treatment & Risk Factors",
+    fields: [
+      { key: "medicationsDuringTransport", label: "Medications During Transport", type: "text" },
+      { key: "isolationRequirements", label: "Isolation Requirements", type: "text" },
+      { key: "specialEquipmentNeeded", label: "Special Equipment Needed", type: "text" },
+      { key: "mobility", label: "Mobility", type: "select", options: ["Ambulatory", "Wheelchair", "Stretcher", "Spinal Immobilization Required"] },
+      { key: "patientWeight", label: "Patient Weight", type: "text" },
+      { key: "specialRisks", label: "Special Risks", type: "text" },
+    ],
+  },
+  {
+    title: "5. Escort & Documentation",
+    fields: [
+      { key: "escortRequirements", label: "Escort Requirements", type: "select", options: ["None", "Nurse", "Physician", "Respiratory Therapist", "Family Member"] },
+      { key: "clinicalDocuments", label: "Clinical Documents Carried", type: "text" },
+    ],
+  },
+  {
+    title: "6. Transport Logistics",
+    fields: [
+      { key: "priorityLevel", label: "Priority Level", type: "select", options: ["Emergency", "Urgent", "Scheduled", "Routine"] },
+      { key: "requestedTransportTime", label: "Requested Transport Time", type: "text" },
+      { key: "ambulanceTypeRequired", label: "Ambulance Type Required", type: "select", options: ["BLS", "ALS", "Critical Care Transport (CCT)", "Neonatal", "Pediatric", "Bariatric", "Infectious Disease Transport"] },
+      { key: "estimatedTravelInfo", label: "Estimated Travel Info (distance/traffic/weather)", type: "text" },
+    ],
+  },
+  {
+    title: "7. Billing & Handover",
+    fields: [
+      { key: "billingAuthorization", label: "Billing / Authorization (payment, insurance, ref number)", type: "text" },
+      { key: "handoverInfo", label: "Handover Info (referring/receiving clinician, ETA, instructions)", type: "textarea" },
+    ],
+  },
 ];
 
 function CustomerDashboard() {
@@ -263,12 +364,179 @@ organization: '68c3e6a6ef64cafc435d90ad',
 
   const [incidentForm, setIncidentForm] = useState({ callerPhone: "", callerName: "", location: "", incidentType: "Road Accident", victims: "1", patientStatus: "", consciousness: "Conscious", breathing: "Normal", bleeding: "None", allergies: "", medHistory: "", notes: "" });
 
+  // ── Case type tabs (Primary / IFT) ──
+  const [caseType, setCaseType] = useState('primary'); // 'primary' | 'ift'
+  const [primaryCase, setPrimaryCase] = useState({
+    incidentLocation: '',
+    latitude: '',
+    longitude: '',
+    contactNumber: '',
+    chiefComplaintText: '',
+    breathingStatus: '', // only used when classification === 'Unconscious Collapse'
+    gender: '',
+    fullName: '',
+    age: '',
+    incidentTime: '', // stated timing from voice extraction, e.g. "10 minutes ago" — display/reference only
+  });
+  const [complaintClassification, setComplaintClassification] = useState(null); // { category, matched_label, confidence, rationale }
+  const [classifyingComplaint, setClassifyingComplaint] = useState(false);
+  const [classifyError, setClassifyError] = useState(null);
+  const [extractingFromVoice, setExtractingFromVoice] = useState(false);
+  const [extractionError, setExtractionError] = useState(null);
+
+  const classifyChiefComplaint = async (overrideText) => {
+    const textToClassify = (overrideText !== undefined ? overrideText : primaryCase.chiefComplaintText).trim();
+    if (!textToClassify) {
+      setClassifyError('Enter the chief complaint first.');
+      return;
+    }
+    setClassifyingComplaint(true);
+    setClassifyError(null);
+    try {
+      const response = await fetch(`${API_BASE_URL}/hms/users/emergencypatients/classify-chief-complaint`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: textToClassify }),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setComplaintClassification(data);
+        setPrimaryCase(prev => ({ ...prev, breathingStatus: '' }));
+      } else {
+        setClassifyError(data.detail || 'Classification failed.');
+        setComplaintClassification(null);
+      }
+    } catch (err) {
+      setClassifyError('Network error during classification.');
+      setComplaintClassification(null);
+    } finally {
+      setClassifyingComplaint(false);
+    }
+  };
+
+  // Auto-classify as soon as the dispatcher stops typing — no manual "Classify" click.
+  useEffect(() => {
+    const text = primaryCase.chiefComplaintText.trim();
+    if (!text) {
+      setClassifyError(null);
+      return;
+    }
+    const timer = setTimeout(() => {
+      classifyChiefComplaint(text);
+    }, 800);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [primaryCase.chiefComplaintText]);
+  const extractIncidentFromVoice = async (transcript) => {
+    if (!transcript || !transcript.trim()) return;
+    setExtractingFromVoice(true);
+    setExtractionError(null);
+    try {
+      const response = await fetch(`${API_BASE_URL}/hms/users/emergencypatients/extract-incident-from-voice`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: transcript.trim() }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setExtractionError(data.detail || 'Voice extraction failed.');
+        return;
+      }
+      setCaseType(data.case_type);
+      if (data.case_type === 'primary') {
+        const extracted = data.primary_case || {};
+        setPrimaryCase(prev => ({
+          ...prev,
+          contactNumber: extracted.contactNumber ? extracted.contactNumber.replace(/\D/g, '').slice(0, 10) : prev.contactNumber,
+          chiefComplaintText: extracted.chiefComplaintText || prev.chiefComplaintText,
+          incidentLocation: extracted.incidentLocation || prev.incidentLocation,
+          fullName: extracted.fullName || prev.fullName,
+          age: extracted.age || prev.age,
+          gender: extracted.gender || prev.gender,
+          incidentTime: extracted.incidentTime || prev.incidentTime,
+        }));
+        // The auto-classify effect (watching primaryCase.chiefComplaintText) picks this
+        // up automatically — no need to trigger classification manually here.
+        if (extracted.incidentLocation) {
+          geocodeAndPinLocation(extracted.incidentLocation, 'primary');
+        }
+      } else {
+        const extracted = data.ift_form || {};
+        setIftForm(prev => {
+          const merged = { ...prev };
+          Object.keys(extracted).forEach((key) => {
+            if (extracted[key]) merged[key] = extracted[key];
+          });
+          return merged;
+        });
+        const referringLocationText = extracted.referringAddress || extracted.referringHospitalName || extracted.requestingFacility;
+        if (referringLocationText) {
+          geocodeAndPinLocation(referringLocationText, 'ift');
+        }
+        if (extracted.receivingHospitalName) {
+          geocodeAndPinReceivingHospital(extracted.receivingHospitalName);
+        }
+      }
+    } catch (err) {
+      setExtractionError('Network error during voice extraction.');
+    } finally {
+      setExtractingFromVoice(false);
+    }
+  };
+  const primaryCaseCategory = !complaintClassification
+    ? ''
+    : complaintClassification.category === 'Unconscious Collapse'
+      ? (primaryCase.breathingStatus === 'Not Breathing' ? 'Trauma (Emergency Algorithm)' : 'Pending — select breathing status')
+      : complaintClassification.category;
+
+  // Unconscious Collapse forces RED once confirmed not breathing (SOW: automatic RED
+  // priority). Otherwise use the label-derived priority from the backend.
+  const primaryCasePriority = !complaintClassification
+    ? null
+    : complaintClassification.category === 'Unconscious Collapse'
+      ? (primaryCase.breathingStatus === 'Not Breathing' ? 'Red' : null)
+      : complaintClassification.priority || null;
+
+  const isPrimaryCaseValid =
+    primaryCase.incidentLocation.trim() !== '' &&
+    !!primaryCase.latitude &&
+    !!primaryCase.longitude &&
+    primaryCase.contactNumber.trim() !== '' &&
+    primaryCase.chiefComplaintText.trim() !== '' &&
+    !!primaryCase.gender &&
+    !!complaintClassification &&
+    (complaintClassification.category !== 'Unconscious Collapse' || !!primaryCase.breathingStatus);
+
+  // ── IFT form ──
+  const [iftForm, setIftForm] = useState({});
+  const updateIftField = (key, value) => setIftForm(prev => ({ ...prev, [key]: value }));
+
+  const isIFTValid = IFT_SECTIONS
+    .flatMap(section => section.fields)
+    .filter(f => f.required)
+    .every(f => !!(iftForm[f.key] && String(iftForm[f.key]).trim() !== '')) &&
+    !!iftForm.referringLatitude && !!iftForm.referringLongitude &&
+    !!iftForm.receivingLatitude && !!iftForm.receivingLongitude;
+
+  // ── Voice transcription (mic) ──
+  const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [voiceTranscript, setVoiceTranscript] = useState('');
+  const [voiceError, setVoiceError] = useState(null);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+
   const mapRef = useRef(null);
   const mapInstance = useRef(null);
   const searchInputRef = useRef(null);
   const markerRef = useRef(null);
   const [lat, setLat] = useState(null);
   const [lng, setLng] = useState(null);
+
+  const receivingMapRef = useRef(null);
+  const receivingMapInstance = useRef(null);
+  const receivingSearchInputRef = useRef(null);
+  const receivingMarkerRef = useRef(null);
 
   const [selectedAmbulance, setSelectedAmbulance] = useState(null);
   const [selectedHospital, setSelectedHospital] = useState(null);
@@ -286,20 +554,40 @@ organization: '68c3e6a6ef64cafc435d90ad',
 
 useEffect(() => {
   if (!showNewIncident) {
-    // Reset map when modal closes
     if (mapInstance.current) {
       mapInstance.current = null;
     }
     return;
   }
-  
-  if (activeRegTab !== "accident") return;
-  
-  // Only load map if it hasn't been loaded yet
-  if (!mapInstance.current && mapRef.current) {
+
+  // Both Primary Case and IFT tabs host their own <div ref={mapRef}> (only
+  // one renders at a time), so a tab switch always means the previous map
+  // instance is bound to a now-detached DOM node — tear down and rebuild
+  // against whichever div is currently mounted.
+  if (mapInstance.current) {
+    mapInstance.current = null;
+  }
+  if (mapRef.current) {
     loadMapManually();
   }
-}, [showNewIncident, activeRegTab]);
+}, [showNewIncident, caseType]);
+
+// Receiving-hospital map — only mounted in the IFT tab, mirrors the
+// referring-location map init/teardown above.
+useEffect(() => {
+  if (!showNewIncident || caseType !== 'ift') {
+    if (receivingMapInstance.current) {
+      receivingMapInstance.current = null;
+    }
+    return;
+  }
+  if (receivingMapInstance.current) {
+    receivingMapInstance.current = null;
+  }
+  if (receivingMapRef.current) {
+    loadReceivingMapManually();
+  }
+}, [showNewIncident, caseType]);
 // Map picker for ambulance registration
 useEffect(() => {
   if (!showAmbulanceRegistration) return;
@@ -902,7 +1190,45 @@ const handleSavePatient = async () => {
     setSavingPatient(false); 
   }
 };
-const placeMarker = (location) => {
+// Writes a map-derived location into whichever tab is active. `address` is
+// omitted (undefined) on a plain click/drag — only lat/lng change then; it's
+const updateLocationFromMap = (address, latValue, lngValue, forCaseType = caseType) => {
+  if (forCaseType === 'ift') {
+    setIftForm(prev => ({
+      ...prev,
+      ...(address !== undefined ? { referringAddress: address } : {}),
+      referringLatitude: latValue,
+      referringLongitude: lngValue,
+    }));
+  } else {
+    setPrimaryCase(prev => ({
+      ...prev,
+      ...(address !== undefined ? { incidentLocation: address } : {}),
+      latitude: latValue,
+      longitude: lngValue,
+    }));
+  }
+};
+const geocodeAndPinLocation = (address, forCaseType, attempt = 0) => {
+  if (!address) return;
+  if (!window.google?.maps || !mapInstance.current) {
+    if (attempt < 10) setTimeout(() => geocodeAndPinLocation(address, forCaseType, attempt + 1), 300);
+    return;
+  }
+  const geocoder = new window.google.maps.Geocoder();
+  geocoder.geocode({ address }, (results, status) => {
+    if (status === 'OK' && results[0]) {
+      const loc = results[0].geometry.location;
+      mapInstance.current.setCenter(loc);
+      mapInstance.current.setZoom(16);
+      placeMarker(loc, forCaseType);
+      updateLocationFromMap(results[0].formatted_address || address, loc.lat(), loc.lng(), forCaseType);
+    } else {
+      console.warn('Geocode failed for extracted location:', address, status);
+    }
+  });
+};
+const placeMarker = (location, forCaseType) => {
   // Remove old marker
   if (markerRef.current) {
     markerRef.current.setMap(null);
@@ -927,17 +1253,12 @@ const placeMarker = (location) => {
     typeof location.lng === "function"
       ? location.lng()
       : location.lng;
-console.log("LAT:", latitude);
-console.log("LNG:", longitude);
+
   // Update state
   setLat(latitude);
   setLng(longitude);
 
-  setAccidentDetails(prev => ({
-    ...prev,
-    latitude,
-    longitude
-  }));
+  updateLocationFromMap(undefined, latitude, longitude, forCaseType);
 
   // Drag marker support
   marker.addListener("dragend", (e) => {
@@ -947,11 +1268,7 @@ console.log("LNG:", longitude);
     setLat(newLat);
     setLng(newLng);
 
-    setAccidentDetails(prev => ({
-      ...prev,
-      latitude: newLat,
-      longitude: newLng
-    }));
+    updateLocationFromMap(undefined, newLat, newLng, forCaseType);
   });
 };
 
@@ -1008,12 +1325,7 @@ const loadMapManually = async () => {
         mapInstance.current.setZoom(16);
         placeMarker(loc);
         
-        setAccidentDetails(prev => ({
-          ...prev,
-          location: place.formatted_address || place.name,
-          latitude: loc.lat(),
-          longitude: loc.lng()
-        }));
+        updateLocationFromMap(place.formatted_address || place.name, loc.lat(), loc.lng());
       });
     }
     
@@ -1025,8 +1337,89 @@ const loadMapManually = async () => {
   }
 };
 
-const getTodayDate = () => new Date().toLocaleDateString('en-CA');
+const placeReceivingMarker = (location) => {
+  if (receivingMarkerRef.current) {
+    receivingMarkerRef.current.setMap(null);
+  }
+  const marker = new window.google.maps.Marker({
+    position: location,
+    map: receivingMapInstance.current,
+    draggable: true
+  });
+  receivingMarkerRef.current = marker;
 
+  const latitude = typeof location.lat === "function" ? location.lat() : location.lat;
+  const longitude = typeof location.lng === "function" ? location.lng() : location.lng;
+
+  setIftForm(prev => ({ ...prev, receivingLatitude: latitude, receivingLongitude: longitude }));
+
+  marker.addListener("dragend", (e) => {
+    setIftForm(prev => ({ ...prev, receivingLatitude: e.latLng.lat(), receivingLongitude: e.latLng.lng() }));
+  });
+};
+
+const loadReceivingMapManually = async () => {
+  try {
+    await loadGoogleMaps();
+    if (!receivingMapRef.current) return;
+
+    if (receivingMapInstance.current) {
+      receivingMapInstance.current = null;
+    }
+    while (receivingMapRef.current.firstChild) {
+      receivingMapRef.current.removeChild(receivingMapRef.current.firstChild);
+    }
+
+    const map = new window.google.maps.Map(receivingMapRef.current, {
+      center: { lat: 12.9716, lng: 77.5946 },
+      zoom: 13,
+      mapTypeControl: true,
+      streetViewControl: true,
+      fullscreenControl: true
+    });
+    receivingMapInstance.current = map;
+
+    map.addListener("click", (e) => {
+      placeReceivingMarker(e.latLng);
+    });
+
+    if (receivingSearchInputRef.current) {
+      const autocomplete = new window.google.maps.places.Autocomplete(receivingSearchInputRef.current);
+      autocomplete.addListener("place_changed", () => {
+        const place = autocomplete.getPlace();
+        if (!place.geometry) return;
+        const loc = place.geometry.location;
+        receivingMapInstance.current.setCenter(loc);
+        receivingMapInstance.current.setZoom(16);
+        placeReceivingMarker(loc);
+        setIftForm(prev => ({ ...prev, receivingHospitalName: place.name || place.formatted_address || prev.receivingHospitalName }));
+      });
+    }
+  } catch (error) {
+    console.error('Receiving map failed to load:', error);
+  }
+};
+
+const geocodeAndPinReceivingHospital = (name, attempt = 0) => {
+  if (!name) return;
+  if (!window.google?.maps || !receivingMapInstance.current) {
+    if (attempt < 10) setTimeout(() => geocodeAndPinReceivingHospital(name, attempt + 1), 300);
+    return;
+  }
+  const geocoder = new window.google.maps.Geocoder();
+  geocoder.geocode({ address: name }, (results, status) => {
+    if (status === 'OK' && results[0]) {
+      const loc = results[0].geometry.location;
+      receivingMapInstance.current.setCenter(loc);
+      receivingMapInstance.current.setZoom(16);
+      placeReceivingMarker(loc);
+    } else {
+      console.warn('Geocode failed for receiving hospital:', name, status);
+    }
+  });
+};
+
+const getTodayDate = () => new Date().toLocaleDateString('en-CA');
   const handlePatientRegistration = async () => {
    if (!patientInfo.id || patientInfo.id.trim() === '') {
   alert('Incident ID is required!');
@@ -1113,7 +1506,177 @@ console.log("====================================");
   };
 
   const handleLogout = () => navigate("/login");
-  const handleNewIncident = () => { setIncidentForm({ callerPhone: "", callerName: "", location: "", incidentType: "Road Accident", victims: "1", patientStatus: "", consciousness: "Conscious", breathing: "Normal", bleeding: "None", allergies: "", medHistory: "", notes: "" }); setShowNewIncident(true); };
+  const handleNewIncident = () => {
+    setIncidentForm({ callerPhone: "", callerName: "", location: "", incidentType: "Road Accident", victims: "1", patientStatus: "", consciousness: "Conscious", breathing: "Normal", bleeding: "None", allergies: "", medHistory: "", notes: "" });
+    setCaseType('primary');
+    setPrimaryCase({ incidentLocation: '', latitude: '', longitude: '', contactNumber: '', chiefComplaintText: '', breathingStatus: '', gender: '', fullName: '', age: '', incidentTime: '' });
+        setComplaintClassification(null);
+    setClassifyError(null);
+    setExtractionError(null);
+    setIftForm({});
+    setVoiceTranscript('');
+    setVoiceError(null);
+    setShowNewIncident(true);
+  };
+
+  const startVoiceRecording = async () => {
+    setVoiceError(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      audioChunksRef.current = [];
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
+      recorder.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        const audioBlob = new Blob(audioChunksRef.current, { type: recorder.mimeType || 'audio/webm' });
+        await transcribeAudio(audioBlob);
+      };
+      mediaRecorderRef.current = recorder;
+      recorder.start();
+      setIsRecording(true);
+    } catch (err) {
+      setVoiceError('Microphone access denied or unavailable.');
+    }
+  };
+
+  const stopVoiceRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
+
+  const transcribeAudio = async (audioBlob) => {
+    setIsTranscribing(true);
+    setVoiceError(null);
+    try {
+      const formData = new FormData();
+      formData.append('file', audioBlob, 'recording.wav');
+      formData.append('language_code', 'eng');
+      const response = await fetch('https://doctorassist.ai/api/hms/users/ai/elevenlabs/api/transcribe_labs', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await response.json();
+      if (response.ok && data.text) {
+        const updatedTranscript = voiceTranscript ? `${voiceTranscript} ${data.text}` : data.text;
+        setVoiceTranscript(updatedTranscript);
+        extractIncidentFromVoice(updatedTranscript);
+      } else {
+        setVoiceError(data.detail || 'Transcription failed.');
+      }
+    } catch (err) {
+      setVoiceError('Network error during transcription.');
+    } finally {
+      setIsTranscribing(false);
+    }
+  };
+
+  const handlePrimaryCaseRegistration = async () => {
+    if (!primaryCase.incidentLocation.trim()) { alert('Incident Location is required!'); return; }
+    if (!primaryCase.latitude || !primaryCase.longitude) { alert('Please pin the incident location on the map before registering.'); return; }
+    if (!primaryCase.contactNumber.trim()) { alert('Contact Number is required!'); return; }
+    if (!primaryCase.gender) { alert('Gender is required!'); return; }
+        if (!primaryCase.chiefComplaintText.trim()) { alert('Chief Complaint is required!'); return; }
+    if (!complaintClassification) { alert('Still classifying the chief complaint — please wait a moment and try again.'); return; }
+    if (complaintClassification.category === 'Unconscious Collapse' && !primaryCase.breathingStatus) {
+      alert('Breathing status is required for Unconscious Collapse!');
+      return;
+    }
+    const today = new Date();
+    const registrationDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const requestData = {
+      // id intentionally omitted — backend issues a sequential ED-YYYYMMDD-NNN ID
+      fullName: primaryCase.fullName.trim() || 'Unknown',
+      age: primaryCase.age,
+      gender: primaryCase.gender,
+      phoneNumber: primaryCase.contactNumber,
+      address: '',
+      accidentDetails: {
+        accidentDate: registrationDate,
+        accidentTime: today.toTimeString().slice(0, 5),
+        location: primaryCase.incidentLocation,
+        latitude: primaryCase.latitude ? parseFloat(primaryCase.latitude) : null,
+        longitude: primaryCase.longitude ? parseFloat(primaryCase.longitude) : null,
+        accidentType: primaryCaseCategory,
+        priority: primaryCasePriority,
+        condition: `${primaryCase.chiefComplaintText}${complaintClassification.matched_label ? ' | Matched: ' + complaintClassification.matched_label : ''}${complaintClassification.priority ? ' | Priority: ' + complaintClassification.priority : ''}${primaryCase.incidentTime ? ' | Reported timing: ' + primaryCase.incidentTime : ''}${voiceTranscript ? ' | Voice note: ' + voiceTranscript : ''}`,
+      },
+      emergencyContact: { name: '', relationship: '', phoneNumber: '' },
+      registrationDate,
+      status: 'registered',
+    };
+    try {
+      const response = await fetch(`${API_BASE_URL}/hms/users/emergencypatients/register`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: JSON.stringify(requestData) });
+      const result = await response.json();
+      if (response.ok) {
+        alert(`Primary case registered successfully! Patient ID: ${result.patient_id}`);
+        setShowNewIncident(false);
+        fetchTodayPatients();
+      } else {
+        alert(result?.detail || 'Failed to register case.');
+      }
+    } catch (err) {
+      alert('Network error. Please try again.');
+    }
+  };
+
+  const handleIFTRegistration = async () => {
+    // NOTE: backend PatientRegistrationRequest model does not have dedicated IFT fields yet.
+    // Full IFT payload is stuffed into `condition` as JSON so no data is lost.
+    if (!iftForm.patientFullName || !iftForm.requestingFacility) {
+      alert('Patient Full Name and Requesting Facility are required!');
+      return;
+    }
+    if (!iftForm.patientSex) {
+      alert('Sex is required!');
+      return;
+    }
+    if (!iftForm.referringLatitude || !iftForm.referringLongitude) {
+      alert('Please pin the referring facility location on the map before registering.');
+      return;
+    }
+    if (!iftForm.receivingLatitude || !iftForm.receivingLongitude) {
+      alert('Please pin the receiving facility location on the map before registering.');
+      return;
+    }
+    const today = new Date();
+    const registrationDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const requestData = {
+      // id intentionally omitted — backend issues a sequential ED-YYYYMMDD-NNN ID
+      fullName: iftForm.patientFullName,
+      age: iftForm.patientAge || '',
+      gender: (iftForm.patientSex || '').toLowerCase(),
+            phoneNumber: iftForm.callerContact || '',
+      address: iftForm.referringAddress || '',
+      accidentDetails: {
+        accidentDate: registrationDate,
+        accidentTime: today.toTimeString().slice(0, 5),
+        location: iftForm.referringAddress || iftForm.referringHospitalName || '',
+        latitude: iftForm.referringLatitude ? parseFloat(iftForm.referringLatitude) : null,
+        longitude: iftForm.referringLongitude ? parseFloat(iftForm.referringLongitude) : null,
+        accidentType: 'Inter-Facility Transfer',
+        priority: IFT_PRIORITY_MAP[iftForm.priorityLevel] || null,
+        condition: JSON.stringify(iftForm),
+      },
+      emergencyContact: { name: '', relationship: '', phoneNumber: '' },
+      registrationDate,
+      status: 'registered',
+    };
+    try {
+      const response = await fetch(`${API_BASE_URL}/hms/users/emergencypatients/register`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: JSON.stringify(requestData) });
+      const result = await response.json();
+      if (response.ok) {
+        alert(`IFT case registered successfully! Patient ID: ${result.patient_id}`);
+        setShowNewIncident(false);
+        fetchTodayPatients();
+      } else {
+        alert(result?.detail || 'Failed to register IFT case.');
+      }
+    } catch (err) {
+      alert('Network error. Please try again.');
+    }
+  };
   const handleDispatch = (inc) => { setSelectedIncident(inc); setSelectedAmbulance(null); setShowDispatch(true); };
   const handleConfirmDispatch = () => {
     if (!selectedAmbulance) return;
@@ -1700,17 +2263,17 @@ const dateFilterLabel = {
               <div style={S.tableWrap}>
                 <table style={{ ...S.table, minWidth: "900px" }}>
                   <thead>
-                    <tr>
-                      {["Patient ID", "Patient Name", "Phone", "Age", "Gender", "Location", "Incident Type", "Emergency Contact", "Actions" ,"Status"].map(h => (
+                       <tr>
+                      {["Patient ID", "Patient Name", "Phone", "Age", "Gender", "Location", "Incident Type", "Priority", "Emergency Contact", "Actions" ,"Status"].map(h => (
                         <th key={h} style={S.th}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {loadingPatients ? (
-                      <tr><td colSpan={9} style={{ ...S.td, textAlign: "center", padding: "2rem", color: T.textMuted }}>Loading today's patients...</td></tr>
+                      <tr><td colSpan={10} style={{ ...S.td, textAlign: "center", padding: "2rem", color: T.textMuted }}>Loading today's patients...</td></tr>
                     ) : todayPatients.length === 0 ? (
-                      <tr><td colSpan={9} style={{ ...S.td, textAlign: "center", padding: "2rem", color: T.textMuted }}>No patients registered today</td></tr>
+                      <tr><td colSpan={10} style={{ ...S.td, textAlign: "center", padding: "2rem", color: T.textMuted }}>No patients registered today</td></tr>
                     ) : todayPatients.map((patient, i) => (
                       <tr key={i} className="cc-tbl-row">
 <td style={S.tdBold} onClick={() => {
@@ -1730,6 +2293,11 @@ const dateFilterLabel = {
 </td>
                         <td style={S.td}>
                           <span style={statusBadge(patient.accidentDetails?.accidentType || 'Emergency')}>{patient.accidentDetails?.accidentType || 'Emergency'}</span>
+                        </td>
+                        <td style={S.td}>
+                          {patient.accidentDetails?.priority ? (
+                            <span style={triageBadge(patient.accidentDetails.priority)}>{patient.accidentDetails.priority}</span>
+                          ) : '—'}
                         </td>
                         <td style={S.td}>
                           {patient.emergencyContact?.name ? (
@@ -2298,250 +2866,285 @@ const dateFilterLabel = {
         )}
       </main>
 
-      {/* ═══════ PATIENT REGISTRATION MODAL ═══════ */}
+      {/* ═══════ NEW INCIDENT MODAL ═══════ */}
       {showNewIncident && (
         <div style={S.modalOverlay} onClick={(e) => { if (e.target === e.currentTarget) setShowNewIncident(false); }}>
-          <div style={{ ...S.modalBox, maxWidth: '760px' }}>
+          <div style={{ ...S.modalBox, maxWidth: '820px' }}>
             <div style={S.modalHeader}>
-              <span style={S.modalTitle}>Patient Registration</span>
-            <button onClick={() => {
-  setShowNewIncident(false);
-  // Reset map state when closing modal
-  setMapError(null);
-  setMapLoading(false);
-  if (mapInstance.current) {
-    mapInstance.current = null;
-  }
-}} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
-  <X size={16} />
-</button>
+              <span style={S.modalTitle}>New Incident</span>
+              <button onClick={() => setShowNewIncident(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={16} /></button>
             </div>
 
-            {/* Tabs */}
+            {/* Voice capture — common to both Primary Case and IFT; drives tab + field auto-fill */}
+            <div style={{ padding: '1rem 1.5rem', borderBottom: `1px solid ${T.border}`, background: T.bgAlt }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <span style={{ ...S.label, marginBottom: 0 }}>Voice Note (agent dictates what caller said — auto-fills the form below)</span>
+                <button
+                  type="button"
+                  onClick={isRecording ? stopVoiceRecording : startVoiceRecording}
+                  disabled={isTranscribing || extractingFromVoice}
+                  style={{ ...S.outlineBtn, ...(isRecording ? { borderColor: '#000', color: '#000', background: T.bg } : {}) }}
+                >
+                  <Mic size={12} /> {isRecording ? 'Stop Recording' : isTranscribing ? 'Transcribing…' : extractingFromVoice ? 'Filling form…' : 'Start Recording'}
+                </button>
+              </div>
+              {voiceError && <div style={{ fontSize: '0.68rem', color: '#c00', marginBottom: '6px' }}>{voiceError}</div>}
+              {extractionError && <div style={{ fontSize: '0.68rem', color: '#c00', marginBottom: '6px' }}>{extractionError}</div>}
+              <textarea
+                style={{ ...S.textarea, minHeight: '60px', background: T.bg }}
+                value={voiceTranscript}
+                onChange={(e) => setVoiceTranscript(e.target.value)}
+                placeholder="Transcribed text will appear here — editable before submitting. The system detects Primary vs IFT and pre-fills fields it finds stated in the transcript."
+              />
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '6px' }}>
+                <button
+                  type="button"
+                  onClick={() => extractIncidentFromVoice(voiceTranscript)}
+                  disabled={extractingFromVoice || !voiceTranscript.trim()}
+                  style={{ ...S.outlineBtn, opacity: (extractingFromVoice || !voiceTranscript.trim()) ? 0.5 : 1 }}
+                >
+                  {extractingFromVoice ? 'Extracting…' : 'Extract (test)'}
+                </button>
+              </div>
+            </div>
+
+            {/* Case Type Tabs */}
             <div style={{ display: 'flex', borderBottom: `1px solid ${T.border}` }}>
-              {['patient', 'accident', 'contact'].map((tab) => (
-                <button key={tab} onClick={() => setActiveRegTab(tab)} style={{ flex: 1, padding: '12px 8px', borderBottom: `2px solid ${activeRegTab === tab ? T.text : 'transparent'}`, background: 'none', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.08em', cursor: 'pointer', color: activeRegTab === tab ? T.text : T.textMuted, fontFamily: "'Open Sans', sans-serif", fontWeight: activeRegTab === tab ? 400 : 300 }}>
-                  {tab === 'patient' ? 'Patient Information' : tab === 'accident' ? 'Emergency / Incident' : 'Emergency Contact'}
+              {['primary', 'ift'].map((ct) => (
+                <button key={ct} onClick={() => setCaseType(ct)} style={{ flex: 1, padding: '12px 8px', borderBottom: `2px solid ${caseType === ct ? T.text : 'transparent'}`, background: 'none', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.08em', cursor: 'pointer', color: caseType === ct ? T.text : T.textMuted, fontFamily: "'Open Sans', sans-serif", fontWeight: caseType === ct ? 400 : 300 }}>
+                  {ct === 'primary' ? 'Primary Case' : 'Inter-Facility Transfer'}
                 </button>
               ))}
             </div>
 
             <div style={{ ...S.modalBody, overflowY: 'auto' }}>
 
-              {/* Tab 1: Patient Information — 2-column grid */}
-              {activeRegTab === 'patient' && (
+              {/* ── PRIMARY CASE ── */}
+              {caseType === 'primary' && (
                 <div>
-                  <div style={{ ...S.formGrid, gridTemplateColumns: '1fr 1fr' }}>
-                    <div style={S.formGroupNoMb}>
-                      <label style={S.label}>Incident ID <span style={{ color: 'red' }}>*</span></label>
-                      <input style={S.input} value={patientInfo.id} onChange={(e) => setPatientInfo({ ...patientInfo, id: e.target.value })} placeholder="Enter Incident ID (required)" />
-                    </div>
-                    <div style={S.formGroupNoMb}>
-                     <label style={S.label}>
-  Full Name <span style={{ color: 'red' }}>*</span>
-</label>
-                      <input style={S.input}  required
-  value={patientInfo.fullName} onChange={(e) => setPatientInfo({ ...patientInfo, fullName: e.target.value })} placeholder="Enter full name" />
-                    </div>
-                  </div>
-                  <div style={{ ...S.formGrid, gridTemplateColumns: '1fr 1fr 1fr', marginBottom: '1rem' }}>
-                    <div style={S.formGroupNoMb}>
-     <label style={S.label}>
-  Age <span style={{ color: 'red' }}>*</span>
-</label>
-                      <input style={S.input} type="number"required value={patientInfo.age} onChange={(e) => setPatientInfo({ ...patientInfo, age: e.target.value })} placeholder="Age" />
-                    </div>
-                    <div style={S.formGroupNoMb}>
-                   <label style={S.label}>
-  Gender <span style={{ color: 'red' }}>*</span>
-</label>
-                      <select style={S.select} required  value={patientInfo.gender} onChange={(e) => setPatientInfo({ ...patientInfo, gender: e.target.value })}>
-                        <option value="">Select</option>
-                        <option>Male</option><option>Female</option><option>Other</option>
-                      </select>
-                    </div>
-                    <div style={S.formGroupNoMb}>
-                  <label style={S.label}>
-  Phone Number <span style={{ color: 'red' }}>*</span>
-</label>
-                      <input style={S.input} required  value={patientInfo.phoneNumber} onChange={(e) => {
-  const value = e.target.value.replace(/\D/g, "");
-
-  if (value.length <= 10) {
-    setPatientInfo({
-      ...patientInfo,
-      phoneNumber: value
-    });
-  }
-}} placeholder="+91-XXXXXXXXXX" />
-                    </div>
+                  <div style={{ marginBottom: '1rem', padding: '0.625rem 0.875rem', background: T.bgAlt, border: `1px solid ${T.border}`, fontSize: '0.7rem', color: T.textSec }}>
+                    Only 4 fields are required at this stage. Chief Complaint is free text — the system auto-classifies Medical/Trauma as soon as you stop typing (no manual override).
                   </div>
                   <div style={S.formGroupNoMb}>
-                    <label style={S.label}>Address</label>
-                    <textarea style={{ ...S.textarea, minHeight: '64px' }} value={patientInfo.address} onChange={(e) => setPatientInfo({ ...patientInfo, address: e.target.value })} placeholder="Full address" />
+                    <label style={S.label}>Incident Location <span style={{ color: 'red' }}>*</span></label>
+                    <input
+                      ref={searchInputRef}
+                      style={{ ...S.input, ...(!primaryCase.incidentLocation.trim() ? { borderColor: '#c0392b' } : {}) }}
+                      value={primaryCase.incidentLocation}
+                      onChange={(e) => setPrimaryCase({ ...primaryCase, incidentLocation: e.target.value })}
+                      placeholder="Search an address, or click the map below to drop a pin"
+                    />
+                    {!primaryCase.incidentLocation.trim() && (
+                      <span style={{ fontSize: '0.62rem', color: '#c0392b', marginTop: '4px', display: 'block' }}>This field is required</span>
+                    )}
+                    {mapLoading && <span style={{ fontSize: '0.65rem', color: T.textMuted }}>Loading map…</span>}
+                    {mapError && <span style={{ fontSize: '0.65rem', color: '#c00' }}>{mapError}</span>}
+                    <div ref={mapRef} style={{ height: '220px', width: '100%', marginTop: '8px', border: `1px solid ${T.border}` }} />
+                    {primaryCase.latitude && primaryCase.longitude ? (
+                      <small style={{ fontSize: '0.6rem', color: T.textMuted, display: 'block', marginTop: '4px' }}>
+                        Pinned: {Number(primaryCase.latitude).toFixed(5)}, {Number(primaryCase.longitude).toFixed(5)}
+                      </small>
+                    ) : (
+                      <span style={{ fontSize: '0.62rem', color: '#c0392b', marginTop: '4px', display: 'block' }}>
+                        No map pin set yet — search the address above or click the map to drop a pin. Required before registering.
+                      </span>
+                    )}
                   </div>
+                  <div style={{ ...S.formGroupNoMb, marginTop: '0.75rem' }}>
+                    <label style={S.label}>Contact Number <span style={{ color: 'red' }}>*</span></label>
+                    <input style={{ ...S.input, ...(!primaryCase.contactNumber.trim() ? { borderColor: '#c0392b' } : {}) }} value={primaryCase.contactNumber} onChange={(e) => setPrimaryCase({ ...primaryCase, contactNumber: e.target.value.replace(/\D/g, '').slice(0, 10) })} placeholder="Caller contact number" />
+                    {!primaryCase.contactNumber.trim() && (
+                      <span style={{ fontSize: '0.62rem', color: '#c0392b', marginTop: '4px', display: 'block' }}>This field is required</span>
+                    )}
+                  </div>
+                  <div style={{ ...S.formGrid, gridTemplateColumns: '1fr 1fr', marginTop: '0.75rem', marginBottom: 0 }}>
+                    <div style={S.formGroupNoMb}>
+                      <label style={S.label}>Patient Name</label>
+                      <input style={S.input} value={primaryCase.fullName} onChange={(e) => setPrimaryCase({ ...primaryCase, fullName: e.target.value })} placeholder="If known — otherwise leave blank" />
+                    </div>
+                    <div style={S.formGroupNoMb}>
+                      <label style={S.label}>Age</label>
+                      <input style={S.input} type="number" value={primaryCase.age} onChange={(e) => setPrimaryCase({ ...primaryCase, age: e.target.value })} placeholder="If known — otherwise leave blank" />
+                    </div>
+                  </div>
+
+                  <div style={{ ...S.formGroupNoMb, marginTop: '0.75rem' }}>
+                    <label style={S.label}>Gender <span style={{ color: 'red' }}>*</span></label>
+                    <select style={{ ...S.select, ...(!primaryCase.gender ? { borderColor: '#c0392b' } : {}) }} value={primaryCase.gender} onChange={(e) => setPrimaryCase({ ...primaryCase, gender: e.target.value })}>
+                      <option value="">Select</option>
+                      <option value="male">Male</option>
+                      <option value="female">Female</option>
+                      <option value="other">Other</option>
+                    </select>
+                    {!primaryCase.gender && (
+                      <span style={{ fontSize: '0.62rem', color: '#c0392b', marginTop: '4px', display: 'block' }}>This field is required</span>
+                    )}
+                  </div>
+                  <div style={{ ...S.formGroupNoMb, marginTop: '0.75rem' }}>
+                    <label style={S.label}>Chief Complaint <span style={{ color: 'red' }}>*</span></label>
+                    <textarea
+                      style={{ ...S.textarea, minHeight: '48px', ...(!primaryCase.chiefComplaintText.trim() ? { borderColor: '#c0392b' } : {}) }}
+                      value={primaryCase.chiefComplaintText}
+                      onChange={(e) => { setPrimaryCase({ ...primaryCase, chiefComplaintText: e.target.value }); setComplaintClassification(null); }}
+                      placeholder="Type what the agent says the caller reported, e.g. 'Patient having severe chest pain and difficulty breathing'"
+                    />
+                    {!primaryCase.chiefComplaintText.trim() && (
+                      <span style={{ fontSize: '0.62rem', color: '#c0392b', marginTop: '4px', display: 'block' }}>This field is required</span>
+                    )}
+                    {classifyingComplaint && <span style={{ fontSize: '0.65rem', color: T.textMuted, marginTop: '4px', display: 'block' }}>Classifying…</span>}
+                    {classifyError && <span style={{ fontSize: '0.65rem', color: '#c00', marginTop: '4px', display: 'block' }}>{classifyError}</span>}
+                    {complaintClassification && (
+                      <div style={{ fontSize: '0.65rem', color: T.textMuted, marginTop: '4px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                          <span>Classification: <strong style={{ color: T.text }}>{primaryCaseCategory}</strong>
+                            {complaintClassification.matched_label && <> — matched: <strong style={{ color: T.text }}>{complaintClassification.matched_label}</strong></>}
+                            {' '}(confidence: {complaintClassification.confidence})
+                          </span>
+                          {complaintClassification.priority && (
+                            <span style={{
+                              fontSize: '0.6rem', fontWeight: 400, padding: '1px 6px', textTransform: 'uppercase', letterSpacing: '0.05em',
+                              border: `1px solid ${PRIORITY_COLORS[complaintClassification.priority] || T.border}`,
+                              color: PRIORITY_COLORS[complaintClassification.priority] || T.textMuted,
+                            }}>
+                              {complaintClassification.priority} priority
+                            </span>
+                          )}
+                        </div>
+                        {complaintClassification.rationale && <div style={{ marginTop: '2px' }}>{complaintClassification.rationale}</div>}
+                      </div>
+                    )}
+                  </div>
+
+                  {complaintClassification?.category === 'Unconscious Collapse' && (
+                    <div style={{ ...S.formGroupNoMb, marginTop: '0.75rem', padding: '0.75rem', border: `1px solid ${T.text}`, background: T.bgAlt }}>
+                      <label style={S.label}>Breathing Status <span style={{ color: 'red' }}>*</span></label>
+                      <select style={{ ...S.select, ...(!primaryCase.breathingStatus ? { borderColor: '#c0392b' } : {}) }} value={primaryCase.breathingStatus} onChange={(e) => setPrimaryCase({ ...primaryCase, breathingStatus: e.target.value })}>
+                        <option value="">Select</option>
+                        <option value="Breathing">Breathing (awake/normal — treat under chief-complaint pathway)</option>
+                        <option value="Not Breathing">Not Breathing (unconscious — RED priority, emergency algorithm)</option>
+                      </select>
+                      {!primaryCase.breathingStatus && (
+                        <span style={{ fontSize: '0.62rem', color: '#c0392b', marginTop: '4px', display: 'block' }}>This field is required</span>
+                      )}
+                      {primaryCase.breathingStatus === 'Not Breathing' && (
+                        <div style={{ marginTop: '6px', fontSize: '0.68rem', color: '#000', fontWeight: 400 }}>
+                          ⚠ Triggers RED priority, highest-priority dispatch, and live CPR video guidance (Trauma pathway).
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                 </div>
               )}
 
-              {/* Tab 2: Accident Details */}
-             {/* Tab 2: Accident Details */}
-{activeRegTab === 'accident' && (
-  <div>
-    <div style={{ ...S.formGrid, gridTemplateColumns: '1fr 1fr', marginBottom: '1rem' }}>
-      <div style={S.formGroupNoMb}>
-        <label style={S.label}>Incident Date</label>
-        <input type="date" style={S.input} value={accidentDetails.accidentDate} onChange={(e) => setAccidentDetails({ ...accidentDetails, accidentDate: e.target.value })} />
-      </div>
-      <div style={S.formGroupNoMb}>
-        <label style={S.label}>Incidentt Time</label>
-        <input type="time" style={S.input} value={accidentDetails.accidentTime} onChange={(e) => setAccidentDetails({ ...accidentDetails, accidentTime: e.target.value })} />
-      </div>
-    </div>
-    
-    <div style={{ marginBottom: '1rem' }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-        <label style={{ ...S.label, display: 'block' }}>Location</label>
-        <button
-          type="button"
-          onClick={loadMapManually}
-          style={{ ...S.outlineBtn, fontSize: "0.6rem", padding: "0.2rem 0.5rem", gap: "4px" }}
-          disabled={mapLoading}
-        >
-          <RefreshCw size={12} style={{ animation: mapLoading ? "spin 1s linear infinite" : "none" }} />
-          {mapLoading ? "Loading..." : "Reload Map"}
-        </button>
-      </div>
-      
-      <input
-        ref={searchInputRef}
-        id="location-search"
-        style={{ ...S.input, marginBottom: '8px' }}
-        placeholder="Search location on map..."
-      />
-      
-      {/* Map Container with loading state */}
-      <div style={{ position: "relative", minHeight: "260px" }}>
-        <div 
-          ref={mapRef} 
-          style={{ 
-            height: "260px", 
-            width: "100%", 
-            border: `1px solid ${T.border}`,
-            background: "#f5f5f5",
-            display: mapLoading ? "none" : "block"
-          }} 
-        />
-        
-        {mapLoading && (
-          <div style={{
-            height: "260px",
-            width: "100%",
-            border: `1px solid ${T.border}`,
-            background: T.bgAlt,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexDirection: "column",
-            gap: "12px"
-          }}>
-            <RefreshCw size={24} style={{ animation: "spin 1s linear infinite" }} />
-            <span style={{ fontSize: "0.75rem", color: T.textMuted }}>Loading map...</span>
-          </div>
-        )}
-        
-        {mapError && !mapLoading && (
-          <div style={{
-            height: "260px",
-            width: "100%",
-            border: `1px solid ${T.border}`,
-            background: "#fff3f3",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexDirection: "column",
-            gap: "8px",
-            padding: "16px",
-            textAlign: "center"
-          }}>
-            <AlertTriangle size={24} color="#d32f2f" />
-            <span style={{ fontSize: "0.7rem", color: "#d32f2f" }}>{mapError}</span>
-            <button
-              onClick={loadMapManually}
-              style={{ ...S.actionBtn, marginTop: "8px" }}
-            >
-              Try Again
-            </button>
-          </div>
-        )}
-      </div>
-      
-      <input 
-  style={{ ...S.input, marginTop: "8px", background: T.bgAlt, color: T.textMuted }} 
-  value={
-    accidentDetails.latitude && accidentDetails.longitude 
-      ? `${Number(accidentDetails.latitude).toFixed(6)}, ${Number(accidentDetails.longitude).toFixed(6)}`
-      : ""
-  } 
-  readOnly 
-  placeholder="Lat, Long will appear after selecting on map" 
-/>
-    </div>
-    
-    <div style={{ ...S.formGrid, gridTemplateColumns: '1fr 1fr', marginBottom: '1rem' }}>
-      <div style={S.formGroupNoMb}>
-        <label style={S.label}>Incident Type</label>
-        <select style={S.select} value={accidentDetails.accidentType} onChange={(e) => setAccidentDetails({ ...accidentDetails, accidentType: e.target.value })}>
-          <option value="">Select</option>
-          <option>Road Traffic</option><option>Fall</option><option>Burn</option><option>Drowning</option><option>Other</option>
-        </select>
-      </div>
-      <div style={S.formGroupNoMb}>
-        <label style={S.label}>Patient Condition</label>
-        <input style={S.input} value={accidentDetails.condition} onChange={(e) => setAccidentDetails({ ...accidentDetails, condition: e.target.value })} placeholder="Describe condition" />
-      </div>
-    </div>
-  </div>
-)}
-
-              {/* Tab 3: Emergency Contact */}
-              {activeRegTab === 'contact' && (
+              {/* ── INTER-FACILITY TRANSFER ── */}
+              {caseType === 'ift' && (
                 <div>
-                  <div style={{ ...S.formGrid, gridTemplateColumns: '1fr 1fr', marginBottom: '1rem' }}>
-                    <div style={S.formGroupNoMb}>
-                      <label style={S.label}>Contact Name</label>
-                      <input style={S.input} value={emergencyContact.name} onChange={(e) => setEmergencyContact({ ...emergencyContact, name: e.target.value })} placeholder="Full name" />
-                    </div>
-                    <div style={S.formGroupNoMb}>
-                      <label style={S.label}>Relationship</label>
-                      <input style={S.input} value={emergencyContact.relationship} onChange={(e) => setEmergencyContact({ ...emergencyContact, relationship: e.target.value })} placeholder="e.g. Spouse, Parent" />
-                    </div>
+                  <div style={{ marginBottom: '1rem', padding: '0.625rem 0.875rem', background: T.bgAlt, border: `1px solid ${T.border}`, fontSize: '0.7rem', color: T.textSec }}>
+                    IFT captures a fuller clinical transfer profile. Receiving-facility confirmation and Section 10 auto-recommendation are not included in this build.
                   </div>
-                  <div style={S.formGroupNoMb}>
-                    <label style={S.label}>Phone Number</label>
-                    <input style={{ ...S.input, maxWidth: '50%' }} value={emergencyContact.phoneNumber} onChange={(e) => setEmergencyContact({ ...emergencyContact, phoneNumber: e.target.value })} placeholder="+91-XXXXXXXXXX" />
-                  </div>
+                  {IFT_SECTIONS.map((section) => (
+                    <div key={section.title} style={{ marginBottom: '1.25rem' }}>
+                      <div style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.12em', color: T.textMuted, fontWeight: 400, marginBottom: '0.75rem', paddingBottom: '0.5rem', borderBottom: `1px solid ${T.border}` }}>{section.title}</div>
+                      <div style={{ ...S.formGrid, gridTemplateColumns: '1fr 1fr' }}>
+                        {section.fields.map((f) => {
+                          const fieldEmpty = !(iftForm[f.key] && String(iftForm[f.key]).trim() !== '');
+                          const showRequired = f.required && fieldEmpty;
+                          return f.key === 'referringAddress' ? (
+                            <div key={f.key} style={{ ...S.formGroupNoMb, gridColumn: '1 / -1' }}>
+                              <label style={S.label}>{f.label}</label>
+                              <input
+                                ref={searchInputRef}
+                                style={S.input}
+                                value={iftForm.referringAddress || ''}
+                                onChange={(e) => updateIftField('referringAddress', e.target.value)}
+                                placeholder="Search an address, or click the map below to drop a pin"
+                              />
+                              {mapLoading && <span style={{ fontSize: '0.65rem', color: T.textMuted }}>Loading map…</span>}
+                              {mapError && <span style={{ fontSize: '0.65rem', color: '#c00' }}>{mapError}</span>}
+                              <div ref={mapRef} style={{ height: '220px', width: '100%', marginTop: '8px', border: `1px solid ${T.border}` }} />
+                              {iftForm.referringLatitude && iftForm.referringLongitude ? (
+                                <small style={{ fontSize: '0.6rem', color: T.textMuted, display: 'block', marginTop: '4px' }}>
+                                  Pinned: {Number(iftForm.referringLatitude).toFixed(5)}, {Number(iftForm.referringLongitude).toFixed(5)}
+                                </small>
+                              ) : (
+                                <span style={{ fontSize: '0.62rem', color: '#c0392b', marginTop: '4px', display: 'block' }}>
+                                  No map pin set yet — search the address above or click the map to drop a pin. Required before registering.
+                                </span>
+                              )}
+                            </div>
+                          ) : f.key === 'receivingHospitalName' ? (
+                            <div key={f.key} style={{ ...S.formGroupNoMb, gridColumn: '1 / -1' }}>
+                              <label style={S.label}>{f.label}</label>
+                              <input
+                                ref={receivingSearchInputRef}
+                                style={S.input}
+                                value={iftForm.receivingHospitalName || ''}
+                                onChange={(e) => updateIftField('receivingHospitalName', e.target.value)}
+                                placeholder="Search a hospital, or click the map below to drop a pin"
+                              />
+                              <div ref={receivingMapRef} style={{ height: '220px', width: '100%', marginTop: '8px', border: `1px solid ${T.border}` }} />
+                              {iftForm.receivingLatitude && iftForm.receivingLongitude ? (
+                                <small style={{ fontSize: '0.6rem', color: T.textMuted, display: 'block', marginTop: '4px' }}>
+                                  Pinned: {Number(iftForm.receivingLatitude).toFixed(5)}, {Number(iftForm.receivingLongitude).toFixed(5)}
+                                </small>
+                              ) : (
+                                <span style={{ fontSize: '0.62rem', color: '#c0392b', marginTop: '4px', display: 'block' }}>
+                                  No map pin set yet — search the hospital above or click the map to drop a pin. Required before registering.
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <div key={f.key} style={f.type === 'textarea' ? { ...S.formGroupNoMb, gridColumn: '1 / -1' } : S.formGroupNoMb}>
+                              <label style={S.label}>{f.label}{f.required && <span style={{ color: 'red' }}> *</span>}</label>
+                              {f.type === 'select' ? (
+                                <select style={{ ...S.select, ...(showRequired ? { borderColor: '#c0392b' } : {}) }} value={iftForm[f.key] || ''} onChange={(e) => updateIftField(f.key, e.target.value)}>
+                                  <option value="">Select</option>
+                                  {f.options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                </select>
+                              ) : f.type === 'textarea' ? (
+                                <textarea style={{ ...S.textarea, minHeight: '60px', ...(showRequired ? { borderColor: '#c0392b' } : {}) }} value={iftForm[f.key] || ''} onChange={(e) => updateIftField(f.key, e.target.value)} />
+                              ) : (
+                                <input type={f.type} style={{ ...S.input, ...(showRequired ? { borderColor: '#c0392b' } : {}) }} value={iftForm[f.key] || ''} onChange={(e) => updateIftField(f.key, e.target.value)} />
+                              )}
+                              {showRequired && (
+                                <span style={{ fontSize: '0.62rem', color: '#c0392b', marginTop: '4px', display: 'block' }}>This field is required</span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
 
             <div style={S.modalFooter}>
-              {activeRegTab !== 'patient' && (
-                <button className="cc-outline-btn" style={S.outlineBtn} onClick={() => { if (activeRegTab === 'accident') setActiveRegTab('patient'); if (activeRegTab === 'contact') setActiveRegTab('accident'); }}>← Back</button>
-              )}
-              {activeRegTab === 'patient' && (
-                <button className="cc-action-btn" style={S.actionBtn} onClick={() => { if (!patientInfo.id || patientInfo.id.trim() === '') { alert('Incident ID is required!'); return; } setActiveRegTab('accident'); }}>Next →</button>
-              )}
-              {activeRegTab === 'accident' && (
-                <button className="cc-action-btn" style={S.actionBtn} onClick={() => setActiveRegTab('contact')}>Next →</button>
-              )}
-              {activeRegTab === 'contact' && (
-                <button className="cc-action-btn" style={S.actionBtn} onClick={handlePatientRegistration}>Register Patient →</button>
-              )}
               <button className="cc-outline-btn" style={S.outlineBtn} onClick={() => setShowNewIncident(false)}>Cancel</button>
+              {caseType === 'primary' ? (
+                <button
+                  className="cc-action-btn"
+                  style={{ ...S.actionBtn, opacity: isPrimaryCaseValid ? 1 : 0.5, cursor: isPrimaryCaseValid ? 'pointer' : 'not-allowed' }}
+                  onClick={handlePrimaryCaseRegistration}
+                  disabled={!isPrimaryCaseValid}
+                >
+                  Register Primary Case →
+                </button>
+              ) : (
+                <button
+                  className="cc-action-btn"
+                  style={{ ...S.actionBtn, opacity: isIFTValid ? 1 : 0.5, cursor: isIFTValid ? 'pointer' : 'not-allowed' }}
+                  onClick={handleIFTRegistration}
+                  disabled={!isIFTValid}
+                >
+                  Register IFT Case →
+                </button>
+              )}
             </div>
           </div>
         </div>
-      )}
+           )}
 
       {/* ═══════ EDIT PATIENT MODAL ═══════ */}
       {showEditPatient && editPatientData && (

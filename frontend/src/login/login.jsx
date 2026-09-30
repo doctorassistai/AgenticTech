@@ -5,6 +5,25 @@ import logoImage from "../assets/lodo_only.png";
 import logoImage_af from "../assets/econet-removebg-preview.png";
 
 const API_BASE_URL = import.meta.env.VITE_BACKEND_URL;
+console.log("VITE_BACKEND_URL:", API_BASE_URL);
+
+// Roles that require a second, properly-signed role token from the insurance backend.
+// seg = the /insurance/web/{seg}/login path segment; tokenKey/nameKey = localStorage keys.
+const PRIVILEGED_LOGINS = {
+  "md":                { seg: "md",                tokenKey: "md_token",         nameKey: "md_name",         fallbackName: "Managing Director" },
+  "managing-director": { seg: "md",                tokenKey: "md_token",         nameKey: "md_name",         fallbackName: "Managing Director" },
+  "super-admin":       { seg: "md",                tokenKey: "md_token",         nameKey: "md_name",         fallbackName: "Managing Director" },
+  "operations-head":   { seg: "operations",        tokenKey: "operations_token", nameKey: "operations_name", fallbackName: "Operations Head" },
+  "state-team":        { seg: "state-team",        tokenKey: "state_token",      nameKey: "state_name",      fallbackName: "State Team" },
+  "reporting-manager": { seg: "reporting-manager", tokenKey: "rm_token",         nameKey: "rm_name",         fallbackName: "Reporting Manager" },
+  "qc-manager":        { seg: "qc-manager",        tokenKey: "qc_token",         nameKey: "qc_name",         fallbackName: "QC Manager" },
+  "portal-team":       { seg: "portal-team",       tokenKey: "portal_token",     nameKey: "portal_name",     fallbackName: "Portal Team" },
+};
+const ALL_PRIVILEGED_KEYS = [
+  "md_token", "md_name", "operations_token", "operations_name",
+  "state_token", "state_name", "rm_token", "rm_name",
+  "qc_token", "qc_name", "portal_token", "portal_name",
+];
 
 function Login() {
   const [formData, setFormData] = useState({ email: "", password: "" });
@@ -82,6 +101,29 @@ const handleSubmit = async (e) => {
     // ======================================
     localStorage.setItem("user_id", data.user_id);
     localStorage.setItem("role", data.role);
+
+    // Clear any stale privileged tokens from a previous session, then mint the
+    // role token for privileged roles (MD / Operations Head / State Team /
+    // Reporting Manager / QC Manager / Portal Team).
+    ALL_PRIVILEGED_KEYS.forEach((k) => localStorage.removeItem(k));
+    const privileged = PRIVILEGED_LOGINS[data.role];
+    if (privileged) {
+      const mdBaseUrl = API_BASE_URL?.replace(/\/$/, "") || "";
+      const mdResponse = await fetch(`${mdBaseUrl}/insurance/web/${privileged.seg}/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: formData.email.trim(),
+          password: formData.password,
+        }),
+      });
+      const mdData = await mdResponse.json();
+      if (!mdResponse.ok || !mdData.access_token) {
+        throw new Error(mdData.detail || `${privileged.fallbackName} sign-in failed.`);
+      }
+      localStorage.setItem(privileged.tokenKey, mdData.access_token);
+      localStorage.setItem(privileged.nameKey, mdData.full_name || privileged.fallbackName);
+    }
     if (data.role === "doctor") {
 
   // Remove previous theme
@@ -139,10 +181,26 @@ const handleSubmit = async (e) => {
         patient: `/patient-dashboard?patient_id=${data.user_id}`,
         "auditing-doctor-new": `/insurance/doctor-review-new`,
         supervisor: `/insurance/dashboard?user_id=${data.user_id}`,
+        md: `/insurance/md/dashboard`,
+        "managing-director": `/insurance/md/dashboard`,
+        "super-admin": `/insurance/md/dashboard`,
+        "operations-head": `/insurance/operations/dashboard`,
+        "state-team": `/insurance/state-team/dashboard`,
+        "reporting-manager": `/insurance/reporting-manager/dashboard`,
+        "qc-manager": `/insurance/qc-manager/dashboard`,
+        "portal-team": `/insurance/portal-team/dashboard`,
+        mact_adjudicator: `/mact-console`,
+      
       };
 
-      navigate(routes[data.role] || "/");
+      console.log("LOGIN ROLE:", data.role, "→", routes[data.role]);
 
+      if (data.role === "mact_adjudicator") {
+        navigate("/mact-console");
+        return;
+      }
+
+      navigate(routes[data.role] || "/");
     }, 800);
 
   } catch (err) {
@@ -150,8 +208,7 @@ const handleSubmit = async (e) => {
     console.error("Login error:", err);
 
     setMessage({
-      text:
-        "Unable to connect to server. Please try again.",
+      text: err.message || "Unable to connect to server. Please try again.",
       type: "error"
     });
 
@@ -539,7 +596,8 @@ const handleSubmit = async (e) => {
 
           <div className="da-left-top">
            
-            <span className="da-brand-name">DoctorAssist.AI</span>
+            <span className="da-brand-name">EMR Module</span>
+
             {/* <img
               src={logoImage_af}
               alt="DoctorAssist AI"

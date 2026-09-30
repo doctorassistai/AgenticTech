@@ -1623,6 +1623,64 @@ async def get_logs(hospital_id: str = None):
     cursor = integration_request_logs_collection.find(query, {"_id": 0})
     return await cursor.to_list(length=None)
 
+@router.post("/register-mact-adjudicator")
+async def register_mact_adjudicator(
+    request: Request,
+    secret: str = Query(...),
+):
+    """
+    Creates a MACT adjudicator user.
+    Protect with MACT_ADJUDICATOR_BOOTSTRAP_SECRET.
+    """
+    expected = os.getenv("MACT_ADJUDICATOR_BOOTSTRAP_SECRET")
+    if not expected or secret != expected:
+        raise HTTPException(status_code=403, detail="Invalid bootstrap secret")
+
+    data = await request.json()
+    username  = data.get("username")
+    password  = data.get("password")
+    email     = data.get("email")
+    full_name = data.get("full_name") or data.get("fullName") or username
+
+    if not username or not password:
+        raise HTTPException(status_code=400, detail="Username and password required")
+
+    if user_auth_collection.find_one({"username": username}):
+        raise HTTPException(status_code=409, detail="MACT adjudicator already exists")
+
+    sys_user_id = f"mactadj-{uuid.uuid4()}"
+
+    user_auth_collection.insert_one({
+        "sys_user_id":      sys_user_id,
+        "doctor_assist_id": "MACT_ADJUDICATOR",
+        "username":         username,
+        "password":         hash_password(password),
+        "email":            email,
+        "full_name":        full_name,
+        "phone_number":     "NA",
+        "role":             "mact_adjudicator",
+        "user_type":        "internal",
+        "status":           "active",
+        "created_at":       datetime.utcnow(),
+    })
+
+    emit_audit(request.app, AuditEvent(
+        timestamp=datetime.utcnow(),
+        level="CRITICAL",
+        source={"service": "gateway", "component": "bootstrap"},
+        actor={"type": "system"},
+        context={"ip": get_client_ip(request), "endpoint": "/register-mact-adjudicator"},
+        clinical_context={},
+        action={"type": "CREATE_MACT_ADJUDICATOR", "status": "SUCCESS"}
+    ))
+
+    return {
+        "status": "success",
+        "message": "MACT adjudicator created successfully",
+        "sys_user_id": sys_user_id,
+    }
+
+
 @router.post("/register-auditing-doctor")
 async def register_auditing_doctor(request: Request):
     """
@@ -1631,23 +1689,19 @@ async def register_auditing_doctor(request: Request):
     full_name MUST match exactly what QC stores in qcDecision.doctor
     (e.g. "Dr. Shanila").
     """
-    user_id_from_header   = request.headers.get("X-User-Id")
-    user_role_from_header = request.headers.get("X-User-Role")
-
-    if user_id_from_header:
-        authenticated_user_id = user_id_from_header
-        user_role             = user_role_from_header
-    else:
-        auth = request.headers.get("authorization")
-        if not auth:
-            raise HTTPException(status_code=401, detail="Missing token")
-        try:
-            token = auth.split(" ")[1]
-            user  = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-            authenticated_user_id = user.get("sub")
-            user_role             = user.get("role")
-        except Exception:
+    token = request.cookies.get("access_token")
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    try:
+        user = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        authenticated_user_id = user.get("sub")
+        user_role             = user.get("role")
+        if not authenticated_user_id:
             raise HTTPException(status_code=401, detail="Invalid token")
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=401, detail="Token expired or invalid")
 
     if user_role != "supervisor":
         raise HTTPException(status_code=403, detail="Only supervisors can register auditing doctors")

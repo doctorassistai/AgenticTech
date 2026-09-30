@@ -202,14 +202,14 @@ insurance_claims_collection          = mongo_db_main["InsuranceClaimPackages"]
 patient_triage_status_collection     = mongo_db_main["patient_triage_status"]
 # ── LLMs ────────────────────────────────────────────────────
 llm = ChatGroq(
-    model="llama-3.1-8b-instant",
+    model="openai/gpt-oss-20b",
     temperature=0.1,
     max_tokens=4000,
     groq_api_key=GROQ_API_KEY,
 )
 
 llm_synthesis = ChatGroq(
-    model="llama-3.3-70b-versatile",
+    model="openai/gpt-oss-120b",
     temperature=0.1,
     max_tokens=8000,
     groq_api_key=GROQ_API_KEY,
@@ -1276,7 +1276,12 @@ def _extract_py_hints(
             for p in patterns:
                 m = re.search(p, text, re.IGNORECASE)
                 if m:
-                    return m.group(1).strip()
+                    # Not every pattern has a capturing group (e.g. vn_pupils'
+                    # second pattern r"pupil[^,;.]+reactive" has none). Fall
+                    # back to the whole match instead of assuming group(1)
+                    # exists — mirrors the m.lastindex guard already used in
+                    # _extract_insurance_from_text.
+                    return (m.group(1) if m.lastindex and m.lastindex >= 1 else m.group(0)).strip()
             return None
 
         hints["vn_bp"]       = _find_value(full_conv, [r"blood pressure[:\s]+([0-9]+/[0-9]+)", r"bp[:\s]+([0-9]+/[0-9]+)"])

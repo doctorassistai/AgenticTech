@@ -40,8 +40,8 @@ every collection this file touches is given a named module-level variable up fro
   Groq LLM API : `from groq import Groq` is imported at module load, AND (unlike
                  surgical_oncology.py) a single module-level `groq_client = Groq(api_key=api_key)`
                  is constructed once at import time and reused by the one function that calls
-                 it: `_adapt_protocol_with_llm`. Model used is "llama-3.3-70b-versatile" (different
-                 from surgical_oncology.py's "llama-3.1-8b-instant"), response_format json_object,
+                 it: `_adapt_protocol_with_llm`. Model used is "openai/gpt-oss-120b" (different
+                 from surgical_oncology.py's "openai/gpt-oss-20b"), response_format json_object,
                  temperature=0. Only one Groq-calling site in the whole file - a stark contrast
                  with surgical_oncology.py's ten independent per-endpoint client constructions.
                  Because the client is built at import time, a missing/bad GROQ_API_KEY would
@@ -303,7 +303,7 @@ segment for the actual route (e.g. "/list" is really GET /radiotherapy-protocol/
     The one Groq call in this file. Builds a system prompt that explicitly enumerates what the
     model is FORBIDDEN to touch (dose, fraction, PTV/CTV/GTV, OAR, machine, technique) and asks
     for a fixed 6-key JSON object (treatmentIntent, startDate, specialInstructions,
-    concurrentTherapy, reasonForChange, safetyFlags) using model "llama-3.3-70b-versatile",
+    concurrentTherapy, reasonForChange, safetyFlags) using model "openai/gpt-oss-120b",
     response_format json_object, temperature=0. On any exception (bad key, malformed JSON,
     network error, etc.) the failure is caught, logged as a warning, and llm_data falls back to
     {} - selecting a protocol is never allowed to hard-fail just because metadata adaptation

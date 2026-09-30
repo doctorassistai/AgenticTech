@@ -181,15 +181,53 @@ function MarkdownBoldText({ text }) {
    }
 ───────────────────────────────────────── */
 function ClinicalSummaryTab({ data }) {
-  const summarySrc = data?.summary;
+  const backendSummary = data?.summary || {};
+
+  let parsedRaw = {};
+
+  if (backendSummary.raw_output) {
+    try {
+      parsedRaw =
+        typeof backendSummary.raw_output === "string"
+          ? JSON.parse(backendSummary.raw_output)
+          : backendSummary.raw_output;
+    } catch (err) {
+      console.error("Invalid clinical summary raw_output:", err);
+    }
+  }
+
+  // Structured backend fields win.
+  // raw_output is fallback.
+  const summarySrc = {
+    ...parsedRaw,
+    ...backendSummary,
+  };
 
   const [editMode, setEditMode] = useState(false);
   const [paragraphs, setParagraphs] = useState([]);
   const [recordingIndex, setRecordingIndex] = useState(null);
 
   useEffect(() => {
-    if (!data?.summary) return;
-    setParagraphs(Array.isArray(data.summary.paragraphs) ? [...data.summary.paragraphs] : []);
+    const structuredParagraphs = Array.isArray(summarySrc.paragraphs)
+      ? summarySrc.paragraphs
+      : [];
+
+    if (structuredParagraphs.length > 0) {
+      setParagraphs([...structuredParagraphs]);
+      return;
+    }
+
+    if (summarySrc.full_text) {
+      setParagraphs(
+        String(summarySrc.full_text)
+          .split(/\n\s*\n/)
+          .map(p => p.trim())
+          .filter(Boolean)
+      );
+      return;
+    }
+
+    setParagraphs([]);
   }, [data]);
 
   const handleChange = (idx, value) => {
@@ -521,7 +559,126 @@ function TimelineTab({ data }) {
     </div>
   );
 }
+/* ─────────────────────────────────────────
+   TAB: Traceability
 
+   Backend shape:
+   data.summary_sources = [
+     {
+       fact: "...",
+       document: "...",
+       source_area: "...",
+       source_location: "...",
+       evidence: "..."
+     }
+   ]
+───────────────────────────────────────── */
+function TraceabilityTab({ data }) {
+  const sources = data?.summary_sources ?? [];
+
+  if (sources.length === 0) {
+    return (
+      <EmptyState msg="No traceability information available" />
+    );
+  }
+
+  return (
+    <div>
+      <SecLabel>Clinical Fact Traceability</SecLabel>
+
+      <div style={{
+        marginBottom: "1rem",
+        fontSize: "0.72rem",
+        color: T.textMuted,
+        lineHeight: 1.6,
+      }}>
+        Each clinical fact below can be traced back to its
+        originating document, clinical area, location, and
+        supporting evidence.
+      </div>
+
+      {sources.map((source, i) => (
+        <Card key={i} style={{ marginBottom: "0.75rem" }}>
+          {/* CLINICAL FACT */}
+          {source.fact && (
+            <div style={{
+              fontSize: "0.82rem",
+              color: T.text,
+              lineHeight: 1.6,
+              fontWeight: 400,
+              marginBottom: "0.75rem",
+            }}>
+              {source.fact}
+            </div>
+          )}
+
+          {/* SOURCE DETAILS */}
+          <div style={{
+            borderTop: `1px solid ${T.border}`,
+            paddingTop: "0.65rem",
+          }}>
+
+            {source.document && (
+              <div style={{
+                fontSize: "0.68rem",
+                color: T.textMuted,
+                marginBottom: "0.3rem",
+              }}>
+                <strong>Document:</strong> {source.document}
+              </div>
+            )}
+
+            {source.source_area && (
+              <div style={{
+                fontSize: "0.68rem",
+                color: T.textMuted,
+                marginBottom: "0.3rem",
+              }}>
+                <strong>Area:</strong> {source.source_area}
+              </div>
+            )}
+
+            {source.source_location && (
+              <div style={{
+                fontSize: "0.68rem",
+                color: T.textMuted,
+                marginBottom: "0.3rem",
+              }}>
+                <strong>Location:</strong> {source.source_location}
+              </div>
+            )}
+
+            {source.evidence && (
+              <div style={{
+                marginTop: "0.55rem",
+                padding: "0.6rem 0.75rem",
+                background: T.bgAlt,
+                borderLeft: `2px solid ${T.borderStr}`,
+                fontSize: "0.68rem",
+                color: T.textSec,
+                lineHeight: 1.5,
+                fontWeight: 300,
+              }}>
+                <div style={{
+                  fontSize: "0.58rem",
+                  color: T.textMuted,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.08em",
+                  marginBottom: "0.25rem",
+                }}>
+                  Evidence
+                </div>
+
+                "{source.evidence}"
+              </div>
+            )}
+
+          </div>
+        </Card>
+      ))}
+    </div>
+  );
+}
 /* ─────────────────────────────────────────
    TAB: Organ Analysis
    Backend shape: data.organ_analysis = {
@@ -592,10 +749,10 @@ function TimelineTab({ data }) {
    TAB DEFINITIONS
 ───────────────────────────────────────── */
 const TABS = [
-  { id: "summary",  label: "Clinical Summary" },
-  { id: "timeline", label: "Timeline"         },
+  { id: "summary",       label: "Clinical Summary" },
+  { id: "timeline",      label: "Timeline" },
+  { id: "traceability",  label: "Traceability" },
   { id: "Longitudinal",  label: "Longitudinal Summary" },
-  // { id: "organs",   label: "Organ Analysis"   },
 ];
 
 /* ─────────────────────────────────────────
@@ -751,17 +908,24 @@ export default function PatientSummary({ patientId, trigger }) {
           </div>
 
           {/* content */}
-          <div style={{ padding: "1.5rem", minHeight: "380px" }} className="fade-in" key={tab}>
-            {tab === "summary"  && <ClinicalSummaryTab data={data} />}
-            {tab === "timeline" && <TimelineTab        data={data} />}
-            {tab === "Longitudinal" && (
-              <LongitudinalSummaryTab
-                patientId={patientId}
-                trigger={trigger}
-              />
-            )}
-            {/* {tab === "organs"   && <OrgansTab          data={data} />} */}
-          </div>
+          {tab === "summary" && (
+            <ClinicalSummaryTab data={data} />
+          )}
+
+          {tab === "timeline" && (
+            <TimelineTab data={data} />
+          )}
+
+          {tab === "traceability" && (
+            <TraceabilityTab data={data} />
+          )}
+
+          {tab === "Longitudinal" && (
+            <LongitudinalSummaryTab
+              patientId={patientId}
+              trigger={trigger}
+            />
+          )}
         </div>
 
       </div>

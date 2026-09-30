@@ -228,7 +228,7 @@
   <table style="margin-bottom:6px;">
     <tr>
       <td style="width:12%; font-weight:bold;">Ref No</td>
-      <td style="width:38%;">{{ case.referenceNumber or case.caseId or '' }}</td>
+      <td style="width:38%;">{{ case.insurerRef or '' }}</td>
       <td style="width:10%; font-weight:bold;">Date</td>
       <td style="width:40%;">{{ case.reportDate or '' }}</td>
     </tr>
@@ -292,7 +292,7 @@
       <td class="lbl">Policy holder Name and Relation</td>
       <td class="val">
         {{ (case.get('policyDetails') or {}).get('holderName') or case.claimantName or '' }}
-        {% if (case.get('policyDetails') or {}).get('relation') %} / {{ case.policyDetails.relation }}{% endif %}
+        {% if (case.get('policyDetails') or {}).get('policyHolderRelation') %} / {{ case.policyDetails.policyHolderRelation }}{% endif %}
       </td>
     </tr>
     <tr>
@@ -329,7 +329,8 @@
         {% if cd.get('estimatedCost') %}Amount: {{ cd.estimatedCost }}{% endif %}
         {% if cd.get('amountAuthorized') %} | Authorized: {{ cd.amountAuthorized }}{% endif %}
         {% if cd.get('medicalHistory') %} | {{ cd.medicalHistory }}{% endif %}
-        {% if not cd.get('estimatedCost') and not cd.get('amountAuthorized') %}NA{% endif %}
+        {% if cd.get('preAuthDetails') and not cd.get('estimatedCost') and not cd.get('amountAuthorized') %}{{ cd.preAuthDetails }}{% endif %}
+        {% if not cd.get('estimatedCost') and not cd.get('amountAuthorized') and not cd.get('preAuthDetails') %}NA{% endif %}
       </td>
     </tr>
     <tr>
@@ -338,16 +339,24 @@
     </tr>
     <tr>
       <td class="lbl">Treatment</td>
-      <td class="val">{{ additional.get('treatment','') if additional.get else '' }}</td>
-    </tr>
+      <td class="val">{{ additional.get('treatment') or additional.get('courseInHospital') or critical.get('procedure') or '' }}</td>    </tr>
     <tr>
       <td class="lbl">Hospital Name and Address</td>
-      <td class="val">{{ hospital.name or '' }}{% if hospital.address %}, {{ hospital.address }}{% endif %}</td>
+      <td class="val">
+        {%- set _hname = hospital.name or '' -%}
+        {%- set _haddr = hospital.address or '' -%}
+        {%- if _haddr and _hname and _hname in _haddr -%}
+          {{ _haddr }}
+        {%- elif _haddr -%}
+          {{ _hname }}{% if _hname %}, {% endif %}{{ _haddr }}
+        {%- else -%}
+          {{ _hname }}
+        {%- endif -%}
+      </td>
     </tr>
     <tr>
       <td class="lbl">Registration and Other details (Attach hospital information sheet and related documents)</td>
-      <td class="val">{{ hospital.get('registrationNumber','') if hospital.get else '' }}</td>
-    </tr>
+      <td class="val">{{ hospital.get('registrationNumber') or '' }}</td>    </tr>
   </table>
 
   <!-- ═══════════════════════════════════════ -->
@@ -357,12 +366,11 @@
     <tr class="sec-hdr"><td colspan="2">Ailment details</td></tr>
     <tr>
       <td class="lbl">Onset of symptoms</td>
-      <td class="val">{{ additional.get('onsetOfSymptoms','') if additional.get else '' or case.dateOfIncident or '' }}</td>
+      <td class="val">{{ additional.get('onsetOfSymptoms') or case.dateOfIncident or '' }}</td>
     </tr>
     <tr>
       <td class="lbl">First consultation</td>
-      <td class="val">{{ additional.get('firstConsultation','NOT PROVIDED') if additional.get else 'NOT PROVIDED' }}</td>
-    </tr>
+      <td class="val">{{ additional.get('firstConsultationDate') or 'NOT PROVIDED' }}</td>    </tr>
     <tr>
       <td class="lbl">Referral Doctor's detail</td>
       <td class="val">{{ case.familyDoctor or additional.get('referralDoctor','NOT PROVIDED') if additional.get else 'NOT PROVIDED' }}</td>

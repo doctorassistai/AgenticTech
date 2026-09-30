@@ -1173,3 +1173,90 @@ async def update_patient_dob(sys_user_id: str, request: Request):
     except Exception as e:
         logger.exception("Failed to update DOB: %s", str(e))
         raise HTTPException(status_code=500, detail=str(e))
+    
+    
+    
+@router.put("/patients/mask-names/{hospital_id}")
+async def mask_all_patient_names(hospital_id: str):
+    try:
+        patients = patient_user_collection.find({
+            "hospital_id": hospital_id
+        })
+
+        updated_count = 0
+
+        for patient in patients:
+            original_name = patient.get("name")
+
+            if not original_name:
+                continue
+
+            masked_name = mask_patient_name(
+                original_name,
+                hospital_id
+            )
+
+            patient_user_collection.update_one(
+                {
+                    "_id": patient["_id"]
+                },
+                {
+                    "$set": {
+                        "name": masked_name
+                    }
+                }
+            )
+
+            updated_count += 1
+
+        return {
+            "status": "success",
+            "hospital_id": hospital_id,
+            "updated_count": updated_count,
+            "message": "All patient names masked successfully"
+        }
+
+    except Exception as e:
+        logger.exception(
+            "Failed to mask patient names",
+            extra={"hospital_id": hospital_id}
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to mask patient names"
+        )
+        
+        
+def mask_patient_name(name: str, hospital_id: str) -> str:
+
+    if not name:
+        return name
+
+    # Generate extra Xs based on hospital_id
+    extra_x = (sum(ord(c) for c in str(hospital_id)) % 3) + 4
+
+    masked_parts = []
+
+    for part in name.split():
+
+        if len(part) <= 2:
+            masked = part[0] + ("X" * extra_x)
+
+        elif len(part) <= 5:
+            masked = (
+                part[:2]
+                + ("X" * extra_x)
+                + part[-1]
+            )
+
+        else:
+            masked = (
+                part[:3]
+                + ("X" * extra_x)
+                + part[-1]
+            )
+
+        masked_parts.append(masked)
+
+    return " ".join(masked_parts)

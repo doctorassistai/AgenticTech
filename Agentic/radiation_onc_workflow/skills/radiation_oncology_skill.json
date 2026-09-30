@@ -1,0 +1,1248 @@
+{
+  "skill_id": "radiation_oncology_intelligence",
+  "skill_name": "Radiation Oncology Intelligence Skill",
+  "version": 1,
+  "purpose": "Doctor-configurable selection layer over the existing Radiation Oncology Intelligence backend. It selects, edits, and filters existing backend checks without changing agent logic or clinical calculations.",
+  "modules": [
+    {
+      "module_id": "m1",
+      "num": "01 / 12",
+      "module_name": "Patient Assessment & Radiation Readiness",
+      "description": "Confirms the patient is safe and complete to start or continue radiotherapy.",
+      "parameters": [
+        {
+          "id": "M1-P01",
+          "name": "Radiation Eligibility",
+          "backend_parameter": "Radiation Eligibility",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M1-P02",
+          "name": "ECOG / KPS",
+          "backend_parameter": "ECOG / KPS",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M1-P03",
+          "name": "Prior Radiation History",
+          "backend_parameter": "Prior Radiation History",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M1-P04",
+          "name": "Surgery–Chemo–RT Timeline",
+          "backend_parameter": "Surgery–Chemo–RT Timeline",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M1-P05",
+          "name": "Implant / Device Safety",
+          "backend_parameter": "Implant / Device Safety",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M1-P06",
+          "name": "Baseline Organ Function",
+          "backend_parameter": "Baseline Organ Function",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M1-P07",
+          "name": "Imaging Completeness",
+          "backend_parameter": "Imaging Completeness",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M1-P08",
+          "name": "Pathology / Molecular Correlation",
+          "backend_parameter": "Pathology / Molecular Correlation",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M1-P09",
+          "name": "Radiation Intent Classification",
+          "backend_parameter": "Radiation Intent Classification",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M1-P10",
+          "name": "Pre‑RT Checklist",
+          "backend_parameter": "Pre‑RT Checklist",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        }
+      ]
+    },
+    {
+      "module_id": "m2",
+      "num": "02 / 12",
+      "module_name": "Treatment Planning Intelligence",
+      "description": "Guideline-aligned review of fractionation, targets, margins, technique, and simulation.",
+      "parameters": [
+        {
+          "id": "M2-P01",
+          "name": "Fractionation Regimen",
+          "backend_parameter": "Fractionation Regimen",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M2-P02",
+          "name": "Protocol Selection",
+          "backend_parameter": "Protocol Selection",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M2-P03",
+          "name": "Dose Prescription",
+          "backend_parameter": "Dose Prescription",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M2-P04",
+          "name": "Target Volumes (GTV/CTV/PTV)",
+          "backend_parameter": "Target Volumes (GTV/CTV/PTV)",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M2-P05",
+          "name": "Margin Recommendation",
+          "backend_parameter": "Margin Recommendation",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M2-P06",
+          "name": "Elective Nodal Irradiation",
+          "backend_parameter": "Elective Nodal Irradiation",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M2-P07",
+          "name": "Adaptive RT Eligibility",
+          "backend_parameter": "Adaptive RT Eligibility",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M2-P08",
+          "name": "Organs-at-Risk Identification",
+          "backend_parameter": "Organs-at-Risk Identification",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M2-P09",
+          "name": "Technique Recommendation",
+          "backend_parameter": "Technique Recommendation",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M2-P10",
+          "name": "Beam Arrangement",
+          "backend_parameter": "Beam Arrangement",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M2-P11",
+          "name": "Bolus Recommendation",
+          "backend_parameter": "Bolus Recommendation",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M2-P12",
+          "name": "Immobilization",
+          "backend_parameter": "Immobilization",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M2-P13",
+          "name": "Simulation Protocol",
+          "backend_parameter": "Simulation Protocol",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M2-P14",
+          "name": "Planning Workflow Checklist",
+          "backend_parameter": "Planning Workflow Checklist",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M2-P15",
+          "name": "Re-plan Trigger (weight/anatomy)",
+          "backend_parameter": "Re-plan Trigger (weight/anatomy)",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        }
+      ]
+    },
+    {
+      "module_id": "m3",
+      "num": "03 / 12",
+      "module_name": "Dose Calculation & Cumulative Dose Intelligence",
+      "description": "Longitudinal biological-dose and cumulative OAR exposure review.",
+      "parameters": [
+        {
+          "id": "M3-P01",
+          "name": "Spinal Cord (Dmax)",
+          "backend_parameter": "Spinal Cord (Dmax)",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M3-P02",
+          "name": "Brainstem (Dmax)",
+          "backend_parameter": "Brainstem (Dmax)",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M3-P03",
+          "name": "Ipsilateral Parotid (Mean)",
+          "backend_parameter": "Ipsilateral Parotid (Mean)",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M3-P04",
+          "name": "Contralateral Parotid (Mean)",
+          "backend_parameter": "Contralateral Parotid (Mean)",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M3-P05",
+          "name": "Larynx (Mean)",
+          "backend_parameter": "Larynx (Mean)",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M3-P06",
+          "name": "Mandible (Dmax)",
+          "backend_parameter": "Mandible (Dmax)",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M3-P07",
+          "name": "Oral Cavity (Mean)",
+          "backend_parameter": "Oral Cavity (Mean)",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M3-P08",
+          "name": "Fractionation Conversion (BED₁₀)",
+          "backend_parameter": "Fractionation Conversion (BED₁₀)",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M3-P09",
+          "name": "Re-irradiation Assessment",
+          "backend_parameter": "Re-irradiation Assessment",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M3-P10",
+          "name": "Dose Escalation Safety",
+          "backend_parameter": "Dose Escalation Safety",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M3-P11",
+          "name": "Multi-course Aggregation",
+          "backend_parameter": "Multi-course Aggregation",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M3-P12",
+          "name": "Prior External Records Import",
+          "backend_parameter": "Prior External Records Import",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M3-P13",
+          "name": "Composite Dose Assessment",
+          "backend_parameter": "Composite Dose Assessment",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M3-P14",
+          "name": "Biological Dose Comparison",
+          "backend_parameter": "Biological Dose Comparison",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M3-P15",
+          "name": "Hard Safety Threshold Engine",
+          "backend_parameter": "Hard Safety Threshold Engine",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        }
+      ]
+    },
+    {
+      "module_id": "m4",
+      "num": "04 / 12",
+      "module_name": "Plan Quality & Safety Validation",
+      "description": "Independent verification that the approved plan matches the prescription, meets recorded constraints, and is physically deliverable.",
+      "parameters": [
+        {
+          "id": "M4-P01",
+          "name": "Plan Completeness",
+          "backend_parameter": "Plan Completeness",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M4-P02",
+          "name": "Prescription vs. Plan",
+          "backend_parameter": "Prescription vs. Plan",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M4-P03",
+          "name": "Target Coverage (PTV70 V95%)",
+          "backend_parameter": "Target Coverage (PTV70 V95%)",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M4-P04",
+          "name": "OAR Constraint Compliance",
+          "backend_parameter": "OAR Constraint Compliance",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M4-P05",
+          "name": "Plan Quality Score",
+          "backend_parameter": "Plan Quality Score",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M4-P06",
+          "name": "Homogeneity / Conformity Index",
+          "backend_parameter": "Homogeneity / Conformity Index",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M4-P07",
+          "name": "Collision Risk",
+          "backend_parameter": "Collision Risk",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M4-P08",
+          "name": "Machine Compatibility",
+          "backend_parameter": "Machine Compatibility",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M4-P09",
+          "name": "Treatment Approval Checklist",
+          "backend_parameter": "Treatment Approval Checklist",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M4-P10",
+          "name": "Independent Clinical Review",
+          "backend_parameter": "Independent Clinical Review",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M4-P11",
+          "name": "AI Plan Consistency Check",
+          "backend_parameter": "AI Plan Consistency Check",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M4-P12",
+          "name": "Planning Deviation Detection",
+          "backend_parameter": "Planning Deviation Detection",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        }
+      ]
+    },
+    {
+      "module_id": "m5",
+      "num": "05 / 12",
+      "module_name": "Treatment Delivery Intelligence",
+      "description": "Fraction-by-fraction delivery and image-guidance verification.",
+      "parameters": [
+        {
+          "id": "M5-P01",
+          "name": "Daily Treatment Readiness",
+          "backend_parameter": "Daily Treatment Readiness",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M5-P02",
+          "name": "IGRT Verification",
+          "backend_parameter": "IGRT Verification",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M5-P03",
+          "name": "Setup Error (3D vector)",
+          "backend_parameter": "Setup Error (3D vector)",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M5-P04",
+          "name": "Couch Shift Trend",
+          "backend_parameter": "Couch Shift Trend",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M5-P05",
+          "name": "Motion Management",
+          "backend_parameter": "Motion Management",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M5-P06",
+          "name": "Adaptive Treatment Trigger",
+          "backend_parameter": "Adaptive Treatment Trigger",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M5-P07",
+          "name": "Missed Fraction Detection",
+          "backend_parameter": "Missed Fraction Detection",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M5-P08",
+          "name": "Machine Interruption Log",
+          "backend_parameter": "Machine Interruption Log",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M5-P09",
+          "name": "Session Completion Verification",
+          "backend_parameter": "Session Completion Verification",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M5-P10",
+          "name": "Delivery Quality Monitoring",
+          "backend_parameter": "Delivery Quality Monitoring",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M5-P11",
+          "name": "Treatment Workflow Status",
+          "backend_parameter": "Treatment Workflow Status",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M5-P12",
+          "name": "Respiratory Gating",
+          "backend_parameter": "Respiratory Gating",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        }
+      ]
+    },
+    {
+      "module_id": "m6",
+      "num": "06 / 12",
+      "module_name": "Treatment Gap & Schedule Optimization",
+      "description": "Detects treatment interruptions, quantifies their recorded/derived impact, and surfaces compensation review.",
+      "parameters": [
+        {
+          "id": "M6-P01",
+          "name": "Treatment Gap Detected",
+          "backend_parameter": "Treatment Gap Detected",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M6-P02",
+          "name": "Gap Compensation Calculator",
+          "backend_parameter": "Gap Compensation Calculator",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M6-P03",
+          "name": "BED Compensation Estimate",
+          "backend_parameter": "BED Compensation Estimate",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M6-P04",
+          "name": "Weekend / Holiday Optimizer",
+          "backend_parameter": "Weekend / Holiday Optimizer",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M6-P05",
+          "name": "Interrupted Treatment Risk",
+          "backend_parameter": "Interrupted Treatment Risk",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M6-P06",
+          "name": "Tumor Repopulation Analysis",
+          "backend_parameter": "Tumor Repopulation Analysis",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M6-P07",
+          "name": "Fraction Rescheduling",
+          "backend_parameter": "Fraction Rescheduling",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M6-P08",
+          "name": "Predicted Local Control Impact",
+          "backend_parameter": "Predicted Local Control Impact",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M6-P09",
+          "name": "Protocol Compliance Tracker",
+          "backend_parameter": "Protocol Compliance Tracker",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M6-P10",
+          "name": "Gap Decision Documentation",
+          "backend_parameter": "Gap Decision Documentation",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        }
+      ]
+    },
+    {
+      "module_id": "m7",
+      "num": "07 / 12",
+      "module_name": "Toxicity Prediction & Management",
+      "description": "Observed and dose-informed toxicity monitoring with CTCAE-oriented review.",
+      "parameters": [
+        {
+          "id": "M7-P01",
+          "name": "Radiation Dermatitis",
+          "backend_parameter": "Radiation Dermatitis",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M7-P02",
+          "name": "Oral Mucositis",
+          "backend_parameter": "Oral Mucositis",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M7-P03",
+          "name": "Xerostomia Risk Prediction",
+          "backend_parameter": "Xerostomia Risk Prediction",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M7-P04",
+          "name": "Radiation Pneumonitis",
+          "backend_parameter": "Radiation Pneumonitis",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M7-P05",
+          "name": "Radiation Esophagitis",
+          "backend_parameter": "Radiation Esophagitis",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M7-P06",
+          "name": "Enteritis / Proctitis",
+          "backend_parameter": "Enteritis / Proctitis",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M7-P07",
+          "name": "Brain Edema Monitoring",
+          "backend_parameter": "Brain Edema Monitoring",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M7-P08",
+          "name": "Cardiac Toxicity Monitoring",
+          "backend_parameter": "Cardiac Toxicity Monitoring",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M7-P09",
+          "name": "Radiation Nephropathy",
+          "backend_parameter": "Radiation Nephropathy",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M7-P10",
+          "name": "Radiation Myelopathy Risk",
+          "backend_parameter": "Radiation Myelopathy Risk",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M7-P11",
+          "name": "Weight / Nutrition Trend",
+          "backend_parameter": "Weight / Nutrition Trend",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M7-P12",
+          "name": "Supportive Care Recommendation",
+          "backend_parameter": "Supportive Care Recommendation",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M7-P13",
+          "name": "CTCAE Grading Currency",
+          "backend_parameter": "CTCAE Grading Currency",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M7-P14",
+          "name": "Late Toxicity Prediction",
+          "backend_parameter": "Late Toxicity Prediction",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M7-P15",
+          "name": "Toxicity Trend Dashboard",
+          "backend_parameter": "Toxicity Trend Dashboard",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        }
+      ]
+    },
+    {
+      "module_id": "m8",
+      "num": "08 / 12",
+      "module_name": "Response Assessment & Follow-up",
+      "description": "Post-treatment response, recurrence surveillance, and survivorship follow-up.",
+      "parameters": [
+        {
+          "id": "M8-P01",
+          "name": "RECIST Response Assessment",
+          "backend_parameter": "RECIST Response Assessment",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M8-P02",
+          "name": "PERCIST / PET Response",
+          "backend_parameter": "PERCIST / PET Response",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M8-P03",
+          "name": "Imaging Comparison Engine",
+          "backend_parameter": "Imaging Comparison Engine",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M8-P04",
+          "name": "Tumor Volume Regression",
+          "backend_parameter": "Tumor Volume Regression",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M8-P05",
+          "name": "Biomarker Trend",
+          "backend_parameter": "Biomarker Trend",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M8-P06",
+          "name": "Local Recurrence Detection",
+          "backend_parameter": "Local Recurrence Detection",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M8-P07",
+          "name": "Radiation Failure Pattern",
+          "backend_parameter": "Radiation Failure Pattern",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M8-P08",
+          "name": "Follow-up Schedule",
+          "backend_parameter": "Follow-up Schedule",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M8-P09",
+          "name": "Survivorship Monitoring",
+          "backend_parameter": "Survivorship Monitoring",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M8-P10",
+          "name": "Late Effect Surveillance",
+          "backend_parameter": "Late Effect Surveillance",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M8-P11",
+          "name": "Disease Progression Dashboard",
+          "backend_parameter": "Disease Progression Dashboard",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M8-P12",
+          "name": "Outcome Analytics",
+          "backend_parameter": "Outcome Analytics",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        }
+      ]
+    },
+    {
+      "module_id": "m9",
+      "num": "09 / 12",
+      "module_name": "Documentation & Clinical Intelligence",
+      "description": "Stage-specific documentation and explainability checks.",
+      "parameters": [
+        {
+          "id": "M9-P01",
+          "name": "Consultation Summary",
+          "backend_parameter": "Consultation Summary",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M9-P02",
+          "name": "Simulation Summary",
+          "backend_parameter": "Simulation Summary",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M9-P03",
+          "name": "Treatment Plan Summary",
+          "backend_parameter": "Treatment Plan Summary",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M9-P04",
+          "name": "Weekly Review Summary",
+          "backend_parameter": "Weekly Review Summary",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M9-P05",
+          "name": "Completion Summary",
+          "backend_parameter": "Completion Summary",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M9-P06",
+          "name": "Toxicity Summary",
+          "backend_parameter": "Toxicity Summary",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M9-P07",
+          "name": "Follow-up Summary",
+          "backend_parameter": "Follow-up Summary",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M9-P08",
+          "name": "Tumor Board Summary",
+          "backend_parameter": "Tumor Board Summary",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M9-P09",
+          "name": "Guideline Evidence Viewer",
+          "backend_parameter": "Guideline Evidence Viewer",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M9-P10",
+          "name": "Explainable AI Recommendation Log",
+          "backend_parameter": "Explainable AI Recommendation Log",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        }
+      ]
+    },
+    {
+      "module_id": "m10",
+      "num": "10 / 12",
+      "module_name": "Radiation Physics & Quality Assurance",
+      "description": "Machine, patient-specific QA, imaging registration, and contour-quality review.",
+      "parameters": [
+        {
+          "id": "M10-P01",
+          "name": "Machine QA Correlation",
+          "backend_parameter": "Machine QA Correlation",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M10-P02",
+          "name": "Patient-Specific QA",
+          "backend_parameter": "Patient-Specific QA",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M10-P03",
+          "name": "Dose Delivery Verification",
+          "backend_parameter": "Dose Delivery Verification",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M10-P04",
+          "name": "Portal Dosimetry Analysis",
+          "backend_parameter": "Portal Dosimetry Analysis",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M10-P05",
+          "name": "Machine Performance Analytics",
+          "backend_parameter": "Machine Performance Analytics",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M10-P06",
+          "name": "Image Registration Validation",
+          "backend_parameter": "Image Registration Validation",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M10-P07",
+          "name": "Contour Consistency Checker",
+          "backend_parameter": "Contour Consistency Checker",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M10-P08",
+          "name": "Auto-Segmentation Quality",
+          "backend_parameter": "Auto-Segmentation Quality",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M10-P09",
+          "name": "Registration Error Detection",
+          "backend_parameter": "Registration Error Detection",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M10-P10",
+          "name": "AI Contour Review Assistant",
+          "backend_parameter": "AI Contour Review Assistant",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M10-P11",
+          "name": "Physics Checklist Automation",
+          "backend_parameter": "Physics Checklist Automation",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M10-P12",
+          "name": "Treatment Safety Audit Trail",
+          "backend_parameter": "Treatment Safety Audit Trail",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        }
+      ]
+    },
+    {
+      "module_id": "m11",
+      "num": "11 / 12",
+      "module_name": "Multidisciplinary Decision Support",
+      "description": "Coordinates radiation, systemic therapy, surgery, pathology, and tumor-board review.",
+      "parameters": [
+        {
+          "id": "M11-P01",
+          "name": "Surgery–RT Sequencing",
+          "backend_parameter": "Surgery–RT Sequencing",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M11-P02",
+          "name": "Chemoradiation Coordination",
+          "backend_parameter": "Chemoradiation Coordination",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M11-P03",
+          "name": "Concurrent Systemic Therapy Safety",
+          "backend_parameter": "Concurrent Systemic Therapy Safety",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M11-P04",
+          "name": "Pathology Correlation",
+          "backend_parameter": "Pathology Correlation",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M11-P05",
+          "name": "Molecular Marker Correlation",
+          "backend_parameter": "Molecular Marker Correlation",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M11-P06",
+          "name": "Tumor Board Decision Assistant",
+          "backend_parameter": "Tumor Board Decision Assistant",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M11-P07",
+          "name": "Re-treatment Eligibility",
+          "backend_parameter": "Re-treatment Eligibility",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M11-P08",
+          "name": "Clinical Trial Matching",
+          "backend_parameter": "Clinical Trial Matching",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M11-P09",
+          "name": "Guideline Compliance Dashboard",
+          "backend_parameter": "Guideline Compliance Dashboard",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M11-P10",
+          "name": "Personalized Strategy Recommendation",
+          "backend_parameter": "Personalized Strategy Recommendation",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        }
+      ]
+    },
+    {
+      "module_id": "m12",
+      "num": "12 / 12",
+      "module_name": "Department Analytics & Operations",
+      "description": "Per-patient operational contribution and department-level metrics when source data permits.",
+      "parameters": [
+        {
+          "id": "M12-P01",
+          "name": "Machine Utilization",
+          "backend_parameter": "Machine Utilization",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M12-P02",
+          "name": "Treatment Throughput",
+          "backend_parameter": "Treatment Throughput",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M12-P03",
+          "name": "Waiting Time (decision → fx 1)",
+          "backend_parameter": "Waiting Time (decision → fx 1)",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M12-P04",
+          "name": "Fraction Completion Rate (dept.)",
+          "backend_parameter": "Fraction Completion Rate (dept.)",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M12-P05",
+          "name": "Toxicity Incidence (cohort)",
+          "backend_parameter": "Toxicity Incidence (cohort)",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M12-P06",
+          "name": "Protocol Compliance (dept.)",
+          "backend_parameter": "Protocol Compliance (dept.)",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M12-P07",
+          "name": "Re-irradiation Registry",
+          "backend_parameter": "Re-irradiation Registry",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M12-P08",
+          "name": "Outcome Benchmarking",
+          "backend_parameter": "Outcome Benchmarking",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M12-P09",
+          "name": "Quality Indicator Dashboard",
+          "backend_parameter": "Quality Indicator Dashboard",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M12-P10",
+          "name": "Radiation Department Performance Score",
+          "backend_parameter": "Radiation Department Performance Score",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        }
+      ]
+    }
+  ]
+}

@@ -423,7 +423,7 @@ function RegisterPatient() {
           <div className="da-sidebar-header">
             <div className="da-brand-row">
               
-              <span className="da-brand-name">Doctorassist.AI</span>
+              <span className="da-brand-name">EMR MODULE</span>
             </div>
             <span className="da-page-label">Patient Registration</span>
           </div>

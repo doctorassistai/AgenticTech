@@ -2505,7 +2505,7 @@ class LLMReranker:
     list, not all skills).
     """
 
-    def __init__(self, model: str = "llama-3.3-70b-versatile"):
+    def __init__(self, model: str = "openai/gpt-oss-120b"):
         self.model = model
 
     def rerank(self, query: str, candidates: list[dict], top_k: int = FINAL_TOP_K) -> list[dict]:

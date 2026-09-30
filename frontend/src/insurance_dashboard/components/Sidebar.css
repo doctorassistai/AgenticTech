@@ -121,3 +121,4 @@
 .user-info { font-size: 12px; }
 .user-name { color: var(--text); font-weight: 500; }
 .user-role { color: var(--muted); font-size: 10px; }
+.md-signout { width: 100%; margin-top: 12px; padding: 9px; border: 1px solid var(--border); border-radius: 6px; background: transparent; color: var(--text); cursor: pointer; text-align: left; }

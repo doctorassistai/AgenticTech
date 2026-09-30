@@ -12,7 +12,7 @@
 //   For Group C (Anaesthesia CL):     checklist > external anaesthesia checklist
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { getBookings, getBooking } from "./api";
+import { getBookings, getBooking, getLatestOncoPathologyCase } from "./api";
 import { getActiveAnaesthesiaRecord, getAnaesthesiaRecordByBooking } from "../../shared/api";
 
 /**
@@ -24,6 +24,7 @@ export function useBookingData(patientId, doctorId) {
   const [bookings, setBookings] = useState([]);
   const [currentBookingDoc, setCurrentBookingDoc] = useState(null);
   const [activeAnaesthesiaRecord, setActiveAnaesthesiaRecord] = useState(null);
+  const [oncoPathologyCase, setOncoPathologyCase] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -39,6 +40,17 @@ export function useBookingData(patientId, doctorId) {
       const result = await getBookings(doctorId, { patient_id: patientId || undefined });
       const bookingsList = result.bookings || [];
       setBookings(bookingsList);
+
+      if (patientId) {
+        getLatestOncoPathologyCase(patientId)
+          .then(res => setOncoPathologyCase(res?.data || null))
+          .catch(err => {
+            console.error("[useBookingData] onco pathology fetch error:", err);
+            setOncoPathologyCase(null);
+          });
+      } else {
+        setOncoPathologyCase(null);
+      }
 
       // Find the active booking, fallback to the latest
       if (bookingsList.length > 0) {
@@ -325,12 +337,63 @@ export function useBookingData(patientId, doctorId) {
     if (!currentBookingDoc) return {};
     const booking = currentBookingDoc.booking || {};
     const postOp = currentBookingDoc.post_op || {};
+    const oncoTnm = oncoPathologyCase?.tnm?.latest || oncoPathologyCase?.tnm || {};
+    const oncoSynoptic = oncoPathologyCase?.synoptic || {};
+
+    // Helper for mapping LVI/PNI (Present -> Yes, Not identified -> No)
+    const mapPresence = (val) => {
+      if (val === "Present") return "Yes";
+      if (val === "Not identified") return "No";
+      if (val === "Indeterminate") return "Indeterminate";
+      return "";
+    };
+
+    // Helper for Grade mapping
+    const mapGrade = (val) => {
+      if (!val) return "";
+      if (val.includes("Well differentiated")) return "Well Differentiated";
+      if (val.includes("Moderately differentiated")) return "Moderately Differentiated";
+      if (val.includes("Poorly differentiated")) return "Poorly Differentiated";
+      if (val.includes("Undifferentiated")) return "Undifferentiated";
+      return "";
+    };
+
+    // Derive generic Margin Status and Resection
+    let derivedMargin = "";
+    let derivedResection = "";
+    if (oncoSynoptic.proximal_margin_status === "Involved by invasive carcinoma" ||
+        oncoSynoptic.distal_margin_status === "Involved by invasive carcinoma" ||
+        oncoSynoptic.circumferential_margin_status === "Involved by invasive carcinoma") {
+      derivedMargin = "Involved";
+      derivedResection = "R1"; // Loosely derive R1 if involved
+    } else if (oncoSynoptic.proximal_margin_status === "Uninvolved by invasive carcinoma" &&
+               oncoSynoptic.distal_margin_status === "Uninvolved by invasive carcinoma") {
+      derivedMargin = "Clear";
+      derivedResection = "R0"; // Loosely derive R0 if clear
+    }
+
+    // Format Report Date (YYYY-MM-DD for <input type="date">)
+    const pathDateRaw = oncoPathologyCase?.updated_at || oncoPathologyCase?.created_at || oncoPathologyCase?.case_register?.date_received || "";
+    const formattedPathDate = pathDateRaw ? String(pathDateRaw).split("T")[0] : "";
 
     return {
       ...postOp,
       unitName: pick(postOp.unitName, booking.unitName, ""),
+      pathStagingT: pick(postOp.pathStagingT, oncoTnm.t_stage, ""),
+      pathStagingN: pick(postOp.pathStagingN, oncoTnm.n_stage, ""),
+      pathStagingM: pick(postOp.pathStagingM, oncoTnm.m_stage, ""),
+      pathStageGroup: pick(postOp.pathStageGroup, oncoTnm.final_stage, ""),
+      pathDiagnosis: pick(postOp.pathDiagnosis, oncoTnm.final_diagnosis, ""),
+      pathNodesExamined: pick(postOp.pathNodesExamined, oncoSynoptic.total_nodes_examined, ""),
+      pathNodesPositive: pick(postOp.pathNodesPositive, oncoSynoptic.positive_nodes, ""),
+      pathGrade: pick(postOp.pathGrade, mapGrade(oncoSynoptic.grade), ""),
+      pathLVI: pick(postOp.pathLVI, mapPresence(oncoSynoptic.lymphovascular_invasion), ""),
+      pathPNI: pick(postOp.pathPNI, mapPresence(oncoSynoptic.perineural_invasion), ""),
+      pathMarginStatus: pick(postOp.pathMarginStatus, derivedMargin, ""),
+      pathResection: pick(postOp.pathResection, derivedResection, ""),
+      pathReportDate: pick(postOp.pathReportDate, formattedPathDate, ""),
     };
-  }, [currentBookingDoc, pick]);
+  }, [currentBookingDoc, oncoPathologyCase, pick]);
 
   /**
    * Get initialData for a specific anaesthesia sub-tab (mm, ga, reg, mac, io, eo).
@@ -360,6 +423,7 @@ export function useBookingData(patientId, doctorId) {
     currentBookingData,
     surgeryFinished,
     activeAnaesthesiaRecord,
+    oncoPathologyCase,
 
     // State
     isLoading,

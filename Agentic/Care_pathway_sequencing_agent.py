@@ -277,7 +277,25 @@ class CarePathwayState(TypedDict):
 # SHARED HELPERS
 # =====================================================================
 
+def _strip_reasoning(content: str) -> str:
+    """Strip <think>...</think> or similar reasoning blocks some Groq
+    reasoning models emit inline in .content when reasoning_format
+    isn't supported by the installed SDK version. Safe no-op if none present."""
+    import re
+    if not content:
+        return content
+    # Remove <think>...</think> blocks (with or without closing tag due to truncation)
+    content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL | re.IGNORECASE)
+    content = re.sub(r"<think>.*", "", content, flags=re.DOTALL | re.IGNORECASE)
+    # Some Groq reasoning models use <reasoning>...</reasoning>
+    content = re.sub(r"<reasoning>.*?</reasoning>", "", content, flags=re.DOTALL | re.IGNORECASE)
+    content = re.sub(r"<reasoning>.*", "", content, flags=re.DOTALL | re.IGNORECASE)
+    return content.strip()
+
+
 def _parse_json(content: str) -> dict:
+    content = _strip_reasoning(content)
+    original = content
     try:
         content = content.strip()
         if "```json" in content:
@@ -287,24 +305,92 @@ def _parse_json(content: str) -> dict:
         s, e = content.find("{"), content.rfind("}")
         if s != -1 and e != -1:
             return json.loads(content[s: e + 1])
+        logger.error(f"❌ _parse_json: no braces found in LLM output. Raw content:\n{original[:2000]}")
         return {}
-    except Exception:
+    except Exception as ex:
+        logger.error(f"❌ _parse_json failed: {ex}\nRaw content:\n{original[:2000]}")
         return {}
 
 
 def _parse_json_array(content: str) -> List[dict]:
+    content = _strip_reasoning(content)
+    original = content
     try:
         content = content.strip()
         if "```json" in content:
             content = content.split("```json", 1)[1].split("```", 1)[0]
         elif "```" in content:
             content = content.split("```", 1)[1].split("```", 1)[0]
-        s, e = content.find("["), content.rfind("]")
+        s = content.find("[")
+        e = content.rfind("]")
         if s != -1 and e != -1:
-            return json.loads(content[s: e + 1])
+            try:
+                return json.loads(content[s: e + 1])
+            except json.JSONDecodeError as parse_err:
+                logger.warning(
+                    f"⚠️ _parse_json_array: full array failed to parse "
+                    f"(likely truncated response — consider raising max_tokens): {parse_err}. "
+                    f"Attempting to salvage complete objects."
+                )
+                salvaged = _salvage_truncated_json_array(content[s:])
+                if salvaged:
+                    logger.warning(f"⚠️ _parse_json_array: salvaged {len(salvaged)} complete object(s) from truncated array")
+                    return salvaged
+                logger.error(f"❌ _parse_json_array: salvage failed too. Raw content:\n{original[:3000]}")
+                return []
+        logger.error(f"❌ _parse_json_array: no brackets found in LLM output. Raw content:\n{original[:2000]}")
         return []
-    except Exception:
+    except Exception as ex:
+        logger.error(f"❌ _parse_json_array failed: {ex}\nRaw content:\n{original[:3000]}")
         return []
+
+
+def _salvage_truncated_json_array(array_text: str) -> List[dict]:
+    """
+    Given text starting with '[' that may be a truncated JSON array
+    (response got cut off mid-object), recover as many COMPLETE
+    top-level objects as possible by tracking brace depth, ignoring
+    braces inside string literals.
+    """
+    if not array_text.startswith("["):
+        return []
+
+    objects: List[dict] = []
+    depth = 0
+    in_string = False
+    escape = False
+    obj_start: Optional[int] = None
+
+    for i, ch in enumerate(array_text):
+        if obj_start is None and ch == "{":
+            obj_start = i
+            depth = 0
+
+        if obj_start is not None:
+            if escape:
+                escape = False
+                continue
+            if ch == "\\":
+                escape = True
+                continue
+            if ch == '"':
+                in_string = not in_string
+                continue
+            if in_string:
+                continue
+            if ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth == 0:
+                    candidate = array_text[obj_start: i + 1]
+                    try:
+                        objects.append(json.loads(candidate))
+                    except Exception:
+                        pass
+                    obj_start = None
+
+    return objects
 
 
 def calculate_age(dob_str: Optional[str]) -> Optional[int]:
@@ -475,9 +561,6 @@ class ClinicalContextSynthesisAgent:
 ALL MDT / TUMOR BOARD OPINIONS ON RECORD FOR THIS PATIENT:
 {opinions_block}
 
-Patient Age: {state.get('patient_age') or 'Unknown'}
-Patient Sex: {state.get('patient_sex') or 'Unknown'}
-
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 YOUR TASK:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -492,12 +575,16 @@ YOUR TASK:
 3. CRITICAL — build a list of TREATMENTS ALREADY COMPLETED for this patient's
    current disease episode. Look for any mention in the opinions of things
    already done ("s/p", "post-op", "completed", "received", "prior",
-   "underwent"). For each one give: treatment_name, modality (surgical/
-   chemotherapy/radiation/immunotherapy/targeted_therapy/endocrine_therapy/
-   procedural/investigation/other), and date if mentioned. This list is used
-   later to mark pathway steps as already completed — being thorough here
-   directly determines pathway accuracy. If truly nothing has been done yet,
-   return an empty list.
+   "underwent") — these must be PAST TENSE / explicitly finished. Do NOT
+   include anything phrased as a future plan or instruction ("start with",
+   "will proceed to", "next give", "then move to") even if it sounds
+   directive — that is a planned step, not history. For each genuinely
+   completed item give: treatment_name, modality (surgical/chemotherapy/
+   radiation/immunotherapy/targeted_therapy/endocrine_therapy/procedural/
+   investigation/other), and date if mentioned. This list is used later to
+   mark pathway steps as already completed — being thorough AND conservative
+   here directly determines pathway accuracy. If truly nothing has been done
+   yet, return an empty list.
 
 4. Write a 3-4 sentence clinical_summary_text (no patient name).
 
@@ -708,7 +795,13 @@ Return ONLY the JSON array."""
                     f"| depends_on={st.depends_on_step}"
                 )
 
-            if not steps:
+            if not steps and steps_json:
+                state["warnings"].append(
+                    "MDT sequence planning returned data but no steps could be parsed — "
+                    "the LLM response may have been truncated (see server logs); "
+                    "consider raising max_tokens or simplifying the MDT opinion inputs"
+                )
+            elif not steps:
                 state["warnings"].append(
                     "MDT sequence planning produced no outstanding steps — "
                     "either the patient's treatment is complete or MDT opinions were insufficient"
@@ -1134,9 +1227,10 @@ async def generate_care_pathway_endpoint(request: dict = Body(...)):
         )
 
         llm = ChatGroq(
-            model        = "llama-3.3-70b-versatile",
+            model        = "openai/gpt-oss-120b",
             groq_api_key = GROQ_API_KEY,
             temperature  = 0.1,
+            max_tokens   = 8000,
         )
 
         plan = await generate_care_pathway(pathway_input=pathway_input, llm=llm)
@@ -1390,9 +1484,10 @@ async def generate_care_pathway_from_dictation_endpoint(request: dict = Body(...
         )
 
         llm = ChatGroq(
-            model        = "llama-3.3-70b-versatile",
+            model        = "openai/gpt-oss-120b",
             groq_api_key = GROQ_API_KEY,
             temperature  = 0.1,
+            max_tokens   = 8000,
         )
 
         plan = await generate_care_pathway_from_dictation(dictation_input=dictation_input, llm=llm)

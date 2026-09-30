@@ -225,19 +225,19 @@
   <script src="https://doctorassist.ai/widgets/patient-onboarding-widget.js?v=1.0"></script>
 
   <script src="https://doctorassist.ai/widgets/diagnosis-widget.js?v=1.0"></script>
-  <script src="https://doctorassist.ai/widgets/insurance-claim-validation-widget.js?v=7.0"></script>
+  <script src="https://doctorassist.ai/widgets/insurance-claim-validation-widget.js?v=18.0"></script>
 
   <script src="https://doctorassist.ai/widgets/treatmentplan-widget.js?v=1.0"></script>
 
   <script src="https://doctorassist.ai/widgets/document-treatmentplan-widget.js?v=1.0"></script>
 
-  <script src="https://doctorassist.ai/widgets/medication-widget.js?v=1.0"></script>
+  <script src="https://doctorassist.ai/widgets/medication-widget.js?v=1.5"></script>
 
   <script src="https://doctorassist.ai/widgets/investigation-widget.js?v=1.0"></script>
 
   <script src="https://doctorassist.ai/widgets/clinicalnotes-widget.js?v=1.0"></script>
 
-  <script src="https://doctorassist.ai/widgets/combined-documentation-widget.js?v=1.0.0"></script>
+  <script src="https://doctorassist.ai/widgets/combined-documentation-widget.js?v=1.5"></script>
 
   <script src="https://doctorassist.ai/widgets/save-session-widget.js?v=1.0"></script>
   <script src="https://doctorassist.ai/widgets/report-upload-widget.js?v=4"></script>
@@ -267,7 +267,7 @@
           "https://doctorassist.ai/api/hms/integration/system/validate-widget-session";
 
         const bearerToken =
-          "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJJTlQtNTk3MTI2OGEtYWFhYy00Yzc4LWJlNTUtN2U2MzUzZWVhYzA4Iiwicm9sZSI6ImludGVncmF0b3IiLCJzY29wZXMiOltdLCJleHAiOjE3ODU5NTM1Nzd9.CWUez9FVNUInG0Vz0CELhIAOxl-KTIJbAKRXikdYs4A";
+          "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJJTlQtYjBjNDBhNDUtMzAyMC00MDFmLTlkNWMtNDM5MjE2YzMxYTY5Iiwicm9sZSI6ImludGVncmF0b3IiLCJzY29wZXMiOltdLCJleHAiOjE3OTA2MTQ1NTd9.KS63jhf1vEW_J3Jow-FkjPO7HUh1mSRkfD8FeTH7dJ0";
 
         // =====================================
         // REQUEST PAYLOAD
@@ -276,15 +276,15 @@
         const payload = {
 
           hospital_id:
-            "JE3Xl2Jaeb",
+            "tJYb7Vi7xI",
 
           // doctor_id:
           //   "DOC_999877",
              doctor_id:
-            "DOC_999877",
+            "DPbvSxI6fO",
 
           patient_id:
-            "HMS-PAT-00988"
+            "wellkins-test-019"
         };
 
         // =====================================
@@ -647,12 +647,12 @@ try {
 
       // ✅ Use the same valid token as the first block
       const bearerToken =
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJJTlQtNTk3MTI2OGEtYWFhYy00Yzc4LWJlNTUtN2U2MzUzZWVhYzA4Iiwicm9sZSI6ImludGVncmF0b3IiLCJzY29wZXMiOltdLCJleHAiOjE3ODU5NTM1Nzd9.CWUez9FVNUInG0Vz0CELhIAOxl-KTIJbAKRXikdYs4A";
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJJTlQtYjBjNDBhNDUtMzAyMC00MDFmLTlkNWMtNDM5MjE2YzMxYTY5Iiwicm9sZSI6ImludGVncmF0b3IiLCJzY29wZXMiOltdLCJleHAiOjE3OTA2MTQ1NTd9.KS63jhf1vEW_J3Jow-FkjPO7HUh1mSRkfD8FeTH7dJ0";
 
       const payload = {
-        hospital_id: "JE3Xl2Jaeb",
-        doctor_id: "DOC_999877",
-        patient_id: "HMS-PAT-00988"
+        hospital_id: "tJYb7Vi7xI",
+        doctor_id: "DPbvSxI6fO",
+        patient_id: "wellkins-test-019"
       };
 
       async function validateSession() {

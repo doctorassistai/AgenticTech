@@ -49,7 +49,8 @@ from routes.auditing_doctor import router as auditing_doctor_new_router
 # ── NEW ──────────────────────────────────────────────────────────────────────
 from routes.case_documents_router import router as case_docs_router, ensure_case_doc_indexes
 from routes.conclusion import router as conclusion_router
-
+from routes.insurance_claims_rag import router as insurance_claims_rag_router, ensure_claims_rag_indexes
+from routes.messages import router as messages_router, ensure_message_indexes
 logger = logging.getLogger("uvicorn.error")
 
 SECRET_KEY               = os.getenv("SECRET_KEY")
@@ -64,6 +65,8 @@ groq_client = Groq(api_key=api_key)
 async def lifespan(app: FastAPI):
     await ensure_indexes()
     await ensure_case_doc_indexes()
+    await ensure_claims_rag_indexes()
+    await ensure_message_indexes()
     task = asyncio.create_task(auto_expire_availability())
     task.add_done_callback(_log_task_crash)
     yield
@@ -111,7 +114,8 @@ app.include_router(qc_review, prefix="/app")
 app.include_router(case_docs_router)   # ← NEW
 app.include_router(auditing_doctor_new_router)   # ← NEW
 app.include_router(conclusion_router)
-
+app.include_router(insurance_claims_rag_router)
+app.include_router(messages_router)
 @app.get("/health")
 def health():
     return {"status": "healthy"}

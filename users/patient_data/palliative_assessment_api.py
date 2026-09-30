@@ -346,7 +346,7 @@ async def _llm_synthesize_treatment_history(sources: dict) -> str:
         return ""
     try:
         completion = groq_client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="openai/gpt-oss-120b",
             messages=[
                 {"role": "system", "content": TREATMENT_HISTORY_SYNTHESIS_PROMPT},
                 {"role": "user", "content": json.dumps(sources, indent=2, default=str)},
@@ -567,7 +567,7 @@ async def _llm_fallback_ongoing_medications(patient_id: str) -> str:
         if not raw_sources or groq_client is None:
             return ""
         completion = groq_client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="openai/gpt-oss-120b",
             messages=[
                 {"role": "system", "content": ONGOING_MEDICATIONS_FALLBACK_PROMPT},
                 {"role": "user", "content": json.dumps(raw_sources, indent=2, default=str)},
@@ -640,7 +640,7 @@ async def get_palliative_latest_medications(patient_id: str, doctor_id: str):
         prescriptions_text = json.dumps(real_prescriptions, indent=2, default=str)
 
         completion = groq_client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="openai/gpt-oss-120b",
             messages=[
                 {"role": "system", "content": ONGOING_MEDICATIONS_SUMMARY_PROMPT},
                 {"role": "user", "content": prescriptions_text},
@@ -825,7 +825,7 @@ async def extract_palliative_assessment_fields(payload: dict):
             raise HTTPException(status_code=400, detail="dictation is required")
 
         completion = groq_client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="openai/gpt-oss-120b",
             messages=[
                 {"role": "system", "content": PALLIATIVE_EXTRACT_FIELDS_PROMPT},
                 {"role": "user", "content": dictation},

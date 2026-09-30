@@ -3,11 +3,6 @@ import jsPDF from "jspdf";
 const API_BASE_URL = import.meta.env.VITE_BACKEND_URL;
 
 /* ─── SECTION ICON MAP ──────────────────────────────────────────────────── */
-/* The backend no longer commits to a fixed schema (see prompt RULE 3) — it
-   picks section names dynamically based on what's in the dictation. This
-   map still covers the common/expected names for a fast exact-match lookup,
-   but anything it misses now falls through to getSectionIcon()'s keyword
-   heuristics below instead of going straight to the generic "📄". */
 const SECTION_ICONS = {
   patient_demographics:        "👤",
   chief_complaint:             "🩺",
@@ -44,10 +39,6 @@ const SECTION_ICONS = {
   triage_category:             "🏷️",
 };
 
-/* Keyword fallback — used when the model names a section something the map
-   above doesn't have an exact entry for (e.g. "recommended_procedures",
-   "required_investigations", "primary_goals"). Checked in order, first
-   match wins. */
 const ICON_KEYWORDS = [
   [/treatment.*(plan|goal)/i, "💊"],
   [/goal/i,          "🎯"],
@@ -77,490 +68,333 @@ function getSectionIcon(section) {
   return "📄";
 }
 
-/* Any section whose name is about a treatment plan — "treatment_plan",
-   "treatment_plans", "proposed_treatment_plans", etc. — gets the richer
-   TreatmentPlanCard instead of the generic NoteCard, regardless of exactly
-   which of those names the model picked for this note. */
 const isTreatmentPlanSection = (section) => /treatment.*plan/i.test(section);
 
-/* Triage: monochrome — all use black/white/gray instead of colour */
+/* Semantic triage colours — colour genuinely carries clinical meaning here,
+   so unlike the rest of the palette this leans on real hue, not tint. */
 const TRIAGE_COLORS = {
-  green:  { bg: "#fafafa", text: "#000000", border: "#000000", dot: "#000000" },
-  yellow: { bg: "#f0f0f0", text: "#000000", border: "#444444", dot: "#444444" },
-  red:    { bg: "#000000", text: "#ffffff", border: "#000000", dot: "#ffffff" },
-  blue:   { bg: "#e8e8e8", text: "#000000", border: "#888888", dot: "#888888" },
+  green:  { bg: "#ECFDF5", text: "#065F46", border: "#10B981", dot: "#10B981" },
+  yellow: { bg: "#FFFBEB", text: "#92400E", border: "#F59E0B", dot: "#F59E0B" },
+  red:    { bg: "#FEF2F2", text: "#991B1B", border: "#EF4444", dot: "#EF4444" },
+  blue:   { bg: "#EFF6FF", text: "#1E40AF", border: "#3B82F6", dot: "#3B82F6" },
 };
 
 /* ─── STYLES ──────────────────────────────────────────────────────────────── */
 const styles = `
-  @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+
+  .snp {
+    --bg:        #F5F7F8;
+    --surface:   #FFFFFF;
+    --border:    #E3E7EB;
+    --ink:       #171B21;
+    --muted:     #6B7280;
+    --faint:     #9CA3AF;
+    --accent:    #0E7C66;
+    --accent-ink:#065F46;
+    --accent-soft:#E7F5F1;
+    --amber:     #B45309;
+    --amber-soft:#FEF3E2;
+  }
 
   .snp * { box-sizing: border-box; margin: 0; padding: 0; }
 
   .snp {
-    font-family: 'Open Sans', sans-serif;
-    font-weight: 300;
-    background: #fafafa;
+    font-family: 'Inter', sans-serif;
+    font-weight: 400;
+    background: var(--bg);
     min-height: 100vh;
-    padding: 28px 24px;
-    color: #000000;
+    padding: 32px 28px 60px;
+    color: var(--ink);
   }
 
-  /* ── HEADER BAR ── */
+  /* ── TOP BAR ── */
   .snp-topbar {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 24px;
-    padding-bottom: 16px;
-    border-bottom: 2px solid #000000;
+    margin-bottom: 22px;
     flex-wrap: wrap;
-    gap: 12px;
+    gap: 14px;
+  }
+  .snp-heading-block { display: flex; flex-direction: column; gap: 3px; }
+  .snp-eyebrow {
+    font-family: 'Inter', sans-serif;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
   }
   .snp-heading {
-    font-size: 17px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 22px;
     font-weight: 600;
-    color: #000000;
-    letter-spacing: -0.3px;
+    color: var(--ink);
+    letter-spacing: -0.01em;
   }
-  .snp-heading span { font-weight: 300; color: #444444; }
+  .snp-subline { font-size: 12px; color: var(--muted); margin-top: 1px; }
 
-  .snp-topbar-actions {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-  }
+  .snp-topbar-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
   /* ── BUTTONS ── */
   .snp-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    background: #000000;
-    color: #ffffff;
-    border: 1px solid #000000;
-    border-radius: 0;
-    padding: 9px 20px;
-    font-family: 'Open Sans', sans-serif;
-    font-size: 13px;
-    font-weight: 400;
-    letter-spacing: 0.02em;
-    cursor: pointer;
-    transition: background 0.15s ease;
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--ink); color: #ffffff;
+    border: 1px solid var(--ink); border-radius: 9px;
+    padding: 10px 18px;
+    font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: transform 0.1s ease, background 0.15s ease;
   }
-  .snp-btn:hover:not(:disabled) { background: #333333; }
-  .snp-btn:active:not(:disabled) { background: #111111; }
-  .snp-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .snp-btn:hover:not(:disabled) { background: #2A2F38; }
+  .snp-btn:active:not(:disabled) { transform: translateY(1px); }
+  .snp-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
   .snp-btn-outline {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    background: #ffffff;
-    color: #000000;
-    border: 1px solid #000000;
-    border-radius: 0;
-    padding: 9px 18px;
-    font-family: 'Open Sans', sans-serif;
-    font-size: 13px;
-    font-weight: 400;
-    letter-spacing: 0.02em;
-    cursor: pointer;
-    transition: background 0.15s ease;
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--surface); color: var(--ink);
+    border: 1px solid var(--border); border-radius: 9px;
+    padding: 10px 16px;
+    font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: border-color 0.15s ease, background 0.15s ease;
   }
-  .snp-btn-outline:hover:not(:disabled) { background: #f0f0f0; }
-  .snp-btn-outline:active:not(:disabled) { background: #e8e8e8; }
-  .snp-btn-outline:disabled { opacity: 0.4; cursor: not-allowed; }
+  .snp-btn-outline:hover:not(:disabled) { border-color: var(--ink); background: #FAFAFA; }
+  .snp-btn-outline:disabled { opacity: 0.45; cursor: not-allowed; }
 
   /* ── DROPDOWN ── */
   .snp-dropdown-wrap { position: relative; }
   .snp-dropdown {
-    position: absolute;
-    top: calc(100% + 4px);
-    right: 0;
-    background: #ffffff;
-    border: 1px solid #000000;
-    border-radius: 0;
-    min-width: 160px;
-    z-index: 100;
-    overflow: hidden;
+    position: absolute; top: calc(100% + 6px); right: 0;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    min-width: 230px; z-index: 100; overflow: hidden;
+    box-shadow: 0 8px 24px rgba(20,20,20,0.10);
     animation: snp-dropdown-in 0.12s ease;
   }
-  @keyframes snp-dropdown-in {
-    from { opacity: 0; transform: translateY(-4px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
+  @keyframes snp-dropdown-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
   .snp-dropdown-item {
-    display: flex;
-    align-items: center;
-    gap: 9px;
-    width: 100%;
-    background: none;
-    border: none;
-    padding: 10px 14px;
-    font-family: 'Open Sans', sans-serif;
-    font-size: 13px;
-    font-weight: 300;
-    color: #000000;
-    cursor: pointer;
-    transition: background 0.1s;
-    text-align: left;
+    display: flex; align-items: center; gap: 10px; width: 100%;
+    background: none; border: none; padding: 11px 14px;
+    font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 500; color: var(--ink);
+    cursor: pointer; transition: background 0.1s; text-align: left;
   }
-  .snp-dropdown-item:hover { background: #f5f5f5; }
-  .snp-dropdown-divider { height: 1px; background: #e0e0e0; }
+  .snp-dropdown-item:hover { background: #F5F7F8; }
+  .snp-dropdown-divider { height: 1px; background: var(--border); }
+  .snp-dropdown-note {
+    padding: 9px 14px; font-size: 11px; color: var(--muted); background: #FAFBFC;
+    border-top: 1px solid var(--border);
+  }
 
   /* ── SPINNER ── */
   .snp-spinner {
-    width: 13px; height: 13px;
-    border: 1.5px solid rgba(255,255,255,0.3);
-    border-top-color: #ffffff;
-    border-radius: 50%;
-    animation: snp-spin 0.65s linear infinite;
+    width: 13px; height: 13px; border: 1.5px solid rgba(255,255,255,0.3);
+    border-top-color: #ffffff; border-radius: 50%; animation: snp-spin 0.65s linear infinite;
   }
   @keyframes snp-spin { to { transform: rotate(360deg); } }
 
-  /* ── GRID (single-column row layout) ── */
-  .snp-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
+  /* ── GRID ── */
+  .snp-grid { display: flex; flex-direction: column; gap: 14px; }
 
   /* ── CARD ── */
   .snp-card {
-    background: #ffffff;
-    border: 1px solid #e0e0e0;
-    border-radius: 0;
-    overflow: hidden;
-    opacity: 0;
-    animation: snp-up 0.3s ease forwards;
-    transition: border-color 0.15s ease;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    overflow: hidden; opacity: 0; animation: snp-up 0.3s ease forwards;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
   }
-  .snp-card:hover { border-color: #000000; }
-  .snp-card.editing { border-color: #000000; }
-  .snp-card.wide { /* all cards are full-width; kept for compat */ }
+  .snp-card:hover { box-shadow: 0 2px 10px rgba(20,20,20,0.04); }
+  .snp-card.editing { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .snp-card.disabled { background: #FBFBFC; }
+  .snp-card.disabled .snp-card-bd { opacity: 0.4; filter: grayscale(0.4); }
 
-  .snp-card:nth-child(1)  { animation-delay: .04s }
-  .snp-card:nth-child(2)  { animation-delay: .08s }
-  .snp-card:nth-child(3)  { animation-delay: .12s }
-  .snp-card:nth-child(4)  { animation-delay: .16s }
-  .snp-card:nth-child(5)  { animation-delay: .20s }
-  .snp-card:nth-child(6)  { animation-delay: .24s }
-  .snp-card:nth-child(7)  { animation-delay: .28s }
-  .snp-card:nth-child(8)  { animation-delay: .32s }
-  .snp-card:nth-child(9)  { animation-delay: .36s }
-  .snp-card:nth-child(10) { animation-delay: .40s }
-  .snp-card:nth-child(11) { animation-delay: .44s }
-  .snp-card:nth-child(12) { animation-delay: .48s }
+  .snp-card:nth-child(1)  { animation-delay: .03s }
+  .snp-card:nth-child(2)  { animation-delay: .06s }
+  .snp-card:nth-child(3)  { animation-delay: .09s }
+  .snp-card:nth-child(4)  { animation-delay: .12s }
+  .snp-card:nth-child(5)  { animation-delay: .15s }
+  .snp-card:nth-child(6)  { animation-delay: .18s }
+  .snp-card:nth-child(7)  { animation-delay: .21s }
+  .snp-card:nth-child(8)  { animation-delay: .24s }
+  .snp-card:nth-child(9)  { animation-delay: .27s }
+  .snp-card:nth-child(10) { animation-delay: .30s }
+  .snp-card:nth-child(11) { animation-delay: .33s }
+  .snp-card:nth-child(12) { animation-delay: .36s }
 
-  @keyframes snp-up {
-    from { opacity: 0; transform: translateY(8px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
+  @keyframes snp-up { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
   /* ── CARD HEADER ── */
   .snp-card-hd {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 10px 14px;
-    background: #fafafa;
-    border-bottom: 1px solid #e0e0e0;
+    display: flex; align-items: center; gap: 10px; padding: 13px 16px;
+    background: #FAFBFC; border-bottom: 1px solid var(--border);
   }
-  .snp-card-icon { font-size: 13px; line-height: 1; flex-shrink: 0; }
+  .snp-card-icon { font-size: 15px; line-height: 1; flex-shrink: 0; }
   .snp-card-title {
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: #888888;
-    flex: 1;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 12px; font-weight: 600; letter-spacing: 0.02em;
+    text-transform: capitalize; color: var(--ink); flex: 1;
+  }
+  .snp-excluded-tag {
+    font-size: 10px; font-weight: 600; letter-spacing: 0.04em;
+    color: var(--faint); text-transform: uppercase;
+    border: 1px solid var(--border); border-radius: 5px; padding: 2px 6px;
   }
 
   /* ── CARD ACTIONS ── */
-  .snp-card-actions { display: flex; align-items: center; gap: 3px; margin-left: auto; }
+  .snp-card-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
   .snp-icon-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 26px;
-    height: 26px;
-    border-radius: 0;
-    border: 1px solid transparent;
-    background: transparent;
-    cursor: pointer;
-    color: #888888;
-    font-size: 12px;
-    transition: all 0.12s ease;
-    padding: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; border-radius: 8px; border: 1px solid transparent;
+    background: transparent; cursor: pointer; color: var(--muted); font-size: 12.5px;
+    transition: all 0.12s ease; padding: 0;
   }
-  .snp-icon-btn:hover        { border-color: #000000; color: #000000; background: #f5f5f5; }
-  .snp-icon-btn.active       { border-color: #000000; color: #000000; background: #f0f0f0; }
-  .snp-icon-btn.save         { border-color: #000000; color: #000000; background: #f5f5f5; }
-  .snp-icon-btn.save:hover   { background: #e8e8e8; }
-  .snp-icon-btn.cancel       { border-color: #888888; color: #888888; background: transparent; }
-  .snp-icon-btn.cancel:hover { border-color: #000000; color: #000000; background: #f5f5f5; }
+  .snp-icon-btn:hover        { border-color: var(--border); color: var(--ink); background: #F0F2F4; }
+  .snp-icon-btn.save         { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-soft); }
+  .snp-icon-btn.save:hover   { background: #D9F0EA; }
+  .snp-icon-btn.cancel       { color: var(--faint); }
+  .snp-icon-btn.cancel:hover { border-color: var(--border); color: var(--ink); }
+
+  /* ── ENABLE/DISABLE SWITCH ── */
+  .snp-switch-wrap { display: inline-flex; align-items: center; gap: 6px; }
+  .snp-switch-label { font-size: 10px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--faint); }
+  .snp-switch {
+    position: relative; width: 32px; height: 18px; border-radius: 999px;
+    background: #D7DBE0; border: none; cursor: pointer; flex-shrink: 0;
+    transition: background 0.15s ease; padding: 0;
+  }
+  .snp-switch.on { background: var(--accent); }
+  .snp-switch-knob {
+    position: absolute; top: 2px; left: 2px; width: 14px; height: 14px;
+    border-radius: 50%; background: #ffffff; transition: transform 0.15s ease;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.25);
+  }
+  .snp-switch.on .snp-switch-knob { transform: translateX(14px); }
 
   /* ── CARD BODY ── */
-  .snp-card-bd { padding: 14px; }
+  .snp-card-bd { padding: 16px; }
 
   /* ── PLAIN TEXT ── */
-  .snp-text { font-size: 13px; font-weight: 300; color: #000000; line-height: 1.7; }
+  .snp-text { font-size: 13.5px; font-weight: 400; color: var(--ink); line-height: 1.7; }
 
-  /* ── BULLET LIST ── */
-  .snp-bullets { display: flex; flex-direction: column; gap: 5px; }
-  .snp-bullet {
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
-    font-size: 13px;
-    font-weight: 300;
-    color: #000000;
-    line-height: 1.65;
-  }
-  .snp-bullet-dot {
-    width: 4px; height: 4px;
-    border-radius: 0;
-    background: #000000;
-    flex-shrink: 0;
-    margin-top: 8px;
-  }
+  /* ── SIMPLE BULLET LIST (primitives only) ── */
+  .snp-bullets { display: flex; flex-direction: column; gap: 6px; }
+  .snp-bullet { display: flex; align-items: flex-start; gap: 9px; font-size: 13.5px; color: var(--ink); line-height: 1.6; }
+  .snp-bullet-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); flex-shrink: 0; margin-top: 8px; }
 
-  /* ── KV TABLE ── */
+  /* ── KV TABLE (flat object, standalone) ── */
   .snp-kv-table { display: flex; flex-direction: column; }
   .snp-kv-row {
-    display: grid;
-    grid-template-columns: 38% 1fr;
-    gap: 8px;
-    align-items: start;
-    padding: 7px 0;
-    border-bottom: 1px solid #f0f0f0;
+    display: grid; grid-template-columns: 36% 1fr; gap: 10px; align-items: start;
+    padding: 8px 0; border-bottom: 1px solid #F0F1F3;
   }
   .snp-kv-row:last-child  { border-bottom: none; padding-bottom: 0; }
   .snp-kv-row:first-child { padding-top: 0; }
   .snp-kv-key {
-    font-size: 10.5px;
-    font-weight: 400;
-    letter-spacing: 0.06em;
-    text-transform: capitalize;
-    color: #888888;
-    padding-top: 2px;
-    line-height: 1.5;
+    font-size: 11px; font-weight: 500; letter-spacing: 0.02em; text-transform: capitalize;
+    color: var(--muted); padding-top: 1px; line-height: 1.5;
   }
-  .snp-kv-val {
-    font-size: 12.5px;
-    font-weight: 400;
-    color: #000000;
-    line-height: 1.55;
-    word-break: break-word;
-  }
+  .snp-kv-val { font-size: 13px; font-weight: 500; color: var(--ink); line-height: 1.55; word-break: break-word; }
 
   /* ── VITAL CHIP ── */
   .snp-chip {
-    display: inline-flex;
-    align-items: center;
-    background: #f5f5f5;
-    border: 1px solid #000000;
-    border-radius: 0;
-    padding: 1px 7px;
-    font-family: 'Open Sans', monospace;
-    font-size: 11.5px;
-    color: #000000;
-    font-weight: 400;
-    letter-spacing: 0.04em;
+    display: inline-flex; align-items: center; background: var(--accent-soft);
+    border: 1px solid #BFE3D8; border-radius: 6px; padding: 2px 8px;
+    font-family: 'Inter', monospace; font-size: 12px; color: var(--accent-ink); font-weight: 600;
   }
 
+  /* ── ITEM LIST (arrays of objects — e.g. medications, investigations) ──
+     This is the fix for items running together: each object becomes its
+     own bordered card with a clear header field and a metadata row. ── */
+  .snp-itemlist { display: flex; flex-direction: column; gap: 10px; }
+  .snp-item-card {
+    border: 1px solid var(--border); border-left: 3px solid var(--accent);
+    border-radius: 10px; padding: 11px 13px; background: #FCFDFD;
+  }
+  .snp-item-index {
+    font-size: 10px; font-weight: 700; color: var(--faint); letter-spacing: 0.04em;
+    margin-right: 7px;
+  }
+  .snp-item-title { font-size: 13.5px; font-weight: 600; color: var(--ink); }
+  .snp-item-meta { display: flex; flex-wrap: wrap; column-gap: 16px; row-gap: 5px; margin-top: 6px; }
+  .snp-item-meta-pair { font-size: 12px; color: var(--ink); display: inline-flex; align-items: center; gap: 4px; }
+  .snp-item-meta-key { color: var(--faint); font-weight: 500; }
+  .snp-item-meta-key::after { content: ':'; }
+  .snp-item-meta-val { color: var(--ink); font-weight: 600; }
+  .snp-item-meta-block { flex-basis: 100%; margin-top: 4px; }
+
   /* ── NESTED SECTION ── */
-  .snp-nested { display: flex; flex-direction: column; gap: 12px; }
+  .snp-nested { display: flex; flex-direction: column; gap: 13px; }
   .snp-nested-label {
-    font-size: 9.5px;
-    font-weight: 600;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: #444444;
-    margin-bottom: 6px;
-    padding-bottom: 4px;
-    border-bottom: 1px solid #000000;
+    font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 6px; padding-bottom: 5px; border-bottom: 1px solid var(--border);
   }
 
   /* ── TRIAGE BADGE ── */
   .snp-triage {
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    border-radius: 0;
-    padding: 10px 18px;
-    font-size: 13px;
-    font-weight: 600;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    border-width: 1px;
-    border-style: solid;
+    display: inline-flex; align-items: center; gap: 10px; border-radius: 999px;
+    padding: 9px 18px; font-size: 13px; font-weight: 700; letter-spacing: 0.06em;
+    text-transform: uppercase; border-width: 1.5px; border-style: solid;
   }
-  .snp-triage-dot {
-    width: 7px; height: 7px;
-    border-radius: 0;
-    animation: snp-pulse 1.8s ease-in-out infinite;
-  }
-  @keyframes snp-pulse {
-    0%,100% { opacity:1; }
-    50%     { opacity:0.3; }
-  }
+  .snp-triage-dot { width: 7px; height: 7px; border-radius: 50%; animation: snp-pulse 1.8s ease-in-out infinite; }
+  @keyframes snp-pulse { 0%,100% { opacity:1; } 50% { opacity:0.35; } }
 
   /* ── EDIT TEXTAREA ── */
   .snp-edit-textarea {
-    width: 100%;
-    min-height: 110px;
-    font-family: 'Open Sans', monospace;
-    font-size: 12px;
-    font-weight: 300;
-    color: #000000;
-    background: #fafafa;
-    border: 1px solid #000000;
-    border-radius: 0;
-    padding: 10px 12px;
-    resize: vertical;
-    outline: none;
-    line-height: 1.65;
-    transition: background 0.12s;
+    width: 100%; min-height: 110px; font-family: 'Inter', monospace; font-size: 12.5px;
+    color: var(--ink); background: #FAFBFC; border: 1px solid var(--border); border-radius: 9px;
+    padding: 11px 13px; resize: vertical; outline: none; line-height: 1.65; transition: border-color 0.12s;
   }
-  .snp-edit-textarea:focus {
-    background: #ffffff;
-    border-color: #000000;
-  }
-  .snp-edit-hint {
-    font-size: 10.5px;
-    font-weight: 300;
-    color: #888888;
-    margin-top: 6px;
-    line-height: 1.5;
-  }
+  .snp-edit-textarea:focus { border-color: var(--accent); background: #ffffff; }
+  .snp-edit-hint { font-size: 11px; color: var(--faint); margin-top: 7px; line-height: 1.5; }
 
   /* ── EDIT BANNER ── */
   .snp-edit-banner {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    background: #fafafa;
-    border: 1px solid #000000;
-    border-left: 3px solid #000000;
-    border-radius: 0;
-    padding: 10px 16px;
-    margin-bottom: 16px;
-    font-size: 12.5px;
-    font-weight: 300;
-    color: #000000;
+    display: flex; align-items: center; gap: 10px; background: var(--accent-soft);
+    border: 1px solid #BFE3D8; border-radius: 10px; padding: 11px 16px; margin-bottom: 16px;
+    font-size: 12.5px; color: var(--accent-ink);
   }
 
   /* ── TOAST ── */
   .snp-toast {
-    position: fixed;
-    bottom: 24px;
-    right: 24px;
-    background: #000000;
-    color: #ffffff;
-    border-radius: 0;
-    border: 1px solid #000000;
-    padding: 10px 16px;
-    font-size: 13px;
-    font-weight: 300;
-    font-family: 'Open Sans', sans-serif;
-    z-index: 999;
-    display: flex;
-    align-items: center;
-    gap: 9px;
-    animation: snp-toast-in 0.2s ease;
+    position: fixed; bottom: 24px; right: 24px; background: var(--ink); color: #ffffff;
+    border-radius: 10px; padding: 11px 18px; font-size: 13px; font-weight: 500;
+    font-family: 'Inter', sans-serif; z-index: 999; display: flex; align-items: center; gap: 9px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.18); animation: snp-toast-in 0.2s ease;
   }
-  @keyframes snp-toast-in {
-    from { opacity: 0; transform: translateY(8px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
+  @keyframes snp-toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
   /* ── EMPTY STATE ── */
   .snp-empty {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 72px 24px;
-    gap: 12px;
-    background: #ffffff;
-    border: 1px solid #e0e0e0;
-    border-radius: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 72px 24px; gap: 12px; background: var(--surface); border: 1px dashed var(--border); border-radius: 14px;
   }
-  .snp-empty-icon { font-size: 36px; }
-  .snp-empty-text {
-    font-size: 13px;
-    font-weight: 300;
-    color: #888888;
-    letter-spacing: 0.02em;
-  }
+  .snp-empty-icon { font-size: 34px; }
+  .snp-empty-text { font-size: 13px; color: var(--muted); }
 
-  /* ── TREATMENT PLAN TABLE ── */
-  .tp-plan + .tp-plan {
-    margin-top: 20px;
-    padding-top: 20px;
-    border-top: 1px solid #e0e0e0;
-  }
-
-  /* ── TREATMENT PLAN DETAIL LIST ── */
+  /* ── TREATMENT PLAN ── */
+  .tp-plan + .tp-plan { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border); }
   .tp-detail-list { display: flex; flex-direction: column; gap: 0; }
-  .tp-detail-row {
-    display: flex; gap: 12px;
-    padding: 9px 0;
-    border-bottom: 1px solid #f0f0f0;
-    align-items: flex-start;
-  }
+  .tp-detail-row { display: flex; gap: 14px; padding: 9px 0; border-bottom: 1px solid #F0F1F3; align-items: flex-start; }
   .tp-detail-row:last-child { border-bottom: none; padding-bottom: 0; }
   .tp-detail-label {
-    flex: 0 0 130px;
-    font-family: 'Open Sans', sans-serif;
-    font-size: 9.5px; font-weight: 600;
-    letter-spacing: 0.10em; text-transform: uppercase;
-    color: #888888; padding-top: 2px;
+    flex: 0 0 140px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.05em;
+    text-transform: uppercase; color: var(--muted); padding-top: 2px;
   }
-  .tp-detail-value {
-    flex: 1;
-    font-family: 'Open Sans', sans-serif;
-    font-size: 13px; font-weight: 400;
-    color: #000000; line-height: 1.55;
-  }
+  .tp-detail-value { flex: 1; font-size: 13.5px; font-weight: 400; color: var(--ink); line-height: 1.6; }
 
-
-  /* ── TREATMENT EDIT FORM ── */
-  .tp-edit-meta {
-    display: grid; grid-template-columns: 1fr 1fr;
-    gap: 8px; margin-bottom: 14px;
-  }
-  .tp-edit-label {
-    font-size: 9.5px; font-weight: 600;
-    letter-spacing: 0.10em; text-transform: uppercase;
-    color: #888888; margin-bottom: 4px;
-  }
+  .tp-edit-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+  .tp-edit-label { font-size: 10.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); margin-bottom: 5px; }
   .tp-edit-input {
-    width: 100%; height: 32px;
-    font-family: 'Open Sans', sans-serif;
-    font-size: 12.5px; font-weight: 300;
-    color: #000000; background: #fafafa;
-    border: 1px solid #000000;
-    padding: 0 10px; outline: none;
+    width: 100%; height: 34px; font-family: 'Inter', sans-serif; font-size: 13px;
+    color: var(--ink); background: #FAFBFC; border: 1px solid var(--border); border-radius: 8px;
+    padding: 0 11px; outline: none;
   }
-  .tp-edit-input:focus { background: #ffffff; }
+  .tp-edit-input:focus { border-color: var(--accent); background: #ffffff; }
 
-  /* ── TREATMENT PLAN TEXTAREA (edit mode) ── */
   .tp-edit-plan-wrap { margin-bottom: 14px; }
   .tp-edit-plan-textarea {
-    width: 100%; resize: vertical;
-    font-family: 'Open Sans', monospace;
-    font-size: 12px; font-weight: 300;
-    color: #000000; background: #fafafa;
-    border: 1px solid #000000;
-    padding: 8px 10px; outline: none;
-    line-height: 1.55; box-sizing: border-box;
+    width: 100%; resize: vertical; font-family: 'Inter', monospace; font-size: 12.5px;
+    color: var(--ink); background: #FAFBFC; border: 1px solid var(--border); border-radius: 9px;
+    padding: 9px 11px; outline: none; line-height: 1.55; box-sizing: border-box;
   }
-  .tp-edit-plan-textarea:focus { background: #ffffff; }
-
+  .tp-edit-plan-textarea:focus { border-color: var(--accent); background: #ffffff; }
 `;
 
 /* ─── HELPERS ─────────────────────────────────────────────────────────────── */
@@ -574,6 +408,20 @@ const isFlatObject = (obj) =>
   Object.values(obj).every(
     (v) => v === null || typeof v === "string" || typeof v === "number" || typeof v === "boolean"
   );
+
+/* Which key in an item object best serves as its visible header — e.g. the
+   drug name inside a medication, or the test name inside an investigation.
+   Falls back to the first primitive-valued key if nothing matches. */
+const HEADER_KEY_PATTERN = /^(name|title|test|drug|medication|investigation|procedure|item)(_name)?$/i;
+
+function pickHeaderEntry(entries) {
+  const preferred = entries.find(
+    ([k, v]) => HEADER_KEY_PATTERN.test(k) && (typeof v === "string" || typeof v === "number")
+  );
+  if (preferred) return preferred;
+  const firstPrimitive = entries.find(([, v]) => typeof v === "string" || typeof v === "number");
+  return firstPrimitive || entries[0];
+}
 
 /* ─── DOWNLOAD HELPERS ────────────────────────────────────────────────────── */
 function triggerDownload(content, filename, mimeType) {
@@ -623,7 +471,7 @@ function noteToPlainText(note) {
   return lines.join("\n");
 }
 
-/* ─── FLAT KV TABLE ───────────────────────────────────────────────────────── */
+/* ─── FLAT KV TABLE (standalone flat object section) ─────────────────────── */
 function FlatKVTable({ data }) {
   const rows = Object.entries(data).filter(([, v]) => v !== null && v !== undefined && v !== "");
   if (!rows.length) return null;
@@ -643,6 +491,62 @@ function FlatKVTable({ data }) {
   );
 }
 
+/* ─── ITEM CARD (single entry inside an array of objects) ────────────────── */
+function ObjectItemCard({ item, index }) {
+  const entries = Object.entries(item).filter(([, v]) => v !== null && v !== undefined && v !== "");
+  if (!entries.length) return null;
+
+  const headerEntry = pickHeaderEntry(entries);
+  const headerIsSimple = headerEntry && (typeof headerEntry[1] === "string" || typeof headerEntry[1] === "number");
+  const restEntries = entries.filter((e) => e !== headerEntry);
+
+  return (
+    <div className="snp-item-card">
+      <div>
+        <span className="snp-item-index">{String(index + 1).padStart(2, "0")}</span>
+        <span className="snp-item-title">
+          {headerIsSimple ? String(headerEntry[1]) : headerEntry[0].replace(/_/g, " ")}
+        </span>
+      </div>
+
+      {restEntries.length > 0 && (
+        <div className="snp-item-meta">
+          {restEntries.map(([k, v]) => {
+            if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") {
+              return (
+                <span className="snp-item-meta-pair" key={k}>
+                  <span className="snp-item-meta-key">{k.replace(/_/g, " ")}</span>
+                  {isVitalKey(k) ? (
+                    <span className="snp-chip">{String(v)}</span>
+                  ) : (
+                    <span className="snp-item-meta-val">{String(v)}</span>
+                  )}
+                </span>
+              );
+            }
+            return (
+              <div className="snp-item-meta-block" key={k}>
+                <div className="snp-nested-label">{k.replace(/_/g, " ")}</div>
+                <RenderValue value={v} keyName={k} />
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ArrayOfObjectsList({ items }) {
+  return (
+    <div className="snp-itemlist">
+      {items.map((item, i) => (
+        <ObjectItemCard key={i} item={item} index={i} />
+      ))}
+    </div>
+  );
+}
+
 /* ─── MAIN RECURSIVE RENDERER ─────────────────────────────────────────────── */
 function RenderValue({ value, keyName = "" }) {
   if (value === null || value === undefined || value === "") return null;
@@ -655,40 +559,22 @@ function RenderValue({ value, keyName = "" }) {
   if (Array.isArray(value)) {
     const items = value.filter((v) => v !== null && v !== undefined && v !== "");
     if (!items.length) return null;
+
+    const allObjects = items.every((it) => it && typeof it === "object" && !Array.isArray(it));
+    if (allObjects) return <ArrayOfObjectsList items={items} />;
+
     return (
       <div className="snp-bullets">
-        {items.map((item, i) => {
-          if (typeof item === "object" && item !== null && !Array.isArray(item)) {
-            return (
-              <div key={i} style={{ width: "100%" }}>
-                {isFlatObject(item) ? (
-                  <FlatKVTable data={item} />
-                ) : (
-                  Object.entries(item).map(([k, v]) => {
-                    if (v === null || v === undefined || v === "") return null;
-                    return (
-                      <div className="snp-bullet" key={k}>
-                        <span className="snp-bullet-dot" />
-                        <span>
-                          <span style={{ color: "#888888", fontSize: 11, marginRight: 5 }}>
-                            {k.replace(/_/g, " ")}:
-                          </span>
-                          <RenderValue value={v} keyName={k} />
-                        </span>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            );
-          }
-          return (
+        {items.map((item, i) =>
+          typeof item === "object" ? (
+            <div key={i}><RenderValue value={item} /></div>
+          ) : (
             <div className="snp-bullet" key={i}>
               <span className="snp-bullet-dot" />
               <span className="snp-text">{String(item)}</span>
             </div>
-          );
-        })}
+          )
+        )}
       </div>
     );
   }
@@ -714,8 +600,24 @@ function RenderValue({ value, keyName = "" }) {
   return null;
 }
 
+/* ─── ENABLE/DISABLE SWITCH ───────────────────────────────────────────────── */
+function SectionSwitch({ enabled, onToggle }) {
+  return (
+    <span className="snp-switch-wrap" title={enabled ? "Included in patient copy" : "Excluded from patient copy"}>
+      <button
+        type="button"
+        className={`snp-switch${enabled ? " on" : ""}`}
+        onClick={onToggle}
+        aria-pressed={enabled}
+      >
+        <span className="snp-switch-knob" />
+      </button>
+    </span>
+  );
+}
+
 /* ─── SINGLE NOTE CARD ────────────────────────────────────────────────────── */
-function NoteCard({ section, value, onSave }) {
+function NoteCard({ section, value, onSave, enabled, onToggle }) {
   const icon  = getSectionIcon(section);
   const title = section.replace(/_/g, " ");
   const [editing,    setEditing]    = useState(false);
@@ -750,24 +652,30 @@ function NoteCard({ section, value, onSave }) {
     }
   };
 
+  const headerActions = (
+    <div className="snp-card-actions">
+      {!enabled && <span className="snp-excluded-tag">Excluded</span>}
+      <SectionSwitch enabled={enabled} onToggle={onToggle} />
+      {editing ? (
+        <>
+          <button className="snp-icon-btn save"   onClick={saveEdit}   title="Save">✓</button>
+          <button className="snp-icon-btn cancel" onClick={cancelEdit} title="Cancel">✕</button>
+        </>
+      ) : (
+        <button className="snp-icon-btn" onClick={startEdit} title="Edit">✎</button>
+      )}
+    </div>
+  );
+
   if (section === "triage_category") {
     const key   = typeof value === "string" ? value.toLowerCase() : "";
     const color = TRIAGE_COLORS[key] || TRIAGE_COLORS.blue;
     return (
-      <div className={`snp-card wide${editing ? " editing" : ""}`}>
+      <div className={`snp-card wide${editing ? " editing" : ""}${!enabled ? " disabled" : ""}`}>
         <div className="snp-card-hd">
           <span className="snp-card-icon">{icon}</span>
           <span className="snp-card-title">{title}</span>
-          <div className="snp-card-actions">
-            {editing ? (
-              <>
-                <button className="snp-icon-btn save"   onClick={saveEdit}   title="Save">✓</button>
-                <button className="snp-icon-btn cancel" onClick={cancelEdit} title="Cancel">✕</button>
-              </>
-            ) : (
-              <button className="snp-icon-btn" onClick={startEdit} title="Edit">✎</button>
-            )}
-          </div>
+          {headerActions}
         </div>
         <div className="snp-card-bd">
           {editing ? (
@@ -778,7 +686,7 @@ function NoteCard({ section, value, onSave }) {
                 onChange={(e) => setDraftText(e.target.value)}
                 placeholder="e.g. Red"
               />
-              {parseError && <p style={{ color: "#000000", fontSize: 11, marginTop: 6 }}>{parseError}</p>}
+              {parseError && <p style={{ color: "#B3261E", fontSize: 11, marginTop: 6 }}>{parseError}</p>}
               <p className="snp-edit-hint">Enter a triage colour: Green · Yellow · Red · Blue</p>
             </>
           ) : (
@@ -796,20 +704,11 @@ function NoteCard({ section, value, onSave }) {
   }
 
   return (
-    <div className={`snp-card${editing ? " editing" : ""}`}>
+    <div className={`snp-card${editing ? " editing" : ""}${!enabled ? " disabled" : ""}`}>
       <div className="snp-card-hd">
         <span className="snp-card-icon">{icon}</span>
         <span className="snp-card-title">{title}</span>
-        <div className="snp-card-actions">
-          {editing ? (
-            <>
-              <button className="snp-icon-btn save"   onClick={saveEdit}   title="Save">✓</button>
-              <button className="snp-icon-btn cancel" onClick={cancelEdit} title="Cancel">✕</button>
-            </>
-          ) : (
-            <button className="snp-icon-btn" onClick={startEdit} title="Edit">✎</button>
-          )}
-        </div>
+        {headerActions}
       </div>
       <div className="snp-card-bd">
         {editing ? (
@@ -820,7 +719,7 @@ function NoteCard({ section, value, onSave }) {
               onChange={(e) => setDraftText(e.target.value)}
               placeholder="Enter value or valid JSON…"
             />
-            {parseError && <p style={{ color: "#000000", fontSize: 11, marginTop: 6 }}>{parseError}</p>}
+            {parseError && <p style={{ color: "#B3261E", fontSize: 11, marginTop: 6 }}>{parseError}</p>}
             <p className="snp-edit-hint">
               Plain text for simple values · JSON object/array for structured data
             </p>
@@ -833,23 +732,8 @@ function NoteCard({ section, value, onSave }) {
   );
 }
 
-
-/* ─── TREATMENT PLAN CARD ────────────────────────────────────────────────────
-   Handles any section matched by isTreatmentPlanSection(). The backend's
-   dynamic structuring means this can arrive in more than one shape:
-     - value may be a SINGLE plan object, or a LIST of plan objects
-     - beyond intent/modality, everything else (plan_details, guideline,
-       patient_specific, supporting_trial with nested steps/prerequisites/
-       contraindications/complications/post_procedure_care, cardiac_risk,
-       specialty_scope_compliant, etc.) is whatever the model named it, and
-       plan_details itself may be plain text OR a list of nested procedure
-       objects (per the zero-omission prompt rule).
-   Rather than hardcoding a "plan_details is a string" assumption (which
-   breaks the moment the doctor dictates a multi-procedure plan with nested
-   trial/complication detail), this renders intent/modality specially and
-   renders every other key generically & recursively via RenderValue, so
-   nothing nested gets dropped or crashes the UI. ── */
-function TreatmentPlanCard({ section, value, onSave }) {
+/* ─── TREATMENT PLAN CARD ─────────────────────────────────────────────────── */
+function TreatmentPlanCard({ section, value, onSave, enabled, onToggle }) {
     const wasArray = Array.isArray(value);
     const plans = wasArray ? value : [value];
 
@@ -904,11 +788,13 @@ function TreatmentPlanCard({ section, value, onSave }) {
     };
 
     return (
-        <div className={`snp-card wide${editing ? " editing" : ""}`}>
+        <div className={`snp-card wide${editing ? " editing" : ""}${!enabled ? " disabled" : ""}`}>
             <div className="snp-card-hd">
                 <span className="snp-card-icon">💊</span>
                 <span className="snp-card-title">{section.replace(/_/g, " ")}</span>
                 <div className="snp-card-actions">
+                    {!enabled && <span className="snp-excluded-tag">Excluded</span>}
+                    <SectionSwitch enabled={enabled} onToggle={onToggle} />
                     {editing ? (
                         <>
                             <button className="snp-icon-btn save" onClick={saveEdit} title="Save">✓</button>
@@ -954,7 +840,7 @@ function TreatmentPlanCard({ section, value, onSave }) {
                                     onChange={(e) => setField(pi, "restText", e.target.value)}
                                 />
                                 {parseErrors[pi] && (
-                                    <p style={{ color: "#000000", fontSize: 11, marginTop: 6 }}>{parseErrors[pi]}</p>
+                                    <p style={{ color: "#B3261E", fontSize: 11, marginTop: 6 }}>{parseErrors[pi]}</p>
                                 )}
                             </div>
                             <p className="snp-edit-hint">
@@ -990,11 +876,6 @@ function TreatmentPlanCard({ section, value, onSave }) {
                                     )}
                                 </div>
 
-                                {/* Every other key attached to this plan — rendered generically &
-                                    recursively, so nested detail (supporting trial steps,
-                                    prerequisites, contraindications, complications, post-procedure
-                                    care, cardiac risk, specialty compliance, or several nested
-                                    procedures under plan_details) always shows up, however deep. */}
                                 {restEntries.map(([k, v]) => (
                                     <div key={k} className="tp-detail-row">
                                         <span className="tp-detail-label">{k.replace(/_/g, " ")}</span>
@@ -1008,8 +889,6 @@ function TreatmentPlanCard({ section, value, onSave }) {
         </div>
     );
 }
-
-
 
 /* ─── TOAST ───────────────────────────────────────────────────────────────── */
 function Toast({ message, icon = "✓" }) {
@@ -1025,6 +904,7 @@ function Toast({ message, icon = "✓" }) {
 export default function StructuredNotePanel({ doctorId, patientId, dictation }) {
     const [loading, setLoading] = useState(false);
     const [structuredNote, setStructuredNote] = useState(null);
+    const [sectionEnabled, setSectionEnabled] = useState({});
     const [toast, setToast] = useState(null);
     const [showDownload, setShowDownload] = useState(false);
     const dropdownRef = useRef(null);
@@ -1045,6 +925,12 @@ export default function StructuredNotePanel({ doctorId, patientId, dictation }) 
         return () => document.removeEventListener("mousedown", handler);
     }, []);
 
+    const isSectionEnabled = (section) => sectionEnabled[section] !== false;
+
+    const toggleSection = (section) => {
+        setSectionEnabled((prev) => ({ ...prev, [section]: !isSectionEnabled(section) }));
+    };
+
     const generateNote = async () => {
         if (!dictation) return;
         setLoading(true);
@@ -1058,7 +944,12 @@ export default function StructuredNotePanel({ doctorId, patientId, dictation }) 
                 }
             );
             const json = await res.json();
-            if (json.status === "success") setStructuredNote(json.finaloutput);
+            if (json.status === "success") {
+                setStructuredNote(json.finaloutput);
+                const initEnabled = {};
+                Object.keys(json.finaloutput || {}).forEach((s) => { initEnabled[s] = true; });
+                setSectionEnabled(initEnabled);
+            }
         } catch (err) { console.error(err); }
         setLoading(false);
     };
@@ -1066,74 +957,65 @@ export default function StructuredNotePanel({ doctorId, patientId, dictation }) 
     useEffect(() => { if (dictation) generateNote(); }, [dictation]);
 
     const handleCardSave = async (section, newValue) => {
+        const updatedNote = { ...structuredNote, [section]: newValue };
+        setStructuredNote(updatedNote);
 
-    const updatedNote = {
-        ...structuredNote,
-        [section]: newValue
+        try {
+            const res = await fetch(
+                `${API_BASE_URL}hms/users/data/context/update-structured-note`,
+                {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        doctor_id: doctorId,
+                        patient_id: patientId,
+                        structured_note: updatedNote,
+                    }),
+                }
+            );
+            const json = await res.json();
+            if (json.status === "success") showToast("Section updated successfully");
+        } catch (err) {
+            console.error(err);
+        }
     };
 
-    setStructuredNote(updatedNote);
-
-    try {
-
-        const res = await fetch(
-            `${API_BASE_URL}hms/users/data/context/update-structured-note`,
-            {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    doctor_id: doctorId,
-                    patient_id: patientId,
-                              // or note_index
-                    structured_note: updatedNote
-                })
-            }
+    const getExportableNote = () => {
+        if (!structuredNote) return {};
+        return Object.fromEntries(
+            Object.entries(structuredNote).filter(([section]) => isSectionEnabled(section))
         );
+    };
 
-        const json = await res.json();
-
-        if (json.status === "success") {
-            showToast("Section updated successfully");
-        }
-
-    } catch (err) {
-        console.error(err);
-    }
-};
+    const excludedCount = structuredNote
+        ? Object.keys(structuredNote).filter((s) => !isSectionEnabled(s)).length
+        : 0;
 
     /* ── DOWNLOADS ── */
     const downloadJSON = () => {
         if (!structuredNote) return;
-        triggerDownload(JSON.stringify(structuredNote, null, 2), "structured-note.json", "application/json");
+        triggerDownload(JSON.stringify(getExportableNote(), null, 2), "structured-note.json", "application/json");
         setShowDownload(false);
         showToast("Downloaded as JSON", "⬇");
     };
 
     const downloadText = () => {
         if (!structuredNote) return;
-        triggerDownload(noteToPlainText(structuredNote), "structured-note.txt", "text/plain");
+        triggerDownload(noteToPlainText(getExportableNote()), "structured-note.txt", "text/plain");
         setShowDownload(false);
         showToast("Downloaded as text report", "⬇");
     };
 
-    /* ── PDF (company theme — monochrome, no emoji glyphs) ──────────────────
-       jsPDF's built-in "helvetica" font has no emoji glyphs, so the old
-       version rendered 🩺💊📊 as broken boxes. This version is purely
-       typographic: a repeated header band, a patient-demographics strip
-       pulled to the top, and bordered section cards with a black accent
-       bar instead of icons. Page breaks redraw the header so no section
-       title is ever left orphaned at the bottom of a page. ── */
     const downloadPDF = () => {
         if (!structuredNote) return;
+        const exportNote = getExportableNote();
 
         const doc = new jsPDF({ unit: "pt", format: "a4" });
         const pageW = doc.internal.pageSize.getWidth();
         const pageH = doc.internal.pageSize.getHeight();
         const M = 50;
         const usableW = pageW - M * 2;
-        const HEADER_H = 54;
+        const HEADER_H = 58;
         const TOP_Y = HEADER_H + 34;
         const BOTTOM_LIMIT = pageH - 46;
 
@@ -1144,16 +1026,20 @@ export default function StructuredNotePanel({ doctorId, patientId, dictation }) 
         const fill = (r, g, b) => doc.setFillColor(r, g, b);
         const font = (style, size) => { doc.setFont("helvetica", style); doc.setFontSize(size); };
 
+        const ACCENT = [14, 124, 102];
+
         const drawHeader = () => {
-            fill(0, 0, 0);
+            fill(23, 27, 33);
             doc.rect(0, 0, pageW, HEADER_H, "F");
-            font("bold", 13); ink(255, 255, 255);
-            doc.text("CLINICAL STRUCTURED NOTE", M, 34);
-            font("normal", 8); ink(210, 210, 210);
+            fill(...ACCENT);
+            doc.rect(0, HEADER_H - 3, pageW, 3, "F");
+            font("bold", 14); ink(255, 255, 255);
+            doc.text("Clinical Structured Note", M, 36);
+            font("normal", 8.5); ink(180, 186, 194);
             const dateStr = new Date().toLocaleDateString("en-US", {
                 year: "numeric", month: "long", day: "numeric",
             });
-            doc.text(dateStr, pageW - M, 34, { align: "right" });
+            doc.text(dateStr, pageW - M, 36, { align: "right" });
         };
 
         const newPage = () => {
@@ -1162,45 +1048,44 @@ export default function StructuredNotePanel({ doctorId, patientId, dictation }) 
             y = TOP_Y;
         };
 
-        // needed = vertical space required before the next page break check
         const checkPageBreak = (needed = 20) => {
             if (y + needed > BOTTOM_LIMIT) newPage();
         };
 
         drawHeader();
 
-        // ── patient demographics strip ──
-        const demo = structuredNote.patient_demographics;
+        const demo = exportNote.patient_demographics;
         if (demo && typeof demo === "object") {
             const entries = Object.entries(demo).filter(
                 ([, v]) => v !== null && v !== undefined && v !== ""
             );
             if (entries.length) {
-                const boxH = 36;
-                rule(0, 0, 0); doc.setLineWidth(0.75);
-                doc.rect(M, y, usableW, boxH);
+                const boxH = 38;
+                fill(247, 250, 249);
+                doc.roundedRect(M, y, usableW, boxH, 6, 6, "F");
+                rule(210, 225, 220); doc.setLineWidth(0.75);
+                doc.roundedRect(M, y, usableW, boxH, 6, 6, "S");
                 const colW = usableW / entries.length;
                 entries.forEach(([k, v], i) => {
-                    const cx = M + i * colW + 12;
-                    font("bold", 7.5); ink(120, 120, 120);
-                    doc.text(k.replace(/_/g, " ").toUpperCase(), cx, y + 14);
-                    font("normal", 11); ink(0, 0, 0);
-                    doc.text(String(v), cx, y + 28);
+                    const cx = M + i * colW + 14;
+                    font("bold", 7.5); ink(110, 120, 118);
+                    doc.text(k.replace(/_/g, " ").toUpperCase(), cx, y + 15);
+                    font("normal", 11.5); ink(23, 27, 33);
+                    doc.text(String(v), cx, y + 29);
                     if (i > 0) {
-                        rule(220, 220, 220); doc.setLineWidth(0.5);
-                        doc.line(M + i * colW, y + 6, M + i * colW, y + boxH - 6);
+                        rule(215, 225, 222); doc.setLineWidth(0.5);
+                        doc.line(M + i * colW, y + 7, M + i * colW, y + boxH - 7);
                     }
                 });
                 y += boxH + 22;
             }
         }
 
-        // ── recursive value renderer — text-only, no emoji ──
         const renderVal = (val, indentX = M) => {
             if (val === null || val === undefined || val === "") return;
 
             if (typeof val === "string" || typeof val === "number") {
-                font("normal", 10); ink(20, 20, 20);
+                font("normal", 10); ink(35, 39, 45);
                 const lines = doc.splitTextToSize(String(val), usableW - (indentX - M));
                 lines.forEach((line) => {
                     checkPageBreak(16);
@@ -1212,40 +1097,60 @@ export default function StructuredNotePanel({ doctorId, patientId, dictation }) 
 
             if (Array.isArray(val)) {
                 const items = val.filter(Boolean);
-                items.forEach((item, idx) => {
-                    if (typeof item === "object" && item !== null) {
-                        Object.entries(item).forEach(([k, v]) => {
-                            if (v === null || v === undefined || v === "") return;
-                            checkPageBreak(16);
-                            font("bold", 8.5); ink(115, 115, 115);
-                            const label = `${k.replace(/_/g, " ").toUpperCase()}  `;
-                            doc.text(label, indentX + 12, y);
-                            const labelW = doc.getTextWidth(label);
-                            font("normal", 10); ink(20, 20, 20);
-                            const lines = doc.splitTextToSize(
-                                String(v),
-                                usableW - (indentX - M) - labelW - 12
-                            );
-                            doc.text(lines[0] || "", indentX + 12 + labelW, y);
-                            y += 15;
-                            lines.slice(1).forEach((l) => {
-                                checkPageBreak(16);
-                                doc.text(l, indentX + 24, y);
-                                y += 15;
-                            });
+                const allObjects = items.every((it) => it && typeof it === "object" && !Array.isArray(it));
+
+                if (allObjects) {
+                    items.forEach((item, idx) => {
+                        const entries = Object.entries(item).filter(
+                            ([, v]) => v !== null && v !== undefined && v !== ""
+                        );
+                        if (!entries.length) return;
+                        const headerEntry = pickHeaderEntry(entries);
+                        const restEntries = entries.filter((e) => e !== headerEntry);
+
+                        checkPageBreak(30);
+                        const cardTop = y - 10;
+
+                        font("bold", 10.5); ink(23, 27, 33);
+                        const headerLabel = `${String(idx + 1).padStart(2, "0")}   ${
+                            typeof headerEntry[1] === "string" || typeof headerEntry[1] === "number"
+                                ? String(headerEntry[1])
+                                : headerEntry[0].replace(/_/g, " ")
+                        }`;
+                        doc.text(headerLabel, indentX + 10, y);
+                        y += 15;
+
+                        restEntries.forEach(([k, v]) => {
+                            if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") {
+                                checkPageBreak(15);
+                                font("bold", 8.5); ink(120, 128, 126);
+                                const label = `${k.replace(/_/g, " ").toUpperCase()}  `;
+                                doc.text(label, indentX + 10, y);
+                                const labelW = doc.getTextWidth(label);
+                                font("normal", 10); ink(35, 39, 45);
+                                doc.text(String(v), indentX + 10 + labelW, y);
+                                y += 14;
+                            } else {
+                                checkPageBreak(15);
+                                font("bold", 8.5); ink(120, 128, 126);
+                                doc.text(k.replace(/_/g, " ").toUpperCase(), indentX + 10, y);
+                                y += 13;
+                                renderVal(v, indentX + 18);
+                            }
                         });
-                        if (idx < items.length - 1) {
-                            checkPageBreak(10);
-                            rule(235, 235, 235); doc.setLineWidth(0.5);
-                            doc.line(indentX, y - 4, M + usableW, y - 4);
-                            y += 6;
-                        }
-                    } else {
+
+                        rule(...ACCENT); doc.setLineWidth(2);
+                        doc.line(indentX, cardTop, indentX, y - 4);
+                        rule(224, 228, 226); doc.setLineWidth(0.6);
+                        doc.roundedRect(indentX, cardTop, usableW - (indentX - M) * 2, y - cardTop, 3, 3, "S");
+                        y += 12;
+                    });
+                } else {
+                    items.forEach((item) => {
                         checkPageBreak(16);
-                        // clean square bullet — no emoji/circle glyph reliance
-                        fill(0, 0, 0);
-                        doc.rect(indentX, y - 8, 3, 3, "F");
-                        font("normal", 10); ink(20, 20, 20);
+                        fill(...ACCENT);
+                        doc.circle(indentX + 2.5, y - 3, 2, "F");
+                        font("normal", 10); ink(35, 39, 45);
                         const lines = doc.splitTextToSize(String(item), usableW - (indentX - M) - 14);
                         lines.forEach((l, li) => {
                             checkPageBreak(16);
@@ -1253,8 +1158,8 @@ export default function StructuredNotePanel({ doctorId, patientId, dictation }) 
                             if (li < lines.length - 1) y += 15;
                         });
                         y += 15;
-                    }
-                });
+                    });
+                }
                 return;
             }
 
@@ -1262,8 +1167,8 @@ export default function StructuredNotePanel({ doctorId, patientId, dictation }) 
                 Object.entries(val).forEach(([k, v]) => {
                     if (v === null || v === undefined || v === "") return;
                     checkPageBreak(20);
-                    font("bold", 8.5); ink(95, 95, 95);
-                    rule(0, 0, 0); doc.setLineWidth(1);
+                    font("bold", 8.5); ink(95, 100, 98);
+                    rule(...ACCENT); doc.setLineWidth(1.5);
                     doc.line(indentX, y - 8, indentX, y + 3);
                     doc.text(k.replace(/_/g, " ").toUpperCase(), indentX + 8, y);
                     y += 14;
@@ -1272,37 +1177,35 @@ export default function StructuredNotePanel({ doctorId, patientId, dictation }) 
             }
         };
 
-        // ── section rendering as bordered cards, text-only headers ──
-        Object.entries(structuredNote).forEach(([section, value]) => {
-            if (section === "patient_demographics") return; // already in the strip above
+        Object.entries(exportNote).forEach(([section, value]) => {
+            if (section === "patient_demographics") return;
             if (value === null || value === undefined || value === "") return;
 
-            checkPageBreak(46); // ensure header + a first line of content fit together
+            checkPageBreak(46);
 
-            fill(246, 246, 246);
-            doc.rect(M, y - 14, usableW, 22, "F");
-            fill(0, 0, 0);
-            doc.rect(M, y - 14, 3, 22, "F");
+            fill(247, 250, 249);
+            doc.rect(M, y - 15, usableW, 23, "F");
+            fill(...ACCENT);
+            doc.rect(M, y - 15, 3, 23, "F");
 
-            font("bold", 10); ink(0, 0, 0);
-            doc.text(section.replace(/_/g, " ").toUpperCase(), M + 12, y);
+            font("bold", 10.5); ink(23, 27, 33);
+            doc.text(section.replace(/_/g, " ").toUpperCase(), M + 13, y);
 
-            y += 18;
+            y += 19;
             renderVal(value, M + 10);
             y += 12;
 
             checkPageBreak(10);
-            rule(228, 228, 228); doc.setLineWidth(0.5);
+            rule(232, 235, 233); doc.setLineWidth(0.5);
             doc.line(M, y - 4, pageW - M, y - 4);
             y += 10;
         });
 
-        // ── footer on every page ──
         const totalPages = doc.internal.getNumberOfPages();
         for (let i = 1; i <= totalPages; i++) {
             doc.setPage(i);
-            fill(0, 0, 0); doc.rect(M, pageH - 34, usableW, 1, "F");
-            font("normal", 8); ink(140, 140, 140);
+            fill(224, 228, 226); doc.rect(M, pageH - 34, usableW, 1, "F");
+            font("normal", 8); ink(150, 155, 153);
             doc.text(`Page ${i} of ${totalPages}`, pageW - M, pageH - 20, { align: "right" });
             doc.text("Clinical Structured Note — Confidential", M, pageH - 20);
         }
@@ -1312,20 +1215,26 @@ export default function StructuredNotePanel({ doctorId, patientId, dictation }) 
         showToast("Downloaded as PDF", "⬇");
     };
 
-    /* ── RENDER ── */
     return (
         <>
             <style>{styles}</style>
             <div className="snp">
 
-                {/* TOP BAR */}
                 <div className="snp-topbar">
-                    <p className="snp-heading">
-                        Clinical <span>Structured Note</span>
-                    </p>
+                    <div className="snp-heading-block">
+                        <span className="snp-eyebrow">Encounter Note</span>
+                        <p className="snp-heading">Clinical Structured Note</p>
+                        {structuredNote && (
+                            <span className="snp-subline">
+                                {Object.keys(structuredNote).length} sections ·{" "}
+                                {excludedCount > 0
+                                    ? `${excludedCount} excluded from patient copy`
+                                    : "all sections included in patient copy"}
+                            </span>
+                        )}
+                    </div>
                     <div className="snp-topbar-actions">
 
-                        {/* DOWNLOAD */}
                         {structuredNote && (
                             <div className="snp-dropdown-wrap" ref={dropdownRef}>
                                 <button
@@ -1348,12 +1257,16 @@ export default function StructuredNotePanel({ doctorId, patientId, dictation }) 
                                         <button className="snp-dropdown-item" onClick={downloadPDF}>
                                             <span>📑</span> PDF report
                                         </button>
+                                        <div className="snp-dropdown-note">
+                                            {excludedCount > 0
+                                                ? `${excludedCount} section${excludedCount > 1 ? "s" : ""} switched off will be left out of every download.`
+                                                : "All sections are switched on and will be included."}
+                                        </div>
                                     </div>
                                 )}
                             </div>
                         )}
 
-                        {/* GENERATE */}
                         <button className="snp-btn" onClick={generateNote} disabled={loading}>
                             {loading
                                 ? <><span className="snp-spinner" />Generating…</>
@@ -1362,23 +1275,21 @@ export default function StructuredNotePanel({ doctorId, patientId, dictation }) 
                     </div>
                 </div>
 
-                {/* EDIT HINT BANNER */}
                 {structuredNote && (
                     <div className="snp-edit-banner">
                         <span>✎</span>
-                        Click the <strong style={{ fontWeight: 600 }}>pencil icon</strong> on any card to edit that section.
-                        Save with ✓ or cancel with ✕.
+                        Use the switch on any card to include or exclude it from the patient copy, or
+                        the <strong style={{ fontWeight: 700 }}>pencil</strong> to edit its content.
                     </div>
                 )}
 
-                {/* CARDS */}
                 {structuredNote ? (
                     <div className="snp-grid">
                         {Object.entries(structuredNote).map(([section, value]) => {
                             if (value === null || value === undefined || value === "") return null;
+                            const enabled = isSectionEnabled(section);
+                            const onToggle = () => toggleSection(section);
 
-                            // Any dynamically-named treatment-plan section (single object
-                            // or list) gets the richer, nesting-aware card.
                             if (isTreatmentPlanSection(section)) {
                                 return (
                                     <TreatmentPlanCard
@@ -1386,6 +1297,8 @@ export default function StructuredNotePanel({ doctorId, patientId, dictation }) 
                                         section={section}
                                         value={value}
                                         onSave={handleCardSave}
+                                        enabled={enabled}
+                                        onToggle={onToggle}
                                     />
                                 );
                             }
@@ -1396,6 +1309,8 @@ export default function StructuredNotePanel({ doctorId, patientId, dictation }) 
                                     section={section}
                                     value={value}
                                     onSave={handleCardSave}
+                                    enabled={enabled}
+                                    onToggle={onToggle}
                                 />
                             );
                         })}
@@ -1412,7 +1327,6 @@ export default function StructuredNotePanel({ doctorId, patientId, dictation }) 
                 )}
             </div>
 
-            {/* TOAST */}
             {toast && <Toast message={toast.message} icon={toast.icon} />}
         </>
     );

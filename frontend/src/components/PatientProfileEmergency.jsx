@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import StructuredNoteEmergency from '../components/StructuredNoteEmergency';
+// import StructuredNoteEmergency from '../components/StructuredNoteEmergency'; // DISABLED — merged into EDFS Patient Summary
 import DataProcessingInline from './DataProcessing';
 import AmbulanceImagePhotography from '../components/AmbulanceImagePhotography';
-import InsuranceDocumentation from './InsuranceEmergencyDocumentation';
+// import InsuranceDocumentation from './InsuranceEmergencyDocumentation'; // DISABLED — merged into EDFS Patient Summary (section 27)
+import ClinicalChatFeed from '../components/ClinicalChatFeed'; // adjust path
 
 // ─── API Constants ────────────────────────────────────────────────────────────
 const API_BASE   = 'https://doctorassist.ai/api';
@@ -37,8 +38,11 @@ const humanizeClinicalText = (raw) => {
     const pairRegex = /"([^"]+)"\s*:\s*"((?:[^"\\]|\\.)*)"/g;
     let m;
     while ((m = pairRegex.exec(inner)) !== null) {
-      const key = m[1].replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
-      pairs.push(`${key}: ${m[2].replace(/\\"/g, '"')}`);
+      const key = m[1]
+        .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+        .replace(/_/g, ' ')
+        .toLowerCase()
+        .replace(/\b\w/g, (c) => c.toUpperCase());      pairs.push(`${key}: ${m[2].replace(/\\"/g, '"')}`);
     }
     return pairs.length ? pairs.join('; ') : inner.replace(/"/g, '');
   });
@@ -190,22 +194,22 @@ const ModalText = ({ children, bold }) => (
     fontWeight: bold ? 600 : 400,
   }}>{children}</p>
 );
+const TRIAGE_COLOR_MAP = { Red: '#dc2626', Yellow: '#ca8a04', Green: '#16a34a', Black: '#374151' };
 
-// ─── Clinical Action Card ─────────────────────────────────────────────────────
-// ─── Clinical Action Card ─────────────────────────────────────────────────────
 const ClinicalCard = ({ action, onView }) => {
   const isAI = action.action_type === 'approved';
   const ai = action.ai_suggestion || {};
   const preview = isAI
     ? (ai.triage?.rationale || ai.sbar_summary?.text || ai.clinical_impression?.impression || '')
     : (action.voice_dictation || action.notes || '');
+  const triageColor = TRIAGE_COLOR_MAP[ai.triage?.colour] || '#555';
 
   return (
     <div style={{
       border: '1px solid #e8e8e8',
-      borderLeft: isAI ? '3px solid #000' : '3px solid #ccc',
+      borderLeft: isAI ? `3px solid ${ai.triage?.colour ? triageColor : '#000'}` : '3px solid #1d4ed8',
       borderRadius: 4,
-      marginBottom: 14,
+      marginBottom: 12,
       background: '#fafafa',
       overflow: 'hidden',
     }}>
@@ -213,15 +217,15 @@ const ClinicalCard = ({ action, onView }) => {
         display: 'flex',
         alignItems: 'center',
         gap: 10,
-        padding: '10px 14px',
+        padding: '9px 14px',
         background: '#fff',
         borderBottom: '1px solid #f0f0f0',
         flexWrap: 'wrap',
       }}>
+        <Badge label={isAI ? 'AI Approved' : 'Doctor Suggestion'} dark={isAI} />
         <span style={{ fontSize: 11, color: '#999', flex: 1 }}>
           {fmtDate(action.client_created_at)}
         </span>
-        <Badge label={isAI ? 'AI Approved' : 'Doctor Suggestion'} dark={isAI} />
       </div>
 
       {/* Triage / Impression Snapshot */}
@@ -232,37 +236,41 @@ const ClinicalCard = ({ action, onView }) => {
           background: '#f5f5f5',
           display: 'flex',
           flexWrap: 'wrap',
-          gap: 12,
+          gap: 20,
         }}>
-          {[
-            { label: 'Triage', value: ai.triage?.colour },
-            { label: 'Impression', value: ai.clinical_impression?.impression },
-          ].filter(x => x.value).map((item, idx) => (
-            <div key={idx} style={{ flex: 1, minWidth: 80 }}>
-              <div style={{ fontSize: 9, color: '#aaa', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{item.label}</div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: '#000' }}>{item.value}</div>
+          {ai.triage?.colour && (
+            <div>
+              <div style={{ fontSize: 9, color: '#aaa', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 2 }}>Triage</div>
+              <span style={{
+                display: 'inline-block', fontSize: 11, fontWeight: 700,
+                color: '#fff', background: triageColor,
+                padding: '2px 10px', borderRadius: 3, textTransform: 'uppercase', letterSpacing: '0.4px',
+              }}>{ai.triage.colour}</span>
             </div>
-          ))}
+          )}
+          {ai.clinical_impression?.impression && (
+            <div style={{ flex: 1, minWidth: 120 }}>
+              <div style={{ fontSize: 9, color: '#aaa', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 2 }}>Impression</div>
+              <div style={{ fontSize: 12.5, fontWeight: 600, color: '#000' }}>{ai.clinical_impression.impression}</div>
+            </div>
+          )}
         </div>
       )}
 
-     
-
-  {/* SBAR Summary */}
+      {/* SBAR Summary */}
       {isAI && ai.sbar_summary?.text && (
         <div style={{ padding: '10px 14px', borderBottom: '1px solid #f0f0f0' }}>
           <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '1px', color: '#aaa', marginBottom: 8, textTransform: 'uppercase' }}>
             SBAR Summary
           </div>
-          <p style={{ fontSize: 11, color: '#555', lineHeight: 1.6 }}>{truncate(ai.sbar_summary.text, 220)}</p>
+          <p style={{ fontSize: 11.5, color: '#444', lineHeight: 1.6 }}>{truncate(ai.sbar_summary.text, 220)}</p>
         </div>
       )}
 
-   
       {/* Non-AI preview */}
       {!isAI && preview && (
         <div style={{ padding: '10px 14px', borderBottom: '1px solid #f0f0f0' }}>
-          <p style={{ fontSize: 12, color: '#555', lineHeight: 1.6 }}>{truncate(preview)}</p>
+          <p style={{ fontSize: 12.5, color: '#333', lineHeight: 1.6 }}>{truncate(preview)}</p>
         </div>
       )}
 
@@ -307,8 +315,8 @@ const NewPatientToast = ({ alerts, onDismiss, onView }) => {
 };
 
 // ─── Patient Activity Notifier (isolated polling, top-right overlay) ─────────
-const PatientActivityNotifier = ({ patientId, onViewNote, onViewImage }) => {
-  const [noteAlert, setNoteAlert] = useState(null);   // { count }
+const PatientActivityNotifier = ({ patientId, onViewNote, onViewImage, onNewNotesDetected }) => {
+    const [noteAlert, setNoteAlert] = useState(null);   // { count }
   const [imageAlert, setImageAlert] = useState(null); // { count }
 
   const lastNoteCount = useRef(null);
@@ -333,6 +341,10 @@ const PatientActivityNotifier = ({ patientId, onViewNote, onViewImage }) => {
             const delta = count - lastNoteCount.current;
             lastNoteCount.current = count;
             setNoteAlert(prev => ({ count: (prev?.count || 0) + delta }));
+            // Push the actual list refresh immediately — don't wait for the
+            // separate, unrelated fetchNotes() polling interval in the
+            // parent to catch up on its own schedule.
+            onNewNotesDetected?.();
           }
         }
 
@@ -645,51 +657,49 @@ const PatientJourneyTimeline = ({ patient, notes, doctorNotes, clinicalActions, 
     </div>
   );
 };
-
-// ─── Voice Dictation Card ─────────────────────────────────────────────────────
 const VoiceCard = ({ dictation, index, onView }) => (
   <div style={{
     border: '1px solid #e8e8e8',
+    borderLeft: '3px solid #6b7280',
     borderRadius: 4,
-    marginBottom: 14,
+    marginBottom: 12,
     overflow: 'hidden',
     background: '#fafafa',
   }}>
     <div style={{
       display: 'flex',
       alignItems: 'center',
+      justifyContent: 'space-between',
       gap: 10,
-      padding: '10px 14px',
+      padding: '9px 14px',
       background: '#fff',
       borderBottom: '1px solid #f0f0f0',
     }}>
-      <span style={{ fontSize: 11, color: '#999', flex: 1 }}>
-  {dictation?.timestamp 
+      <span style={{
+        fontSize: 10, fontWeight: 700, letterSpacing: '0.6px',
+        textTransform: 'uppercase', color: '#555',
+        background: '#f0f0f0', padding: '3px 8px', borderRadius: 3,
+      }}>Emergency Crew · #{index + 1}</span>
+      <span style={{ fontSize: 11, color: '#999' }}>
+  {dictation?.timestamp
     ? (() => {
         const utcDate = new Date(dictation.timestamp);
-        // Add 5 hours 30 minutes for IST
         const istDate = new Date(utcDate.getTime() + (5.5 * 60 * 60 * 1000));
         return istDate.toLocaleString('en-IN', {
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-          hour12: true
+          year: 'numeric', month: '2-digit', day: '2-digit',
+          hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true,
         });
       })()
     : 'N/A'}
 </span>
-      <span style={{ fontSize: 10, color: '#ccc', fontWeight: 600 }}>#{index + 1}</span>
     </div>
-    <div style={{ padding: '10px 14px' }}>
-      <p style={{ fontSize: 12, color: '#555', lineHeight: 1.6 }}>
+    <div style={{ padding: '12px 14px' }}>
+      <p style={{ fontSize: 12.5, color: '#333', lineHeight: 1.65 }}>
         {truncate(dictation?.conversation || '')}
       </p>
       {(dictation?.conversation || '').length > 140 && (
         <button onClick={() => onView(dictation)} style={{
-          background: 'none', border: 'none', padding: '6px 0 0',
+          background: 'none', border: 'none', padding: '8px 0 0',
           fontSize: 12, color: '#000', fontWeight: 600,
           cursor: 'pointer', textDecoration: 'underline',
           fontFamily: "'DM Sans', sans-serif",
@@ -1221,8 +1231,8 @@ if (zenzoB64) {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7.5);
     doc.setTextColor(150, 150, 150);
-    doc.text('EMERGENCY DEPARTMENT — PATIENT TRANSFER SUMMARY REPORT', marginL, 52);
-
+    doc.text('EMERGENCY DEPARTMENT — COMPLETE PATIENT SUMMARY REPORT', marginL, 52);
+    
     const pName = finalSummary.section_1_patient_information?.full_name || patientName || 'Patient';
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(15);
@@ -1409,6 +1419,8 @@ const maxWidth = contentW - 6;
   const s22 = finalSummary.section_22_handover_information || {};
   const s23 = finalSummary.section_23_sbar_summary        || {};
   const s24 = finalSummary.section_24_clinical_actions_summary || {};
+  const s26 = finalSummary.section_26_doctor_recommended_treatment || {};
+  const s27 = finalSummary.section_27_icd10_and_claim_readiness || {};
 
   // ── Draw everything ────────────────────────────────────────────────────────
   drawHeader();
@@ -1791,6 +1803,37 @@ kvRow('Disposition Time', s20.disposition_time ? fmtIST(s20.disposition_time) : 
   kvRow('Rejected Count', s24.rejected_count);
   spacer();
 
+  // S26 Doctor Recommended Treatment
+  if (s26.recommendations?.length) {
+    sectionHeading('26. Doctor Recommended Treatment (Not Yet Administered)');
+    bulletList(s26.recommendations.map(r => typeof r === 'string' ? r : `${r.recommendation}${r.administered_yet === false ? ' [Pending]' : ''}`));
+    spacer();
+  }
+
+  // S27 ICD-10 Codes & Claim Readiness
+  if (s27.icd_10_codes_applicable?.length || s27.claimable_services?.length || s27.claim_readiness_score_percent != null) {
+    sectionHeading('27. ICD-10 Codes & Claim Readiness');
+    kvRow('Claim Readiness Score', s27.claim_readiness_score_percent != null ? `${s27.claim_readiness_score_percent}%` : null);
+    if (s27.claim_blocking_issues?.length) bulletList(s27.claim_blocking_issues.map(b => `Blocking: ${b}`));
+    if (s27.icd_10_codes_applicable?.length) {
+      subLabel('ICD-10 Codes');
+      bulletList(s27.icd_10_codes_applicable.map(c => typeof c === 'string' ? c : `${c.code} — ${c.description}`));
+    }
+    if (s27.claimable_services?.length) {
+      const claimable = s27.claimable_services.filter(sv => typeof sv !== 'string' && sv.claimable === true);
+      const pending    = s27.claimable_services.filter(sv => typeof sv === 'string' || sv.claimable !== true);
+      if (claimable.length) {
+        subLabel('Claimable Services');
+        bulletList(claimable.map(sv => `${sv.service} (${sv.category}) — ${sv.justification}`));
+      }
+      if (pending.length) {
+        subLabel('Not Yet Claimable — Administration Unconfirmed');
+        bulletList(pending.map(sv => typeof sv === 'string' ? sv : `${sv.service} (${sv.category}) — ${sv.justification}`));
+      }
+    }
+    spacer();
+  }
+
   // ── Page numbers (final pass) ──────────────────────────────────────────────
   const totalPages = doc.internal.getNumberOfPages();
   for (let i = 1; i <= totalPages; i++) {
@@ -2023,6 +2066,8 @@ const FinalSummaryContent = ({ finalSummary, patientName, pdfLoading, setPdfLoad
   const s22 = s.section_22_handover_information || {};
   const s23 = s.section_23_sbar_summary        || {};
   const s24 = s.section_24_clinical_actions_summary || {};
+  const s26 = s.section_26_doctor_recommended_treatment || {};
+  const s27 = s.section_27_icd10_and_claim_readiness || {};
 
   // Helper for triage colour display
   const triageColor = s10.triage_colour === 'Red' ? '#dc2626'
@@ -2366,7 +2411,9 @@ const FinalSummaryContent = ({ finalSummary, patientName, pdfLoading, setPdfLoad
               )}
               {(has(s14.haemorrhage_control_measures) || editMode) && <EditableListField label="Haemorrhage Control" items={s14.haemorrhage_control_measures} editMode={editMode} fieldKey="section_14_emergency_interventions.haemorrhage_control_measures" onChange={handleChange} />}
               {(has(s14.immobilization_applied) || editMode) && <EditableListField label="Immobilization" items={s14.immobilization_applied} editMode={editMode} fieldKey="section_14_emergency_interventions.immobilization_applied" onChange={handleChange} />}
-              {(has(s14.medications_administered) || editMode) && <EditableListField label="Medications Administered" items={s14.medications_administered} editMode={editMode} fieldKey="section_14_emergency_interventions.medications_administered" onChange={handleChange} />}
+              {(has(s14.medications_administered_by_emt) || editMode) && <EditableListField label="Medications — EMT Administered" items={(s14.medications_administered_by_emt || []).map(m => typeof m === 'string' ? m : [m.drug, m.dose, m.route, m.time_given].filter(Boolean).join(' · '))} editMode={editMode} fieldKey="section_14_emergency_interventions.medications_administered_by_emt" onChange={handleChange} />}
+              {(has(s14.medications_administered_by_doctor_ed) || editMode) && <EditableListField label="Medications — Doctor/ED Administered" items={(s14.medications_administered_by_doctor_ed || []).map(m => typeof m === 'string' ? m : [m.drug, m.dose, m.route, m.time_given].filter(Boolean).join(' · '))} editMode={editMode} fieldKey="section_14_emergency_interventions.medications_administered_by_doctor_ed" onChange={handleChange} />}
+              {(has(s14.medications_administered) || editMode) && <EditableListField label="Medications Administered (All)" items={s14.medications_administered} editMode={editMode} fieldKey="section_14_emergency_interventions.medications_administered" onChange={handleChange} />}
               {(has(s14.other_interventions) || editMode) && <EditableListField label="Other Interventions" items={s14.other_interventions} editMode={editMode} fieldKey="section_14_emergency_interventions.other_interventions" onChange={handleChange} />}
               <EditableInfoRow label="CPR Performed" value={s14.cpr_performed !== null && s14.cpr_performed !== undefined ? (s14.cpr_performed ? 'Yes' : 'No') : ''} editMode={editMode} fieldKey="section_14_emergency_interventions.cpr_performed" onChange={handleChange} />
               <EditableInfoRow label="Defibrillation" value={s14.defibrillation_performed !== null && s14.defibrillation_performed !== undefined ? (s14.defibrillation_performed ? 'Yes' : 'No') : ''} editMode={editMode} fieldKey="section_14_emergency_interventions.defibrillation_performed" onChange={handleChange} />
@@ -2504,6 +2551,62 @@ const FinalSummaryContent = ({ finalSummary, patientName, pdfLoading, setPdfLoad
               <EditableInfoRow label="Total Actions" value={s24.total_actions} editMode={editMode} fieldKey="section_24_clinical_actions_summary.total_actions" onChange={handleChange} />
               <EditableInfoRow label="Approved" value={s24.approved_count} editMode={editMode} fieldKey="section_24_clinical_actions_summary.approved_count" onChange={handleChange} />
               <EditableInfoRow label="Rejected" value={s24.rejected_count} editMode={editMode} fieldKey="section_24_clinical_actions_summary.rejected_count" onChange={handleChange} />
+            </FSSectionCard>
+          ),
+
+          // 26 — Doctor Recommended Treatment
+          (has(s26.recommendations) || editMode) && (
+            <FSSectionCard title="26. Doctor Recommended Treatment (Not Yet Administered)">
+              <EditableListField
+                label="Recommendations"
+                items={(s26.recommendations || []).map(r => typeof r === 'string' ? r : `${r.recommendation}${r.administered_yet === false ? ' [Pending]' : ''}`)}
+                editMode={editMode}
+                fieldKey="section_26_doctor_recommended_treatment.recommendations"
+                onChange={handleChange}
+              />
+            </FSSectionCard>
+          ),
+
+          // 27 — ICD-10 Codes & Claim Readiness
+          (has(s27.icd_10_codes_applicable) || has(s27.claimable_services) || s27.claim_readiness_score_percent != null || editMode) && (
+            <FSSectionCard title="27. ICD-10 Codes & Claim Readiness">
+              <EditableInfoRow label="Claim Readiness Score" value={s27.claim_readiness_score_percent != null ? `${s27.claim_readiness_score_percent}%` : ''} editMode={editMode} fieldKey="section_27_icd10_and_claim_readiness.claim_readiness_score_percent" onChange={handleChange} extraStyle={boldVal} />
+              {(has(s27.claim_blocking_issues) || editMode) && <EditableListField label="Blocking Issues" items={s27.claim_blocking_issues} editMode={editMode} fieldKey="section_27_icd10_and_claim_readiness.claim_blocking_issues" onChange={handleChange} />}
+              {(has(s27.icd_10_codes_applicable) || editMode) && <EditableListField label="ICD-10 Codes" items={(s27.icd_10_codes_applicable || []).map(c => typeof c === 'string' ? c : `${c.code} — ${c.description}`)} editMode={editMode} fieldKey="section_27_icd10_and_claim_readiness.icd_10_codes_applicable" onChange={handleChange} />}
+              {(has(s27.claimable_services) || editMode) && (() => {
+                const services = s27.claimable_services || [];
+                const claimable = services.filter(sv => typeof sv !== 'string' && sv.claimable === true);
+                const pending   = services.filter(sv => typeof sv === 'string' || sv.claimable !== true);
+                return (
+                  <>
+                    {(claimable.length > 0 || editMode) && (
+                      <EditableListField
+                        label="Claimable Services"
+                        items={claimable.map(sv => `${sv.service} (${sv.category}) — ${sv.justification}`)}
+                        editMode={editMode}
+                        fieldKey="section_27_icd10_and_claim_readiness.claimable_services"
+                        onChange={handleChange}
+                      />
+                    )}
+                    {pending.length > 0 && !editMode && (
+                      <div style={{ marginTop: 10 }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: '#ca8a04', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 6 }}>
+                          Not Yet Claimable — Administration Unconfirmed
+                        </div>
+                        {pending.map((sv, i) => (
+                          <div key={i} style={{
+                            padding: '6px 0', borderBottom: '1px solid #f5f5f5',
+                            fontSize: 12.5, color: '#666',
+                          }}>
+                            <span style={{ color: '#ca8a04', marginRight: 6 }}>⏳</span>
+                            {typeof sv === 'string' ? sv : `${sv.service} (${sv.category}) — ${sv.justification}`}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </FSSectionCard>
           ),
 
@@ -2652,13 +2755,23 @@ export default function PatientProfileEmergency() {
 
   // ── State ──
   const [patient, setPatient]           = useState(null);
-const [activeTab, setActiveTab] = useState('patient');
-  const [dictTab, setDictTab]           = useState('voice');
-  const [rpmTab, setRpmTab]             = useState('rpm');
+// const [activeTab, setActiveTab] = useState('patient'); // disabled — tab UI removed, page is a single stacked view
+  // const [dictTab, setDictTab]           = useState('voice'); // disabled — History tab removed
+  // const [rpmTab, setRpmTab]             = useState('rpm');   // disabled — unused
 
   const [voiceDictations, setVoiceDictations] = useState([]);
   const [clinicalActions, setClinicalActions] = useState([]);
-  const [notes, setNotes]                     = useState([]);
+
+  // Single source of truth for triage colour — the most recently APPROVED
+  // AI clinical action. All summaries (top pill, Transfer Summary,
+  // Discharge Summary, Insurance doc) are kept in lockstep with this value.
+  const liveTriageColour = useMemo(() => {
+    const latestApproved = [...(clinicalActions || [])]
+      .filter(a => a.action_type === 'approved' && a.ai_suggestion?.triage?.colour)
+      .sort((a, b) => new Date(b.client_created_at) - new Date(a.client_created_at))[0];
+    return latestApproved?.ai_suggestion?.triage?.colour || null;
+  }, [clinicalActions]);
+    const [notes, setNotes]                     = useState([]);
 const [showStructuredNote, setShowStructuredNote] = useState(false);
   const [loadingDicts, setLoadingDicts]       = useState(false);
   const [mergedTimeline, setMergedTimeline] = useState([]);
@@ -2744,17 +2857,57 @@ const hasLoadedNotesOnce = useRef(false);   // ← add this
     const interval = setInterval(pollNewPatients, 20000);
     return () => clearInterval(interval);
   }, []);
+ // ── Live updates (WebSocket) — replaces the old 15s history poll.
+  // Connects once per open patient; on any push from the backend, calls
+  // just the fetcher(s) that message type implies instead of refetching
+  // everything on a fixed timer. EMT voice-dictation saves (a separate
+  // service, users/patient_data/patientcontext.py) also notify this same
+  // socket, so fetchNotes() below covers those too.
+  const wsRef = useRef(null);
+  const [doctorWsEvent, setDoctorWsEvent] = useState(null);
 
-  // ── Auto-refresh History Section (Voice Dictations / Clinical Actions / Image Suggestions) ──
   useEffect(() => {
-    if (!patient) return;
-    const historyInterval = setInterval(() => {
-      fetchVoiceDictations();
-      fetchClinicalActions();
-      fetchExtractedData();
-    }, 15000);
-    return () => clearInterval(historyInterval);
-  }, [patient]);
+    if (!patient?.patient_id) return;
+
+    const wsUrl = `wss://doctorassist.ai/api/hms/users/ambulance/ws/doctor/${patient.patient_id}`;
+    const ws = new WebSocket(wsUrl);
+    wsRef.current = ws;
+
+    ws.onmessage = (event) => {
+      let msg;
+      try { msg = JSON.parse(event.data); } catch { return; }
+      // Surface every message to children (e.g. ClinicalChatFeed) so they
+      // can refetch on push instead of running their own poll timer.
+      setDoctorWsEvent(msg);
+      switch (msg.type) {
+        case 'CLINICAL_ACTION_UPDATE':
+          fetchClinicalActions();
+          break;
+        case 'DOCTOR_NOTE_SAVED':
+        case 'EMT_VOICE_NOTE_SAVED':
+          fetchNotes();
+          break;
+        case 'IMAGE_ANALYSIS_UPDATE':
+        case 'DOCTOR_SUGGESTION_SAVED':
+          fetchExtractedData();
+          fetchExtractedDataForNotes();
+          break;
+        case 'EMT_IMAGE_UPLOADED':
+          // No parent-level image state to refresh here — ClinicalChatFeed
+          // and PatientJourneyTimeline each fetch images themselves.
+          break;
+        case 'INCIDENT_COMPLETED':
+          setIncidentCompleted(true);
+          break;
+        default:
+          break;
+      }
+    };
+
+    ws.onerror = (err) => console.error('Doctor WS error:', err);
+
+    return () => { ws.close(); wsRef.current = null; };
+  }, [patient?.patient_id]);
 
   // ── On Mount ──
 
@@ -2778,25 +2931,20 @@ useEffect(() => {
   
   // Load all data immediately
   const loadInitialData = async () => {
-   await Promise.all([
+  await Promise.all([
   fetchNotes(),
   fetchVoiceDictations(),
   fetchExtractedData(),
   fetchClinicalActions(),
-  fetchExtractedDataForNotes()
+  fetchFinalSummary(),
+  fetchExtractedDataForNotes(),
+  fetchFinalSummary()
 ]);
     console.log('✅ All initial data loaded');
   };
   
   loadInitialData();
   callZenzoFlow();
-  
-  // Poll for new notes every 15 seconds
-  const interval = setInterval(() => {
-    fetchNotes();
-  }, 15000);
-  
-  return () => clearInterval(interval);
 }, [patient]);
 // ADD THIS NEW useEffect RIGHT AFTER the one above
 useEffect(() => {
@@ -2862,32 +3010,47 @@ const timeline = [
   
   setMergedTimeline(timeline);
 }, [notes, clinicalActions, doctorNotes]);
+// Incident completion now arrives via the doctor WebSocket's
+// INCIDENT_COMPLETED event (see ws.onmessage above) — complete_incident()
+// on the backend already calls _notify_doctor_for_patient with that type.
+// Kept a single check-on-mount as a safety net in case the WS message was
+// missed while the tab was reconnecting, but no more 5s interval.
 useEffect(() => {
   if (!patient) return;
 
-  const checkIncidentStatus = async () => {
+  const checkIncidentStatusOnce = async () => {
     try {
       const patientId = patient.patient_id;
       const r = await fetch(`${API_BASE}/hms/users/ambulance/ambulance/get-completed-incident/${patientId}`);
       const d = await r.json();
-      console.log('🔍 Incident status poll:', d);
-
       if (d?.status === 'success' && d?.incident?.status === 'completed') {
-        console.log('✅ Incident is COMPLETED - showing popup and stopping poll');
         setIncidentCompleted(true);
-        clearInterval(incidentPollRef.current);
       }
     } catch (e) {
-      console.error('❌ Incident status poll error:', e);
+      console.error('❌ Incident status check error:', e);
     }
   };
 
-  incidentPollRef.current = setInterval(checkIncidentStatus, 5000);
-  checkIncidentStatus();
-
-  return () => clearInterval(incidentPollRef.current);
+  checkIncidentStatusOnce();
 }, [patient]);
 
+// Keep the Transfer Summary's triage colour in lockstep with the latest
+// approved AI action, so it never needs a manual "regenerate to sync".
+useEffect(() => {
+  if (!liveTriageColour) return;
+  setFinalSummary(prev => {
+    if (!prev) return prev;
+    const cur = prev.section_10_triage_information?.triage_colour;
+    if (cur === liveTriageColour) return prev;
+    return {
+      ...prev,
+      section_10_triage_information: {
+        ...(prev.section_10_triage_information || {}),
+        triage_colour: liveTriageColour,
+      },
+    };
+  });
+}, [liveTriageColour, finalSummary]);
 
   // ── API Calls ──
 const fetchNotes = async () => {
@@ -3035,6 +3198,30 @@ const fetchClinicalActions = async () => {
       }
     } catch (err) {
       console.error('Final Summary Error:', err);
+    } finally {
+      setFinalSummaryLoading(false);
+    }
+  };
+
+  const generateFinalSummary = async () => {
+    try {
+      setFinalSummaryLoading(true);
+      const genRes = await fetch(`${API_BASE}/hms/users/ai-legacy/ed-summary/generate/${patient.patient_id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const genData = await genRes.json();
+      if (genData.status === 'success' && genData.result?.final_summary) {
+        setFinalSummary(genData.result.final_summary);
+      } else if (genData.final_summary) {
+        setFinalSummary(genData.final_summary);
+      } else {
+        // Fall back to re-fetching latest in case the generate response shape differs
+        await fetchFinalSummary();
+      }
+    } catch (err) {
+      console.error('Generate Final Summary Error:', err);
+      alert('Failed to generate transfer summary. Please try again.');
     } finally {
       setFinalSummaryLoading(false);
     }
@@ -3321,7 +3508,13 @@ const Tab = ({ id, label, count }) => (
       const d = modal.data;
       return (
         <Modal visible title="Voice Dictation" onClose={closeModal}>
-          <ModalSection title="Metadata"><ModalText bold>{d.date} · {d.time}</ModalText></ModalSection>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+            <span style={{
+              fontSize: 10, fontWeight: 700, letterSpacing: '0.6px', textTransform: 'uppercase',
+              color: '#fff', background: '#6b7280', padding: '3px 10px', borderRadius: 3,
+            }}>Emergency Crew</span>
+            <span style={{ fontSize: 12, color: '#999' }}>{d.date} · {d.time}</span>
+          </div>
           <ModalSection title="Transcription"><ModalText>{d.conversation}</ModalText></ModalSection>
         </Modal>
       );
@@ -3358,12 +3551,18 @@ const Tab = ({ id, label, count }) => (
             <ModalSection title="Triage">
               {ai.triage.data_available !== false ? (
                 <>
-                  <ModalText bold>{ai.triage.colour || 'Unknown'}</ModalText>
+                  <div style={{ marginBottom: 8 }}>
+                    <span style={{
+                      display: 'inline-block', fontSize: 12, fontWeight: 700,
+                      color: '#fff', background: TRIAGE_COLOR_MAP[ai.triage.colour] || '#555',
+                      padding: '3px 12px', borderRadius: 3, textTransform: 'uppercase', letterSpacing: '0.5px',
+                    }}>{ai.triage.colour || 'Unknown'}</span>
+                  </div>
                   <ModalText>{ai.triage.rationale}</ModalText>
                   {ai.triage.safety_net_breaches?.length > 0 && (
-                    <div style={{ marginTop: 8, padding: 8, background: '#ffebee', borderRadius: 4 }}>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: '#c62828', textTransform: 'uppercase', marginBottom: 4 }}>Automated Safety Net Triggered</div>
-                      {ai.triage.safety_net_breaches.map((b, i) => <ModalText key={i}>⚠ {b}</ModalText>)}
+                    <div style={{ marginTop: 8, padding: 10, background: '#ffebee', borderLeft: '3px solid #c62828', borderRadius: 4 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#c62828', textTransform: 'uppercase', marginBottom: 4, letterSpacing: '0.5px' }}>Automated Safety Net Triggered</div>
+                      {ai.triage.safety_net_breaches.map((b, i) => <ModalText key={i}>{b}</ModalText>)}
                     </div>
                   )}
                 </>
@@ -3467,8 +3666,7 @@ const Tab = ({ id, label, count }) => (
             <ModalSection title="Anticipated Complications">
               {ai.complications.data_available !== false && ai.complications.items?.length > 0 ? (
                 ai.complications.items.map((x, i) => (
-                  <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-                    <span style={{ color: '#ca8a04' }}>⚠</span>
+                  <div key={i} style={{ display: 'flex', gap: 10, marginBottom: 10, paddingLeft: 10, borderLeft: '3px solid #ca8a04' }}>
                     <div>
                       <ModalText bold>{x.complication}</ModalText>
                       <ModalText>{x.reason}</ModalText>
@@ -3525,7 +3723,7 @@ const Tab = ({ id, label, count }) => (
             <span style={{
               display: 'inline-block', padding: '3px 8px', fontSize: 9, fontWeight: 700,
               letterSpacing: '0.8px', textTransform: 'uppercase',
-              background: '#14a348', color: '#fff', borderRadius: 3,
+              background: '#1d4ed8', color: '#fff', borderRadius: 3,
             }}>DR. SUGGESTION</span>
             <span style={{ fontSize: 11, color: '#999' }}>
               {d.timestamp
@@ -3639,8 +3837,16 @@ const Tab = ({ id, label, count }) => (
                 borderBottom: idx < analysis.vitals_timeline.length - 1 ? '1px solid #f0f0f0' : 'none'
               }}>
                 {/* Timestamp */}
-                <div style={{ fontSize: 11, color: '#888', marginBottom: 8, fontWeight: '600' }}>
-                  🕐 {v.timestamp_display || v.timestamp_iso || 'N/A'}{idx === 0 ? '  ✦ Latest' : ''}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <span style={{ fontSize: 11, color: '#888', fontWeight: 600 }}>
+                    {v.timestamp_display || v.timestamp_iso || 'N/A'}
+                  </span>
+                  {idx === 0 && (
+                    <span style={{
+                      fontSize: 9, fontWeight: 700, letterSpacing: '0.5px', textTransform: 'uppercase',
+                      color: '#fff', background: '#16a34a', padding: '2px 8px', borderRadius: 10,
+                    }}>Latest</span>
+                  )}
                 </div>
 
                 {/* Vitals Section */}
@@ -3783,30 +3989,39 @@ const Tab = ({ id, label, count }) => (
         @keyframes slideInRight { from { opacity: 0; transform: translateX(60px); } to { opacity: 1; transform: translateX(0); } 
         @keyframes slideInTopRight { from { opacity: 0; transform: translateY(-16px); } to { opacity: 1; transform: translateY(0); } }
         }
+        @media (max-width: 900px) {
+          .overview-grid { grid-template-columns: 1fr !important; }
+          .action-rail { position: static !important; }
+        }
       `}</style>
 
       <div style={{ minHeight: '100vh', background: '#fff', width: '100%', maxWidth: '100%', margin: 0 }}>
-        <NewPatientToast
-          alerts={newPatientAlerts}
-          onDismiss={(idx) => setNewPatientAlerts((prev) => prev.filter((_, i) => i !== idx))}
-          onView={(patient) => {
-            localStorage.setItem('selected_patient', JSON.stringify(patient));
-            window.location.href = `/patient-profile-emergency/${patient.patient_id}`;
-          }}
-        />
-        <PatientActivityNotifier
-          patientId={patient?.patient_id}
-          onViewNote={() => {
-            setNotesFilter('paramedic');
-            document.querySelector('[data-voice-section="true"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          }}
-          onViewImage={() => {
-            setImageRefreshKey(prev => prev + 1);
-            setTimeout(() => {
-              document.getElementById('clinical-images-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }, 100);
-          }}
-        />
+        {false && (
+          <NewPatientToast
+            alerts={newPatientAlerts}
+            onDismiss={(idx) => setNewPatientAlerts((prev) => prev.filter((_, i) => i !== idx))}
+            onView={(patient) => {
+              localStorage.setItem('selected_patient', JSON.stringify(patient));
+              window.location.href = `/patient-profile-emergency/${patient.patient_id}`;
+            }}
+          />
+        )}
+        {false && (
+          <PatientActivityNotifier
+            patientId={patient?.patient_id}
+            onNewNotesDetected={fetchNotes}
+            onViewNote={() => {
+              setNotesFilter('paramedic');
+              document.querySelector('[data-voice-section="true"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }}
+            onViewImage={() => {
+              setImageRefreshKey(prev => prev + 1);
+              setTimeout(() => {
+                document.getElementById('clinical-images-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }, 100);
+            }}
+          />
+        )}
 
         {/* ── HEADER ── */}
         <div style={{
@@ -3832,21 +4047,52 @@ const Tab = ({ id, label, count }) => (
   <span style={{ fontSize: 14, fontWeight: 600, color: '#000', letterSpacing: '-0.3px' }}>DoctorAssist.Ai</span>
 </div>
         </div>
-
-        {/* Patient quick-pill */}
-        <div style={{ display: 'flex', gap: 10, padding: '12px 24px', borderBottom: '1px solid #f0f0f0', flexWrap: 'wrap', alignItems: 'center' }}>
-          {[patient.patient_id, patient.age ? `${patient.age} yrs` : null, patient.gender, patient.accidentDetails?.condition]
-            .filter(Boolean).map((v, i) => (
-              <span key={i} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 20, background: '#f5f5f5', color: '#555', fontWeight: 500 }}>{v}</span>
-            ))}
+        {/* Patient quick-pill + triage badge */}
+        <div style={{ display: 'flex', gap: 10, padding: '12px 24px', borderBottom: '1px solid #f0f0f0', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+            {[patient.patient_id, patient.age ? `${patient.age} yrs` : null, patient.gender, patient.accidentDetails?.condition ? humanizeClinicalText(patient.accidentDetails.condition) : null]
+                          .filter(Boolean).map((v, i) => (
+                <span key={i} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 20, background: '#f5f5f5', color: '#555', fontWeight: 500 }}>{v}</span>
+              ))}
+          </div>
+          {(() => {
+            const triageColour = liveTriageColour || finalSummary?.section_10_triage_information?.triage_colour;
+            if (!triageColour) return null;
+            const bg = triageColour === 'Red' ? '#dc2626'
+              : triageColour === 'Yellow' ? '#ca8a04'
+              : triageColour === 'Green' ? '#16a34a' : '#555';
+            return (
+              <span style={{
+                fontSize: 11, fontWeight: 700, letterSpacing: '0.6px', textTransform: 'uppercase',
+                padding: '5px 14px', borderRadius: 4, color: '#fff', background: bg,
+              }}>
+                Triage: {triageColour}
+              </span>
+            );
+          })()}
         </div>
 
-      
+        {/* ── TAB BAR (disabled — page is now one stacked view) ── */}
+        {false && (
+          <div style={{
+            display: 'flex', gap: 2, padding: '0 24px', borderBottom: '1px solid #e8e8e8',
+            overflowX: 'auto', WebkitOverflowScrolling: 'touch', background: '#fff',
+            position: 'sticky', top: 0, zIndex: 50,
+          }}>
+            <Tab id="patient" label="Overview" />
+            <Tab id="chat-feed" label="Clinical Chat (Beta)" />
+            <Tab id="rpm" label="RPM & Notes" />
+            <Tab id="history" label="History" count={voiceDictations.length + clinicalActions.length} />
+            <Tab id="structured-note" label="Discharge Summary" />
+            <Tab id="insurance-doc" label="Insurance" />
+            <Tab id="final-summary" label="Transfer Summary" />
+          </div>
+        )}
+
         {/* ── CONTENT ── */}
         <div style={{ padding: '20px 24px 40px' }}>
-
-         {/* PATIENT INFO */}
-         {activeTab === 'patient' && (
+         {/* PATIENT INFO — always first now (tabs removed) */}
+         {true && (
   <div>
     {/* PATIENT INFORMATION HEADING WITH UNDERLINE */}
     <div style={{
@@ -3887,89 +4133,71 @@ const Tab = ({ id, label, count }) => (
                   <InfoRow label="Time"          value={patient.accidentDetails?.accidentTime} />
                   <InfoRow label="Location"      value={patient.accidentDetails?.location} />
                   <InfoRow label="Incident Type" value={patient.accidentDetails?.accidentType} />
-                  <InfoRow label="Condition"     value={patient.accidentDetails?.condition} />
-                </SectionCard>
+                  <InfoRow label="Condition"     value={humanizeClinicalText(patient.accidentDetails?.condition)} />                </SectionCard>
           </div>
             </div>
-
-            {/* HISTORY SECTION INSIDE PATIENT TAB */}
-          {/* HISTORY SECTION INSIDE PATIENT TAB */}
-{/* PATIENT JOURNEY TIMELINE */}
-<div style={{ marginTop: 32, background: '#f4f0f0', borderRadius: 8, padding: '20px' }}>
-  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, paddingBottom: 10, borderBottom: '1px solid #e0e0e0' }}>
-    <div style={{ fontSize: 11, fontWeight: 700, color: '#000', textTransform: 'uppercase', letterSpacing: '1.2px' }}>
-      Patient Journey
-    </div>
-  </div>
-  <PatientJourneyTimeline
-    patient={patient}
-    notes={notes}
-    doctorNotes={doctorNotes}
-    clinicalActions={clinicalActions}
-    extractedData={extractedData}
-  />
-</div>
-
-            {/* ── RPM SECTION ── */}
-            <div style={{ marginTop: 32 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 10, borderBottom: '1px solid #e8e8e8', marginBottom: 16 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: '#000', textTransform: 'uppercase', letterSpacing: '1.2px' }}>RPM Section</span>
-                
-                <button onClick={() => { setRpmOpened(true); callZenzoFlow(); }} style={{ background: '#000', color: '#fff', border: 'none', padding: '8px 18px', borderRadius: 4, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
-                  {zenzoLoading ? 'Connecting…' : 'Open RPM Monitor'}
-                </button>
-              </div>
-             {rpmOpened && (
-<RpmPanel iframeUrl={iframeUrl} zenzoLoading={zenzoLoading} zenzoStatus={zenzoStatus} callZenzoFlow={callZenzoFlow} iframeRef={iframeRef} incidentCompleted={incidentCompleted} />              )}
-
-              {/* Voice Notes + Doctor Note + Notes + DataProcessing — always shown */}
-              <div style={{ marginTop: 24 }}>
-                
-
-                <div ref={voiceSectionRef} style={{ marginBottom: 24, border: '1px solid #e8e8e8', borderRadius: 6, overflow: 'hidden' }}>
-                  <div style={{ padding: '14px 20px', background: '#fafafa', borderBottom: '1px solid #e8e8e8', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 1 }}>VOICE NOTES / MANUAL INSTRUCTIONS FOR ClINCAL ACTIONS</div>
-                    <button type="button" onClick={async () => {
-                      try {
-                        if (isRecording) { mediaRecorderRef.current.stop(); streamRef.current?.getTracks().forEach(t => t.stop()); setIsRecording(false); return; }
-                        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                        streamRef.current = stream;
-                        const mediaRecorder = new MediaRecorder(stream);
-                        mediaRecorderRef.current = mediaRecorder;
-                        audioChunksRef.current = [];
-                        mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
-                        mediaRecorder.onstop = async () => { const b = new Blob(audioChunksRef.current, { type: 'audio/webm' }); await transcribeAudio(new File([b], 'voice-note.webm', { type: 'audio/webm' })); streamRef.current?.getTracks().forEach(t => t.stop()); };
-                        mediaRecorder.start(); setIsRecording(true);
-                      } catch (err) { console.error(err); alert('Microphone permission denied'); }
-                    }} disabled={transcribeLoading || incidentCompleted} style={{ border: 'none', background: 'transparent', cursor: (transcribeLoading || incidentCompleted) ? 'not-allowed' : 'pointer', padding: 0, opacity: incidentCompleted ? 0.5 : 1 }}>
-                      {transcribeLoading ? <Spinner size={30} /> : isRecording ? (
-                        <div style={{ width: 50, height: 50, borderRadius: '50%', background: '#dc3545', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', animation: 'pulse 1.5s infinite' }}>
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="3" width="12" height="16" rx="2" /></svg>
-                          <span style={{ fontSize: 8, fontWeight: 700, color: '#fff' }}>REC</span>
-                        </div>
-                      ) : (
-                        <div style={{ width: 50, height: 50, borderRadius: '50%', border: '2px solid #111', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff' }}>
-                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /><line x1="12" y1="19" x2="12" y2="23" /><line x1="8" y1="23" x2="16" y2="23" /></svg>
-                        </div>
-                      )}
-                    </button>
-                  </div>
-                  <div style={{ padding: 20 }}>
-                    <textarea value={dictationText} onChange={(e) => setDictationText(e.target.value)} placeholder="Enter additional clinical instructions or record voice/doctor notes..." style={{ width: '100%', minHeight: 140, border: '1px solid #e8e8e8', padding: 16, fontSize: 14, borderRadius: 6, resize: 'vertical', outline: 'none', lineHeight: 1.7, fontFamily: "'DM Sans', sans-serif" }} />
-                    <div style={{ display: 'flex', gap: 12, marginTop: 16, flexWrap: 'wrap' }}>
-                      <div>
-                        <button onClick={handleVoiceSubmit} disabled={voiceSubmitLoading || incidentCompleted} style={{ background: '#dc2626', color: '#fff', border: 'none', padding: '11px 22px', borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: (voiceSubmitLoading || incidentCompleted) ? 'not-allowed' : 'pointer', opacity: incidentCompleted ? 0.5 : 1, fontFamily: "'DM Sans', sans-serif" }}>{incidentCompleted ? 'Incident Completed' : voiceSubmitLoading ? 'Sending to EMT…' : ' Send to EMT App Now'}</button>
-                        
-                      </div>
-                      <div>
-                        <button onClick={handleDoctorNoteSubmit} disabled={doctorNoteSubmitLoading || incidentCompleted} style={{ background: '#fff', color: '#1d4ed8', border: '1.5px solid #1d4ed8', padding: '11px 22px', borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: (doctorNoteSubmitLoading || incidentCompleted) ? 'not-allowed' : 'pointer', opacity: incidentCompleted ? 0.5 : 1, fontFamily: "'DM Sans', sans-serif" }}>{incidentCompleted ? 'Incident Completed' : doctorNoteSubmitLoading ? 'Saving…' : ' Save Note for AI Only'}</button>
-                        
-                      </div>
-                    </div>
+            {/* PATIENT JOURNEY — disabled per request */}
+            {false && (
+              <div style={{ background: '#f4f0f0', borderRadius: 8, padding: '20px', marginBottom: 24, marginTop: 32 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, paddingBottom: 10, borderBottom: '1px solid #e0e0e0' }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#000', textTransform: 'uppercase', letterSpacing: '1.2px' }}>
+                    Patient Journey
                   </div>
                 </div>
+                <PatientJourneyTimeline
+                  patient={patient}
+                  notes={notes}
+                  doctorNotes={doctorNotes}
+                  clinicalActions={clinicalActions}
+                  extractedData={extractedData}
+                />
+              </div>
+            )}
+            {/* ── OVERVIEW GRID (RPM/images/notes/right-rail) — disabled, kept for reference ── */}
+            {false && (
+            <>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'minmax(0, 1fr) 360px',
+              gap: 24,
+              alignItems: 'start',
+              marginTop: 32,
+            }}
+            className="overview-grid"
+            >
+              {/* ══════════ LEFT: SCROLLING FEED ══════════ */}
+              <div style={{ minWidth: 0 }}>
+
+                {/* RPM LIVE MONITOR */}
+                <div style={{ marginBottom: 24 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 10, borderBottom: '1px solid #e8e8e8', marginBottom: 16 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#000', textTransform: 'uppercase', letterSpacing: '1.2px' }}>RPM Section</span>
+                    <button onClick={() => { setRpmOpened(true); callZenzoFlow(); }} style={{ background: '#000', color: '#fff', border: 'none', padding: '8px 18px', borderRadius: 4, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
+                      {zenzoLoading ? 'Connecting…' : 'Open RPM Monitor'}
+                    </button>
+                  </div>
+                  {rpmOpened && (
+                    <RpmPanel iframeUrl={iframeUrl} zenzoLoading={zenzoLoading} zenzoStatus={zenzoStatus} callZenzoFlow={callZenzoFlow} iframeRef={iframeRef} incidentCompleted={incidentCompleted} />
+                  )}
+                </div>
+
+                {/* CLINICAL IMAGES + AI EXTRACTION */}
+                <div id="clinical-images-section" style={{ marginBottom: 24, background: '#f0ebeb', borderRadius: 6, padding: '16px' }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#000', textTransform: 'uppercase', letterSpacing: '1.2px', marginBottom: 16, paddingBottom: 10, borderBottom: '1px solid #e8e8e8' }}>
+                    Clinical Images from Ambulance
+                  </div>
+                  <AmbulanceImagePhotography
+                    key={imageRefreshKey}
+                    patientId={patient?.patient_id}
+                    patientName={patient?.fullName}
+                    incidentCompleted={incidentCompleted}
+                    onExtractedDataSaved={fetchExtractedDataForNotes}
+                  />
+                </div>
+
+                {/* CLINICAL ACTIONS / NOTES LOG */}
                 {loadingNotes ? <div>Loading...</div> : (
-                  <div style={{ border: '2px solid #e0e0e0', borderRadius: 8, padding: 16, background: '#fefefe' }}>
+                  <div style={{ border: '2px solid #e0e0e0', borderRadius: 8, padding: 16, background: '#fefefe', marginBottom: 24 }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, paddingBottom: 10, borderBottom: '1px solid #e8e8e8' }}>
                       <div style={{ fontSize: 12, fontWeight: 700, color: '#000', textTransform: 'uppercase', letterSpacing: '1.2px' }}>CLINICAL ACTIONS NOTES SECTION</div>
                       <button onClick={fetchNotes} style={{ background: '#000', color: '#fff', border: 'none', padding: '5px 12px', borderRadius: 4, cursor: 'pointer', fontSize: 10, fontWeight: 600, fontFamily: "'DM Sans', sans-serif" }}>Reload</button>
@@ -4024,197 +4252,224 @@ const Tab = ({ id, label, count }) => (
                     ))}
                   </div>
                 )}
-   {/* ── PROCESS PATIENT DATA BUTTON ── */}
-<button onClick={() => {
-  if (incidentCompleted) return;
-  const hasNotes = (notes && notes.length > 0) || (doctorNotes && doctorNotes.length > 0);
-  if (!hasNotes) { alert('⚠️ No paramedic voice notes & Doctor notes available for AI processing.'); return; }
-  setShowDataProcessing(false);
-  setTimeout(() => { setShowDataProcessing(true); setTimeout(() => { dataProcessingRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 200); }, 50);
-}} disabled={incidentCompleted} style={{ marginTop: 16, background: incidentCompleted ? '#999' : '#000', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: 6, fontSize: 14, fontWeight: 600, cursor: incidentCompleted ? 'not-allowed' : 'pointer', opacity: incidentCompleted ? 0.6 : 1, fontFamily: "'DM Sans', sans-serif", display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-  {incidentCompleted ? 'Incident Completed' : 'Process Patient Data →'}
-</button>
-{showDataProcessing && (
-  <div ref={dataProcessingRef} style={{ marginTop: 30 }}>
-    <DataProcessingInline patientData={patient} notes={notes} incidentCompleted={incidentCompleted} />
-  </div>
-)}
+              </div>
 
-{/* ── IMAGE GALLERY SECTION INSIDE NOTES ── */}
-<div id="clinical-images-section" style={{ marginTop: 24, marginBottom: 24, background: '#f0ebeb', borderRadius: 6, padding: '16px' }}>
-  <div style={{
-    fontSize: 12,
-    fontWeight: 700,
-    color: '#000',
-    textTransform: 'uppercase',
-    letterSpacing: '1.2px',
-    marginBottom: 16,
-    paddingBottom: 10,
-    borderBottom: '1px solid #e8e8e8'
-  }}>
-    Clinical Images from Ambulance
-  </div>
-<AmbulanceImagePhotography
-    key={imageRefreshKey}
-    patientId={patient?.patient_id}
-    patientName={patient?.fullName}
-    incidentCompleted={incidentCompleted}
-  />
-</div>
-{/* ── STRUCTURED NOTE SECTION ── */}
-<div style={{ marginTop: 32, background: '#f8f8f8', borderRadius: 8, border: '1px solid #e0e0e0', overflow: 'hidden' }}>
-  <div style={{
-    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-    padding: '14px 20px', borderBottom: showStructuredNote ? '1px solid #e0e0e0' : 'none',
-    cursor: 'pointer', background: '#f8f8f8',
-  }} onClick={() => setShowStructuredNote(prev => !prev)}>
-    <span style={{  fontSize: 13, fontWeight: 800, color: '#000', textTransform: 'uppercase', letterSpacing: '1.2px' }}>
-      Discharge Summary
-    </span>
-    <span style={{ fontSize: 18, color: '#000', transition: 'transform 0.2s', transform: showStructuredNote ? 'rotate(90deg)' : 'rotate(0deg)' }}>›</span>
-  </div>
-  {showStructuredNote && (
-    <StructuredNoteEmergency
-  doctorId={localStorage.getItem('doctor_id') || localStorage.getItem('zenzo_doctor_id')}
-  patientId={patient?.patient_id}
-  onRefresh={handleStructuredNoteRefresh}
-  onLoadingChange={handleStructuredNoteLoadingChange}
-/>
-  )}
-</div>
+              {/* ══════════ RIGHT: STICKY ACTION RAIL ══════════ */}
+              <div style={{ position: 'sticky', top: 56, alignSelf: 'start', minWidth: 0 }} className="action-rail">
 
-{/* ── INSURANCE DOCUMENTATION SECTION ── */}
-<div style={{ marginTop: 32, background: '#f8f8f8', borderRadius: 8, border: '1px solid #e0e0e0', overflow: 'hidden' }}>
-  <div style={{
-    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-    padding: '14px 20px', borderBottom: showInsuranceDoc ? '1px solid #e0e0e0' : 'none',
-    cursor: 'pointer', background: '#f8f8f8',
-  }} onClick={() => setShowInsuranceDoc(prev => !prev)}>
-    <span style={{  fontSize: 13, fontWeight: 800, color: '#000', textTransform: 'uppercase', letterSpacing: '1.2px' }}>
-      Insurance Documentation
-    </span>
-    <span style={{ fontSize: 18, color: '#000', transition: 'transform 0.2s', transform: showInsuranceDoc ? 'rotate(90deg)' : 'rotate(0deg)' }}>›</span>
-  </div>
-  {showInsuranceDoc && (
-    <div style={{ padding: '16px 20px' }}>
-    <InsuranceDocumentation patientId={patient?.patient_id} />
-    </div>
-  )}
-</div>
+                {/* Latest extraction — always visible, no scrolling needed */}
+                {extractedData && extractedData.length > 0 && (
+                  <div style={{ border: '1px solid #e8e8e8', borderRadius: 6, marginBottom: 16, overflow: 'hidden' }}>
+                    <div style={{ padding: '9px 14px', background: '#16a34a', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.8px' }}>Latest Extraction</span>
+                      <span style={{ fontSize: 10, color: '#dcfce7' }}>{fmtDate(extractedData[0].timestamp_iso)}</span>
+                    </div>
+                    <div style={{ padding: '10px 14px', maxHeight: 110, overflowY: 'auto' }}>
+                      <p style={{ fontSize: 12, color: '#333', lineHeight: 1.55 }}>
+                        {(extractedData[0].extracted_text || 'No content').replace(/\n/g, ' ').replace(/\s+/g, ' ').trim()}
+                      </p>
+                    </div>
+                  </div>
+                )}
 
-{/* ── FINAL SUMMARY SECTION ── */}
-<div style={{ marginTop: 32, background: '#f8f8f8', borderRadius: 8, border: '1px solid #e0e0e0', overflow: 'hidden' }}>
-  <div style={{
-    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-    padding: '14px 20px', borderBottom: showFinalSummary ? '1px solid #e0e0e0' : 'none',
-    cursor: 'pointer', background: '#f8f8f8',
-  }} onClick={() => setShowFinalSummary(prev => !prev)}>
-    <div style={{
-      fontSize: 13, fontWeight: 800,
-      color: '#000',
-      textTransform: 'uppercase',
-      letterSpacing: '1.2px'
-    }}>
-      Patient Transfer Summary
-    </div>
-    <span style={{ fontSize: 18, color: '#000', transition: 'transform 0.2s', transform: showFinalSummary ? 'rotate(90deg)' : 'rotate(0deg)' }}>›</span>
-  </div>
-{showFinalSummary && (
-  <div style={{ padding: '16px 20px 20px' }}>
-    <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
-      <button onClick={async () => {
-        const loadingDiv = document.createElement('div');
-        loadingDiv.id = 'final-summary-loading-popup';
-        loadingDiv.style.cssText = `position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:10000;`;
-        loadingDiv.innerHTML = `<div style="background:white;padding:32px 48px;border-radius:8px;text-align:center;box-shadow:0 20px 40px rgba(0,0,0,0.2);min-width:300px;"><div style="margin-bottom:16px;"><div style="display:inline-block;width:40px;height:40px;border:3px solid #f0f0f0;border-top-color:#000;border-radius:50%;animation:spin 0.8s linear infinite;"></div></div><div style="font-size:16px;font-weight:600;color:#000;margin-bottom:8px;">Generating Patient Transfer Summary</div><div style="font-size:13px;color:#666;">Please wait while AI processes patient data...</div></div>`;
-        document.body.appendChild(loadingDiv);
-        try {
-          const response = await fetch(`https://doctorassist.ai/api/hms/users/ai-legacy/ed-summary/generate/${patient.patient_id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
-          await response.json();
-          document.body.removeChild(loadingDiv);
-          const successDiv = document.createElement('div');
-          successDiv.style.cssText = `position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:10000;`;
-          successDiv.innerHTML = `<div style="background:white;padding:32px 48px;border-radius:8px;text-align:center;box-shadow:0 20px 40px rgba(0,0,0,0.2);min-width:320px;"><div style="font-size:48px;margin-bottom:16px;"></div><div style="font-size:18px;font-weight:700;color:#000;margin-bottom:12px;">Summary Generated!</div><div style="font-size:13px;color:#666;margin-bottom:24px;">Patient Transfer Summary has been created successfully.</div><button id="success-ok-btn" style="background:#000;color:#fff;border:none;padding:10px 32px;border-radius:4px;font-size:14px;font-weight:600;cursor:pointer;">OK</button></div>`;
-          document.body.appendChild(successDiv);
-          document.getElementById('success-ok-btn')?.addEventListener('click', async () => {
-            document.body.removeChild(successDiv);
-            await fetchFinalSummary();
-          });
-        } catch (err) {
-          if (document.getElementById('final-summary-loading-popup')) document.body.removeChild(loadingDiv);
-          alert('Failed to generate final summary. Please try again.');
-        }
-      }} style={{ border: 'none', background: '#000', color: '#fff', padding: '8px 16px', borderRadius: 4, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", display: 'flex', alignItems: 'center', gap: 6, letterSpacing: '0.3px' }}>
-        + Generate Patient Transfer Summary
-      </button>
-    </div>
-    {finalSummaryLoading ? (
-      <div style={{ display: 'flex', justifyContent: 'center', padding: '40px 0' }}><Spinner size={32} /></div>
-    ) : !finalSummary ? (
-      <div style={{ textAlign: 'center', color: '#999', padding: '40px 0' }}>No Patient Transfer Summary Available. Click "Generate Patient Transfer Summary" to create one.</div>
-    ) : (
-      <FinalSummaryContent
-        finalSummary={finalSummary}
-        patientName={patient?.fullName}
-        pdfLoading={pdfLoading}
-        setPdfLoading={setPdfLoading}
-      />
-    )}
-  </div>
-)}
-</div>
+                {/* Info banner */}
+                <div style={{ marginBottom: 12, padding: '10px 14px', background: '#fff5f5', border: '1px solid #fecaca', borderRadius: 6 }}>
+                  <span style={{ fontSize: 11.5, color: '#dc2626', fontWeight: 500, lineHeight: 1.5 }}>
+                    If you do not want AI processing of an image, suggest directly to EMT using the notes below.
+                  </span>
+                </div>
+
+                {/* Voice / Doctor Note composer — pinned */}
+                <div ref={voiceSectionRef} style={{ border: '1px solid #e8e8e8', borderRadius: 6, overflow: 'hidden' }}>
+                  <div style={{ padding: '12px 16px', background: '#fafafa', borderBottom: '1px solid #e8e8e8', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6 }}>VOICE / MANUAL NOTE</div>
+                    <button type="button" onClick={async () => {
+                      try {
+                        if (isRecording) { mediaRecorderRef.current.stop(); streamRef.current?.getTracks().forEach(t => t.stop()); setIsRecording(false); return; }
+                        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                        streamRef.current = stream;
+                        const mediaRecorder = new MediaRecorder(stream);
+                        mediaRecorderRef.current = mediaRecorder;
+                        audioChunksRef.current = [];
+                        mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
+                        mediaRecorder.onstop = async () => { const b = new Blob(audioChunksRef.current, { type: 'audio/webm' }); await transcribeAudio(new File([b], 'voice-note.webm', { type: 'audio/webm' })); streamRef.current?.getTracks().forEach(t => t.stop()); };
+                        mediaRecorder.start(); setIsRecording(true);
+                      } catch (err) { console.error(err); alert('Microphone permission denied'); }
+                    }} disabled={transcribeLoading || incidentCompleted} style={{ border: 'none', background: 'transparent', cursor: (transcribeLoading || incidentCompleted) ? 'not-allowed' : 'pointer', padding: 0, opacity: incidentCompleted ? 0.5 : 1 }}>
+                      {transcribeLoading ? <Spinner size={26} /> : isRecording ? (
+                        <div style={{ width: 42, height: 42, borderRadius: '50%', background: '#dc3545', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', animation: 'pulse 1.5s infinite' }}>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="3" width="12" height="16" rx="2" /></svg>
+                          <span style={{ fontSize: 7, fontWeight: 700, color: '#fff' }}>REC</span>
+                        </div>
+                      ) : (
+                        <div style={{ width: 42, height: 42, borderRadius: '50%', border: '2px solid #111', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff' }}>
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /><line x1="12" y1="19" x2="12" y2="23" /><line x1="8" y1="23" x2="16" y2="23" /></svg>
+                        </div>
+                      )}
+                    </button>
+                  </div>
+                  <div style={{ padding: 16 }}>
+                    <textarea value={dictationText} onChange={(e) => setDictationText(e.target.value)} placeholder="Enter clinical instructions or record a note..." style={{ width: '100%', minHeight: 120, border: '1px solid #e8e8e8', padding: 12, fontSize: 13, borderRadius: 6, resize: 'vertical', outline: 'none', lineHeight: 1.6, fontFamily: "'DM Sans', sans-serif" }} />
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
+                      <button onClick={handleVoiceSubmit} disabled={voiceSubmitLoading || incidentCompleted} style={{ background: '#dc2626', color: '#fff', border: 'none', padding: '10px 16px', borderRadius: 6, fontSize: 12.5, fontWeight: 600, cursor: (voiceSubmitLoading || incidentCompleted) ? 'not-allowed' : 'pointer', opacity: incidentCompleted ? 0.5 : 1, fontFamily: "'DM Sans', sans-serif", width: '100%' }}>{incidentCompleted ? 'Incident Completed' : voiceSubmitLoading ? 'Sending to EMT…' : 'Send to EMT App Now'}</button>
+                      <button onClick={handleDoctorNoteSubmit} disabled={doctorNoteSubmitLoading || incidentCompleted} style={{ background: '#fff', color: '#1d4ed8', border: '1.5px solid #1d4ed8', padding: '10px 16px', borderRadius: 6, fontSize: 12.5, fontWeight: 600, cursor: (doctorNoteSubmitLoading || incidentCompleted) ? 'not-allowed' : 'pointer', opacity: incidentCompleted ? 0.5 : 1, fontFamily: "'DM Sans', sans-serif", width: '100%' }}>{incidentCompleted ? 'Incident Completed' : doctorNoteSubmitLoading ? 'Saving…' : 'Save Note for AI Only'}</button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Process Patient Data — pinned action */}
+                <button onClick={() => {
+                  if (incidentCompleted) return;
+                  const hasNotes = (notes && notes.length > 0) || (doctorNotes && doctorNotes.length > 0);
+                  if (!hasNotes) { alert('No paramedic voice notes & Doctor notes available for AI processing.'); return; }
+                  setShowDataProcessing(false);
+                  setTimeout(() => { setShowDataProcessing(true); setTimeout(() => { dataProcessingRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 200); }, 50);
+                }} disabled={incidentCompleted} style={{ marginTop: 16, width: '100%', background: incidentCompleted ? '#999' : '#000', color: '#fff', border: 'none', padding: '11px 20px', borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: incidentCompleted ? 'not-allowed' : 'pointer', opacity: incidentCompleted ? 0.6 : 1, fontFamily: "'DM Sans', sans-serif" }}>
+                  {incidentCompleted ? 'Incident Completed' : 'Process Patient Data →'}
+                </button>
               </div>
             </div>
-            </div>
+            {/* Process Patient Data results — disabled along with the grid */}
+            {showDataProcessing && (
+              <div ref={dataProcessingRef} style={{ marginTop: 24 }}>
+                <DataProcessingInline patientData={patient} notes={notes} incidentCompleted={incidentCompleted} />
+              </div>
+            )}
+            </>
+            )}
+          </div>
           )}
-
-          {/* HISTORY */}
-          {activeTab === 'history' && (
+          {/* CLINICAL CHAT — BETA — always shown 3rd */}
+          {true && (
+            <ClinicalChatFeed
+              patientId={patient?.patient_id}
+              patientName={patient?.fullName}
+              incidentCompleted={incidentCompleted}
+              wsEvent={doctorWsEvent}
+            />
+          )}
+          {/* HISTORY — disabled, no longer a visible section */}
+          {false && (
             <>
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#000', textTransform: 'uppercase', letterSpacing: '1.2px', marginBottom: 4 }}>
+                  Clinical History
+                </div>
+                <div style={{ fontSize: 12, color: '#999' }}>
+                  Full log of voice dictations and clinical actions for this patient
+                </div>
+              </div>
               <div style={{ display: 'flex', background: '#f5f5f5', borderRadius: 6, padding: 4, marginBottom: 20 }}>
                 <SubTab id="voice"    label="Voice Dictations" count={voiceDictations.length} current={dictTab} onSet={setDictTab} />
                 <SubTab id="clinical" label="Clinical Actions"  count={clinicalActions.length} current={dictTab} onSet={setDictTab} />
               </div>
               {dictTab === 'voice' && (
                 loadingDicts
-                  ? <div style={{ display: 'flex', gap: 10, alignItems: 'center', padding: 20, justifyContent: 'center' }}><Spinner /><span style={{ color: '#999', fontSize: 13 }}>Loading…</span></div>
+                  ? <div style={{ display: 'flex', gap: 10, alignItems: 'center', padding: 32, justifyContent: 'center' }}><Spinner /><span style={{ color: '#999', fontSize: 13 }}>Loading voice dictations…</span></div>
                   : voiceDictations.length === 0
-                  ? <div style={{ textAlign: 'center', padding: 40, color: '#aaa', fontSize: 13 }}>No voice dictations found.</div>
+                  ? <div style={{ textAlign: 'center', padding: 48, color: '#aaa', fontSize: 13, border: '1px dashed #e0e0e0', borderRadius: 8 }}>No voice dictations found.</div>
                   : voiceDictations.map((d, i) => <VoiceCard key={i} dictation={d} index={i} onView={openVoiceModal} />)
               )}
               {dictTab === 'clinical' && (
                 loadingClinical
-                  ? <div style={{ display: 'flex', gap: 10, alignItems: 'center', padding: 20, justifyContent: 'center' }}><Spinner /><span style={{ color: '#999', fontSize: 13 }}>Loading…</span></div>
+                  ? <div style={{ display: 'flex', gap: 10, alignItems: 'center', padding: 32, justifyContent: 'center' }}><Spinner /><span style={{ color: '#999', fontSize: 13 }}>Loading clinical actions…</span></div>
                   : clinicalActions.length === 0
-                  ? <div style={{ textAlign: 'center', padding: 40, color: '#aaa', fontSize: 13 }}>No clinical actions yet.</div>
+                  ? <div style={{ textAlign: 'center', padding: 48, color: '#aaa', fontSize: 13, border: '1px dashed #e0e0e0', borderRadius: 8 }}>No clinical actions yet.</div>
                   : clinicalActions.map((a, i) => <ClinicalCard key={i} action={a} onView={openClinicalModal} />)
               )}
             </>
           )}
-
-          {/* RPM */}
-     
-
-          {/* FINAL SUMMARY */}
-          {activeTab === 'final-summary' && (
-            <div style={{ padding: 10 }}>
-              {finalSummaryLoading ? (
-                <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><Spinner size={32} /></div>
-              ) : !finalSummary ? (
-                <div style={{ textAlign: 'center', color: '#999', padding: 40 }}>No Patient Transfer Summary Available</div>
-              ) : (
-                <FinalSummaryContent
-                  finalSummary={finalSummary}
-                  patientName={patient?.fullName}
-                  pdfLoading={pdfLoading}
-                  setPdfLoading={setPdfLoading}
-                />
+          {/* RPM VIEWING COMPONENT — always shown 4th */}
+          {true && (
+            <div style={{ marginBottom: 24, marginTop: 28 }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', gap: 16, marginBottom: 16 }}>
+                <button onClick={() => { setRpmOpened(true); callZenzoFlow(); }} style={{ background: '#000', color: '#fff', border: 'none', padding: '10px 28px', borderRadius: 4, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
+                  {zenzoLoading ? 'Connecting…' : rpmOpened ? 'Refresh RPM Monitor' : 'Open RPM Monitor'}
+                </button>
+                {incidentCompleted ? null : iframeUrl ? (
+                  <span style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 6,
+                    fontSize: 10, fontWeight: 700, color: '#16a34a',
+                    background: '#f0fdf4', border: '1px solid #bbf7d0',
+                    padding: '3px 10px', borderRadius: 20, letterSpacing: '0.4px',
+                  }}>
+                    <span style={{
+                      width: 7, height: 7, borderRadius: '50%', background: '#22c55e',
+                      display: 'inline-block', animation: 'pulse 1.4s ease-in-out infinite',
+                    }} />
+                    LIVE FEED AVAILABLE
+                  </span>
+                ) : zenzoLoading ? (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 10, fontWeight: 600, color: '#888' }}>
+                    <Spinner size={10} /> Checking feed…
+                  </span>
+                ) : (
+                  <span style={{ fontSize: 10, fontWeight: 600, color: '#bbb' }}>Feed not connected</span>
+                )}
+              </div>
+              {rpmOpened && (
+                <RpmPanel iframeUrl={iframeUrl} zenzoLoading={zenzoLoading} zenzoStatus={zenzoStatus} callZenzoFlow={callZenzoFlow} iframeRef={iframeRef} incidentCompleted={incidentCompleted} />
               )}
             </div>
           )}
-{/* IMAGES - REMOVED FROM TABS */}
-          {/* STRUCTURED NOTE */}
-          {activeTab === 'structured-note' && (
+
+          {/* DISCHARGE SUMMARY — DISABLED, merged into EDFS Patient Summary */}
+          {false && (
+            <div />
+          )}
+
+          {/* INSURANCE — DISABLED, merged into EDFS Patient Summary (section 27) */}
+          {false && (
+            <div />
+          )}
+          {/* TRANSFER SUMMARY — always shown 7th (moved to last) */}
+          {true && (
+            <div>
+              <div style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                paddingBottom: 10, borderBottom: '2px solid #000', marginBottom: 0,
+              }}>
+                <div>
+                  <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Patient Summary</h2>
+                  <p style={{ fontSize: 12, color: '#666', margin: '4px 0 0' }}>Complete Clinical Record — Transfer · Insurance · Discharge</p>
+                </div>
+                <button
+                  onClick={generateFinalSummary}
+                  disabled={finalSummaryLoading}
+                  style={{
+                    background: finalSummaryLoading ? '#888' : '#000', color: '#fff', border: 'none',
+                    padding: '9px 20px', borderRadius: 4, fontSize: 13, fontWeight: 600,
+                    cursor: finalSummaryLoading ? 'not-allowed' : 'pointer',
+                    fontFamily: "'DM Sans', sans-serif",
+                  }}
+                >
+                  {finalSummaryLoading ? 'Generating…' : '✦ Generate Full Summary'}                </button>
+              </div>
+              <div style={{ padding: 10 }}>
+                {finalSummaryLoading ? (
+                  <div style={{ textAlign: 'center', padding: 40 }}>
+                    <Spinner size={32} />
+                    <div style={{ fontSize: 12, color: '#999', marginTop: 12 }}>Loading the transfer summary for this patient…</div>
+                  </div>
+                ) : !finalSummary ? (
+                  <div style={{ textAlign: 'center', color: '#999', padding: 40, border: '2px dashed #e0e0e0', borderRadius: 6, marginTop: 12 }}>
+                    <div style={{ fontSize: 44, marginBottom: 16 }}>🚑</div>
+                    <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 6, color: '#333' }}>No Patient Summary Available</div>
+                    <div style={{ fontSize: 13, color: '#999' }}>Click "Generate Full Summary" above to fetch or create it.</div>
+                  </div>
+                ) : (
+                  <FinalSummaryContent
+                    finalSummary={finalSummary}
+                    patientName={patient?.fullName}
+                    pdfLoading={pdfLoading}
+                    setPdfLoading={setPdfLoading}
+                  />
+                )}
+              </div>
+            </div>
+          )}
+          {/* STRUCTURED NOTE — disabled here, rendered earlier as "DISCHARGE SUMMARY" */}
+          {false && (
             <StructuredNoteEmergency
   doctorId={localStorage.getItem('doctor_id') || localStorage.getItem('zenzo_doctor_id')}
   patientId={patient?.patient_id}
@@ -4222,14 +4477,14 @@ const Tab = ({ id, label, count }) => (
   onLoadingChange={handleStructuredNoteLoadingChange}
 />
           )}
-{/* INSURANCE DOCUMENTATION */}
-{activeTab === 'insurance-doc' && (
+{/* INSURANCE DOCUMENTATION — disabled here, rendered earlier as "INSURANCE" */}
+{false && (
   <InsuranceDocumentation
     patientId={patient?.patient_id}
   />
 )}
           {/* Notes + Voice — only for non-history, non-final-summary, non-structured-note tabs */}
-       {activeTab === 'rpm' && (
+       {false && (
     <div style={{ marginTop: 20 }}>
 
       {/* VOICE RECORDING */}

@@ -312,7 +312,7 @@ ABSOLUTE RULES
         # 6️⃣ LLM EXECUTION
         # --------------------------------------------------
         response = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": USER_PROMPT}
@@ -531,7 +531,7 @@ ABSOLUTE RULES
         # 6️⃣ LLM EXECUTION
         # --------------------------------------------------
         response = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": USER_PROMPT}
@@ -751,7 +751,7 @@ ABSOLUTE RULES
         # 6️⃣ LLM EXECUTION
         # --------------------------------------------------
         response = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": USER_PROMPT}

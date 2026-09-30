@@ -4,6 +4,9 @@ const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || "https://doctorassist.a
 const SO_BASE = `${API_BASE_URL}hms/users/data/surgical-oncology`;
 const CONTEXT_BASE = `${API_BASE_URL}hms/users/data/context`;
 const DOCTORS_BASE = `${API_BASE_URL}hms/users/doctors`;
+const PATHOLOGY_BASE = `${API_BASE_URL}hms/users/data/onco-pathology`;
+// Agentic (LangGraph) routers are mounted under a different prefix than the CRUD API.
+const AGENTIC_BASE = `${API_BASE_URL}hms/users/ai-legacy/surgical-oncology`;
 
 // ─── Generic HTTP helpers ────────────────────────────────────────────────────
 
@@ -109,6 +112,28 @@ export function getAnaesthesiaHistory(patientId) {
  */
 export function getPostOpHistory(patientId) {
   return get(`/patient/${patientId}/post-op-history`);
+}
+
+/**
+ * Get the latest onco-pathology case for a patient.
+ * Useful for pulling pathology staging data into the OT record.
+ * @param {string} patientId
+ * @returns {{ status: string, data: object }}
+ */
+export function getLatestOncoPathologyCase(patientId) {
+  return get(`${API_BASE_URL}hms/users/data/onco-pathology/patient/${patientId}/latest-case`);
+}
+
+export function createPathologyRequest(payload) {
+  return post(`${PATHOLOGY_BASE}/pathology-requests`, payload);
+}
+
+export function getSourcePathologyRequests(sourceRecordType, sourceRecordId) {
+  return get(`${PATHOLOGY_BASE}/pathology-requests`, {
+    source_record_type: sourceRecordType,
+    source_record_id: sourceRecordId,
+    include_history: true,
+  });
 }
 
 /**
@@ -323,6 +348,59 @@ export function deleteDocument(documentId) {
   return del(`/documents/${documentId}`);
 }
 
+// ─── Intelligence Dashboard ─────────────────────────────────────────────────
+
+/**
+ * Fetch the aggregated Surgical Oncology Intelligence dashboard for a patient.
+ * The backend runs the 12-agent pipeline and returns one JSON payload keyed by
+ * module id. Response shape (all fields optional — the frontend degrades any
+ * missing value to "Not available"):
+ *
+ *   {
+ *     success: true,
+ *     patient_id: "...",
+ *     patient: { patientId, diagnosis, procedure, pathologyStatus, stageMigration, reportGenerated },
+ *     kpis:    { resectionStatus: { value, status, note }, ... },
+ *     modules: {
+ *       m1: { rows: [ { parameter, finding, reference, status, statusLabel, action } ] },
+ *       ...
+ *       m9: { rows: [ { parameter, status, statusLabel, lastGenerated, completeness, action } ] }
+ *     },
+ *     warnings: [ "m8: no source data", ... ]
+ *   }
+ *
+ * @param {string} patientId
+ * @returns {Promise<object>}
+ */
+export function getDashboard(patientId) {
+  // Absolute URL → get() passes it through untouched (bypasses SO_BASE), hitting
+  // the agentic router mounted under AGENTIC_BASE. Returns the latest stored
+  // snapshot; the backend only runs the 12-agent pipeline if none exists yet.
+  return get(`${AGENTIC_BASE}/dashboard/${patientId}`);
+}
+
+/**
+ * Force a fresh run of the 12-agent pipeline and store it as a new snapshot.
+ * Backing the "Regenerate" button — the previous snapshot is kept as history.
+ * Same response shape as getDashboard(), plus { cached: false, version, generated_at }.
+ * @param {string} patientId
+ * @returns {Promise<object>}
+ */
+export function regenerateDashboard(patientId) {
+  return post(`${AGENTIC_BASE}/dashboard/${patientId}/regenerate`, {});
+}
+
+/**
+ * List previously generated dashboard snapshots for a patient (metadata only:
+ * version, generated_at, warning count), newest first.
+ * @param {string} patientId
+ * @returns {Promise<{ success: boolean, history: object[] }>}
+ */
+export function getDashboardHistory(patientId) {
+  return get(`${AGENTIC_BASE}/dashboard/${patientId}/history`);
+}
+
+
 export function getLatestBookingForPatient(patientId) {
   return get(`/patient/${patientId}/latest-booking`);
 }
@@ -483,6 +561,12 @@ const api = {
   getPatientLastAppointment,
   createReferral,
   getReferrals,
+  getDashboard,
+  regenerateDashboard,
+  getDashboardHistory,
+  getLatestOncoPathologyCase,
+  createPathologyRequest,
+  getSourcePathologyRequests,
 };
 
 export default api;

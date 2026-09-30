@@ -2,6 +2,8 @@ import './Dashboard.css'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
+const API_BASE = '/api/hms/app' // used for case detail + tracking list (relative, matches old FieldTracking page)
+
 const STATUS_FLOW = [
   "ALLOCATED","IN_PROGRESS","EVIDENCE_COLLECTION","UNDER_REVIEW","QC_PENDING","COMPLETED"
 ]
@@ -12,6 +14,12 @@ const STATUS_COLOR = {
 const PRIORITY_COLOR = { Normal:'gray', High:'amber', Urgent:'red', Critical:'red' }
 const TAG_COLOR = { Accident:'amber', Death:'red', 'Critical Illness':'purple', Normal:'gray' }
 
+const STATUS_DOT = {
+  done:    "var(--green)",
+  partial: "var(--amber)",
+  pending: "var(--border)",
+}
+
 const PAGE_SIZE = 20
 const SEARCH_DEBOUNCE_MS = 350
 
@@ -21,7 +29,16 @@ function fmtAmount(n) {
 }
 function fmtDate(d) {
   if (!d) return '—'
-  return new Date(d).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' })
+  let s = String(d).trim()
+  // Backend only normalises dateOfIncident/dateOfIntimation to ISO — targetDate
+  // is stored exactly as sent, often "DD/MM/YYYY". Convert that case here too.
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) {
+    const [dd, mm, yyyy] = s.split('/')
+    s = `${yyyy}-${mm}-${dd}`
+  }
+  const dt = new Date(s)
+  if (isNaN(dt.getTime())) return s || '—' // unparseable — show raw value instead of "Invalid Date"
+  return dt.toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' })
 }
 function fmtStatus(s) { return (s || '').replaceAll('_', ' ') }
 
@@ -42,13 +59,28 @@ function getInvTypes(investigations) {
     .filter(([, arr]) => Array.isArray(arr) && arr.length > 0)
     .map(([key]) => key)
 }
-function generateTimeline(caseData) {
-  if (!caseData?.status) return []
-  const idx = STATUS_FLOW.indexOf(caseData.status)
-  if (idx === -1) return [{ status: caseData.status, date: caseData.createdAt, done: false, current: true }]
-  return STATUS_FLOW.slice(0, idx + 1).map((status, i) => ({
-    status, date: caseData.createdAt, done: i < idx, current: i === idx,
-  }))
+
+// Same rule FieldTracking uses to flag assignments needing attention:
+// declined, or no response after 2 hours.
+function getUnapprovedAssignments(caseItem) {
+  const results = []
+  const now = Date.now()
+  const TWO_HOURS = 2 * 60 * 60 * 1000
+  const investigations = caseItem.investigations || {}
+
+  for (const [inv_type, invList] of Object.entries(investigations)) {
+    if (!Array.isArray(invList)) continue
+    for (const entry of invList) {
+      if (!entry?.investigatorId) continue
+      const response = entry.assignmentResponse
+      const allocatedAt = entry.reassignedAt || caseItem.createdAt
+      const ageMs = allocatedAt ? now - new Date(allocatedAt).getTime() : 0
+      if (response === "declined" || (response == null && ageMs > TWO_HOURS)) {
+        results.push({ inv_type, entry, reason: response === "declined" ? "declined" : "no_response" })
+      }
+    }
+  }
+  return results
 }
 
 // Compact page-number list with ellipses, e.g. 1 … 4 5 [6] 7 8 … 20
@@ -161,6 +193,342 @@ function DeleteConfirmModal({ count, caseIds, onConfirm, onCancel, loading }) {
   )
 }
 
+// ── Reassign modal (ported from FieldTracking, unchanged behaviour) ────────
+function ReassignModal({ modal, onClose, onDone, BACKEND }) {
+  const [officers, setOfficers]       = useState([])
+  const [loading, setLoading]         = useState(true)
+  const [selected, setSelected]       = useState(null)
+  const [saving, setSaving]           = useState(false)
+
+  useEffect(() => {
+    if (!modal) return
+    setLoading(true)
+    setSelected(null)
+
+    const { inv_type, pincode } = modal
+    const needsPin = inv_type === "HVI" || inv_type === "MV"
+    const url = needsPin && pincode
+      ? `${BACKEND}/insurance/app/availability/officers?pincode=${pincode}&inv_type=${inv_type}`
+      : `${BACKEND}/insurance/api/hms/users/field-officers`
+
+    fetch(url, { headers: { "X-User-Id": "web-user", "X-User-Role": "supervisor" } })
+      .then(r => r.json())
+      .then(data => {
+        const list = data.officers
+          ? data.officers.map(o => ({ id: o.userId, name: o.fullName, pin: o.pincode, status: o.status, matchType: o.matchType }))
+          : (data.data || []).map(o => ({ id: o.sys_user_id, name: o.full_name, pin: null, status: o.status, matchType: "exact" }))
+        setOfficers(list)
+      })
+      .catch(() => setOfficers([]))
+      .finally(() => setLoading(false))
+  }, [modal])
+
+  const handleReassign = async () => {
+    if (!selected || !modal) return
+    setSaving(true)
+    try {
+      const res = await fetch(
+        `${BACKEND}/insurance/web/cases/${modal.caseId}/reassign-investigation`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", "X-User-Id": "web-user", "X-User-Role": "supervisor" },
+          body: JSON.stringify({
+            inv_type:              modal.inv_type,
+            old_investigator_id:   modal.old_investigator_id,
+            new_investigator_id:   selected.id,
+            new_investigator_name: selected.name,
+          }),
+        }
+      )
+      if (!res.ok) throw new Error("Reassign failed")
+      onDone()
+      onClose()
+    } catch (e) {
+      console.error(e)
+      alert("Reassign failed: " + e.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (!modal) return null
+
+  return (
+    <div
+      style={{ position: "fixed", inset: 0, zIndex: 1100, background: "rgba(0,0,0,0.4)", backdropFilter: "blur(2px)", display: "flex", alignItems: "center", justifyContent: "center" }}
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div style={{ background: "var(--bg2)", borderRadius: 12, border: "1px solid var(--border)", width: 420, maxHeight: "80vh", overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: "0 16px 48px rgba(0,0,0,0.3)" }}>
+        <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 600 }}>Reassign — {modal.inv_type}</div>
+            <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>
+              {modal.caseId}
+              {modal.pincode && <span style={{ marginLeft: 8 }}>📍 PIN {modal.pincode}</span>}
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "var(--muted)" }}>✕</button>
+        </div>
+
+        <div style={{ flex: 1, overflowY: "auto", padding: "12px 18px" }}>
+          {loading ? (
+            <div style={{ textAlign: "center", padding: "32px 0", color: "var(--muted)", fontSize: 13 }}>Loading officers…</div>
+          ) : officers.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "32px 0", color: "var(--muted)", fontSize: 13 }}>
+              No available officers found for PIN {modal.pincode}<br />
+              <span style={{ fontSize: 11 }}>Officers must check in via mobile app</span>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {officers.map(o => {
+                const isSel = selected?.id === o.id
+                return (
+                  <div key={o.id} onClick={() => setSelected(o)} style={{ padding: "10px 12px", borderRadius: 7, cursor: "pointer", border: `1px solid ${isSel ? "var(--accent)" : "var(--border)"}`, background: isSel ? "color-mix(in srgb, var(--accent) 8%, transparent)" : "var(--bg3)", display: "flex", alignItems: "center", gap: 10, transition: "all 0.12s" }}>
+                    <div style={{ width: 32, height: 32, borderRadius: "50%", background: isSel ? "var(--accent)" : "var(--bg2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: isSel ? "#fff" : "var(--muted)", flexShrink: 0 }}>
+                      {o.name?.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 500 }}>{o.name}</div>
+                      <div style={{ fontSize: 11, color: "var(--muted)", display: "flex", gap: 8, marginTop: 1 }}>
+                        {o.pin && <span>📍 {o.pin}</span>}
+                        {o.matchType === "district" && <span style={{ color: "var(--amber)" }}>⚠ Nearby</span>}
+                        {o.status && <span style={{ color: o.status === "Available" ? "var(--green)" : "var(--muted)" }}>● {o.status}</span>}
+                      </div>
+                    </div>
+                    {isSel && <span style={{ color: "var(--accent)", fontSize: 16 }}>✓</span>}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
+        <div style={{ padding: "12px 18px", borderTop: "1px solid var(--border)", display: "flex", gap: 10 }}>
+          <button onClick={onClose} style={{ flex: 1, padding: "9px 0", borderRadius: 6, background: "none", border: "1px solid var(--border)", color: "var(--muted)", cursor: "pointer", fontSize: 13 }}>Cancel</button>
+          <button onClick={handleReassign} disabled={!selected || saving} style={{ flex: 2, padding: "9px 0", borderRadius: 6, background: selected && !saving ? "var(--accent)" : "var(--bg3)", border: "none", color: selected && !saving ? "#fff" : "var(--muted)", cursor: selected && !saving ? "pointer" : "not-allowed", fontSize: 13, fontWeight: 600 }}>
+            {saving ? "Reassigning…" : `Reassign to ${selected?.name || "—"}`}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Case Detail Modal (ported from FieldTracking, fetches rich detail) ─────
+function CaseDetailModal({ caseId, onClose, onReassign, onRefetch, BACKEND }) {
+  const [detail, setDetail]   = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError]     = useState(null)
+
+  useEffect(() => {
+    if (!caseId) return
+    setLoading(true)
+    setError(null)
+    setDetail(null)
+
+    fetch(`${API_BASE}/tracking/cases/${caseId}`)
+      .then(async r => {
+        const text = await r.text()
+        if (!r.ok) throw new Error(`Server error ${r.status}: ${text}`)
+        return JSON.parse(text)
+      })
+      .then(data => {
+        if (data.status === "success" || data.success) {
+          setDetail(data.data)
+        } else {
+          setError("Failed to load case details")
+        }
+      })
+      .catch(err => setError("Error: " + err.message))
+      .finally(() => setLoading(false))
+  }, [caseId])
+
+  if (!caseId) return null
+
+  const c = detail
+  const unapproved = c ? getUnapprovedAssignments(c) : []
+
+  return (
+    <div
+      style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,0.45)", backdropFilter: "blur(2px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div style={{ background: "var(--bg2)", borderRadius: 12, border: "1px solid var(--border)", width: "min(900px, 100%)", maxHeight: "88vh", overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: "0 16px 48px rgba(0,0,0,0.35)" }}>
+        <div style={{ padding: "14px 20px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 700, fontFamily: "var(--mono)", color: "var(--accent2)" }}>
+              {c?.insurerRef ? `INS-REF ${c.insurerRef}` : "Case Details"}
+            </div>
+            <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>{c?.caseId || caseId}</div>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, color: "var(--muted)" }}>✕</button>
+        </div>
+
+        <div style={{ flex: 1, overflowY: "auto", padding: "18px 20px" }}>
+          {loading && (
+            <div style={{ padding: "60px 0", textAlign: "center", color: "var(--muted)", fontSize: 13 }}>Loading case details…</div>
+          )}
+
+          {error && (
+            <div style={{ padding: "20px", color: "var(--red)" }}>{error}</div>
+          )}
+
+          {!loading && !error && c && (
+            <div className="three-col">
+              <div>
+                {unapproved.length > 0 && (
+                  <div style={{ marginBottom: 14, fontSize: 11, fontWeight: 700, background: "rgba(239,68,68,.12)", color: "var(--red)", border: "1px solid rgba(239,68,68,.25)", borderRadius: 6, padding: "6px 10px", display: "inline-block" }}>
+                    ⚠ {unapproved.length} UNCONFIRMED ASSIGNMENT{unapproved.length > 1 ? "S" : ""}
+                  </div>
+                )}
+
+                <div style={{ display: "flex", gap: "24px", flexWrap: "wrap", marginBottom: "16px" }}>
+                  {[
+                    ["Insurer Ref", c.insurerRef || "—"],
+                    ["Case ID", c.caseId],
+                    ["Allocated", c.allocated || "—"],
+                    ["Claimant", c.claimant],
+                    ["Assigned Doctor", c.doctorAssigned || "Unassigned"],
+                    ["Claim Mode", c.claimMode],
+                    ["Insurer", c.insurer],
+                    ["Hospital", c.hospital ? `📍 ${c.hospital}` : "—"],
+                    ["Claimed", c.claimedAmount != null ? `₹${c.claimedAmount.toLocaleString("en-IN")}` : "—"],
+                    ["Target Date", c.targetDate || "—"],
+                    ["Investigators", c.investigators?.join(", ") || "—"],
+                  ].map(([label, val]) => (
+                    <div key={label}>
+                      <div className="stat-label">{label}</div>
+                      <div style={{ fontWeight: 500, marginTop: 4 }}>
+                        {label === "Assigned Doctor" && val === "Unassigned" ? (
+                          <span style={{ color: "var(--muted)", fontWeight: 400 }}>Unassigned</span>
+                        ) : val}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {Object.entries(c.investigations || {}).some(([, list]) =>
+                  Array.isArray(list) && list.some(e => e?.investigatorId)
+                ) && (
+                  <div style={{ marginBottom: 16, border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
+                    <div style={{ background: "var(--bg3)", padding: "8px 14px", fontSize: 11, fontWeight: 700, color: "var(--text)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                      Assigned Officers
+                    </div>
+                    <div style={{ padding: "10px 14px", display: "flex", flexDirection: "column", gap: 6 }}>
+                      {Object.entries(c.investigations || {}).flatMap(([inv_type, list]) =>
+                        (Array.isArray(list) ? list : [])
+                          .filter(e => e?.investigatorId)
+                          .map(e => {
+                            const pincode = inv_type === "HVI"
+                              ? (c.hospitalPincode || "")
+                              : inv_type === "MV"
+                                ? (c.pinCode || "")
+                                : ""
+                            const responseColor =
+                              e.assignmentResponse === "accepted" ? "var(--green)" :
+                              e.assignmentResponse === "declined" ? "var(--red)" : "var(--amber)"
+                            const responseLabel =
+                              e.assignmentResponse === "accepted" ? "✓ Accepted" :
+                              e.assignmentResponse === "declined" ? "✕ Declined" : "⏱ Pending"
+
+                            return (
+                              <div key={inv_type + e.investigatorId} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 6, background: "var(--bg2)", border: "1px solid var(--border)" }}>
+                                <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 4, background: "var(--bg3)", color: "var(--text)", flexShrink: 0 }}>{inv_type}</span>
+                                <span style={{ fontSize: 13, fontWeight: 500, flex: 1 }}>{e.investigatorName}</span>
+                                <span style={{ fontSize: 10, fontWeight: 600, color: responseColor }}>{responseLabel}</span>
+                                <button
+                                  onClick={() => onReassign({ caseId: c.caseId, inv_type, old_investigator_id: e.investigatorId, pincode })}
+                                  style={{ padding: "4px 10px", borderRadius: 5, background: "var(--accent)", color: "#fff", border: "none", fontSize: 11, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}
+                                >
+                                  Reassign
+                                </button>
+                                <button
+                                  onClick={async () => {
+                                    if (!confirm(`Remove ${e.investigatorName} from ${inv_type}?`)) return
+                                    try {
+                                      const res = await fetch(
+                                        `${BACKEND}/insurance/web/cases/${c.caseId}/remove-investigation`,
+                                        {
+                                          method: "PATCH",
+                                          headers: { "Content-Type": "application/json", "X-User-Id": "web-user", "X-User-Role": "supervisor" },
+                                          body: JSON.stringify({ inv_type, investigator_id: e.investigatorId }),
+                                        }
+                                      )
+                                      if (!res.ok) throw new Error("Remove failed")
+                                      onRefetch()
+                                    } catch (err) {
+                                      alert("Remove failed: " + err.message)
+                                    }
+                                  }}
+                                  style={{ padding: "4px 10px", borderRadius: 5, background: "none", color: "var(--red)", border: "1px solid var(--red)", fontSize: 11, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            )
+                          })
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <div className="sh" style={{ marginBottom: 8 }}>SLA Status</div>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--muted)", marginBottom: 4 }}>
+                    <span>{c.sla}h elapsed</span>
+                    <span style={{ color: c.sla > c.slaMax ? "var(--red)" : "var(--muted)" }}>{Math.max(0, c.slaMax - c.sla)}h remaining</span>
+                  </div>
+                  <div className="sla-bar">
+                    <div className="sla-fill" style={{ width: `${Math.min(100, (c.sla / c.slaMax) * 100)}%`, background: c.sla > c.slaMax * 0.9 ? "var(--red)" : c.sla > c.slaMax * 0.7 ? "var(--amber)" : "var(--green)" }} />
+                  </div>
+                </div>
+
+                {c.tags?.length > 0 && (
+                  <div style={{ marginTop: 12, display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {c.tags.map((tag, i) => <span key={i} className="badge gray">{tag}</span>)}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <div className="sh">Investigation Timeline</div>
+                <div className="timeline">
+                  {(c.timeline || []).map((t, i) => (
+                    <div className="tl-item" key={i}>
+                      <div className="tl-left">
+                        <div className="tl-dot" style={{ background: STATUS_DOT[t.status] || "var(--border)" }} />
+                        <div className="tl-line" />
+                      </div>
+                      <div className="tl-body">
+                        <div className="tl-action">{t.action}</div>
+                        <div className="tl-meta">{t.meta}{t.time !== "—" && <span> · {t.time}</span>}</div>
+                        {t.docs_collected?.length > 0 && (
+                          <div style={{ marginTop: 6, display: "flex", flexWrap: "wrap", gap: 4 }}>
+                            {t.docs_collected.map((doc, di) => (
+                              <span key={di} style={{ fontSize: 10, padding: "2px 6px", backgroundColor: "rgba(0,212,160,0.1)", border: "1px solid rgba(0,212,160,0.2)", borderRadius: 4, color: "var(--green)" }}>✓ {doc.replace(/_/g, " ")}</span>
+                            ))}
+                          </div>
+                        )}
+                        {t.docs_required?.length > 0 && t.status !== "done" && (
+                          <div style={{ marginTop: 4, display: "flex", flexWrap: "wrap", gap: 4 }}>
+                            {t.docs_required.filter(d => !t.docs_collected?.includes(d.toLowerCase().replace(/[^a-z0-9]/g, "_"))).map((doc, di) => (
+                              <span key={di} style={{ fontSize: 10, padding: "2px 6px", backgroundColor: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: 4, color: "var(--amber)" }}>⏳ {doc}</span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Pagination bar ─────────────────────────────────────────────────────────
 function PaginationBar({ page, totalPages, totalCount, onPageChange }) {
   if (totalPages <= 1) return null
@@ -218,7 +586,6 @@ export default function Dashboard() {
   const [cases,        setCases]        = useState([])
   const [totalCount,   setTotalCount]   = useState(null) // null = backend didn't return a total → fall back to client pagination
   const [loading,      setLoading]      = useState(true)
-  const [selectedCase, setSelectedCase] = useState(null)
 
   const [search,         setSearch]         = useState('')       // raw input, updates instantly
   const [debouncedSearch, setDebouncedSearch] = useState('')      // drives the actual fetch
@@ -236,7 +603,28 @@ export default function Dashboard() {
   const [deleteTarget, setDeleteTarget] = useState(null)        // Array of caseIds to delete
   const [deleting,     setDeleting]     = useState(false)
 
+  // Case detail / reassign modal state (ported from FieldTracking)
+  const [detailCaseId, setDetailCaseId]     = useState(null)
+  const [reassignModal, setReassignModal]   = useState(null)
+
+  // doctor_assigned on a case is a sys_user_id, not a name — resolve once via /web/doctors
+  const [doctorNames, setDoctorNames] = useState({})
+
   const refetch = () => setRefreshKey(k => k + 1)
+
+  useEffect(() => {
+    let cancelled = false
+    fetch(`${BASE_URL}/insurance/web/doctors`)
+      .then(r => r.json())
+      .then(data => {
+        if (cancelled) return
+        const map = {}
+        ;(data.doctors || []).forEach(d => { map[d.sys_user_id] = d.full_name })
+        setDoctorNames(map)
+      })
+      .catch(() => { if (!cancelled) setDoctorNames({}) })
+    return () => { cancelled = true }
+  }, [BASE_URL])
 
   // Debounce search → debouncedSearch
   useEffect(() => {
@@ -339,7 +727,7 @@ export default function Dashboard() {
         ])
       ))
       setSelected(prev => { const next = new Set(prev); deleteTarget.forEach(id => next.delete(id)); return next })
-      if (deleteTarget.includes(selectedCase?.caseId)) setSelectedCase(null)
+      if (deleteTarget.includes(detailCaseId)) setDetailCaseId(null)
       setDeleteTarget(null)
       refetch() // re-fetch current page + stats so counts/rows stay correct
     } catch {
@@ -385,6 +773,21 @@ export default function Dashboard() {
           onCancel={() => !deleting && setDeleteTarget(null)}
         />
       )}
+
+      <CaseDetailModal
+        caseId={detailCaseId}
+        onClose={() => setDetailCaseId(null)}
+        onReassign={(m) => setReassignModal(m)}
+        onRefetch={refetch}
+        BACKEND={BASE_URL}
+      />
+
+      <ReassignModal
+        modal={reassignModal}
+        onClose={() => setReassignModal(null)}
+        onDone={refetch}
+        BACKEND={BASE_URL}
+      />
 
       {/* Stats */}
       <div className="stats-grid">
@@ -467,33 +870,36 @@ export default function Dashboard() {
                 <th>Insurer</th>
                 <th>Claimant</th>
                 <th>Hospital</th>
+                <th>Assigned Doctor</th>
                 <th>Tag</th>
                 <th>Amount</th>
                 <th>Priority</th>
                 <th>Status</th>
                 <th>Investigators</th>
                 <th>Target</th>
+                <th>Flags</th>
                 <th style={{ width:80, textAlign:'center' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading && (
-                <tr><td colSpan={12} style={{ textAlign:'center', color:'var(--muted)', padding:32 }}>Loading…</td></tr>
+                <tr><td colSpan={14} style={{ textAlign:'center', color:'var(--muted)', padding:32 }}>Loading…</td></tr>
               )}
               {!loading && visibleCases.length === 0 && (
-                <tr><td colSpan={12} style={{ textAlign:'center', color:'var(--muted)', padding:32 }}>No cases found</td></tr>
+                <tr><td colSpan={14} style={{ textAlign:'center', color:'var(--muted)', padding:32 }}>No cases found</td></tr>
               )}
               {!loading && visibleCases.map(c => {
                 const isSelected = selected.has(c.caseId)
+                const unapproved = getUnapprovedAssignments(c)
                 return (
                   <tr
                     key={c.caseId}
-                    onClick={() => setSelectedCase(prev => prev?.caseId === c.caseId ? null : c)}
+                    onClick={() => setDetailCaseId(prev => prev === c.caseId ? null : c.caseId)}
                     style={{
                       cursor:'pointer',
                       background: isSelected
                         ? 'color-mix(in srgb,var(--accent) 6%,transparent)'
-                        : selectedCase?.caseId === c.caseId ? 'var(--bg3)' : '',
+                        : detailCaseId === c.caseId ? 'var(--bg3)' : '',
                     }}
                   >
                     {/* Checkbox */}
@@ -523,6 +929,11 @@ export default function Dashboard() {
                       <div className="td-sub">{c.hospitalDetails?.type || ''}</div>
                     </td>
                     <td>
+                      {c.doctor_assigned
+                        ? (doctorNames[c.doctor_assigned] || c.doctor_assigned)
+                        : <span style={{ color:'var(--muted)' }}>Unassigned</span>}
+                    </td>
+                    <td>
                       {(c.tags || []).length > 0
                         ? (c.tags || []).map(t => (
                             <span key={t} className={`badge ${TAG_COLOR[t] || 'gray'}`} style={{ marginRight:4 }}>{t}</span>
@@ -547,6 +958,13 @@ export default function Dashboard() {
                     </td>
                     <td>
                       <div style={{ fontSize:12 }}>{fmtDate(c.targetDate)}</div>
+                    </td>
+                    <td>
+                      {unapproved.length > 0 && (
+                        <span style={{ fontSize: 10, fontWeight: 700, background: "rgba(239,68,68,.12)", color: "var(--red)", border: "1px solid rgba(239,68,68,.25)", borderRadius: 4, padding: "2px 7px" }}>
+                          ⚠ {unapproved.length}
+                        </span>
+                      )}
                     </td>
 
                     {/* Actions */}
@@ -582,92 +1000,6 @@ export default function Dashboard() {
           onPageChange={setPage}
         />
       </div>
-
-      {/* Case detail drawer */}
-      {selectedCase && (
-        <div className="panel">
-          <div className="panel-header">
-            <div className="panel-title">
-              <div className="dot" style={{ background:'var(--teal)' }} />
-              {selectedCase.insurerRef || selectedCase.caseId}
-              <span style={{ marginLeft:8, fontSize:12, fontWeight:400, color:'var(--muted)' }}>
-                {selectedCase.caseId}
-              </span>
-              <span className={`badge ${STATUS_COLOR[selectedCase.status] || 'gray'}`} style={{ marginLeft:8 }}>
-                {fmtStatus(selectedCase.status)}
-              </span>
-            </div>
-            <div style={{ display:'flex', gap:8 }}>
-              <button
-                className="btn btn-ghost btn-sm"
-                onClick={() => navigate(`/insurance/new-case?edit=${selectedCase.caseId}`)}
-                style={{ borderColor:'var(--accent)', color:'var(--accent)', display:'flex', alignItems:'center', gap:6 }}
-              >
-                <EditIcon /> Edit Case
-              </button>
-              <button className="btn btn-ghost btn-sm" onClick={() => setSelectedCase(null)}>Close</button>
-            </div>
-          </div>
-
-          <div className="panel-body">
-            <div className="case-detail-grid">
-              <div className="detail-block">
-                <div className="detail-block-title">Claimant</div>
-                <div className="detail-row"><span>Name</span><span>{selectedCase.claimantName || '—'}</span></div>
-                <div className="detail-row"><span>Mobile</span><span>{selectedCase.claimantMobile || '—'}</span></div>
-                <div className="detail-row"><span>ID Proof</span><span>{selectedCase.idProofType} {selectedCase.idProofNumber ? `— ${selectedCase.idProofNumber}` : ''}</span></div>
-                <div className="detail-row"><span>Pin Code</span><span>{selectedCase.pinCode || '—'}</span></div>
-              </div>
-              <div className="detail-block">
-                <div className="detail-block-title">Claim</div>
-                <div className="detail-row"><span>Mode</span><span style={{ textTransform:'capitalize' }}>{selectedCase.claimMode || '—'}</span></div>
-                <div className="detail-row"><span>Subtype</span><span>{selectedCase.claimSubtype || '—'}</span></div>
-                <div className="detail-row"><span>Incident Date</span><span>{fmtDate(selectedCase.dateOfIncident)}</span></div>
-                <div className="detail-row"><span>Claimed</span><span>{fmtAmount(selectedCase.claimedAmount)}</span></div>
-              </div>
-              <div className="detail-block">
-                <div className="detail-block-title">Hospital</div>
-                <div className="detail-row"><span>Name</span><span>{selectedCase.hospitalDetails?.name || '—'}</span></div>
-                <div className="detail-row"><span>Type</span><span style={{ textTransform:'capitalize' }}>{selectedCase.hospitalDetails?.type || '—'}</span></div>
-                <div className="detail-row"><span>Admission</span><span>{fmtDate(selectedCase.hospitalDetails?.admissionDate)}</span></div>
-                <div className="detail-row"><span>Discharge</span><span>{fmtDate(selectedCase.hospitalDetails?.dischargeDate)}</span></div>
-              </div>
-              <div className="detail-block">
-                <div className="detail-block-title">Insurer</div>
-                <div className="detail-row"><span>Name</span><span>{selectedCase.insurer || '—'}</span></div>
-                <div className="detail-row"><span>Claim ID / Insurer Ref</span><span>{selectedCase.insurerRef || '—'}</span></div>
-                <div className="detail-row"><span>Policy No.</span><span>{selectedCase.policyNumber || '—'}</span></div>
-                <div className="detail-row"><span>Type</span><span>{selectedCase.policyType || '—'}</span></div>
-                <div className="detail-row"><span>Target Date</span><span>{fmtDate(selectedCase.targetDate)}</span></div>
-              </div>
-            </div>
-
-            {selectedCase.description && (
-              <div style={{ marginTop:16, padding:'10px 14px', background:'var(--bg3)', borderRadius:'var(--radius-sm)', fontSize:13, color:'var(--muted)', borderLeft:'3px solid var(--border2)' }}>
-                {selectedCase.description}
-              </div>
-            )}
-
-            <div style={{ marginTop:20 }}>
-              <div className="sh">Timeline</div>
-              <div className="timeline">
-                {generateTimeline(selectedCase).map((item, i) => (
-                  <div className="tl-item" key={i}>
-                    <div className="tl-left">
-                      <div className="tl-dot" style={{ background: item.current ? 'var(--accent)' : item.done ? 'var(--green)' : 'var(--border)' }} />
-                      <div className="tl-line" />
-                    </div>
-                    <div className="tl-body">
-                      <div className="tl-action">{fmtStatus(item.status)}</div>
-                      <div className="tl-meta">{new Date(item.date).toLocaleString('en-IN', { timeZone:'Asia/Kolkata' })}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

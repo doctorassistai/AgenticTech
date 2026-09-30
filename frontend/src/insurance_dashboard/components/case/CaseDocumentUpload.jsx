@@ -65,18 +65,6 @@ async function getPdfPageCount(file) {
   }
 }
 
-// Builds a new PDF containing only the selected pages (0-indexed), preserving
-// the original file name so downstream extraction/storage sees the same name.
-async function slicePdfPages(file, pageIndices) {
-  const bytes = await file.arrayBuffer()
-  const srcDoc = await PDFDocument.load(bytes, { ignoreEncryption: true })
-  const newDoc = await PDFDocument.create()
-  const sortedIndices = [...pageIndices].sort((a, b) => a - b)
-  const copiedPages = await newDoc.copyPages(srcDoc, sortedIndices)
-  copiedPages.forEach(p => newDoc.addPage(p))
-  const newBytes = await newDoc.save()
-  return new File([newBytes], file.name, { type: "application/pdf", lastModified: Date.now() })
-}
 
 const FIELD_LABELS = {
   insurer: "Insurer", policyNumber: "Policy No.", policyType: "Policy Type",
@@ -196,150 +184,6 @@ function DocumentDrawer({ doc, onClose }) {
   )
 }
 
-// ── Page picker modal (PDFs only) — left: live PDF preview, right: page
-// checkboxes. The Extract/Store action lives inside this modal; confirming
-// slices the PDF client-side (pdf-lib) down to the selected pages, keeps the
-// original file name, and then kicks off extraction/storage with that file. ─
-function PagePickerModal({ doc, onClose, actionLabel, actionColor, onConfirm }) {
-  const [selected, setSelected] = useState(() => {
-    if (doc?.selectedPages) return new Set(doc.selectedPages)
-    if (doc?.pageCount) return new Set(Array.from({ length: doc.pageCount }, (_, i) => i))
-    return new Set()
-  })
-  const [busy, setBusy] = useState(false)
-
-  if (!doc) return null
-  const pageCount = doc.pageCount
-  const loading = pageCount === null || pageCount === undefined
-
-  const togglePage = (idx) => {
-    setSelected(prev => {
-      const next = new Set(prev)
-      if (next.has(idx)) next.delete(idx); else next.add(idx)
-      return next
-    })
-  }
-
-  const selectAll = () => setSelected(new Set(Array.from({ length: pageCount }, (_, i) => i)))
-  const selectNone = () => setSelected(new Set())
-
-  const handleConfirm = async () => {
-    if (selected.size === 0 || busy) return
-    setBusy(true)
-    try {
-      await onConfirm(Array.from(selected).sort((a, b) => a - b))
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  return createPortal(
-    <>
-      <div onClick={busy ? undefined : onClose} style={{
-        position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
-        zIndex: 1100, backdropFilter: "blur(2px)", animation: "fadeIn 0.18s ease",
-      }} />
-      <div style={{
-        position: "fixed", top: "4vh", left: "50%", transform: "translateX(-50%)",
-        width: "min(94vw, 1200px)", height: "92vh", background: "var(--bg, #fff)",
-        borderRadius: 12, boxShadow: "0 12px 60px rgba(0,0,0,0.28)",
-        zIndex: 1101, display: "flex", flexDirection: "column", overflow: "hidden",
-      }}>
-        <div style={{
-          display: "flex", alignItems: "center", gap: 12, padding: "14px 20px",
-          borderBottom: "1px solid var(--border, #e5e7eb)", background: "var(--bg2, #f9fafb)", flexShrink: 0,
-        }}>
-          <span style={{ fontSize: 18 }}>📄</span>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontWeight: 700, fontSize: 14, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {doc.file.name}
-            </div>
-            <div style={{ fontSize: 11, color: "var(--muted)" }}>
-              {loading ? "Reading page count…" : `${pageCount} page${pageCount !== 1 ? "s" : ""} · ${selected.size} selected`}
-            </div>
-          </div>
-          <button onClick={onClose} disabled={busy} style={{
-            background: "none", border: "none", cursor: busy ? "default" : "pointer",
-            fontSize: 20, color: "var(--muted)", lineHeight: 1, padding: "4px 8px", borderRadius: 6,
-            opacity: busy ? 0.5 : 1,
-          }}>✕</button>
-        </div>
-
-        <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-          {/* Left: live PDF preview */}
-          <div style={{ flex: "0 0 62%", borderRight: "1px solid var(--border, #e5e7eb)", display: "flex" }}>
-            {doc.pdfObjectUrl ? (
-              <iframe src={doc.pdfObjectUrl} style={{ flex: 1, border: "none", width: "100%", height: "100%" }} title="PDF preview" />
-            ) : (
-              <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--muted)" }}>
-                Preview unavailable
-              </div>
-            )}
-          </div>
-
-          {/* Right: page checkboxes */}
-          <div style={{ flex: "0 0 38%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 16px", borderBottom: "1px solid var(--border, #e5e7eb)", flexShrink: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, flex: 1 }}>Select pages</div>
-              <button type="button" onClick={selectAll} disabled={loading}
-                style={{ fontSize: 11, border: "1px solid var(--border,#e5e7eb)", background: "none", borderRadius: 6, padding: "3px 10px", cursor: "pointer" }}>
-                All
-              </button>
-              <button type="button" onClick={selectNone} disabled={loading}
-                style={{ fontSize: 11, border: "1px solid var(--border,#e5e7eb)", background: "none", borderRadius: 6, padding: "3px 10px", cursor: "pointer" }}>
-                None
-              </button>
-            </div>
-
-            <div style={{
-              flex: 1, overflowY: "auto", padding: "10px 16px",
-              display: loading ? "block" : "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(72px, 1fr))",
-              gap: 4, alignContent: "start",
-            }}>
-              {loading ? (
-                <div style={{ fontSize: 12, color: "var(--muted)", padding: "20px 0" }}>Reading PDF…</div>
-              ) : (
-                Array.from({ length: pageCount }, (_, i) => (
-                  <div key={i} onClick={() => togglePage(i)} style={{
-                    display: "flex", alignItems: "center", gap: 5, fontSize: 12, padding: "4px 6px",
-                    borderRadius: 5, cursor: "pointer", whiteSpace: "nowrap",
-                    background: selected.has(i) ? "color-mix(in srgb, var(--accent) 10%, transparent)" : "transparent",
-                  }}>
-                    <span style={{
-                      width: 13, height: 13, minWidth: 13, minHeight: 13, borderRadius: 3,
-                      border: `1.5px solid ${selected.has(i) ? actionColor : "var(--border,#cbd5e1)"}`,
-                      background: selected.has(i) ? actionColor : "transparent",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      flexShrink: 0, boxSizing: "border-box", transition: "background 0.12s, border-color 0.12s",
-                    }}>
-                      {selected.has(i) && (
-                        <svg width="8" height="6" viewBox="0 0 9 7" fill="none">
-                          <path d="M1 3.2L3.2 5.5L8 1" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      )}
-                    </span>
-                    {i + 1}
-                  </div>
-                ))
-              )}
-            </div>
-
-            <div style={{ padding: "12px 16px", borderTop: "1px solid var(--border, #e5e7eb)", flexShrink: 0 }}>
-              <button type="button" className="btn btn-primary" disabled={loading || selected.size === 0 || busy}
-                style={{ width: "100%", background: actionColor, borderColor: actionColor, opacity: (loading || selected.size === 0 || busy) ? 0.6 : 1 }}
-                onClick={handleConfirm}>
-                {busy ? "Processing…" : `${actionLabel} (${selected.size} page${selected.size !== 1 ? "s" : ""})`}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-      <style>{`@keyframes fadeIn { from { opacity:0 } to { opacity:1 } }`}</style>
-    </>,
-    document.body
-  )
-}
 
 function StatusRow({ color, spin, children }) {
   return (
@@ -352,24 +196,19 @@ function StatusRow({ color, spin, children }) {
     </div>
   )
 }
-
-// ── ClaimDocRow — Section A (Claim Detail Documents) ────────────────────────
-function ClaimDocRow({ doc, index, onExtract, onView, onPick, onRemove }) {
+function ClaimDocRow({ doc, index, onExtract, onView, onRemove }) {
   const busy = doc.state === "uploading" || doc.state === "extracting"
-  const pdf = isPdfFile(doc.file) && !doc.pageCountFailed
   const colors = ["var(--accent)", "var(--teal,#14b8a6)", "var(--amber,#f59e0b)", "var(--green,#16a34a)"]
   const color  = colors[index % colors.length]
 
   const statusMsg = () => {
-    if (doc.state === "idle")       return <StatusRow color="var(--muted)">{pdf ? "Click to select pages" : "Ready to extract"}</StatusRow>
+    if (doc.state === "idle")       return <StatusRow color="var(--muted)">Ready to extract — remove if added by mistake</StatusRow>
     if (doc.state === "uploading")  return <StatusRow color="var(--accent)" spin>Uploading…</StatusRow>
     if (doc.state === "extracting") return <StatusRow color="var(--amber,#f59e0b)" spin>Parsing & extracting…</StatusRow>
     if (doc.state === "error")      return <StatusRow color="var(--red,#dc2626)">Failed — retry</StatusRow>
     if (doc.state === "done")       return <StatusRow color={color}>✓ {doc.fieldsFound || 0} fields</StatusRow>
     return null
   }
-
-  const openPicker = () => { if (doc.state === "idle" && pdf) onPick(doc.id) }
 
   return (
     <div style={{
@@ -385,12 +224,10 @@ function ClaimDocRow({ doc, index, onExtract, onView, onPick, onRemove }) {
         borderRadius: 6, padding: "3px 8px", fontSize: 11, fontWeight: 700,
       }}>{doc.label}</div>
 
-      <div style={{ flex: 1, minWidth: 0 }} onClick={openPicker}>
+      <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{
           fontSize: 12, fontWeight: 600, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis",
-          whiteSpace: "nowrap", cursor: (doc.state === "idle" && pdf) ? "pointer" : "default",
-          textDecoration: (doc.state === "idle" && pdf) ? "underline" : "none",
-          textDecorationColor: (doc.state === "idle" && pdf) ? "var(--border,#e5e7eb)" : "transparent",
+          whiteSpace: "nowrap",
         }}>
           {doc.file.name}
         </div>
@@ -403,15 +240,9 @@ function ClaimDocRow({ doc, index, onExtract, onView, onPick, onRemove }) {
 
       <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
         {doc.state === "idle" && (
-          pdf ? (
-            <button type="button" className="btn btn-primary"
-              style={{ fontSize: 11, padding: "5px 10px", background: color, borderColor: color }}
-              onClick={() => onPick(doc.id)}>📄 Select Pages</button>
-          ) : (
-            <button type="button" className="btn btn-primary"
-              style={{ fontSize: 11, padding: "5px 10px", background: color, borderColor: color }}
-              onClick={() => onExtract(doc.id)}>✨ Extract</button>
-          )
+          <button type="button" className="btn btn-primary"
+            style={{ fontSize: 11, padding: "5px 10px", background: color, borderColor: color }}
+            onClick={() => onExtract(doc.id)}>✨ Extract</button>
         )}
         {doc.state === "error" && (
           <button type="button" className="btn btn-primary"
@@ -433,22 +264,17 @@ function ClaimDocRow({ doc, index, onExtract, onView, onPick, onRemove }) {
     </div>
   )
 }
-
-// ── SupportDocRow — Section B (Supporting Documents, store only) ───────────
-function SupportDocRow({ doc, index, onStore, onPick, onRemove }) {
+function SupportDocRow({ doc, index, onStore, onRemove }) {
   const busy = doc.state === "uploading"
-  const pdf = isPdfFile(doc.file) && !doc.pageCountFailed
   const color = "var(--purple,#7c3aed)"
 
   const statusMsg = () => {
-    if (doc.state === "idle")      return <StatusRow color="var(--muted)">{pdf ? "Click to select pages" : "Ready to store"}</StatusRow>
+    if (doc.state === "idle")      return <StatusRow color="var(--muted)">Ready to store — remove if added by mistake</StatusRow>
     if (doc.state === "uploading") return <StatusRow color={color} spin>Uploading…</StatusRow>
     if (doc.state === "error")     return <StatusRow color="var(--red,#dc2626)">Failed — retry</StatusRow>
-    if (doc.state === "done")      return <StatusRow color={color}>✓ Stored · pending doctor review</StatusRow>
+    if (doc.state === "done")      return <StatusRow color={color}>✓ Stored — available for doctor review</StatusRow>
     return null
   }
-
-  const openPicker = () => { if (doc.state === "idle" && pdf) onPick(doc.id) }
 
   return (
     <div style={{
@@ -464,12 +290,10 @@ function SupportDocRow({ doc, index, onStore, onPick, onRemove }) {
         borderRadius: 6, padding: "3px 8px", fontSize: 11, fontWeight: 700,
       }}>{doc.label}</div>
 
-      <div style={{ flex: 1, minWidth: 0 }} onClick={openPicker}>
+      <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{
           fontSize: 12, fontWeight: 600, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis",
-          whiteSpace: "nowrap", cursor: (doc.state === "idle" && pdf) ? "pointer" : "default",
-          textDecoration: (doc.state === "idle" && pdf) ? "underline" : "none",
-          textDecorationColor: (doc.state === "idle" && pdf) ? "var(--border,#e5e7eb)" : "transparent",
+          whiteSpace: "nowrap",
         }}>
           {doc.file.name}
         </div>
@@ -482,15 +306,9 @@ function SupportDocRow({ doc, index, onStore, onPick, onRemove }) {
 
       <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
         {doc.state === "idle" && (
-          pdf ? (
-            <button type="button" className="btn btn-primary"
-              style={{ fontSize: 11, padding: "5px 10px", background: color, borderColor: color }}
-              onClick={() => onPick(doc.id)}>📄 Select Pages</button>
-          ) : (
-            <button type="button" className="btn btn-primary"
-              style={{ fontSize: 11, padding: "5px 10px", background: color, borderColor: color }}
-              onClick={() => onStore(doc.id)}>📤 Store</button>
-          )
+          <button type="button" className="btn btn-primary"
+            style={{ fontSize: 11, padding: "5px 10px", background: color, borderColor: color }}
+            onClick={() => onStore(doc.id)}>📤 Store</button>
         )}
         {doc.state === "error" && (
           <button type="button" className="btn btn-primary"
@@ -520,16 +338,29 @@ export default function CaseDocumentUpload({ formData, setFormData, BASE_URL, ca
   const [claimDocs, setClaimDocs]     = useState([])
   const [supportDocs, setSupportDocs] = useState([])
   const [viewingDoc, setViewingDoc]   = useState(null)
-  const [pickerTarget, setPickerTarget] = useState(null) // { kind: 'claim' | 'support', id }
   const [expanded, setExpanded]       = useState(true)
-  const [triggerText, setTriggerText] = useState("")
-  const [fetching, setFetching]       = useState(false)
+  // Stored on formData so it is saved with the case (draft save + submit)
+  const triggerText = formData?.triggerContent || ""
+  const setTriggerText = (v) => setFormData(prev => ({ ...prev, triggerContent: v }))
+    const [fetching, setFetching]       = useState(false)
 const [lastExtractedTrigger, setLastExtractedTrigger] = useState(null)
   const [creditWarning, setCreditWarning] = useState(null)
   const creatingCase = useRef(false)
-  const caseIdRef    = useRef(null)
+  const caseIdRef    = useRef(caseId || null)
 
-  const totalFound = claimDocs.reduce((sum, d) => sum + (d.fieldsFound || 0), 0)
+  // Keep caseIdRef in sync with the caseId prop. Without this, editing an
+  // existing case (where NewCase.jsx passes down a real caseId from the
+  // very first render) still starts this component's ref at null, so the
+  // first upload in the session thinks there's no case yet and creates a
+  // brand-new draft case instead of attaching the document to the case
+  // being edited.
+  React.useEffect(() => {
+    if (caseId) caseIdRef.current = caseId
+  }, [caseId])
+
+    const totalFound = claimDocs.reduce((sum, d) => sum + (d.fieldsFound || 0), 0)
+
+
 
   React.useEffect(() => {
     const checkCredits = () => {
@@ -619,26 +450,71 @@ const [lastExtractedTrigger, setLastExtractedTrigger] = useState(null)
         docId: null,
         fieldsFound: 0,
         pageCount: null,
-        pageCountFailed: false,
-        selectedPages: null,
       }))
       return [...prev, ...newDocs]
     })
 
-    // Stored locally already (idle, object URL created above). For PDFs,
-    // fetch the page count in the background so the picker modal can open
-    // instantly once the user clicks the document.
+    // Page count is display-only now (no selection) — fetch in the
+    // background just to show the "N pages" marker on the row.
     checkedFiles.forEach((file, i) => {
       if (!isPdfFile(file)) return
       getPdfPageCount(file).then(count => {
-        if (count == null) {
-          updateClaimDoc(newIds[i], { pageCountFailed: true })
-        } else {
-          updateClaimDoc(newIds[i], { pageCount: count, selectedPages: Array.from({ length: count }, (_, k) => k) })
-        }
+        if (count != null) updateClaimDoc(newIds[i], { pageCount: count })
       })
     })
   }, [])
+  const pollClaimDocTask = async (id, taskId) => {
+    const base = (BASE_URL || "").replace(/\/$/, "")
+    const POLL_INTERVAL_MS = 3000
+    const MAX_ATTEMPTS = 600 // ~30 minutes ceiling
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+      await new Promise(r => setTimeout(r, POLL_INTERVAL_MS))
+      let statusResp
+      try {
+        statusResp = await fetch(`${base}/insurance/web/advanced-upload/status/${taskId}`)
+      } catch (err) {
+        continue // transient network hiccup — keep polling, don't fail the doc
+      }
+      if (!statusResp.ok) continue
+      const statusData = await statusResp.json().catch(() => null)
+      if (!statusData) continue
+
+      if (statusData.status === "success") {
+        const data = statusData.result || {}
+        if (data.extracted_fields) {
+          setFormData(prev => deepMerge(prev, normalizeDatesForForm(stripDropdownFields(data.extracted_fields))))
+          setExtractedSuggestions(prev => ({
+            ...prev,
+            ...flattenExtracted(data.extracted_fields),
+            ...(Array.isArray(data.extracted_fields?.suggestedTriggers) && data.extracted_fields.suggestedTriggers.length
+              ? { suggestedTriggers: data.extracted_fields.suggestedTriggers }
+              : {}),
+          }))
+        }
+        updateClaimDoc(id, {
+          state: "done", label: data.display_label || undefined,
+          extractedFields: data.extracted_fields || {},
+          pdfUrl: data.pdf_url || null,
+          docId: data.doc_id || null,
+          fieldsFound: data.fields_found || 0,
+        })
+        return
+      }
+
+      if (statusData.status === "failed" || statusData.status === "rejected") {
+        console.error("Claim document extraction failed:", statusData.error)
+        updateClaimDoc(id, { state: "error" })
+        return
+      }
+      // "queued" / "processing" — keep polling
+    }
+
+    // Timed out client-side without a terminal status. The backend job
+    // itself may still complete — surface as error so the user can retry
+    // (check-file-ingested will short-circuit the retry if it finished).
+    console.warn("Claim document extraction poll timed out for task", taskId)
+    updateClaimDoc(id, { state: "error" })
+  }
 
   const extractClaimDoc = async (id, overrideFile) => {
     const doc = claimDocs.find(d => d.id === id)
@@ -672,24 +548,23 @@ const [lastExtractedTrigger, setLastExtractedTrigger] = useState(null)
         throw new Error(errBody?.detail || `Upload failed: ${resp.status}`)
       }
       const data = await resp.json()
-      if (!data.success || !data.extracted_fields) throw new Error("Extraction returned empty")
+      if (!data.success) throw new Error("Upload returned empty")
 
-      setFormData(prev => deepMerge(prev, normalizeDatesForForm(stripDropdownFields(data.extracted_fields))))
-      setExtractedSuggestions(prev => ({
-        ...prev,
-        ...flattenExtracted(data.extracted_fields),
-        ...(Array.isArray(data.extracted_fields?.suggestedTriggers) && data.extracted_fields.suggestedTriggers.length
-          ? { suggestedTriggers: data.extracted_fields.suggestedTriggers }
-          : {}),
-      }))
+      // Trigger-content (.txt) uploads still return extracted_fields
+      // synchronously — no task to poll. Everything else is now queued.
+      if (data.extraction_mode === "trigger" && data.extracted_fields) {
+        setFormData(prev => deepMerge(prev, normalizeDatesForForm(stripDropdownFields(data.extracted_fields))))
+        updateClaimDoc(id, {
+          state: "done", label: data.display_label || doc.label,
+          extractedFields: data.extracted_fields,
+          fieldsFound: data.fields_found || 0,
+        })
+        return
+      }
 
-      updateClaimDoc(id, {
-        state: "done", label: data.display_label || doc.label,
-        extractedFields: data.extracted_fields,
-        pdfUrl: data.pdf_url || null,
-        docId: data.doc_id || null,
-        fieldsFound: data.fields_found || 0,
-      })
+      if (!data.task_id) throw new Error("No task_id returned for queued extraction")
+      updateClaimDoc(id, { docId: data.doc_id || null, pdfUrl: data.pdf_url || null })
+      await pollClaimDocTask(id, data.task_id)
     } catch (err) {
       console.error("Claim document extraction error", err)
       updateClaimDoc(id, { state: "error" })
@@ -705,8 +580,11 @@ const [lastExtractedTrigger, setLastExtractedTrigger] = useState(null)
     })
   }
 
-  // ── Section B: Supporting Documents (store only) ────────────────────────
   const handleSupportFiles = useCallback(async (files) => {
+    if (supportLocked) {
+      alert("Finish extracting Claim Detail Documents first — Supporting Documents are processed after.")
+      return
+    }
     const checkedFiles = []
     for (const file of Array.from(files)) {
       if (await checkDuplicate(file)) continue
@@ -726,8 +604,6 @@ const [lastExtractedTrigger, setLastExtractedTrigger] = useState(null)
         pdfObjectUrl: URL.createObjectURL(file),
         docId: null,
         pageCount: null,
-        pageCountFailed: false,
-        selectedPages: null,
       }))
       return [...prev, ...newDocs]
     })
@@ -735,16 +611,16 @@ const [lastExtractedTrigger, setLastExtractedTrigger] = useState(null)
     checkedFiles.forEach((file, i) => {
       if (!isPdfFile(file)) return
       getPdfPageCount(file).then(count => {
-        if (count == null) {
-          updateSupportDoc(newIds[i], { pageCountFailed: true })
-        } else {
-          updateSupportDoc(newIds[i], { pageCount: count, selectedPages: Array.from({ length: count }, (_, k) => k) })
-        }
+        if (count != null) updateSupportDoc(newIds[i], { pageCount: count })
       })
     })
   }, [])
 
   const storeSupportDoc = async (id, overrideFile) => {
+    if (supportLocked) {
+      alert("Finish extracting Claim Detail Documents first — Supporting Documents are processed after.")
+      return
+    }
     const doc = supportDocs.find(d => d.id === id)
     if (!doc) return
     const fileToSend = overrideFile || doc.file
@@ -775,6 +651,9 @@ const [lastExtractedTrigger, setLastExtractedTrigger] = useState(null)
       }
       const data = await resp.json()
 
+      // Upload succeeded — that's all the allocation team needs to know.
+      // Parsing/extraction runs in the background and is queued server-side
+      // already; its status only ever shows up on the doctor's page.
       updateSupportDoc(id, {
         state: "done",
         label: data.display_label || doc.label,
@@ -797,40 +676,7 @@ const [lastExtractedTrigger, setLastExtractedTrigger] = useState(null)
     })
   }
 
-  // ── Page picker confirm handlers ─────────────────────────────────────────
-  const handleConfirmClaimPages = async (selectedIndices) => {
-    const doc = claimDocs.find(d => d.id === pickerTarget?.id)
-    if (!doc) { setPickerTarget(null); return }
-
-    let fileToUse = doc.file
-    if (doc.pageCount != null && selectedIndices.length !== doc.pageCount) {
-      fileToUse = await slicePdfPages(doc.file, selectedIndices)
-    }
-
-    if (doc.pdfObjectUrl) URL.revokeObjectURL(doc.pdfObjectUrl)
-    const newObjectUrl = URL.createObjectURL(fileToUse)
-    updateClaimDoc(doc.id, { file: fileToUse, pdfObjectUrl: newObjectUrl, selectedPages: selectedIndices })
-
-    setPickerTarget(null)
-    extractClaimDoc(doc.id, fileToUse)
-  }
-
-  const handleConfirmSupportPages = async (selectedIndices) => {
-    const doc = supportDocs.find(d => d.id === pickerTarget?.id)
-    if (!doc) { setPickerTarget(null); return }
-
-    let fileToUse = doc.file
-    if (doc.pageCount != null && selectedIndices.length !== doc.pageCount) {
-      fileToUse = await slicePdfPages(doc.file, selectedIndices)
-    }
-
-    if (doc.pdfObjectUrl) URL.revokeObjectURL(doc.pdfObjectUrl)
-    const newObjectUrl = URL.createObjectURL(fileToUse)
-    updateSupportDoc(doc.id, { file: fileToUse, pdfObjectUrl: newObjectUrl, selectedPages: selectedIndices })
-
-    setPickerTarget(null)
-    storeSupportDoc(doc.id, fileToUse)
-  }
+  
 
   // ── Trigger-content-only extraction (unchanged) ─────────────────────────
   const handleExtractTriggers = async () => {
@@ -902,14 +748,15 @@ const [lastExtractedTrigger, setLastExtractedTrigger] = useState(null)
     }
   }
 
-  const claimPickerDoc   = pickerTarget?.kind === "claim"   ? claimDocs.find(d => d.id === pickerTarget.id)   : null
-  const supportPickerDoc = pickerTarget?.kind === "support" ? supportDocs.find(d => d.id === pickerTarget.id) : null
+const claimIdle   = claimDocs.filter(d => d.state === "idle")
+  const supportIdle = supportDocs.filter(d => d.state === "idle")
 
-  const claimIdlePlain     = claimDocs.filter(d => d.state === "idle" && !(isPdfFile(d.file) && !d.pageCountFailed))
-  const claimIdlePdfCount  = claimDocs.filter(d => d.state === "idle" && isPdfFile(d.file) && !d.pageCountFailed).length
-  const supportIdlePlain    = supportDocs.filter(d => d.state === "idle" && !(isPdfFile(d.file) && !d.pageCountFailed))
-  const supportIdlePdfCount = supportDocs.filter(d => d.state === "idle" && isPdfFile(d.file) && !d.pageCountFailed).length
-
+  // Claim Detail Documents take priority — Supporting Documents must wait
+  // until every claim doc currently added has finished extracting (or has
+  // no docs added yet, in which case there's nothing to block on).
+  const claimDocsBusy    = claimDocs.some(d => d.state === "uploading" || d.state === "extracting")
+  const claimDocsPending = claimDocs.some(d => d.state === "idle" || d.state === "error")
+  const supportLocked    = claimDocsBusy || claimDocsPending
   return (
     <>
       <div className="panel" style={{ marginBottom: 20 }}>
@@ -990,20 +837,14 @@ const [lastExtractedTrigger, setLastExtractedTrigger] = useState(null)
                     <ClaimDocRow key={doc.id} doc={doc} index={i}
                       onExtract={extractClaimDoc}
                       onView={(id) => setViewingDoc(claimDocs.find(d => d.id === id))}
-                      onPick={(id) => setPickerTarget({ kind: "claim", id })}
                       onRemove={handleRemoveClaim} />
                   ))}
-                  {claimIdlePlain.length > 0 && (
+                  {claimIdle.length > 0 && (
                     <button type="button" className="btn btn-primary"
                       style={{ alignSelf: "flex-start", marginTop: 2 }}
-                      onClick={() => claimIdlePlain.forEach(d => extractClaimDoc(d.id))}>
-                      ✨ Extract All ({claimIdlePlain.length} pending)
+                      onClick={() => claimIdle.forEach(d => extractClaimDoc(d.id))}>
+                      ✨ Extract All ({claimIdle.length} pending)
                     </button>
-                  )}
-                  {claimIdlePdfCount > 0 && (
-                    <div style={{ fontSize: 11, color: "var(--muted)" }}>
-                      {claimIdlePdfCount} PDF{claimIdlePdfCount !== 1 ? "s" : ""} still need page selection — click a document above.
-                    </div>
                   )}
                 </div>
               )}
@@ -1019,15 +860,27 @@ const [lastExtractedTrigger, setLastExtractedTrigger] = useState(null)
                 stored locally first — click one to choose which pages to store.
               </div>
 
+              {supportLocked && (
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 8, marginBottom: 10,
+                  padding: "8px 12px", borderRadius: 8, fontSize: 12, fontWeight: 600,
+                  background: "color-mix(in srgb, var(--amber,#f59e0b) 10%, transparent)",
+                  border: "1px solid color-mix(in srgb, var(--amber,#f59e0b) 30%, transparent)",
+                  color: "var(--amber,#f59e0b)",
+                }}>
+                  🔒 Finish extracting Claim Detail Documents above first
+                </div>
+              )}
               <div
-                onDrop={(e) => { e.preventDefault(); const files = Array.from(e.dataTransfer.files).filter(f => f.type === "application/pdf" || f.type.startsWith("image/") || f.name.match(/\.(pdf|jpg|jpeg|png|webp)$/i)); if (files.length) handleSupportFiles(files) }}
+                onDrop={(e) => { e.preventDefault(); if (supportLocked) { alert("Finish extracting Claim Detail Documents first — Supporting Documents are processed after."); return } const files = Array.from(e.dataTransfer.files).filter(f => f.type === "application/pdf" || f.type.startsWith("image/") || f.name.match(/\.(pdf|jpg|jpeg|png|webp)$/i)); if (files.length) handleSupportFiles(files) }}
                 onDragOver={(e) => e.preventDefault()}
-                onClick={() => supportInputRef.current?.click()}
+                onClick={() => { if (supportLocked) { alert("Finish extracting Claim Detail Documents first — Supporting Documents are processed after."); return } supportInputRef.current?.click() }}
                 style={{
                   border: "1.5px dashed var(--purple,#7c3aed)", borderRadius: 8,
-                  padding: "20px 16px", textAlign: "center", cursor: "pointer",
+                  padding: "20px 16px", textAlign: "center", cursor: supportLocked ? "not-allowed" : "pointer",
                   background: "color-mix(in srgb, var(--purple,#7c3aed) 4%, var(--bg3,#f3f4f6))",
                   transition: "border-color 0.2s, background 0.2s",
+                  opacity: supportLocked ? 0.5 : 1,
                 }}
               >
                 <div style={{ fontSize: 24, marginBottom: 6 }}>🗂️</div>
@@ -1045,20 +898,19 @@ const [lastExtractedTrigger, setLastExtractedTrigger] = useState(null)
                   {supportDocs.map((doc, i) => (
                     <SupportDocRow key={doc.id} doc={doc} index={i}
                       onStore={storeSupportDoc}
-                      onPick={(id) => setPickerTarget({ kind: "support", id })}
                       onRemove={handleRemoveSupport} />
                   ))}
-                  {supportIdlePlain.length > 0 && (
+                  {supportIdle.length > 0 && (
                     <button type="button" className="btn btn-primary"
-                      style={{ alignSelf: "flex-start", marginTop: 2, background: "var(--purple,#7c3aed)", borderColor: "var(--purple,#7c3aed)" }}
-                      onClick={() => supportIdlePlain.forEach(d => storeSupportDoc(d.id))}>
-                      📤 Store All ({supportIdlePlain.length} pending)
+                      disabled={supportLocked}
+                      style={{
+                        alignSelf: "flex-start", marginTop: 2,
+                        background: "var(--purple,#7c3aed)", borderColor: "var(--purple,#7c3aed)",
+                        opacity: supportLocked ? 0.5 : 1, cursor: supportLocked ? "not-allowed" : "pointer",
+                      }}
+                      onClick={() => { if (supportLocked) return; supportIdle.forEach(d => storeSupportDoc(d.id)) }}>
+                      📤 Store All ({supportIdle.length} pending)
                     </button>
-                  )}
-                  {supportIdlePdfCount > 0 && (
-                    <div style={{ fontSize: 11, color: "var(--muted)" }}>
-                      {supportIdlePdfCount} PDF{supportIdlePdfCount !== 1 ? "s" : ""} still need page selection — click a document above.
-                    </div>
                   )}
                 </div>
               )}
@@ -1157,25 +1009,6 @@ const [lastExtractedTrigger, setLastExtractedTrigger] = useState(null)
         <DocumentDrawer doc={viewingDoc} onClose={() => setViewingDoc(null)} />
       )}
 
-      {claimPickerDoc && (
-        <PagePickerModal
-          doc={claimPickerDoc}
-          onClose={() => setPickerTarget(null)}
-          actionLabel="✨ Extract"
-          actionColor="var(--accent)"
-          onConfirm={handleConfirmClaimPages}
-        />
-      )}
-
-      {supportPickerDoc && (
-        <PagePickerModal
-          doc={supportPickerDoc}
-          onClose={() => setPickerTarget(null)}
-          actionLabel="📤 Store"
-          actionColor="var(--purple,#7c3aed)"
-          onConfirm={handleConfirmSupportPages}
-        />
-      )}
-    </>
+      </>
   )
 }

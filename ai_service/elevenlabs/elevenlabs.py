@@ -53,6 +53,7 @@ import os
 import tempfile
 from io import BytesIO
 from fastapi import WebSocketDisconnect
+from pydub import AudioSegment
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -272,10 +273,174 @@ os.makedirs(AUDIO_UPLOAD_DIR, exist_ok=True)
 logger.info(f"Using audio directory: {AUDIO_UPLOAD_DIR}")
 
 
+# @router.post("/api/transcribe_labs")
+# async def transcribe_audio(
+#     file: UploadFile = File(...),
+#     language_code: str = Form("eng")
+# ):
+#     file_path = None
+#     temp_file = None
+    
+#     try:
+#         # Log request details
+#         logger.info(f"Received transcription request: filename={file.filename}, language={language_code}")
+#         logger.info(f"File content type: {file.content_type}")
+        
+#         # Generate a unique filename
+#         filename = f"{uuid.uuid4()}.wav"
+#         file_path = os.path.join(AUDIO_UPLOAD_DIR, filename)
+#         logger.info(f"Generated temporary file path: {file_path}")
+        
+#         # Save the uploaded file temporarily - using a safer approach with tempfile first
+#         try:
+#             # Create a temporary file first
+#             temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.wav')
+#             temp_path = temp_file.name
+#             temp_file.close()  # Close the file so we can write to it
+            
+#             logger.info(f"Created temporary file at: {temp_path}")
+            
+#             # Write the uploaded file to the temporary file
+#             file_size = 0
+#             with open(temp_path, "wb") as buffer:
+#                 # Read and write in chunks to avoid memory issues with large files
+#                 chunk = await file.read(1024)
+#                 while chunk:
+#                     file_size += len(chunk)
+#                     buffer.write(chunk)
+#                     chunk = await file.read(1024)
+            
+#             logger.info(f"Saved audio to temporary file: {temp_path}, size: {file_size} bytes")
+            
+#             # Or just use the temp file directly
+#             file_path = temp_path
+            
+#         except Exception as e:
+#             logger.error(f"Error saving file: {str(e)}")
+#             raise Exception(f"Error saving file: {str(e)}")
+        
+#         # Validate language code
+#         valid_languages = ["eng", "ara", "hin", "mal"]
+#         if language_code not in valid_languages:
+#             logger.warning(f"Invalid language code: {language_code}, defaulting to 'eng'")
+#             language_code = "eng"  # Default to English if invalid
+        
+#         # Verify file exists and is readable
+#         if not os.path.exists(file_path):
+#             logger.error(f"File not found at path: {file_path}")
+#             raise Exception("Saved file not found")
+            
+#         if os.path.getsize(file_path) == 0:
+#             logger.error(f"File is empty: {file_path}")
+#             raise Exception("Audio file is empty")
+        
+#         # Log file details before processing
+#         file_stats = os.stat(file_path)
+#         logger.info(f"File stats - Size: {file_stats.st_size} bytes, Permissions: {oct(file_stats.st_mode)}")
+        
+#         # Process with ElevenLabs
+#         logger.info(f"Sending file to ElevenLabs for transcription: model=scribe_v1, language={language_code}")
+        
+#         try:
+#             with open(file_path, "rb") as audio_file:
+#                 # Get file size for logging
+#                 audio_file.seek(0, os.SEEK_END)
+#                 size = audio_file.tell()
+#                 audio_file.seek(0)
+#                 logger.info(f"Audio file size being sent to ElevenLabs: {size} bytes")
+                
+#                 # Perform the transcription
+#                 transcription = client.speech_to_text.convert(
+#                     file=audio_file,
+#                     model_id="scribe_v1",
+#                     language_code=language_code,
+#                 )
+                
+#                 # Get the text result
+#                 logger.info("Transcription successful")
+#                 transcribed_text = transcription.text
+#                 logger.info(f"Transcribed text length: {len(transcribed_text)} characters")
+                
+#                 # Return the transcription
+#                 logger.info("Returning transcription result")
+#                 return {"text": transcribed_text, "language_code": language_code}
+#         except Exception as e:
+#             logger.error(f"Error during ElevenLabs transcription: {str(e)}")
+#             raise Exception(f"Error during transcription: {str(e)}")
+    
+#     except Exception as e:
+#         # Log the full exception with traceback
+#         logger.error(f"Transcription failed: {str(e)}")
+        
+#         # Check if it's an ElevenLabs API error
+#         if hasattr(e, 'response') and hasattr(e.response, 'text'):
+#             logger.error(f"ElevenLabs API error response: {e.response.text}")
+        
+#         raise HTTPException(status_code=500, detail=f"Transcription failed: {str(e)}")
+    
+#     finally:
+#         # Clean up all temporary files
+#         try:
+#             if file_path and os.path.exists(file_path):
+#                 os.remove(file_path)
+#                 logger.info(f"Cleaned up file: {file_path}")
+            
+#             if temp_file and temp_file.name and os.path.exists(temp_file.name):
+#                 os.remove(temp_file.name)
+#                 logger.info(f"Cleaned up temporary file: {temp_file.name}")
+#         except Exception as cleanup_error:
+#             logger.error(f"Error cleaning up files: {str(cleanup_error)}")
+
+
+
+# =====================================================================
+# TOKEN USAGE LOGGING HELPER (shared pattern — reusable across files)
+# =====================================================================
+# ElevenLabs speech-to-text does not return LLM-style prompt/completion
+# token usage (it's audio-duration based, not token based). As a
+# reasonable proxy for the /log-tokens rollup schema:
+#   - input_tokens  : 0 (no textual input token concept for STT)
+#   - output_tokens : approximate word count of the transcribed text
+# feature is tagged "voice_transcription", model is tagged with the
+# actual ElevenLabs model id used ("scribe_v1").
+
+LOG_TOKENS_URL = "https://doctorassist.ai/api/hms/users/data/context/log-tokens"
+
+
+async def _post_token_log(url: str, payload: dict):
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            await client.post(url, json=payload)
+    except Exception as e:
+        logger.warning(f"⚠️ Fire-and-forget token log POST to {url} failed (non-blocking): {e}")
+
+
+def fire_and_forget_token_log(doctor_id: str, feature: str, model: str, input_tokens: int, output_tokens: int):
+    """Fires a single combined POST to /log-tokens without blocking or awaiting the result."""
+    if not doctor_id:
+        logger.warning("fire_and_forget_token_log: no doctor_id — skipping token log")
+        return
+
+    payload = {
+        "doctor_id": doctor_id,
+        "feature": feature,
+        "model": model,
+        "input_tokens": input_tokens,
+        "output_tokens": output_tokens,
+    }
+
+    try:
+        loop = asyncio.get_running_loop()
+        loop.create_task(_post_token_log(LOG_TOKENS_URL, payload))
+    except RuntimeError:
+        threading.Thread(target=lambda: asyncio.run(_post_token_log(LOG_TOKENS_URL, payload)), daemon=True).start()
+
+
 @router.post("/api/transcribe_labs")
 async def transcribe_audio(
     file: UploadFile = File(...),
-    language_code: str = Form("eng")
+    language_code: str = Form("eng"),
+    doctor_id: Optional[str] = Form(None),  # optional — used only for token usage logging, if provided
 ):
     file_path = None
     temp_file = None
@@ -336,9 +501,29 @@ async def transcribe_audio(
         # Log file details before processing
         file_stats = os.stat(file_path)
         logger.info(f"File stats - Size: {file_stats.st_size} bytes, Permissions: {oct(file_stats.st_mode)}")
-        
+
+        # ── Compute audio duration (used later as the "input" cost metric instead of tokens) ──
+        # File is saved with a .wav extension but the actual content may be webm/opus etc.
+        # (browser MediaRecorder default), so we use pydub (ffmpeg-backed) to reliably detect
+        # duration regardless of container/codec mismatch, rather than the stdlib `wave` module
+        # which only understands real PCM WAV data.
+        audio_duration_ms = 0
+        try:
+            audio_segment = AudioSegment.from_file(file_path)
+            audio_duration_ms = len(audio_segment)  # pydub gives duration in milliseconds
+            _hours, _rem_ms = divmod(audio_duration_ms, 3600000)
+            _minutes, _rem_ms = divmod(_rem_ms, 60000)
+            _seconds, _millis = divmod(_rem_ms, 1000)
+            logger.info(
+                f"Audio duration detected: {audio_duration_ms}ms "
+                f"({int(_hours)}h {int(_minutes)}m {int(_seconds)}s {int(_millis)}ms)"
+            )
+        except Exception as dur_err:
+            logger.warning(f"⚠️ Could not determine audio duration (non-blocking): {dur_err}")
+
         # Process with ElevenLabs
-        logger.info(f"Sending file to ElevenLabs for transcription: model=scribe_v1, language={language_code}")
+        elevenlabs_model_id = "scribe_v1"
+        logger.info(f"Sending file to ElevenLabs for transcription: model={elevenlabs_model_id}, language={language_code}")
         
         try:
             with open(file_path, "rb") as audio_file:
@@ -351,7 +536,7 @@ async def transcribe_audio(
                 # Perform the transcription
                 transcription = client.speech_to_text.convert(
                     file=audio_file,
-                    model_id="scribe_v1",
+                    model_id=elevenlabs_model_id,
                     language_code=language_code,
                 )
                 
@@ -359,6 +544,37 @@ async def transcribe_audio(
                 logger.info("Transcription successful")
                 transcribed_text = transcription.text
                 logger.info(f"Transcribed text length: {len(transcribed_text)} characters")
+
+                # ── Usage logging (fire-and-forget, non-blocking) ──
+                # ElevenLabs STT has no prompt/completion token usage field (it's audio-based).
+                # Instead of a fake input-token count, we log the ACTUAL audio duration in
+                # milliseconds as "input_tokens" (same field/schema as every other feature's
+                # log-tokens call, so no backend/DB changes needed) — this is the real cost
+                # driver for speech-to-text, unlike a meaningless input token count.
+                # output_tokens stays as an approximate word count of the transcribed text.
+                # Only fires if doctor_id was actually supplied by the caller — never blocks
+                # or breaks transcription if it wasn't.
+                if doctor_id:
+                    approx_output_tokens = len(transcribed_text.split())
+                    hours, rem_ms = divmod(audio_duration_ms, 3600000)
+                    minutes, rem_ms = divmod(rem_ms, 60000)
+                    seconds, millis = divmod(rem_ms, 1000)
+                    duration_readable = f"{int(hours)}h {int(minutes)}m {int(seconds)}s {int(millis)}ms"
+
+                    fire_and_forget_token_log(
+                        doctor_id=doctor_id,
+                        feature="voice_transcription",
+                        model=f"elevenlabs/{elevenlabs_model_id}",
+                        input_tokens=audio_duration_ms,  # audio duration in ms, stored in the input_tokens field
+                        output_tokens=approx_output_tokens,
+                    )
+                    logger.info(
+                        f"📤 Fired usage log: feature=voice_transcription model=elevenlabs/{elevenlabs_model_id} "
+                        f"input(duration)={audio_duration_ms}ms ({duration_readable}) "
+                        f"output_tokens≈{approx_output_tokens} doctor={doctor_id}"
+                    )
+                else:
+                    logger.info("ℹ️ No doctor_id provided — skipping usage log for this transcription")
                 
                 # Return the transcription
                 logger.info("Returning transcription result")
@@ -389,8 +605,6 @@ async def transcribe_audio(
                 logger.info(f"Cleaned up temporary file: {temp_file.name}")
         except Exception as cleanup_error:
             logger.error(f"Error cleaning up files: {str(cleanup_error)}")
-
-
 
 
 

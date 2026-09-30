@@ -1,8 +1,11 @@
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import Response
 import httpx
 import logging
 import os
+import asyncio
+import websockets
+from jose import jwt, JWTError
 from gateway.middlewares.utils import get_client_ip
 from gateway.routes.login import get_current_user
 from shared.audit.schema import AuditEvent
@@ -22,7 +25,26 @@ router = APIRouter(
 # CONFIG
 # --------------------------------------------------
 insurance_SERVICE_URL = os.getenv("insurance_SERVICE_URL", "http://insurance:8000")
+insurance_WS_URL = insurance_SERVICE_URL.replace("http://", "ws://").replace("https://", "wss://")
 SERVICE_TOKEN = os.getenv("SERVICE_AUTH_TOKEN")
+SECRET_KEY = os.getenv("SECRET_KEY")
+ALGORITHM = os.getenv("ALGORITHM")
+
+
+def get_ws_user(websocket: WebSocket):
+    """
+    Cookie-based auth for WS handshakes. Browsers can't set custom headers
+    on a WS upgrade, but same-origin requests DO send cookies automatically —
+    so we read the same access_token cookie get_current_user() checks.
+    """
+    token = websocket.cookies.get("access_token")
+    if not token:
+        return None
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return {"sys_user_id": payload.get("sub"), "role": payload.get("role")}
+    except JWTError:
+        return None
 
 # --------------------------------------------------
 # MAIN PROXY (Handles ALL paths with auth)
@@ -48,6 +70,78 @@ async def proxy_app_to_insurance(
 ):
     """Proxy for /hms/app/* paths with FULL authentication (NOT public!)"""
     return await proxy_request(path, request, add_auth=True)
+
+
+# --------------------------------------------------
+# WEBSOCKET PROXY (case chat + notifications)
+# --------------------------------------------------
+# httpx can't upgrade a connection, so proxy_request() below never handles
+# these — that's why WS requests 403'd before ever reaching insurance.
+# These open their own upstream WS to `insurance` and pump frames both ways.
+
+async def _pump(src, dst, is_upstream: bool):
+    try:
+        while True:
+            if is_upstream:
+                msg = await src.recv()
+                await dst.send_text(msg)
+            else:
+                msg = await src.receive_text()
+                await dst.send(msg)
+    except (WebSocketDisconnect, websockets.exceptions.ConnectionClosed):
+        pass
+
+
+@router.websocket("/insurance/messages/ws/case/{case_id}")
+async def ws_proxy_case_chat(websocket: WebSocket, case_id: str):
+    user = get_ws_user(websocket)
+    if not user:
+        await websocket.close(code=4401)
+        return
+
+    query = f"?{websocket.url.query}" if websocket.url.query else ""
+    upstream_url = f"{insurance_WS_URL}/messages/ws/case/{case_id}{query}"
+
+    await websocket.accept()
+    try:
+        async with websockets.connect(upstream_url) as upstream:
+            await asyncio.gather(
+                _pump(websocket, upstream, is_upstream=False),
+                _pump(upstream, websocket, is_upstream=True),
+            )
+    except Exception:
+        logger.exception("WS proxy (case chat) failed for case_id=%s", case_id)
+    finally:
+        try:
+            await websocket.close()
+        except Exception:
+            pass
+
+
+@router.websocket("/insurance/messages/ws/notifications/{user_id}")
+async def ws_proxy_notifications(websocket: WebSocket, user_id: str):
+    user = get_ws_user(websocket)
+    if not user:
+        await websocket.close(code=4401)
+        return
+
+    upstream_url = f"{insurance_WS_URL}/messages/ws/notifications/{user_id}"
+
+    await websocket.accept()
+    try:
+        async with websockets.connect(upstream_url) as upstream:
+            await asyncio.gather(
+                _pump(websocket, upstream, is_upstream=False),
+                _pump(upstream, websocket, is_upstream=True),
+            )
+    except Exception:
+        logger.exception("WS proxy (notifications) failed for user_id=%s", user_id)
+    finally:
+        try:
+            await websocket.close()
+        except Exception:
+            pass
+
 
 async def proxy_request(path: str, request: Request, add_auth: bool = True):
     """
@@ -154,7 +248,7 @@ async def proxy_request(path: str, request: Request, add_auth: bool = True):
         print(f"🔐 X-User-Role present: {'X-User-Role' in headers}")
 
         # Call insurance service
-        timeout = httpx.Timeout(connect=5.0, read=120.0, write=30.0, pool=5.0)
+        timeout = httpx.Timeout(connect=5.0, read=300.0, write=30.0, pool=5.0)
 
         async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.request(

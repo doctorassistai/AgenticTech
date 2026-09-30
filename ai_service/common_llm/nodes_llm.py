@@ -119,7 +119,7 @@ guideline_layer = DynamicGuidelineAlignmentLayer(
 
 quality_scorer = FactualityConfidenceScorer(
     groq_api_key=api_key,
-    model="llama-3.1-8b-instant"
+    model="openai/gpt-oss-20b"
 )
 
 ################################################################################STARTS################################################
@@ -416,7 +416,7 @@ OUTPUT RULES:
     # ----------------------------------------------------
 
     response = groq_client.chat.completions.create(
-        model="llama-3.1-8b-instant",
+        model="openai/gpt-oss-20b",
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user_prompt}

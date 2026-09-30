@@ -504,6 +504,7 @@ async def save_section(booking_id: str, section_path: str, payload: SaveSectionP
       - "anaesthesia.mac"
       - "anaesthesia.io"
       - "anaesthesia.eo"
+      - "pathology_handoffs"
       - "post_op"
 
     MongoDB operation: { "$set": { "{section_path}": data } }
@@ -512,6 +513,7 @@ async def save_section(booking_id: str, section_path: str, payload: SaveSectionP
     allowed_sections = {
         "checklist",
         "management",
+        "pathology_handoffs",
         "post_op",
         "discharge",
         "doctors_note",

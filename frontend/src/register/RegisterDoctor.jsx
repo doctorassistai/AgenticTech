@@ -475,7 +475,7 @@ const countryCodes = [
 ];
 
 const specializations = [
-  "General Medicine", "Emergency", "Cardiology", "Pulmonology", "Endocrinology",
+  "General Medicine", "Emergency", "Cardiology", "Pulmonology", "Endocrinology","Neuropsychiatry",
   "Gastroenterology", "Nephrology", "Medical Oncology", "Chemotherapy", "Immunotherapy",
   "Targeted therapy", "Hormone therapy", "Precision oncology", "Radiation Oncology",
   "External beam radiotherapy", "Brachytherapy", "Stereotactic radiosurgery",
@@ -486,7 +486,8 @@ const specializations = [
   "Molecular pathology", "Molecular Oncology", "Biomarker Analysis", "Nuclear Medicine",
   "Interventional Oncology", "Ablation therapies", "Embolization", "Research Oncology",
   "Palliative Oncology", "Pain Management", "Rehabilitation Oncology", "Nutritional Oncology",
-  "Psycho-oncology", "Preventive Oncology", "Cancer Screening Programs", "Genetic Counseling","Diabetic foot","Anesthesiology","Onco Pain and Palliative Care","Palliative Medicine"
+  "Psycho-oncology", "Preventive Oncology", "Cancer Screening Programs", "Genetic Counseling","Diabetic foot","Anesthesiology","Onco Pain and Palliative Care","Palliative Medicine","Rheumatology",
+  "Microbiology"
 ];
 
 function RegisterDoctor() {
@@ -677,7 +678,7 @@ function RegisterDoctor() {
         <div style={S.sidebarHeader}>
           <div style={S.brandRow}>
             <div>
-              <p style={S.brandName}>DoctorAssist</p>
+              <p style={S.brandName}>EMR MODULE</p>
               <p style={S.brandSub}>Hospital Admin</p>
             </div>
           </div>

@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Investigation Report - Reimbursement</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 20px;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background: #fff;
+      font-family: Arial, Helvetica, sans-serif;
+      color: #222;
+      font-size: 13px;
+    }
+
+    .page {
+      width: 794px;
+      margin: 0 auto;
+      background: white;
+      padding: 0 26px 25px;
+      box-sizing: border-box;
+    }
+
+    .header-image {
+      width: 100%;
+      display: block;
+      margin-bottom: 20px;
+    }
+
+    .main-title {
+      text-align: center;
+      font-size: 18px;
+      font-weight: 700;
+      text-decoration: underline;
+      margin-bottom: 20px;
+    }
+
+    .section-title {
+      width: 460px;
+      margin: 20px auto 14px auto;
+      border: 1px solid #444;
+      text-align: center;
+      font-size: 14px;
+      font-weight: 700;
+      text-decoration: underline;
+      padding: 4px 0;
+      background: #f7f7f7;
+      letter-spacing: 0.3px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 16px;
+      table-layout: fixed;
+    }
+
+    tr {
+      page-break-inside: avoid;
+    }
+
+    td, th {
+      border: 1px solid #555;
+      padding: 8px 10px;
+      vertical-align: middle;
+      font-size: 13px;
+      line-height: 1.5;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+    }
+
+    th {
+      background: #f0f0f0;
+      font-weight: 700;
+      text-align: left;
+    }
+
+    .label {
+      font-weight: 700;
+      background: #f7f7f7;
+      text-align: left;
+    }
+
+    .value {
+      text-align: left;
+      font-weight: 500;
+    }
+
+    .center {
+      text-align: center;
+    }
+
+    .narrative-box {
+      padding-top: 10px;
+      padding-bottom: 10px;
+      vertical-align: top;
+      line-height: 1.7;
+    }
+
+    .yn-box {
+      display: inline-block;
+      border: 1px solid #555;
+      padding: 2px 10px;
+      font-weight: 700;
+    }
+
+    ul.findings-list {
+      margin: 6px 0;
+      padding-left: 18px;
+    }
+
+    .signature-box {
+      height: 130px;
+      position: relative;
+      vertical-align: top;
+      overflow: hidden;
+    }
+
+    .real-stamp {
+      width: 110px;
+      position: absolute;
+      top: 15px;
+      left: 20px;
+      object-fit: contain;
+    }
+
+    .section-block {
+      page-break-inside: avoid;
+      break-inside: avoid;
+      margin-bottom: 0;
+    }
+
+    @media print {
+      body { background: white; }
+      .page { margin: 0; width: 100%; min-height: auto; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!-- PAGE 1 — Claim/Policy/Hospital Details                      -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<div class="page">
+
+  <img src="{{ header_image }}" class="header-image" alt="Header">
+
+  <div class="main-title">Investigation Report - Reimbursement</div>
+
+  <table>
+    <colgroup><col style="width:34%"><col style="width:66%"></colgroup>
+    <tr><td class="label">Claim No/ Preauth ID/ SR No</td><td class="value">{{ case.insurerRef or '' }}</td></tr>
+    <tr><td class="label">Name of the Policy Holder</td><td class="value">{{ case.policyHolderName or case.claimantName or '' }}</td></tr>
+    <tr><td class="label">Insured Person Name</td><td class="value">{{ case.claimantName or '' }}</td></tr>
+    <tr><td class="label">Relation with Policy Holder</td><td class="value">{{ case.relationship or '' }}</td></tr>
+    <tr><td class="label">Insured Address</td><td class="value">{{ case.claimantAddress or '' }}</td></tr>
+    <tr><td class="label">Insured Contact Details</td><td class="value">{{ case.claimantMobile or '' }}</td></tr>
+    <tr><td class="label">Insured Person Age</td><td class="value">{{ case.claimantAge or '' }}</td></tr>
+    <tr><td class="label">Gender</td><td class="value">{{ case.claimantGender or '' }}</td></tr>
+    <tr><td colspan="2" class="label">Policy Details :</td></tr>
+    <tr><td class="label">Policy Number</td><td class="value">{{ case.policyNumber or 'NA' }}</td></tr>
+    <tr><td class="label">Policy Commencement Date</td><td class="value">{{ case.policyInceptionDate or '' }}</td></tr>
+  </table>
+
+  <table>
+    <colgroup><col style="width:17%"><col style="width:33%"><col style="width:17%"><col style="width:33%"></colgroup>
+    <tr>
+      <td class="label">Admission Date</td>
+      <td class="value">{{ hospital.admissionDate or '' }}</td>
+      <td class="label">Discharge Date</td>
+      <td class="value">{{ hospital.dischargeDate or '' }}</td>
+    </tr>
+  </table>
+
+  <table>
+    <colgroup><col style="width:34%"><col style="width:66%"></colgroup>
+    <tr><td class="label">Final Diagnosis</td><td class="value">{{ critical.diagnosis or '' }}</td></tr>
+    <tr><td colspan="2" class="label">Hospital Details :</td></tr>
+    <tr><td class="label">Hospital Name</td><td class="value">{{ hospital.name or '' }}</td></tr>
+    <tr><td class="label">Hospital Address (City)</td><td class="value">{{ hospital.city or hospital.address or '' }}</td></tr>
+    <tr><td class="label">Type of Claim</td><td class="value center"><strong>REIMBURSEMENT</strong></td></tr>
+    <tr>
+      <td class="label">Reason for Investigation/ Requirement for Investigation</td>
+      <td class="value narrative-box">{{ facts.reason_for_investigation or '' }}</td>
+    </tr>
+  </table>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!-- PAGE 2 — Details Collected by the Investigator               -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<div class="page">
+
+  <div class="section-title">Details Collected by the Investigator</div>
+
+  <table>
+    <colgroup><col style="width:20%"><col style="width:60%"><col style="width:20%"></colgroup>
+    <tr>
+      <td class="label" rowspan="4">From Hospital</td>
+      <td class="value">ICP collected from the Hospital</td>
+      <td class="center value">{{ facts.icp_collected_from_hospital or '' }}</td>
+    </tr>
+    <tr>
+      <td class="value">Previous admission details checked/collected</td>
+      <td class="center value">{{ facts.previous_admission_checked or '' }}</td>
+    </tr>
+    <tr>
+      <td class="value">If yes, whether previous hospitalization documents collected: {{ facts.prev_hosp_docs_collected or '' }}</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td class="value">Was any discrepancy noted in the findings?
+        {% if facts.hv_discrepancy_details %}<br><em>If yes, please explain:</em> {{ facts.hv_discrepancy_details }}{% endif %}
+      </td>
+      <td class="center value">{{ facts.hv_discrepancy_noted or '' }}</td>
+    </tr>
+
+    <tr>
+      <td class="label" rowspan="2">Treating Doctor</td>
+      <td class="value">Treating doctor/ physician/Consultant opinion taken</td>
+      <td class="center value">{{ facts.doctor_opinion_taken or '' }}</td>
+    </tr>
+    <tr>
+      <td class="value">Was any discrepancy noted in the findings?
+        {% if facts.doctor_discrepancy_details %}<br><em>If yes, please explain:</em> {{ facts.doctor_discrepancy_details }}{% endif %}
+      </td>
+      <td class="center value">{{ facts.doctor_discrepancy_noted or '' }}</td>
+    </tr>
+
+    <tr>
+      <td class="label" rowspan="2">Diagnostic Centre Visit</td>
+      <td class="value">Diagnostic centre visited &amp; records verified</td>
+      <td class="center value">{{ facts.diagnostic_centre_visited or '' }}</td>
+    </tr>
+    <tr>
+      <td class="value">Was any discrepancy noted in the findings?
+        {% if facts.diagnostic_discrepancy_details %}<br><em>If yes, please explain:</em> {{ facts.diagnostic_discrepancy_details }}{% endif %}
+      </td>
+      <td class="center value">{{ facts.diagnostic_discrepancy_noted or '' }}</td>
+    </tr>
+
+    <tr>
+      <td class="label" rowspan="2">Pharmacy/ Medical Store Visit</td>
+      <td class="value">Medical store visited &amp; records verified</td>
+      <td class="center value">{{ facts.pharmacy_visited or '' }}</td>
+    </tr>
+    <tr>
+      <td class="value">Was any discrepancy noted in the findings?
+        <br><em>If yes, please explain:</em> {{ facts.pharmacy_discrepancy_details or 'Nil' }}
+      </td>
+      <td class="center value">{{ facts.pharmacy_discrepancy_noted or '' }}</td>
+    </tr>
+
+    <tr>
+      <td class="label">NEIGHBOR VISIT</td>
+      <td class="value">
+        Neighborhood visit
+        {% if facts.neighbor_visit_details %}<br><em>If yes, please explain:</em> {{ facts.neighbor_visit_details }}{% endif %}
+        <br>Employer Details: {{ facts.employer_name or '' }}
+        <br>Leave details: {{ facts.leave_details or 'NA' }}
+        <br>Attendance record if student: {{ facts.school_attendance or 'NA' }}
+        <br>Discrepancy noted in the above findings: {{ facts.neighbor_discrepancy_details or 'NA' }}
+      </td>
+      <td class="center value">{{ facts.neighbor_visit_done or '' }}</td>
+    </tr>
+  </table>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!-- PAGE 3 — Disease Details Checklist + Habits                  -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<div class="page">
+
+  <table>
+    <colgroup><col style="width:46%"><col style="width:18%"><col style="width:18%"><col style="width:18%"></colgroup>
+    <tr><th>Disease Details</th><th>Yes</th><th>No</th><th>Since When</th></tr>
+    <tr><td class="value">DM</td><td class="center value">{{ 'Yes' if facts.disease_dm == 'YES' else '' }}</td><td class="center value">{{ 'No' if facts.disease_dm != 'YES' else '' }}</td><td class="value">{{ facts.disease_dm_since or '' }}</td></tr>
+    <tr><td class="value">HTN</td><td class="center value">{{ 'Yes' if facts.disease_htn == 'YES' else '' }}</td><td class="center value">{{ 'No' if facts.disease_htn != 'YES' else '' }}</td><td class="value">{{ facts.disease_htn_since or '' }}</td></tr>
+    <tr><td class="value">Heart Disease</td><td class="center value">{{ 'Yes' if facts.disease_heart == 'YES' else '' }}</td><td class="center value">{{ 'No' if facts.disease_heart != 'YES' else '' }}</td><td class="value">{{ facts.disease_heart_since or '' }}</td></tr>
+    <tr><td class="value">Liver Disease Jaundice</td><td class="center value">{{ 'Yes' if facts.disease_liver == 'YES' else '' }}</td><td class="center value">{{ 'No' if facts.disease_liver != 'YES' else '' }}</td><td class="value">{{ facts.disease_liver_since or '' }}</td></tr>
+    <tr><td class="value">Alcohol intake Drug Intake</td><td class="center value">{{ 'Yes' if facts.disease_alcohol_drug == 'YES' else '' }}</td><td class="center value">{{ 'No' if facts.disease_alcohol_drug != 'YES' else '' }}</td><td class="value">{{ facts.disease_alcohol_drug_since or '' }}</td></tr>
+    <tr><td class="value">Renal Disease Haematuria</td><td class="center value">{{ 'Yes' if facts.disease_renal == 'YES' else '' }}</td><td class="center value">{{ 'No' if facts.disease_renal != 'YES' else '' }}</td><td class="value">{{ facts.disease_renal_since or '' }}</td></tr>
+    <tr><td class="value">OA/Osteoporosis</td><td class="center value">{{ 'Yes' if facts.disease_oa_osteoporosis == 'YES' else '' }}</td><td class="center value">{{ 'No' if facts.disease_oa_osteoporosis != 'YES' else '' }}</td><td class="value">{{ facts.disease_oa_osteoporosis_since or '' }}</td></tr>
+    <tr><td class="value">Thyroid (Tremors Intolerance to hot /cold)</td><td class="center value">{{ 'Yes' if facts.disease_thyroid == 'YES' else '' }}</td><td class="center value">{{ 'No' if facts.disease_thyroid != 'YES' else '' }}</td><td class="value">{{ facts.disease_thyroid_since or '' }}</td></tr>
+    <tr><td class="value">CVA /Stoke /TIA</td><td class="center value">{{ 'Yes' if facts.disease_cva_stroke_tia == 'YES' else '' }}</td><td class="center value">{{ 'No' if facts.disease_cva_stroke_tia != 'YES' else '' }}</td><td class="value">{{ facts.disease_cva_stroke_tia_since or '' }}</td></tr>
+    <tr><td class="value">STD</td><td class="center value">{{ 'Yes' if facts.disease_std == 'YES' else '' }}</td><td class="center value">{{ 'No' if facts.disease_std != 'YES' else '' }}</td><td class="value">{{ facts.disease_std_since or '' }}</td></tr>
+    <tr><td class="value">Convulsion / Seizure</td><td class="center value">{{ 'Yes' if facts.disease_convulsion_seizure == 'YES' else '' }}</td><td class="center value">{{ 'No' if facts.disease_convulsion_seizure != 'YES' else '' }}</td><td class="value">{{ facts.disease_convulsion_seizure_since or '' }}</td></tr>
+    <tr><td class="value">Respiratory Problems BA/TB/COPD</td><td class="center value">{{ 'Yes' if facts.disease_respiratory == 'YES' else '' }}</td><td class="center value">{{ 'No' if facts.disease_respiratory != 'YES' else '' }}</td><td class="value">{{ facts.disease_respiratory_since or '' }}</td></tr>
+    <tr><td class="value">Glaucoma /Cataract /RD</td><td class="center value">{{ 'Yes' if facts.disease_glaucoma_cataract_rd == 'YES' else '' }}</td><td class="center value">{{ 'No' if facts.disease_glaucoma_cataract_rd != 'YES' else '' }}</td><td class="value">{{ facts.disease_glaucoma_cataract_rd_since or '' }}</td></tr>
+    <tr><td class="value">Cancer</td><td class="center value">{{ 'Yes' if facts.disease_cancer == 'YES' else '' }}</td><td class="center value">{{ 'No' if facts.disease_cancer != 'YES' else '' }}</td><td class="value">{{ facts.disease_cancer_since or '' }}</td></tr>
+  </table>
+
+  <table>
+    <tr><td colspan="4" class="label">In cases of child (less than 10 years)</td></tr>
+    <tr><td colspan="4" class="value">Birth H/o NICU: {{ facts.birth_nicu_history or '' }}</td></tr>
+    <tr><td colspan="4" class="value">Pre-term care: {{ facts.pre_term_care or '' }}</td></tr>
+    <tr><td colspan="4" class="value">Any convulsion H/o: {{ facts.convulsion_history or '' }}</td></tr>
+    <tr><td colspan="4" class="value">Development Milestone: {{ facts.development_milestone or '' }}</td></tr>
+  </table>
+
+  <table>
+    <colgroup><col style="width:46%"><col style="width:18%"><col style="width:18%"><col style="width:18%"></colgroup>
+    <tr><td colspan="4" class="label">Personal Habits</td></tr>
+    <tr><td class="value">Alcohol</td><td class="center value">{{ 'Yes' if facts.habit_alcohol == 'YES' else '' }}</td><td class="center value">{{ 'No' if facts.habit_alcohol != 'YES' else '' }}</td><td class="value">{{ facts.habit_alcohol_since or '' }}</td></tr>
+    <tr><td class="value">Smoking</td><td class="center value">{{ 'Yes' if facts.habit_smoking == 'YES' else '' }}</td><td class="center value">{{ 'No' if facts.habit_smoking != 'YES' else '' }}</td><td class="value">{{ facts.habit_smoking_since or '' }}</td></tr>
+    <tr><td class="value">Chewing Tobacco/Mawa/Gutkha</td><td class="center value">{{ 'Yes' if facts.habit_tobacco_mawa_gutkha == 'YES' else '' }}</td><td class="center value">{{ 'No' if facts.habit_tobacco_mawa_gutkha != 'YES' else '' }}</td><td class="value">{{ facts.habit_tobacco_mawa_gutkha_since or '' }}</td></tr>
+    <tr><td colspan="4" class="value">Previous hospitalization/major injury (if any): {{ facts.previous_hospitalization_major_injury or '' }}</td></tr>
+  </table>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!-- PAGE 4 — Recording / Findings / Recommendation / Sign-off    -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<div class="page">
+
+  <table>
+    <colgroup><col style="width:60%"><col style="width:20%"><col style="width:20%"></colgroup>
+    <tr>
+      <td class="label">Recording/photographs taken :</td>
+      <td class="center value">{{ 'Yes' if facts.recording_photographs_taken == 'YES' else '' }}</td>
+      <td class="center value">{{ 'No' if facts.recording_photographs_taken != 'YES' else '' }}</td>
+    </tr>
+    <tr>
+      <td class="label">Was any discrepancy noted in the findings?</td>
+      <td class="center value">{{ 'Yes' if facts.overall_discrepancy_noted == 'YES' else '' }}</td>
+      <td class="center value">{{ 'No' if facts.overall_discrepancy_noted != 'YES' else '' }}</td>
+    </tr>
+  </table>
+
+  <div class="section-block">
+    <table>
+      <tr><td class="label">Findings :</td></tr>
+      <tr>
+        <td class="value narrative-box">
+          <strong><u>HOSPITAL PART:</u></strong>
+          <ul class="findings-list">{{ facts.hospital_part_findings or '' }}</ul>
+          <strong><u>MEMBER PART</u></strong>
+          <ul class="findings-list">{{ facts.member_part_findings or '' }}</ul>
+          <strong><u>OTHERS</u>:</strong> {{ facts.other_findings or '' }}
+        </td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="section-block">
+    <table>
+      <colgroup><col style="width:34%"><col style="width:66%"></colgroup>
+      <tr><td colspan="2" class="label">Recommendation:</td></tr>
+      <tr><td class="label">Name of the Agency</td><td class="value">{{ case.vendorName or 'Optimus medical services PVT LTD' }}</td></tr>
+      <tr><td class="label">Date of case assignment</td><td class="value">{{ case.allocationDate or '' }}</td></tr>
+      <tr><td class="label">Date of report submission</td><td class="value">{{ case.reportingDate or case.reportDate or '' }}</td></tr>
+      <tr><td class="label">QC Done By</td><td class="value">{{ facts.qc_done_by or 'DR SUKANYA' }}</td></tr>
+      <tr><td class="label">Date of QC</td><td class="value">{{ facts.qc_date or '' }}</td></tr>
+      <tr>
+        <td class="label signature-box">Signature</td>
+        <td class="signature-box">
+          {% if show_stamp != false %}
+            <img src="{{ stamp_image }}" class="real-stamp" alt="Stamp">
+          {% endif %}
+        </td>
+      </tr>
+    </table>
+  </div>
+
+</div>
+
+</body>
+</html>

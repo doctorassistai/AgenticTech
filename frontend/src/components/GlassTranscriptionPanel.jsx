@@ -465,6 +465,7 @@ const loadPreviousTreatmentPlan = async () => {
       audioChunks.current = [];
       const formData = new FormData();
       formData.append("file", blob);
+      formData.append("doctor_id", doctorId);
       const res = await fetch(`${API_BASE_URL}hms/users/ai/elevenlabs/api/transcribe_labs`, { method: "POST", body: formData });
       const data = await res.json();
       const text = data?.text || "";

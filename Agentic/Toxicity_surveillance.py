@@ -92,7 +92,7 @@ tracker_collection   = mongo_db["processing_tracker"]
 
 # ── LLMs — added request_timeout to prevent silent hangs ─────────────────────
 llm = ChatGroq(
-    model="llama-3.1-8b-instant",
+    model="openai/gpt-oss-20b",
     temperature=0.1,
     max_tokens=6000,
     request_timeout=30,
@@ -100,7 +100,7 @@ llm = ChatGroq(
 )
 
 llm_synthesis = ChatGroq(
-    model="llama-3.3-70b-versatile",
+    model="openai/gpt-oss-120b",
     temperature=0.1,
     max_tokens=6000,
     request_timeout=45,
@@ -2633,8 +2633,8 @@ async def toxicity_health():
         "version":           "3.2.0",
         "agents":            14,
         "workflow_compiled": toxicity_workflow is not None,
-        "llm_fast":          "llama-3.1-8b-instant (Groq)",
-        "llm_synthesis":     "llama-3.3-70b-versatile (Groq)",
+        "llm_fast":          "openai/gpt-oss-20b (Groq)",
+        "llm_synthesis":     "openai/gpt-oss-120b (Groq)",
         "graph_source":      "Neo4j",
         "v32_fixes": {
             "cypher_parameterised":           True,

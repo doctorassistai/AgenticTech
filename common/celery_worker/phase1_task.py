@@ -62,7 +62,7 @@ def get_tracker():
 #         organization      = organization,
 #         disease_type      = disease_type,
 #         specialty         = specialty,
-#         llm_model         = "llama-3.3-70b-versatile",
+#         llm_model         = "openai/gpt-oss-120b",
 #         prompt_version    = pipeline_result.get("pipeline_version", "v9fixes"),
 #         embedding_model   = "pritamdeka/S-PubMedBert-MS-MARCO",
 #         chunking_strategy = "heading_toc_fixed",

@@ -83,7 +83,7 @@ appointments_collection = db.patient_appointments
 # GROQ INITIALIZATION
 # =====================================================================
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-GROQ_MODEL = "llama-3.3-70b-versatile"
+GROQ_MODEL = "openai/gpt-oss-120b"
 
 groq_client = Groq(api_key=GROQ_API_KEY)
 
@@ -119,7 +119,7 @@ def _with_retry(max_attempts: int = 3, base_delay: float = 2.0):
 # LLM CALL (Groq only -- no OpenRouter, no GPT-4o)
 # =====================================================================
 @_with_retry(max_attempts=3, base_delay=2.0)
-def _call_groq_text(prompt: str, temperature: float = 0.2, max_tokens: int = 600) -> str:
+def _call_groq_text(prompt: str, temperature: float = 0.2, max_tokens: int = 5000) -> str:
     if not GROQ_API_KEY:
         raise RuntimeError("GROQ_API_KEY is not set")
 
@@ -197,10 +197,14 @@ VISIT_SUMMARY_UPDATE_PROMPT = """You are a clinical documentation assistant.
 Previous Visit Summary
 {previous_summary}
 
-New Report Content
+Current Report Content
 {report_content}
 
-Update the visit summary by incorporating the new report into the existing
+Create the visit summary for the CURRENT visit.
+
+Use the Previous Visit Summary only as clinical context.
+Use the Current Report Content as the primary source.
+Carry forward ongoing clinically relevant information unless it is explicitly updated or contradicted.
 summary, using ONLY information present in the two sources above.
 
 STRICT GROUNDING RULES (follow all of these):
@@ -272,7 +276,7 @@ def generate_report_summary(report_content: str, report_date: str) -> str:
     """One narrative paragraph summarizing ONLY the given report_content."""
     prompt = REPORT_SUMMARY_PROMPT.format(report_date=report_date, content=report_content)
     try:
-        return _call_groq_text(prompt, temperature=0.2, max_tokens=350)
+        return _call_groq_text(prompt, temperature=0.2, max_tokens=5000)
     except Exception as e:  # noqa: BLE001
         logger.error(f"Report summary generation failed for report_date={report_date}: {e}")
         return "Summary unavailable due to a processing error."
@@ -290,7 +294,7 @@ def generate_updated_visit_summary(previous_visit_summary: str, report_content: 
         previous_summary=previous_visit_summary, report_content=report_content
     )
     try:
-        return _call_groq_text(prompt, temperature=0.2, max_tokens=600)
+        return _call_groq_text(prompt, temperature=0.2, max_tokens=5000)
     except Exception as e:  # noqa: BLE001
         logger.error(f"Visit summary update failed: {e}")
         # Fail safe: keep the previous summary rather than losing it.
@@ -483,6 +487,7 @@ def _build_timeline_incremental_sync(
 
     # Report summary is generated for timeline display ONLY.
     report_summary = generate_report_summary(report_content, report_date)
+    
 
     timeline_entry = {
         "timeline_entry_id": timeline_entry_id,
@@ -496,6 +501,16 @@ def _build_timeline_incremental_sync(
     now = datetime.utcnow()
 
     if existing_doc is None:
+        
+        previous_visit_summary = _get_previous_visit_summary(
+            patient_id,
+            visit_info["visit_number"],
+        )
+
+        visit_summary = generate_updated_visit_summary(
+            previous_visit_summary,
+            report_content,
+        )
         # First report for this visit -- visit_summary starts as the report summary.
         new_doc = {
             "patient_id": patient_id,
@@ -506,7 +521,7 @@ def _build_timeline_incremental_sync(
             "visit_start_date": visit_info["visit_start_date"],
             "visit_end_date": visit_info["visit_end_date"],
             "timeline": [timeline_entry],
-            "visit_summary": report_summary,
+            "visit_summary": visit_summary,
             "latest_report_summary": report_summary,
             "created_at": now,
             "updated_at": now,
@@ -600,3 +615,22 @@ async def build_timeline_incremental(
             f"appointment_id={appointment_id}, patient_id={patient_id}: {exc}"
         )
         raise
+    
+    
+
+
+
+
+def _get_previous_visit_summary(patient_id: str, current_visit_number: int) -> str:
+    previous_visit = visit_timeline_collection.find_one(
+        {
+            "patient_id": patient_id,
+            "visit_number": {"$lt": current_visit_number},
+        },
+        sort=[("visit_number", -1)],
+    )
+
+    if previous_visit:
+        return previous_visit.get("visit_summary", "")
+
+    return ""

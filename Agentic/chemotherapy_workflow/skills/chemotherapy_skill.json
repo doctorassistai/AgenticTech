@@ -1,0 +1,1805 @@
+{
+  "skill_id": "chemotherapy_intelligence",
+  "skill_name": "Chemotherapy Intelligence Skill",
+  "version": 1,
+  "purpose": "Master catalog of all predefined chemotherapy checking parameters across Modules 1-12. Doctors select the parameters they want. Existing backend remains responsible for generating the clinical output.",
+  "selection": {
+    "scope": "doctor",
+    "selection_mode": "parameter",
+    "default_selected": true
+  },
+  "output_mapping": {
+    "source": "existing_chemotherapy_backend_final_output",
+    "match_field": "parameter",
+    "result_fields": [
+      "parameter",
+      "current_finding",
+      "reference_expected",
+      "status",
+      "indication_action"
+    ]
+  },
+  "modules": [
+    {
+      "module_id": 1,
+      "module_name": "Patient Assessment & Treatment Readiness",
+      "parameters": [
+        {
+          "id": "M01-P01",
+          "number": 1,
+          "name": "Chemotherapy Eligibility",
+          "backend_parameter": "Chemotherapy Eligibility",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M01-P02",
+          "number": 2,
+          "name": "ECOG / KPS Performance Status",
+          "backend_parameter": "ECOG / KPS Performance Status",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M01-P03",
+          "number": 3,
+          "name": "Organ Function Assessment",
+          "backend_parameter": "Organ Function Assessment",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M01-P04",
+          "number": 4,
+          "name": "Infection & Contraindication Screening",
+          "backend_parameter": "Infection & Contraindication Screening",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M01-P05",
+          "number": 5,
+          "name": "Baseline Investigation Completeness",
+          "backend_parameter": "Baseline Investigation Completeness",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M01-P06",
+          "number": 6,
+          "name": "Chemotherapy Fitness Score",
+          "backend_parameter": "Chemotherapy Fitness Score",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M01-P07",
+          "number": 7,
+          "name": "Pregnancy / Fertility Safety Check",
+          "backend_parameter": "Pregnancy / Fertility Safety Check",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M01-P08",
+          "number": 8,
+          "name": "Vaccination & Infection Risk",
+          "backend_parameter": "Vaccination & Infection Risk",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M01-P09",
+          "number": 9,
+          "name": "Comorbidity Risk Assessment",
+          "backend_parameter": "Comorbidity Risk Assessment",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M01-P10",
+          "number": 10,
+          "name": "Consent & Pre-treatment Checklist",
+          "backend_parameter": "Consent & Pre-treatment Checklist",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        }
+      ]
+    },
+    {
+      "module_id": 2,
+      "module_name": "Chemotherapy Planning & Dose Calculation",
+      "parameters": [
+        {
+          "id": "M02-P01",
+          "number": 1,
+          "name": "BSA & Drug Dose Calculator",
+          "backend_parameter": "BSA & Drug Dose Calculator",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M02-P02",
+          "number": 2,
+          "name": "Carboplatin Calvert Formula",
+          "backend_parameter": "Carboplatin Calvert Formula",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M02-P03",
+          "number": 3,
+          "name": "AUC Validation Engine",
+          "backend_parameter": "AUC Validation Engine",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M02-P04",
+          "number": 4,
+          "name": "Creatinine Currency Check",
+          "backend_parameter": "Creatinine Currency Check",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M02-P05",
+          "number": 5,
+          "name": "BSA Capping Check (Obesity)",
+          "backend_parameter": "BSA Capping Check (Obesity)",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M02-P06",
+          "number": 6,
+          "name": "Protocol Drug BSA Dose Verification",
+          "backend_parameter": "Protocol Drug BSA Dose Verification",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M02-P07",
+          "number": 7,
+          "name": "Renal Dose Adjustment",
+          "backend_parameter": "Renal Dose Adjustment",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M02-P08",
+          "number": 8,
+          "name": "Hepatic Dose Adjustment",
+          "backend_parameter": "Hepatic Dose Adjustment",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M02-P09",
+          "number": 9,
+          "name": "Chemotherapy Regimen Builder",
+          "backend_parameter": "Chemotherapy Regimen Builder",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M02-P10",
+          "number": 10,
+          "name": "Protocol Selection Assistant",
+          "backend_parameter": "Protocol Selection Assistant",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M02-P11",
+          "number": 11,
+          "name": "Dose Rounding Recommendation",
+          "backend_parameter": "Dose Rounding Recommendation",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M02-P12",
+          "number": 12,
+          "name": "Cycle Planning Engine",
+          "backend_parameter": "Cycle Planning Engine",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        }
+      ]
+    },
+    {
+      "module_id": 3,
+      "module_name": "Chemotherapy Order Verification",
+      "parameters": [
+        {
+          "id": "M03-P01",
+          "number": 1,
+          "name": "Chemotherapy Order Validation",
+          "backend_parameter": "Chemotherapy Order Validation",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M03-P02",
+          "number": 2,
+          "name": "Drug Interaction Analysis",
+          "backend_parameter": "Drug Interaction Analysis",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M03-P03",
+          "number": 3,
+          "name": "Allergy & Hypersensitivity Check",
+          "backend_parameter": "Allergy & Hypersensitivity Check",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M03-P04",
+          "number": 4,
+          "name": "Duplicate Therapy Detection",
+          "backend_parameter": "Duplicate Therapy Detection",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M03-P05",
+          "number": 5,
+          "name": "Route Verification",
+          "backend_parameter": "Route Verification",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M03-P06",
+          "number": 6,
+          "name": "Infusion Sequence Validation",
+          "backend_parameter": "Infusion Sequence Validation",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M03-P07",
+          "number": 7,
+          "name": "Infusion Rate Verification",
+          "backend_parameter": "Infusion Rate Verification",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M03-P08",
+          "number": 8,
+          "name": "Premedication Recommendation",
+          "backend_parameter": "Premedication Recommendation",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M03-P09",
+          "number": 9,
+          "name": "Hydration Protocol Recommendation",
+          "backend_parameter": "Hydration Protocol Recommendation",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M03-P10",
+          "number": 10,
+          "name": "Electrolyte Replacement Recommendation",
+          "backend_parameter": "Electrolyte Replacement Recommendation",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        }
+      ]
+    },
+    {
+      "module_id": 4,
+      "module_name": "Cycle Decision Support",
+      "parameters": [
+        {
+          "id": "M04-P01",
+          "number": 1,
+          "name": "Dose Optimization Engine",
+          "backend_parameter": "Dose Optimization Engine",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M04-P02",
+          "number": 2,
+          "name": "Nadir Monitoring Engine",
+          "backend_parameter": "Nadir Monitoring Engine",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M04-P03",
+          "number": 3,
+          "name": "ANC/Platelet Decision Engine",
+          "backend_parameter": "ANC/Platelet Decision Engine",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M04-P04",
+          "number": 4,
+          "name": "Dose Delay Recommendation",
+          "backend_parameter": "Dose Delay Recommendation",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M04-P05",
+          "number": 5,
+          "name": "Dose Reduction Recommendation",
+          "backend_parameter": "Dose Reduction Recommendation",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M04-P06",
+          "number": 6,
+          "name": "Dose Escalation Recommendation",
+          "backend_parameter": "Dose Escalation Recommendation",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M04-P07",
+          "number": 7,
+          "name": "Drug Hold Recommendation",
+          "backend_parameter": "Drug Hold Recommendation",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M04-P08",
+          "number": 8,
+          "name": "G-CSF Recommendation",
+          "backend_parameter": "G-CSF Recommendation",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M04-P09",
+          "number": 9,
+          "name": "Erythropoietin Recommendation",
+          "backend_parameter": "Erythropoietin Recommendation",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M04-P10",
+          "number": 10,
+          "name": "Transfusion Recommendation",
+          "backend_parameter": "Transfusion Recommendation",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M04-P11",
+          "number": 11,
+          "name": "Cycle Readiness Validation",
+          "backend_parameter": "Cycle Readiness Validation",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M04-P12",
+          "number": 12,
+          "name": "Guideline Citation Engine",
+          "backend_parameter": "Guideline Citation Engine",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        }
+      ]
+    },
+    {
+      "module_id": 5,
+      "module_name": "Toxicity Intelligence",
+      "parameters": [
+        {
+          "id": "M05-P01",
+          "number": 1,
+          "name": "Hematological Toxicity",
+          "backend_parameter": "Hematological Toxicity",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M05-P02",
+          "number": 2,
+          "name": "Febrile Neutropenia Risk",
+          "backend_parameter": "Febrile Neutropenia Risk",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M05-P03",
+          "number": 3,
+          "name": "Mucositis Management",
+          "backend_parameter": "Mucositis Management",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M05-P04",
+          "number": 4,
+          "name": "Peripheral Neuropathy Management",
+          "backend_parameter": "Peripheral Neuropathy Management",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M05-P05",
+          "number": 5,
+          "name": "Diarrhea Management",
+          "backend_parameter": "Diarrhea Management",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M05-P06",
+          "number": 6,
+          "name": "Nephrotoxicity Monitoring",
+          "backend_parameter": "Nephrotoxicity Monitoring",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M05-P07",
+          "number": 7,
+          "name": "Hepatotoxicity Monitoring",
+          "backend_parameter": "Hepatotoxicity Monitoring",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M05-P08",
+          "number": 8,
+          "name": "Cardiotoxicity Monitoring",
+          "backend_parameter": "Cardiotoxicity Monitoring",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M05-P09",
+          "number": 9,
+          "name": "Pulmonary Toxicity Monitoring",
+          "backend_parameter": "Pulmonary Toxicity Monitoring",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M05-P10",
+          "number": 10,
+          "name": "Ototoxicity Monitoring",
+          "backend_parameter": "Ototoxicity Monitoring",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M05-P11",
+          "number": 11,
+          "name": "Electrolyte Toxicity Monitoring",
+          "backend_parameter": "Electrolyte Toxicity Monitoring",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M05-P12",
+          "number": 12,
+          "name": "Immune-Related Toxicity Management",
+          "backend_parameter": "Immune-Related Toxicity Management",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M05-P13",
+          "number": 13,
+          "name": "Toxicity Prediction Engine",
+          "backend_parameter": "Toxicity Prediction Engine",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M05-P14",
+          "number": 14,
+          "name": "CTCAE Grading Currency",
+          "backend_parameter": "CTCAE Grading Currency",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M05-P15",
+          "number": 15,
+          "name": "Toxicity Trend Analysis",
+          "backend_parameter": "Toxicity Trend Analysis",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        }
+      ]
+    },
+    {
+      "module_id": 6,
+      "module_name": "Lifetime Exposure & Safety",
+      "parameters": [
+        {
+          "id": "M06-P01",
+          "number": 1,
+          "name": "Anthracycline (Doxorubicin-equivalent)",
+          "backend_parameter": "Anthracycline (Doxorubicin-equivalent)",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M06-P02",
+          "number": 2,
+          "name": "Bleomycin (Cumulative Units)",
+          "backend_parameter": "Bleomycin (Cumulative Units)",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M06-P03",
+          "number": 3,
+          "name": "Platinum Exposure Tracking (Carboplatin, cumulative AUC)",
+          "backend_parameter": "Platinum Exposure Tracking (Carboplatin, cumulative AUC)",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M06-P04",
+          "number": 4,
+          "name": "Cardiotoxicity Threshold Monitoring",
+          "backend_parameter": "Cardiotoxicity Threshold Monitoring",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M06-P05",
+          "number": 5,
+          "name": "Pulmonary Toxicity Threshold Monitoring",
+          "backend_parameter": "Pulmonary Toxicity Threshold Monitoring",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M06-P06",
+          "number": 6,
+          "name": "Cumulative Neurotoxicity Monitoring",
+          "backend_parameter": "Cumulative Neurotoxicity Monitoring (Taxane)",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          },
+          "match_mode": "prefix"
+        },
+        {
+          "id": "M06-P07",
+          "number": 7,
+          "name": "Organ Damage Trend Analysis",
+          "backend_parameter": "Organ Damage Trend Analysis",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M06-P08",
+          "number": 8,
+          "name": "Prior-Hospital Record Import",
+          "backend_parameter": "Prior-Hospital Record Import",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M06-P09",
+          "number": 9,
+          "name": "Lifetime Ceiling Hard-Stop Engine",
+          "backend_parameter": "Lifetime Ceiling Hard-Stop Engine",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M06-P10",
+          "number": 10,
+          "name": "Longitudinal Safety Dashboard",
+          "backend_parameter": "Longitudinal Safety Dashboard",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        }
+      ]
+    },
+    {
+      "module_id": 7,
+      "module_name": "Treatment Performance & Response",
+      "parameters": [
+        {
+          "id": "M07-P01",
+          "number": 1,
+          "name": "Response Assessment (RECIST 1.1)",
+          "backend_parameter": "Response Assessment (RECIST 1.1)",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M07-P02",
+          "number": 2,
+          "name": "Tumor Marker Trend (CA-125 / CEA)",
+          "backend_parameter": "Tumor Marker Trend (CA-125 / CEA)",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M07-P03",
+          "number": 3,
+          "name": "Relative Dose Intensity (Current Cycle)",
+          "backend_parameter": "Relative Dose Intensity (Current Cycle)",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M07-P04",
+          "number": 4,
+          "name": "Average RDI (ARDI)",
+          "backend_parameter": "Average RDI (ARDI)",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M07-P05",
+          "number": 5,
+          "name": "Dose Density Monitoring",
+          "backend_parameter": "Dose Density Monitoring",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M07-P06",
+          "number": 6,
+          "name": "Delivered vs. Planned Dose",
+          "backend_parameter": "Delivered vs. Planned Dose",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M07-P07",
+          "number": 7,
+          "name": "Treatment Delay Analysis",
+          "backend_parameter": "Treatment Delay Analysis",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M07-P08",
+          "number": 8,
+          "name": "Protocol Compliance Analysis",
+          "backend_parameter": "Protocol Compliance Analysis",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M07-P09",
+          "number": 9,
+          "name": "Time to Treatment Failure (TTF)",
+          "backend_parameter": "Time to Treatment Failure (TTF)",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M07-P10",
+          "number": 10,
+          "name": "Predicted Future RDI",
+          "backend_parameter": "Predicted Future RDI",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M07-P11",
+          "number": 11,
+          "name": "Clinical Outcome Risk Assessment",
+          "backend_parameter": "Clinical Outcome Risk Assessment",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M07-P12",
+          "number": 12,
+          "name": "Treatment Performance Dashboard",
+          "backend_parameter": "Treatment Performance Dashboard",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        }
+      ]
+    },
+    {
+      "module_id": 8,
+      "module_name": "Emergency Chemotherapy Support",
+      "parameters": [
+        {
+          "id": "M08-P01",
+          "number": 1,
+          "name": "Neutropenic Sepsis Detection",
+          "backend_parameter": "Neutropenic Sepsis Detection",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M08-P02",
+          "number": 2,
+          "name": "Tumor Lysis Syndrome Detection",
+          "backend_parameter": "Tumor Lysis Syndrome Detection",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M08-P03",
+          "number": 3,
+          "name": "Hypercalcemia Management",
+          "backend_parameter": "Hypercalcemia Management",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M08-P04",
+          "number": 4,
+          "name": "SIADH Recognition",
+          "backend_parameter": "SIADH Recognition",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M08-P05",
+          "number": 5,
+          "name": "DIC Recognition",
+          "backend_parameter": "DIC Recognition",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M08-P06",
+          "number": 6,
+          "name": "Chemotherapy Extravasation Management",
+          "backend_parameter": "Chemotherapy Extravasation Management",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M08-P07",
+          "number": 7,
+          "name": "Anaphylaxis Management",
+          "backend_parameter": "Anaphylaxis Management",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M08-P08",
+          "number": 8,
+          "name": "Severe Infusion Reaction Management",
+          "backend_parameter": "Severe Infusion Reaction Management",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M08-P09",
+          "number": 9,
+          "name": "Emergency Protocol Recommendation",
+          "backend_parameter": "Emergency Protocol Recommendation",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M08-P10",
+          "number": 10,
+          "name": "ICU Escalation Recommendation",
+          "backend_parameter": "ICU Escalation Recommendation",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        }
+      ]
+    },
+    {
+      "module_id": 9,
+      "module_name": "Monitoring & Follow-up",
+      "parameters": [
+        {
+          "id": "M09-P01",
+          "number": 1,
+          "name": "Laboratory Monitoring Scheduler",
+          "backend_parameter": "Laboratory Monitoring Scheduler",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M09-P02",
+          "number": 2,
+          "name": "Imaging Follow-up Scheduler",
+          "backend_parameter": "Imaging Follow-up Scheduler",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M09-P03",
+          "number": 3,
+          "name": "Cardiac Monitoring Tracker",
+          "backend_parameter": "Cardiac Monitoring Tracker",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M09-P04",
+          "number": 4,
+          "name": "Pulmonary Function Monitoring",
+          "backend_parameter": "Pulmonary Function Monitoring",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M09-P05",
+          "number": 5,
+          "name": "Renal Monitoring Tracker",
+          "backend_parameter": "Renal Monitoring Tracker",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M09-P06",
+          "number": 6,
+          "name": "Liver Monitoring Tracker",
+          "backend_parameter": "Liver Monitoring Tracker",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M09-P07",
+          "number": 7,
+          "name": "Toxicity Follow-up Scheduler",
+          "backend_parameter": "Toxicity Follow-up Scheduler",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M09-P08",
+          "number": 8,
+          "name": "Oral Chemotherapy Adherence Monitoring",
+          "backend_parameter": "Oral Chemotherapy Adherence Monitoring",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M09-P09",
+          "number": 9,
+          "name": "Missed Cycle Detection",
+          "backend_parameter": "Missed Cycle Detection",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M09-P10",
+          "number": 10,
+          "name": "Follow-up Recommendation Engine",
+          "backend_parameter": "Follow-up Recommendation Engine",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        }
+      ]
+    },
+    {
+      "module_id": 10,
+      "module_name": "Pharmacy & Administration Intelligence",
+      "parameters": [
+        {
+          "id": "M10-P01",
+          "number": 1,
+          "name": "Drug Preparation Validation",
+          "backend_parameter": "Drug Preparation Validation",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M10-P02",
+          "number": 2,
+          "name": "Drug Stability Verification",
+          "backend_parameter": "Drug Stability Verification",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M10-P03",
+          "number": 3,
+          "name": "Drug Compatibility Check",
+          "backend_parameter": "Drug Compatibility Check",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M10-P04",
+          "number": 4,
+          "name": "Infusion Chair Scheduling Intelligence",
+          "backend_parameter": "Infusion Chair Scheduling Intelligence",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M10-P05",
+          "number": 5,
+          "name": "Pharmacy Inventory Impact Analysis",
+          "backend_parameter": "Pharmacy Inventory Impact Analysis",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M10-P06",
+          "number": 6,
+          "name": "Cold Chain Verification",
+          "backend_parameter": "Cold Chain Verification",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M10-P07",
+          "number": 7,
+          "name": "Chemotherapy Administration Checklist",
+          "backend_parameter": "Chemotherapy Administration Checklist",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M10-P08",
+          "number": 8,
+          "name": "Barcode & Medication Verification",
+          "backend_parameter": "Barcode & Medication Verification",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M10-P09",
+          "number": 9,
+          "name": "Closed-Loop Administration Validation",
+          "backend_parameter": "Closed-Loop Administration Validation",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M10-P10",
+          "number": 10,
+          "name": "Chemotherapy Administration Audit Trail",
+          "backend_parameter": "Chemotherapy Administration Audit Trail",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        }
+      ]
+    },
+    {
+      "module_id": 11,
+      "module_name": "Documentation & Clinical Intelligence",
+      "parameters": [
+        {
+          "id": "M11-P01",
+          "number": 1,
+          "name": "Clinical Rationale Generator",
+          "backend_parameter": "Clinical Rationale Generator",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M11-P02",
+          "number": 2,
+          "name": "Patient-Facing Summary Generator",
+          "backend_parameter": "Patient-Facing Summary Generator",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M11-P03",
+          "number": 3,
+          "name": "Consent Form Verification",
+          "backend_parameter": "Consent Form Verification",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M11-P04",
+          "number": 4,
+          "name": "NCCN Guideline Alignment Citation",
+          "backend_parameter": "NCCN Guideline Alignment Citation",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M11-P05",
+          "number": 5,
+          "name": "Explainable AI Audit Trail",
+          "backend_parameter": "Explainable AI Audit Trail",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M11-P06",
+          "number": 6,
+          "name": "EMR Auto-Documentation Engine",
+          "backend_parameter": "EMR Auto-Documentation Engine",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M11-P07",
+          "number": 7,
+          "name": "Multi-Disciplinary Team (MDT) Summary",
+          "backend_parameter": "Multi-Disciplinary Team (MDT) Summary",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M11-P08",
+          "number": 8,
+          "name": "Toxicity Explanation Engine",
+          "backend_parameter": "Toxicity Explanation Engine",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M11-P09",
+          "number": 9,
+          "name": "Dose Calculation Audit Log",
+          "backend_parameter": "Dose Calculation Audit Log",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M11-P10",
+          "number": 10,
+          "name": "Medico-Legal Compliance Summary",
+          "backend_parameter": "Medico-Legal Compliance Summary",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        }
+      ]
+    },
+    {
+      "module_id": 12,
+      "module_name": "Analytics & Quality Improvement",
+      "parameters": [
+        {
+          "id": "M12-P01",
+          "number": 1,
+          "name": "ASCO QOPI Compliance",
+          "backend_parameter": "ASCO QOPI Compliance",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M12-P02",
+          "number": 2,
+          "name": "Protocol Adherence Analytics",
+          "backend_parameter": "Protocol Adherence Analytics",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M12-P03",
+          "number": 3,
+          "name": "Toxicity Rate Benchmarking",
+          "backend_parameter": "Toxicity Rate Benchmarking",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M12-P04",
+          "number": 4,
+          "name": "Treatment Delay Analytics",
+          "backend_parameter": "Treatment Delay Analytics",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M12-P05",
+          "number": 5,
+          "name": "Dose Modification Frequency Tracking",
+          "backend_parameter": "Dose Modification Frequency Tracking",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M12-P06",
+          "number": 6,
+          "name": "Value-Based Care Metric Tracking",
+          "backend_parameter": "Value-Based Care Metric Tracking",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M12-P07",
+          "number": 7,
+          "name": "Clinical Trial Eligibility Screening",
+          "backend_parameter": "Clinical Trial Eligibility Screening",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M12-P08",
+          "number": 8,
+          "name": "Real-World Evidence (RWE) Ingestion",
+          "backend_parameter": "Real-World Evidence (RWE) Ingestion",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M12-P09",
+          "number": 9,
+          "name": "Institutional Quality Dashboard Integration",
+          "backend_parameter": "Institutional Quality Dashboard Integration",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        },
+        {
+          "id": "M12-P10",
+          "number": 10,
+          "name": "Continuous Quality Improvement (CQI) Loop",
+          "backend_parameter": "Continuous Quality Improvement (CQI) Loop",
+          "selected": true,
+          "output": {
+            "current_finding": true,
+            "reference_expected": true,
+            "status": true,
+            "indication_action": true
+          }
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "total_modules": 12,
+    "total_parameters": 131,
+    "note": "Parameter counts are based on the unique parameter definitions present in the supplied Module 1-12 agent code. Repeated parameter= entries caused by if/else branches are represented once."
+  }
+}

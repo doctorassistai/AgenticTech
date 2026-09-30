@@ -27,6 +27,19 @@ def _detect_verdict(text: str) -> str:
 def _esc(text: str) -> str:
     return _html_module.escape(text)
 
+
+def _ensure_table_header_own_line(text: str) -> str:
+    """
+    The LLM sometimes appends the "| Item | Amount |" bill-table header to
+    the end of the preceding sentence instead of starting it on a new
+    line, even though the prompt asks for a blank line before it. Force a
+    line break before the header wherever it's glued mid-line, so
+    _render_prose_section/_render_section3's line-by-line table detection
+    below can still find it — otherwise the whole table silently falls
+    through to plain-paragraph rendering.
+    """
+    return re.sub(r"([^\n])(\|\s*Item\s*\|\s*Amount\s*\|)", r"\1\n\2", text, flags=re.IGNORECASE)
+
 _BULLET_RE = re.compile(r"^[•\-\*]\s+(.*)$")
 
 def _format_bullet_list(items: List[str]) -> str:
@@ -35,6 +48,47 @@ def _format_bullet_list(items: List[str]) -> str:
         for item in items if item.strip()
     )
     return f'<ul style="margin:4px 0 6px 18px;padding:0;">{lis}</ul>'
+
+_MD_TABLE_ROW_RE = re.compile(r"^\|(.+)\|$")
+_MD_TABLE_SEP_RE = re.compile(r"^\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)+\|?$")
+
+
+def _is_md_table_row(line: str) -> bool:
+    return bool(re.match(r"^\s*\|.*\|\s*$", line))
+
+
+def _parse_md_table_row(line: str) -> List[str]:
+    m = _MD_TABLE_ROW_RE.match(line.strip())
+    inner = m.group(1) if m else line.strip().strip("|")
+    return [c.strip() for c in inner.split("|")]
+
+
+def _format_markdown_table(header: List[str], rows: List[List[str]]) -> str:
+    """Renders a markdown pipe table (e.g. the bill line-items table — see
+    unified_report_agent.py item ⑮) as a real HTML table, instead of
+    letting it fall through to the paragraph logic below, which would
+    otherwise glue the header, separator, and every data row into one
+    run-on line via the " ".join() in _flush_para."""
+    th = "".join(
+        f'<th style="text-align:{"right" if i == len(header) - 1 else "left"};'
+        f'padding:3px 6px;font-size:9.5px;font-weight:bold;color:#111;'
+        f'border-bottom:1px solid #333;">{_esc(h)}</th>'
+        for i, h in enumerate(header)
+    )
+    body_rows = ""
+    for r in rows:
+        tds = "".join(
+            f'<td style="text-align:{"right" if i == len(r) - 1 else "left"};'
+            f'padding:2px 6px;font-size:9.5px;color:#111;'
+            f'border-bottom:1px solid #eee;">{_esc(c)}</td>'
+            for i, c in enumerate(r)
+        )
+        body_rows += f'<tr>{tds}</tr>'
+    return (
+        f'<table style="width:100%;border-collapse:collapse;margin:4px 0 6px 0;">'
+        f'<thead><tr>{th}</tr></thead><tbody>{body_rows}</tbody></table>'
+    )
+
 
 def _format_discrepancy_line(line: str) -> str:
     m = re.match(r"^\[([A-Z /]+)\]\s*(.+)$", line.strip())
@@ -165,6 +219,23 @@ def _render_section3(body: str, overall_verdict: str) -> str:
         line    = lines[i]
         stripped = line.strip()
 
+        if (
+            _is_md_table_row(stripped)
+            and i + 1 < len(lines)
+            and _MD_TABLE_SEP_RE.match(lines[i + 1].strip())
+        ):
+            _flush_para(); _flush_pending()
+            if in_discrepancy_block:
+                in_discrepancy_block = False
+            header = _parse_md_table_row(stripped)
+            i += 2
+            rows = []
+            while i < len(lines) and _is_md_table_row(lines[i].strip()):
+                rows.append(_parse_md_table_row(lines[i]))
+                i += 1
+            chunks.append(_format_markdown_table(header, rows))
+            continue
+
         if _is_verdict_line(stripped):
             _flush_para(); _flush_pending()
             if in_discrepancy_block:
@@ -233,11 +304,30 @@ def _render_prose_section(body: str) -> str:
             chunks.append(_format_bullet_list(bullet_items))
             bullet_items.clear()
 
-    for line in body.splitlines():
+    lines = body.splitlines()
+    i = 0
+    while i < len(lines):
+        line = lines[i]
         stripped = line.strip()
+
+        if (
+            _is_md_table_row(stripped)
+            and i + 1 < len(lines)
+            and _MD_TABLE_SEP_RE.match(lines[i + 1].strip())
+        ):
+            _flush_para(); _flush_bullets()
+            header = _parse_md_table_row(stripped)
+            i += 2
+            rows = []
+            while i < len(lines) and _is_md_table_row(lines[i].strip()):
+                rows.append(_parse_md_table_row(lines[i]))
+                i += 1
+            chunks.append(_format_markdown_table(header, rows))
+            continue
+
         if not stripped:
             _flush_para(); _flush_bullets()
-            continue
+            i += 1; continue
         m = _BULLET_RE.match(stripped)
         if m:
             _flush_para()
@@ -245,6 +335,7 @@ def _render_prose_section(body: str) -> str:
         else:
             _flush_bullets()
             current.append(line)
+        i += 1
 
     _flush_para(); _flush_bullets()
     return "\n".join(chunks)
@@ -279,6 +370,7 @@ def format_conclusion_html(conclusion_raw: str) -> str:
         return re.sub(r"<img[^>]+>", _add_max_width, conclusion_raw, flags=re.IGNORECASE)
 
     # Plain text — parse and format
+    conclusion_raw  = _ensure_table_header_own_line(conclusion_raw)
     overall_verdict = _detect_verdict(conclusion_raw)
     sections        = _split_sections(conclusion_raw)
 
@@ -304,6 +396,7 @@ def get_section_html(conclusion_raw: str, section_number: int) -> str:
     if re.search(r"<(div|span|img|table|p\s)[^>]*>", conclusion_raw):
         return ""
 
+    conclusion_raw  = _ensure_table_header_own_line(conclusion_raw)
     overall_verdict = _detect_verdict(conclusion_raw)
     for num, title, body in _split_sections(conclusion_raw):
         if num == section_number:

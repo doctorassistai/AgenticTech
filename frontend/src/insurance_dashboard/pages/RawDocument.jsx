@@ -4,15 +4,15 @@ import AnnotatableContent from "./AnnotatableContent";
 import AnnotationsSidebar from "./AnnotationsSidebar";
 
 const T = {
-  bg: "#ffffff", bgAlt: "#f9f9f8", bgTert: "#f3f2ef",
-  text: "#111111", textSec: "#555550", textMuted: "#999994",
-  border: "rgba(0,0,0,0.09)", borderMed: "rgba(0,0,0,0.15)",
-  red: "#a32d2d", redBg: "#fcebeb", redBorder: "#f7c1c1", redText: "#791f1f",
-  amber: "#854f0b", amberBg: "#faeeda", amberBorder: "#fac775", amberText: "#633806",
-  blue: "#185fa5", blueBg: "#e6f1fb", blueBorder: "#b5d4f4", blueText: "#0c447c",
-  green: "#3b6d11", greenBg: "#eaf3de", greenBorder: "#c0dd97", greenText: "#27500a",
-  teal: "#0f6e56", tealBg: "#e1f5ee",
-  purple: "#534ab7", purpleBg: "#eeedfe",
+  bg: "var(--bg)", bgAlt: "var(--bg3, #f9f9f8)", bgTert: "var(--bg2, var(--bg3, #f3f2ef))",
+  text: "var(--text)", textSec: "color-mix(in srgb, var(--text) 85%, var(--muted))", textMuted: "var(--muted)",
+  border: "var(--border)", borderMed: "color-mix(in srgb, var(--border) 60%, var(--muted))",
+  red: "var(--red)", redBg: "color-mix(in srgb, var(--red) 10%, var(--bg))", redBorder: "color-mix(in srgb, var(--red) 35%, var(--bg))", redText: "var(--red)",
+  amber: "var(--amber)", amberBg: "color-mix(in srgb, var(--amber) 12%, var(--bg))", amberBorder: "color-mix(in srgb, var(--amber) 40%, var(--bg))", amberText: "var(--amber)",
+  blue: "var(--blue)", blueBg: "color-mix(in srgb, var(--blue) 10%, var(--bg))", blueBorder: "color-mix(in srgb, var(--blue) 35%, var(--bg))", blueText: "var(--blue)",
+  green: "var(--green)", greenBg: "color-mix(in srgb, var(--green) 10%, var(--bg))", greenBorder: "color-mix(in srgb, var(--green) 35%, var(--bg))", greenText: "var(--green)",
+  teal: "var(--teal, #0f6e56)", tealBg: "color-mix(in srgb, var(--teal, #0f6e56) 10%, var(--bg))",
+  purple: "var(--purple)", purpleBg: "color-mix(in srgb, var(--purple) 10%, var(--bg))",
 };
 // Collapses a redundant double-mark like "(✓) [x]" or "( ) [ ]" into a
 // single bracket group, keeping it checked if *either* mark was checked.
@@ -103,12 +103,105 @@ function resolveCheckboxes(text) {
 
   return text;
 }
+// ─── BILL BREAKDOWN → TABLE ────────────────────────────────────────────
+// Source text arrives in more than one format depending on which bill
+// template was OCR'd, e.g.:
+//   "Bill line items: SFS O SUSPENSION SUGAR FREE (289.99), DISPOSABLE APRON L (45.00), ..."
+//   "Bill breakdown items: • SFS O SUSPENSION SUGAR FREE — 289.99, • DISPOSABLE APRON L — 45.00, ..."
+// Both use a comma to separate items, but some item names/amounts contain
+// their own commas (e.g. "VASOFIX BRAUNULE (20GX1,1/4) — 225.00" or
+// "7,500.00"), so a naive comma-split breaks those apart. We only split on
+// a comma when what follows looks like the START of a new item (a bullet,
+// a letter, or an opening paren) — never when followed by a digit, which
+// means it's a comma inside a number or inside parentheses.
+const BILL_BREAKDOWN_RE = /^(Bill\s*(?:line\s*items|breakdown(?:\s*items)?|breakdown\s*includes))\s*[:\-]\s*(.+)$/i;
+
+// Matches "NAME (amount)" or "NAME — amount" / "NAME - amount" / "NAME: amount"
+// at the end of a segment, tolerating thousands-commas in the amount.
+const BILL_ITEM_RE = /^(.+?)\s*(?:\(\s*([\d,]+(?:\.\d+)?)\s*\)|[—\-:]\s*([\d,]+(?:\.\d+)?))\s*$/;
+
+function renderBillBreakdownIfMatch(content) {
+  const m = content.trim().match(BILL_BREAKDOWN_RE);
+  if (!m) return null;
+  const label = m[1];
+  const rest = m[2];
+
+  // Split only where a comma is followed by the start of a new item
+  // (optional bullet, then a letter or "(") — never when followed by a
+  // digit, so numbers like "7,500.00" and "(20GX1,1/4)" stay intact.
+  const rawItems = rest
+    .split(/,\s*(?=•?\s*[A-Za-z(])/)
+    .map(s => s.replace(/^•\s*/, "").trim())
+    .filter(Boolean);
+
+  const rows = rawItems.map(seg => {
+    const im = seg.match(BILL_ITEM_RE);
+    if (!im) return null;
+    const name = im[1].trim();
+    const amount = (im[2] || im[3] || "").trim();
+    if (!name || !amount) return null;
+    return { name, amount };
+  }).filter(Boolean);
+
+  // Bail out to plain text if parsing didn't cleanly cover most segments —
+  // safer than showing a table missing half the line items.
+  if (rows.length < 2 || rows.length < rawItems.length * 0.6) return null;
+
+  const rowsHtml = rows.map(r =>
+    `<tr><td>${r.name}</td><td style="text-align:right;font-family:monospace;white-space:nowrap">${r.amount}</td></tr>`
+  ).join("");
+  return `<div class="bill-table-wrap"><div class="bill-table-label">${label} (${rows.length} items)</div>` +
+    `<table class="bill-table"><thead><tr><th>Item</th><th style="text-align:right">Amount</th></tr></thead>` +
+    `<tbody>${rowsHtml}</tbody></table></div>`;
+}
+
+// ─── MEDICINE LINE RUNS → TABLE ─────────────────────────────────────────
+// Consecutive sibling bullets like "XONE SB 1.5 gm in 100ml NS IV, Inj."
+// each render as their own row; grouping 2+ in a row into one compact
+// table instead of N separate bullet lines.
+const MEDICINE_LINE_RE = /,\s*(Inj|Syp|Tab|Cap|IVF|Susp|Oint|Gel|Drops|Amp|Sol)\.?\s*$/i;
+function isMedicineLine(content) {
+  return MEDICINE_LINE_RE.test(content.trim());
+}
+function renderMedicineTable(lines) {
+  const rowsHtml = lines.map(l => `<tr><td>${resolveCheckboxes(l)}</td></tr>`).join("");
+  return `<div class="bill-table-wrap"><div class="bill-table-label">Medications (${lines.length})</div>` +
+    `<table class="bill-table med-table"><tbody>${rowsHtml}</tbody></table></div>`;
+}
 
 function bareCheckboxLeaf(line) {
   const normalized = normalizeDualBrackets(line.trim());
   const m = normalized.match(/^([\w][\w\s\/\-]{0,40}?)\s*[\[\(]\s*([xX✓ ]?)\s*[\]\)]$/);
   if (!m) return null;
   return { label: m[1].trim(), checked: m[2].trim().length > 0 };
+}
+
+// ─── EPISODE HEADER DETECTION ────────────────────────────────────────────
+// Matches lines like:
+//   "Episode 2 of 5 — Hospital (Not documented to Not documented, outcome: unknown)"
+//   "Episode 1 of 5 — ABHAYAHASTA MULTISPECIALITY HOSPITAL (29/06/2026 to 01/07/2026, outcome: discharged)"
+const EPISODE_LINE_RE = /^Episode\s+(\d+)\s+of\s+(\d+)\s*[—\-–]\s*(.+?)(?:\s*\((.+?)\s+to\s+(.+?),\s*outcome:\s*([\w\s]+?)\))?\s*$/i;
+
+const EP_OUTCOME_COLORS = {
+  discharged: "green", deceased: "red", expired: "red",
+  lama: "amber", dama: "amber", referred: "blue", unknown: "neutral",
+};
+
+function renderEpisodeHeaderIfMatch(content) {
+  const m = content.trim().match(EPISODE_LINE_RE);
+  if (!m) return null;
+  const [, idx, total, hospital, admission, discharge, outcome] = m;
+  const outcomeKey = (outcome || "").trim().toLowerCase();
+  const colorKey = EP_OUTCOME_COLORS[outcomeKey] || "neutral";
+  const badge = `<span class="ep-badge">EP ${idx}/${total}</span>`;
+  const hospitalHtml = `<span class="ep-hospital">${hospital.trim()}</span>`;
+  const datesHtml = (admission && discharge)
+    ? `<span class="ep-dates">${admission.trim()} → ${discharge.trim()}</span>`
+    : "";
+  const outcomeHtml = outcome
+    ? `<span class="ep-outcome ep-outcome-${colorKey}">${outcome.trim()}</span>`
+    : "";
+  return `<div class="episode-header">${badge}${hospitalHtml}${datesHtml}${outcomeHtml}</div>`;
 }
 
 function resolveTableCellCheckboxes(html) {
@@ -147,6 +240,52 @@ function renderKvRows(items, start, depth) {
 
   while (i < items.length && items[i].indent === baseIndent) {
     const item = items[i];
+
+    // The source bill-line-items list is sometimes wrapped mid-item across
+    // multiple separate bullets by the original document's pagination —
+    // an item's amount "(82.50)" can land on its own bullet, disconnected
+    // from the item name it belongs to on the previous bullet. Detect the
+    // "Bill line items:" header, then greedily absorb every following
+    // sibling bullet that starts with "(amount)" (a continuation fragment,
+    // not a new top-level item) before parsing — stitching the fragments
+    // back into one continuous string reconstructs the original pairing.
+    const billHeaderMatch = item.content.trim().match(BILL_BREAKDOWN_RE);
+    if (billHeaderMatch) {
+      let merged = item.content.trim();
+      let j = i + 1;
+      while (
+        j < items.length &&
+        items[j].indent === baseIndent &&
+        /^\(\s*[\d,]+\.\d+\s*\)/.test(items[j].content.trim())
+      ) {
+        merged += " " + items[j].content.trim();
+        j++;
+      }
+      const billTable = renderBillBreakdownIfMatch(merged);
+      if (billTable) {
+        html += billTable;
+        i = j;
+        continue;
+      }
+      // fall through to normal handling if parsing still failed
+    }
+
+    // Buffer consecutive medicine-dosage lines into one compact table
+    // instead of one bullet per drug.
+    if (isMedicineLine(item.content)) {
+      const medRun = [];
+      let j = i;
+      while (j < items.length && items[j].indent === baseIndent && isMedicineLine(items[j].content)) {
+        medRun.push(items[j].content.trim());
+        j++;
+      }
+      if (medRun.length >= 2) {
+        html += renderMedicineTable(medRun);
+        i = j;
+        continue;
+      }
+      // a lone medicine line falls through to normal handling below
+    }
 
     // ↓↓↓ PASTE THE NEW BLOCK HERE ↓↓↓
     {
@@ -261,8 +400,9 @@ function renderKvRows(items, start, depth) {
           nextIdx = rest.next;
         }
       } else {
-        const resolved = resolveCheckboxes(item.content);
-        html += `<div class="kv-plain">${resolved}</div>`;
+        const episodeHtml = renderEpisodeHeaderIfMatch(item.content);
+        const billHtml = !episodeHtml ? renderBillBreakdownIfMatch(item.content) : null;
+        html += episodeHtml || billHtml || `<div class="kv-plain">${resolveCheckboxes(item.content)}</div>`;
         nextIdx = i + 1;
         if (hasChildren) {
           const child = renderKvRows(items, i + 1, depth + 1);
@@ -321,6 +461,10 @@ function parseMarkdown(md = "") {
     .replace(/\n{2,}/g, "<br/><br/>");
 }
 
+// NOTE: this no longer discards any table content. Sparse tables are
+// collapsed into a native <details>/<summary> so the badge is what shows
+// by default, but the full <table> is still in the DOM and one click away
+// — nothing the source document contained is ever hidden from the user.
 function collapseEmptyTables(html) {
   return html.replace(/<table[\s\S]*?<\/table>/gi, (t) => {
     const tds = [...t.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)].map(m => m[1].replace(/&nbsp;/g,"").replace(/<[^>]+>/g,"").replace(/\s/g,""));
@@ -328,9 +472,10 @@ function collapseEmptyTables(html) {
     const ratio = nonEmpty.length / Math.max(tds.length, 1);
     const rows = (t.match(/<tr/gi)||[]).length;
     if ((ratio < 0.12 && tds.length > 4) || (rows > 6 && ratio < 0.25)) {
-      if (nonEmpty.length > 0 && nonEmpty.length <= 6)
-        return `<div class="sparse-table-badge"><span class="eti">⊟</span> Partial data: <span class="sparse-preview">${nonEmpty.slice(0,4).join(" · ")}</span></div>`;
-      return `<div class="empty-table-badge"><span class="eti">⊘</span> No data recorded</div>`;
+      const summary = nonEmpty.length > 0
+        ? `<span class="eti">⊟</span> Mostly empty table — preview: <span class="sparse-preview">${nonEmpty.slice(0,4).join(" · ")}</span> (click to view all ${tds.length} cells)`
+        : `<span class="eti">⊘</span> Mostly empty table (click to view)`;
+      return `<details class="sparse-table-details"><summary class="sparse-table-summary">${summary}</summary>${t}</details>`;
     }
     return t;
   });
@@ -360,6 +505,68 @@ const DISC_PATTERNS = [
   { re: /\[PHYSIOLOGICAL ANOMALY\][^\n]*/gi, type: "critical" },
 ];
 
+// ─── Document findings (PED / billing / coverage) ──────────────────────────
+// These come from the backend's map-reduce pass over raw_llama_markdown
+// (see routes/case_documents_router.py::_generate_document_findings), NOT
+// from a regex — so unlike ABNORMAL_PATTERNS/DISC_PATTERNS above, findings
+// arrive as a prop rather than being derived from the text here.
+const FINDING_STYLES = {
+  PED_SUSPECTED:                 { label: "Pre-Existing Disease",      color: "var(--red)" },
+  BILLING_MISMATCH:              { label: "Billing Mismatch",          color: "var(--red)" },
+  POLICY_COVERAGE_ISSUE:         { label: "Coverage Issue",            color: "var(--amber)" },
+  IDENTITY_MISMATCH:             { label: "Identity Mismatch",         color: "var(--red)" },
+  TIMELINE_INCONSISTENCY:        { label: "Timeline Inconsistency",    color: "var(--amber)" },
+  DOCTOR_FACILITY_INCONSISTENCY: { label: "Doctor/Facility Mismatch",  color: "var(--amber)" },
+  NARRATIVE_INCONSISTENCY:       { label: "Narrative Inconsistency",   color: "var(--amber)" },
+  DOCUMENT_QUALITY_FLAG:         { label: "Document Quality",          color: "var(--muted)" },
+  OTHER_SUSPICIOUS:              { label: "Suspicious Pattern",        color: "var(--amber)" },
+};
+
+function findingStyle(finding) {
+  const base = FINDING_STYLES[finding.type] || { label: "Flagged", color: "var(--amber)" };
+  return { ...base, color: finding.severity === "critical" ? "var(--red)" : base.color };
+}
+
+function normStr(s) {
+  return (s || "").trim().toLowerCase();
+}
+
+// Sentinel markers (Unicode Private Use Area codepoints) used to wrap a
+// finding's verbatim quote inside the RAW block text, before parseMarkdown
+// runs. PUA chars can never collide with real document content or any
+// markdown/bullet/checkbox syntax, so they survive every regex transform in
+// parseMarkdown untouched — then get swapped for a real <mark> afterwards.
+const FIND_OPEN = "\uE050", FIND_MID = "\uE051", FIND_CLOSE = "\uE052";
+
+function injectFindingMarkers(text, findings) {
+  if (!findings || findings.length === 0) return text;
+  let out = text;
+  for (const f of findings) {
+    const quotes = f.quotes || [];
+    quotes.forEach((q, qi) => {
+      if (!q.quote) return;
+      const idx = out.indexOf(q.quote);
+      if (idx === -1) return; // backend already verifies quotes exist; stay safe regardless
+      const markerId = `${f.id}::q${qi}`;
+      out = out.slice(0, idx) + FIND_OPEN + markerId + FIND_MID + q.quote + FIND_CLOSE + out.slice(idx + q.quote.length);
+    });
+  }
+  return out;
+}
+
+const FIND_MARKER_RE = new RegExp(`${FIND_OPEN}(.*?)${FIND_MID}([\\s\\S]*?)${FIND_CLOSE}`, "g");
+
+function renderFindingMarkers(html, findingsById) {
+  return html.replace(FIND_MARKER_RE, (full, markerId, quoted) => {
+    const baseId = markerId.split("::q")[0];
+    const f = findingsById[baseId];
+    if (!f) return quoted;
+    const style = findingStyle(f);
+    const title = (f.explanation || "").replace(/"/g, "&quot;");
+    return `<mark class="finding-mark" data-finding-id="${baseId}" style="background:color-mix(in srgb, ${style.color} 20%, var(--bg));border-bottom:2px solid ${style.color};color:${style.color};font-weight:700;border-radius:2px;padding:0 2px;" title="${title}">${quoted}</mark>`;
+  });
+}
+
 const MONTH_MAP = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
 
 function extractEarliestDate(text) {
@@ -371,11 +578,12 @@ function extractEarliestDate(text) {
   const valid = c.filter(d=>d instanceof Date&&!isNaN(d));
   return valid.length ? valid.reduce((a,b)=>a<b?a:b) : null;
 }
-const NEUTRAL_TYPE = { color: "#5f5e5a", bg: T.bgTert, border: T.border, text: "#3a3a38" };
+const NEUTRAL_TYPE = { color: "var(--muted)", bg: T.bgTert, border: T.border, text: "var(--text)" };
 
 // ─── Category priority for the grouped-view sort mode ─────────────────────────
 // Member/Insured visit → Hospital visit/ICP → Identity & Policy → Bills/Registers → Other
 const CATEGORY_ORDER = [
+  "field_investigation",
   "identity_policy",
   "member_visit",
   "hospital_visit",
@@ -384,6 +592,7 @@ const CATEGORY_ORDER = [
 ];
 
 const CATEGORY_LABELS = {
+  field_investigation: "Field Investigation Documents",
   member_visit:     "Member / Insured Visit",
   hospital_visit:   "Hospital Visit / ICP",
   identity_policy:  "Identity & Policy",
@@ -414,7 +623,51 @@ const DOC_TYPES = [
   { test: /in patient bill|bill of supply/i,                     label: "Billing",               category: "bills_registers" },
 ].map(d => ({ ...d, ...NEUTRAL_TYPE }));
 
-function inferDocType(text) {
+// Field-investigation documents are tagged "[INV_TYPE/step_key] realname.ext"
+// in their fileName (see field_investigation_parse.py). When that marker is
+// present, the card header should always reflect it — which investigation
+// type and step this came from — rather than guessing from document
+// content, since content-based inference (DOC_TYPES below) has no way to
+// recognize field-investigation step types and will always fall through to
+// the generic "Document" label for them regardless of what's inside.
+const INV_TAG_RE = /^\[([A-Z]+)\/([^\]]+)\]\s*(.*)$/;
+
+function parseTaggedFileName(fileName) {
+  if (!fileName) return null;
+  const m = fileName.match(INV_TAG_RE);
+  if (!m) return null;
+  return { invType: m[1], stepKey: m[2], originalName: m[3] || "" };
+}
+
+const INV_TYPE_STYLES = {
+  MV:   { bg: "#EFF6FF", border: "#BFDBFE", text: "#2563EB" },
+  HV:   { bg: "#F0FDF4", border: "#BBF7D0", text: "#16A34A" },
+  HVI:  { bg: "#FFF7ED", border: "#FED7AA", text: "#EA580C" },
+  TELE: { bg: "#FAF5FF", border: "#DDD6FE", text: "#7C3AED" },
+  BILL: { bg: "#FFFBEB", border: "#FDE68A", text: "#B45309" },
+  DIGI: { bg: "#F0F9FF", border: "#BAE6FD", text: "#0369A1" },
+};
+
+function stepKeyToLabel(stepKey) {
+  return (stepKey || "")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+    .trim();
+}
+
+function inferDocType(text, fileName) {
+  const tag = parseTaggedFileName(fileName);
+  if (tag) {
+    const style = INV_TYPE_STYLES[tag.invType] || NEUTRAL_TYPE;
+    return {
+      label: `${tag.invType} — ${stepKeyToLabel(tag.stepKey)}`,
+      category: "field_investigation",
+      color: style.text,
+      bg: style.bg,
+      border: style.border,
+      text: style.text,
+    };
+  }
   for (const dt of DOC_TYPES) if (dt.test.test(text)) return dt;
   return { label: "Document", category: "other", ...NEUTRAL_TYPE };
 }
@@ -468,7 +721,7 @@ function splitFieldInvestigationBlocks(text) {
   return blocks;
 }
 
-function splitAndAnnotate(markdown = "") {
+function splitAndAnnotate(markdown = "", findings = []) {
   const pdfRegex = /<!--\s*PDF_START:\s*(.*?)\s*-->([\s\S]*?)<!--\s*PDF_END:\s*\1\s*-->/g;
   const pdfMatches = [...markdown.matchAll(pdfRegex)];
 
@@ -490,6 +743,7 @@ function splitAndAnnotate(markdown = "") {
   text, fileName: null, pageNumber: null,
   date: extractEarliestDate(text), type: inferDocType(text),
   index: idx++, abnormals: extractAbnormalsFromText(text), flags: extractFlagsFromText(text),
+  findings: [],
 });
     });
     return allBlocks;
@@ -497,10 +751,8 @@ function splitAndAnnotate(markdown = "") {
 
   // Marker-based path: split into PDFs first, then sub-split each PDF
   // by the same heading heuristics as before — but now each piece keeps
-  // its source filename + the page range it actually came from.
-  // Marker-based path: split into PDFs first, then sub-split each PDF
-  // by the same heading heuristics as before — but now each piece keeps
-  // its source filename + the page range it actually came from.
+  // its source filename + the page range it actually came from, which is
+  // also how we match backend-generated findings to the right card.
   for (const m of pdfMatches) {
   const fileName = m[1].trim();
   const rawContent = m[2];
@@ -509,10 +761,17 @@ function splitAndAnnotate(markdown = "") {
   pages.forEach(({ pageNumber, text: rawPageText }) => {
     const text = stripMarkers(rawPageText);
     if (text.length <= 20) return;
+    const blockFindings = (findings || []).filter(f =>
+      (f.quotes || []).some(q =>
+        normStr(q.file_name) === normStr(fileName) &&
+        (q.page_number == null || q.page_number === pageNumber)
+      )
+    );
     allBlocks.push({
       text, fileName, pageNumber,
-      date: extractEarliestDate(text), type: inferDocType(text),
+      date: extractEarliestDate(text), type: inferDocType(text, fileName),
       index: idx++, abnormals: extractAbnormalsFromText(text), flags: extractFlagsFromText(text),
+      findings: blockFindings,
     });
   });
 }
@@ -528,10 +787,14 @@ function splitAndAnnotate(markdown = "") {
   const fieldBlocks = splitFieldInvestigationBlocks(leftover);
   fieldBlocks.forEach(({ fileName, body }) => {
     if (body.length <= 20) return;
-    allBlocks.push({
+    const blockFindings = (findings || []).filter(f =>
+      fileName && (f.quotes || []).some(q => normStr(q.file_name) === normStr(fileName))
+    );
+        allBlocks.push({
       text: body, fileName, pageNumber: null,
-      date: extractEarliestDate(body), type: inferDocType(body),
+      date: extractEarliestDate(body), type: inferDocType(body, fileName),
       index: idx++, abnormals: extractAbnormalsFromText(body), flags: extractFlagsFromText(body),
+      findings: blockFindings,
     });
   });
 
@@ -579,7 +842,7 @@ function applySearchHighlight(html, query, activeIdx) {
 // ─── Doc card ──────────────────────────────────────────────────────────────────
 // FIX 1: default expanded=true
 // FIX 2: auto-expand when block contains active search match
-function DocCard({ block, search, searchActiveIdx, globalSearchOffset, blockRef, onOpenSource }) {
+function DocCard({ block, search, searchActiveIdx, globalSearchOffset, blockRef, onOpenSource, findingsById }) {
     const [expanded, setExpanded] = useState(true); // FIX 1: default open
 
   // FIX 2: auto-expand if this card contains the active search hit
@@ -595,16 +858,20 @@ function DocCard({ block, search, searchActiveIdx, globalSearchOffset, blockRef,
   }, [search, searchActiveIdx, globalSearchOffset, block.text]);
 
   const renderedHtml = useMemo(() => {
-    let html = parseMarkdown(block.text);
+    const markedText = injectFindingMarkers(block.text, block.findings);
+    let html = parseMarkdown(markedText);
     html = collapseEmptyTables(html);
     html = applyAbnormalHighlights(html);
+    html = renderFindingMarkers(html, findingsById);
     html = applySearchHighlight(html, search, searchActiveIdx - globalSearchOffset);
     return html;
-  }, [block.text, search, searchActiveIdx, globalSearchOffset]);
+  }, [block.text, block.findings, findingsById, search, searchActiveIdx, globalSearchOffset]);
 
-  const critCount = block.flags.filter(f=>f.type==="critical").length;
-  const warnCount = block.flags.filter(f=>f.type==="warning").length;
-  const hasIssues = block.flags.length > 0 || block.abnormals.length > 0;
+  const findingCritCount = (block.findings || []).filter(f => f.severity === "critical").length;
+  const findingWarnCount = (block.findings || []).filter(f => f.severity === "warning").length;
+  const critCount = block.flags.filter(f=>f.type==="critical").length + findingCritCount;
+  const warnCount = block.flags.filter(f=>f.type==="warning").length + findingWarnCount;
+  const hasIssues = block.flags.length > 0 || block.abnormals.length > 0 || (block.findings||[]).length > 0;
 
   const leftBorder = (critCount>0||block.abnormals.length>0) ? T.red : warnCount>0 ? T.amber : T.borderMed;
 
@@ -651,8 +918,8 @@ function DocCard({ block, search, searchActiveIdx, globalSearchOffset, blockRef,
     title="Open this page in PDF viewer"
     style={{
       display: "inline-flex", alignItems: "center", gap: 4,
-      fontSize: 10, fontWeight: 600, color: T.textSec,
-      whiteSpace: "nowrap", padding: "2px 8px", borderRadius: 99,
+      fontSize: 9, fontWeight: 600, color: T.textSec,
+      whiteSpace: "nowrap", padding: "1px 7px", borderRadius: 99,
       background: T.bgTert, border: `0.5px solid ${T.border}`,
       cursor: onOpenSource ? "pointer" : "default",
       textDecoration: "none",
@@ -712,37 +979,68 @@ function DocCard({ block, search, searchActiveIdx, globalSearchOffset, blockRef,
               {c?"✕":"⚠"} {f.text.replace(/^\[.*?\]\s*/,"").slice(0,50)}
             </span>;
           })}
+          {(block.findings||[]).map((f,i) => {
+            const st = findingStyle(f);
+            return (
+              <span key={`fnd-${i}`} style={{
+                fontSize: 10, padding: "1px 7px", borderRadius: 99,
+                background: `color-mix(in srgb, ${st.color} 10%, var(--bg))`, color: st.color,
+                border: `0.5px solid color-mix(in srgb, ${st.color} 35%, var(--bg))`,
+                maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+              }}>
+                ⚑ {st.label}
+              </span>
+            );
+          })}
         </div>
       )}
 
       {/* Expanded content */}
       {expanded && (
         <div style={{ padding: "12px 14px", borderTop: `1px solid ${T.border}` }}>
+          {(block.findings||[]).length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
+              {block.findings.map(f => {
+                const st = findingStyle(f);
+                return (
+                  <div key={f.id} style={{
+                    display: "flex", gap: 8, alignItems: "flex-start",
+                    padding: "7px 10px", borderRadius: 6,
+                    background: `color-mix(in srgb, ${st.color} 8%, var(--bg))`,
+                    border: `0.5px solid color-mix(in srgb, ${st.color} 35%, var(--bg))`,
+                  }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: st.color, flexShrink: 0, whiteSpace: "nowrap" }}>
+                      ⚑ {st.label}
+                    </span>
+                    <span style={{ fontSize: 11, color: st.color, lineHeight: 1.5 }}>{f.explanation}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
           <AnnotatableContent html={renderedHtml} blockIndex={block.index} />
         </div>
       )}
     </div>
   );
 }
-
-// ─── Category divider — shown above the first card of each category in
-//     grouped mode so a reviewer can see where one group ends and the next
-//     begins, without changing card markup itself. ─────────────────────────
 function CategoryDivider({ category, count }) {
   return (
     <div style={{
       display: "flex", alignItems: "center", gap: 8,
-      margin: "14px 0 6px", padding: "0 2px",
+      margin: "18px 0 8px", padding: "6px 10px",
+      background: T.bgAlt, borderRadius: 5,
+      borderLeft: `3px solid ${T.accent}`,
     }}>
       <span style={{
-        fontSize: 10, fontWeight: 700, letterSpacing: "0.08em",
-        textTransform: "uppercase", color: T.textMuted, whiteSpace: "nowrap",
+        fontSize: 12, fontWeight: 700, letterSpacing: "0.06em",
+        textTransform: "uppercase", color: T.text, whiteSpace: "nowrap",
       }}>
         {CATEGORY_LABELS[category] || category}
       </span>
       <span style={{
-        fontSize: 9, color: T.textMuted, background: T.bgTert,
-        borderRadius: 99, padding: "1px 6px", flexShrink: 0,
+        fontSize: 10, fontWeight: 600, color: "#fff", background: T.accent,
+        borderRadius: 99, padding: "1px 7px", flexShrink: 0,
       }}>
         {count}
       </span>
@@ -751,125 +1049,176 @@ function CategoryDivider({ category, count }) {
   );
 }
 
-// ─── Left sidebar: timeline + issues stacked ──────────────────────────────────
-function LeftSidebar({ blocks, activeIndex, onTimelineSelect, abnormals, discFlags, abnormalIdx, onAbnormalNav }) {
-  const dated   = blocks.filter(b => b.date !== null);
-  const sorted  = [...dated].sort((a,b) => a.date - b.date);
-  const critFlags = discFlags.filter(f=>f.type==="critical");
-  const warnFlags = discFlags.filter(f=>f.type==="warning");
-  const totalIssues = abnormals.length + discFlags.length;
+// ─── Scroll-fade wrapper for IssuesPanel — shows a bottom gradient +
+//     "more below" hint whenever the list is scrollable and not yet
+//     scrolled to the end, so a capped-height panel doesn't silently
+//     hide content the way a plain overflow:auto box does. ──────────────
+function IssuesPanelScrollWrap(props) {
+  const scrollRef = useRef(null);
+  const [hasMore, setHasMore] = useState(false);
+
+  const checkOverflow = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 4;
+    setHasMore(el.scrollHeight > el.clientHeight + 4 && !atBottom);
+  }, []);
+
+  useEffect(() => {
+    checkOverflow();
+    const el = scrollRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(checkOverflow);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [checkOverflow, props.findings, props.abnormals, props.discFlags]);
 
   return (
-    <div style={{
-      width: 176, flexShrink: 0,
-      borderRight: `1px solid ${T.border}`,
-      background: T.bgAlt,
-      display: "flex", flexDirection: "column",
-      overflowY: "auto",
-    }}>
-
-      {/* ── Issues ── */}
-      <div style={{ flexShrink: 0, borderBottom: `1px solid ${T.border}` }}>
-        <div style={{ padding: "10px 12px 6px", fontSize: 9, textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 600, color: T.textMuted }}>
-          Issues
-        </div>
-
-        {totalIssues === 0 ? (
-          <div style={{ padding: "6px 12px 10px", fontSize: 11, color: T.greenText }}>
-            No issues detected
-          </div>
-        ) : (
-          <div style={{ padding: "0 10px 10px", display: "flex", flexDirection: "column", gap: 5 }}>
-            {Object.entries(
-              abnormals.reduce((acc,a)=>{ if(!acc[a.label])acc[a.label]=[];acc[a.label].push(a);return acc; },{})
-            ).map(([label,items],i) => (
-              <div
-                key={label}
-                onClick={() => onAbnormalNav(i)}
-                style={{
-                  background: T.redBg, border: `0.5px solid ${T.redBorder}`,
-                  borderRadius: 5, padding: "6px 9px",
-                  cursor: "pointer",
-                  outline: i===abnormalIdx ? `2px solid ${T.red}` : "none",
-                  outlineOffset: 1,
-                }}
-              >
-                <div style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.06em", color: T.red, marginBottom: 1 }}>{label}</div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: T.redText, lineHeight: 1.2 }}>{items[0].match}</div>
-                <div style={{ fontSize: 9, color: T.red, opacity: 0.75, marginTop: 1 }}>Normal: {items[0].normal}</div>
-              </div>
-            ))}
-
-            {[...critFlags,...warnFlags].map((f,i) => {
-              const c = f.type==="critical";
-              return (
-                <div key={i} style={{
-                  background: c?T.redBg:T.amberBg,
-                  border: `0.5px solid ${c?T.redBorder:T.amberBorder}`,
-                  borderRadius: 5, padding: "5px 8px",
-                  display: "flex", gap: 5, alignItems: "flex-start",
-                }}>
-                  <span style={{ fontSize: 9, color: c?T.redText:T.amberText, flexShrink:0, paddingTop:1 }}>{c?"✕":"⚠"}</span>
-                  <span style={{ fontSize: 10, color: c?T.redText:T.amberText, lineHeight: 1.4 }}>
-                    {f.text.replace(/^\[.*?\]\s*/,"").slice(0,70)}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        )}
+    <div style={{ position: "relative", flexShrink: 0, borderBottom: `1px solid ${T.border}` }}>
+      <div
+        ref={scrollRef}
+        onScroll={checkOverflow}
+        style={{ maxHeight: "48vh", overflowY: "auto" }}
+      >
+        <IssuesPanel {...props} />
       </div>
-
-      {/* ── Timeline ── */}
-      {sorted.length > 0 && (
-        <div style={{ flex: 1, overflowY: "auto", paddingTop: 10 }}>
-          <div style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 600, color: T.textMuted, padding: "0 12px 8px" }}>
-            Timeline
-          </div>
-          {sorted.map((block, i) => {
-            const isActive = block.index === activeIndex;
-            const hasCrit  = block.flags.some(f=>f.type==="critical")||block.abnormals.length>0;
-            const hasWarn  = block.flags.some(f=>f.type==="warning");
-            return (
-              <div key={block.index} onClick={() => onTimelineSelect(block.index)} style={{ display:"flex", cursor:"pointer" }}>
-                <div style={{ width: 26, display:"flex", flexDirection:"column", alignItems:"center", flexShrink:0 }}>
-                  <div style={{ width:1, flex: i===0?"0 0 12px":1, background: i===0?"transparent":T.border, minHeight: i===0?12:0 }} />
-                  <div style={{ width: isActive?8:6, height: isActive?8:6, borderRadius:"50%", background: isActive?T.text:hasCrit?T.red:hasWarn?T.amber:T.borderMed, border:`1.5px solid ${isActive?T.text:hasCrit?T.red:hasWarn?T.amber:T.borderMed}`, flexShrink:0, zIndex:1, transition:"all 0.15s" }} />
-                  <div style={{ width:1, flex: i===sorted.length-1?"0 0 12px":1, background: i===sorted.length-1?"transparent":T.border, minHeight: i===sorted.length-1?12:0 }} />
-                </div>
-                <div style={{ flex:1, padding:"6px 10px 6px 4px", background: isActive?T.bg:"transparent", borderLeft:`2px solid ${isActive?T.borderMed:"transparent"}` }}>
-                  <div style={{ fontSize: 10, fontWeight: 600, color: isActive?T.text:T.textSec, lineHeight:1.3, marginBottom:2 }}>{block.type.label}</div>
-                  <div style={{ fontSize: 9, color: T.textMuted, fontFamily:"monospace" }}>{fmtDate(block.date)}</div>
-                  {(hasCrit||hasWarn) && (
-                    <div style={{ marginTop:2, fontSize:9, color: hasCrit?T.redText:T.amberText }}>
-                      {hasCrit?`✕ ${block.flags.filter(f=>f.type==="critical").length+block.abnormals.length} critical`:`⚠ ${block.flags.filter(f=>f.type==="warning").length} warn`}
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-          {blocks.filter(b=>!b.date).length > 0 && (
-            <div style={{ padding:"8px 12px", fontSize:9, color:T.textMuted, borderTop:`1px solid ${T.border}`, marginTop:4 }}>
-              +{blocks.filter(b=>!b.date).length} undated
-            </div>
-          )}
+      {hasMore && (
+        <div style={{
+          position: "absolute", left: 0, right: 0, bottom: 0, height: 40,
+          background: `linear-gradient(to bottom, transparent, ${T.bgAlt} 85%)`,
+          pointerEvents: "none", display: "flex", alignItems: "flex-end", justifyContent: "center",
+        }}>
+          <span style={{
+            fontSize: 10, fontWeight: 600, color: T.textSec, background: T.bg,
+            border: `1px solid ${T.border}`, borderRadius: 99, padding: "2px 10px",
+            marginBottom: 4, boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
+          }}>
+            ▾ more issues
+          </span>
         </div>
       )}
     </div>
   );
 }
 
+// ─── Left sidebar: timeline + issues stacked ──────────────────────────────────
+// // Timeline feature removed — Issues now renders in the right column,
+// stacked above Reviewer Notes (AnnotationsSidebar), instead of as a
+// left-hand sidebar with its own dated timeline underneath.
+function IssuesPanel({ abnormals, discFlags, findings, findingsStatus, abnormalIdx, onAbnormalNav, onFindingNav }) {
+    const critFlags = discFlags.filter(f=>f.type==="critical");
+  const warnFlags = discFlags.filter(f=>f.type==="warning");
+  const totalIssues = abnormals.length + discFlags.length + (findings?.length || 0);
+
+  return (
+    <div style={{ flexShrink: 0, borderBottom: `1px solid ${T.border}`, background: T.bgAlt }}>
+      <div style={{ padding: "10px 12px 6px", fontSize: 9, textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 600, color: T.textMuted }}>
+        Issues
+      </div>
+
+      {totalIssues === 0 ? (
+        findingsStatus === "error" ? (
+          <div style={{ padding: "6px 12px 10px", fontSize: 11, color: T.redText }}>
+            ⚠ Findings check failed to run — use "Re-check flags" above to retry.
+          </div>
+        ) : (
+          <div style={{ padding: "6px 12px 10px", fontSize: 11, color: T.greenText }}>
+            No issues detected
+          </div>
+        )
+      ) : (
+        <div style={{ padding: "0 10px 10px", display: "flex", flexDirection: "column", gap: 5 }}>
+          {(findings || []).map((f) => {
+            const st = findingStyle(f);
+            const locs = (f.quotes || []).map(q => q.page_number ? `p.${q.page_number}` : q.file_name).filter(Boolean);
+            const locLabel = locs.length ? [...new Set(locs)].join(" ↔ ") : null;
+            const clickable = (f.quotes || []).length > 0;
+            return (
+              <div
+                key={f.id}
+                onClick={() => onFindingNav?.(f.id)}
+                style={{
+                  background: `color-mix(in srgb, ${st.color} 10%, var(--bg))`,
+                  border: `0.5px solid color-mix(in srgb, ${st.color} 40%, var(--bg))`,
+                  borderRadius: 5, padding: "5px 8px",
+                  cursor: clickable ? "pointer" : "default",
+                }}
+              >
+                <div style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.05em", color: st.color, marginBottom: 1 }}>
+                  ⚑ {st.label}{locLabel ? ` · ${locLabel}` : ""}
+                </div>
+                <div style={{ fontSize: 10.5, color: st.color, lineHeight: 1.35, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical" }}>
+                  {f.explanation}
+                </div>
+              </div>
+            );
+          })}
+
+          {Object.entries(
+            abnormals.reduce((acc,a)=>{ if(!acc[a.label])acc[a.label]=[];acc[a.label].push(a);return acc; },{})
+          ).map(([label,items],i) => (
+            <div
+              key={label}
+              onClick={() => onAbnormalNav(i)}
+              style={{
+                background: T.redBg, border: `0.5px solid ${T.redBorder}`,
+                borderRadius: 5, padding: "6px 9px",
+                cursor: "pointer",
+                outline: i===abnormalIdx ? `2px solid ${T.red}` : "none",
+                outlineOffset: 1,
+              }}
+            >
+              <div style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.06em", color: T.red, marginBottom: 1 }}>{label}</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: T.redText, lineHeight: 1.2 }}>{items[0].match}</div>
+              <div style={{ fontSize: 9, color: T.red, opacity: 0.75, marginTop: 1 }}>Normal: {items[0].normal}</div>
+            </div>
+          ))}
+
+          {[...critFlags,...warnFlags].map((f,i) => {
+            const c = f.type==="critical";
+            return (
+              <div key={i} style={{
+                background: c?T.redBg:T.amberBg,
+                border: `0.5px solid ${c?T.redBorder:T.amberBorder}`,
+                borderRadius: 5, padding: "5px 8px",
+                display: "flex", gap: 5, alignItems: "flex-start",
+              }}>
+                <span style={{ fontSize: 9, color: c?T.redText:T.amberText, flexShrink:0, paddingTop:1 }}>{c?"✕":"⚠"}</span>
+                <span style={{ fontSize: 10, color: c?T.redText:T.amberText, lineHeight: 1.4 }}>
+                  {f.text.replace(/^\[.*?\]\s*/,"").slice(0,70)}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 // ─── Main ──────────────────────────────────────────────────────────────────────
-export default function RawDocument({ markdown, pass1, externalAnnotationContext, onOpenSource, topContent }) {
-      const [search, setSearch]           = useState("");
+export default function RawDocument({ markdown, pass1, externalAnnotationContext, onOpenSource, topContent, findings, findingsStatus, findingsError, onRegenerateFindings }) {
+        const [search, setSearch]           = useState("");
+  const [regenLoading, setRegenLoading] = useState(false);
+  const [regenError, setRegenError]     = useState(null);
+  const handleRegenerateFindings = useCallback(async () => {
+    if (!onRegenerateFindings || regenLoading) return;
+    setRegenLoading(true);
+    setRegenError(null);
+    try {
+      await onRegenerateFindings();
+    } catch (e) {
+      setRegenError(e?.message || "Failed to re-run findings.");
+    } finally {
+      setRegenLoading(false);
+    }
+  }, [onRegenerateFindings, regenLoading]);
   const [searchIdx, setSearchIdx]     = useState(0);
   const [abnormalIdx, setAbnormalIdx] = useState(0);
+  const [activeFindingId, setActiveFindingId] = useState(null);
   const [activeMode, setActiveMode]   = useState(null);
-  // Default sort mode is now the grouped clinical-priority view
-  // (Member visit → Hospital visit/ICP → Identity & Policy → Bills/Registers → Other),
-  // replacing the previous raw "original" document order.
-const [sortOrder, setSortOrder] = useState("original"); // was "grouped"
+  // Default sort mode is the grouped clinical-priority view
+  // (Member visit → Hospital visit/ICP → Identity & Policy → Bills/Registers → Other).
+const [sortOrder, setSortOrder] = useState("grouped");
   const [activeBlockIndex, setActiveBlockIndex] = useState(null);
   const [fontScale, setFontScale] = useState(1); // 1 = 100%
 const FONT_STEP = 0.1, FONT_MIN = 0.7, FONT_MAX = 1.5;
@@ -884,7 +1233,13 @@ const increaseFont = useCallback(() => {
   // FIX 3: track a scroll "trigger" counter so scrolling fires even when searchIdx stays 0
   const scrollTrigger = useRef(0);
 
-  const blocks = useMemo(() => splitAndAnnotate(markdown || ""), [markdown]);
+  const blocks = useMemo(() => splitAndAnnotate(markdown || "", findings || []), [markdown, findings]);
+
+  const findingsById = useMemo(() => {
+    const map = {};
+    for (const f of (findings || [])) map[f.id] = f;
+    return map;
+  }, [findings]);
 
   const sortedBlocks = useMemo(() => {
   if (sortOrder === "original") {
@@ -946,10 +1301,23 @@ const increaseFont = useCallback(() => {
     const target = marks[abnormalIdx];
     if(target){
       target.scrollIntoView({behavior:"smooth",block:"center"});
-      target.style.outline="2px solid #e24b4a"; target.style.outlineOffset="2px";
+      target.style.outline="2px solid var(--red)"; target.style.outlineOffset="2px";
       setTimeout(()=>{target.style.outline="";target.style.outlineOffset="";},1200);
     }
   }, [abnormalIdx, activeMode]);
+
+  // ── Finding nav: scroll to & flash the matching <mark data-finding-id> ──
+  useEffect(() => {
+    if (activeMode !== "finding" || !activeFindingId) return;
+    const target = containerRef.current?.querySelector(`[data-finding-id="${activeFindingId}"]`);
+    if (target) {
+      target.scrollIntoView({ behavior: "smooth", block: "center" });
+      const prevOutline = target.style.outline, prevOffset = target.style.outlineOffset;
+      target.style.outline = "2px solid var(--red)";
+      target.style.outlineOffset = "2px";
+      setTimeout(() => { target.style.outline = prevOutline; target.style.outlineOffset = prevOffset; }, 1200);
+    }
+  }, [activeFindingId, activeMode]);
 
   const goSearch = useCallback((dir) => {
     setActiveMode("search");
@@ -974,41 +1342,62 @@ const increaseFont = useCallback(() => {
     <>
       <style>{`
         .raw-doc-wrap table{width:100%;border-collapse:collapse;margin:10px 0;font-size:11px}
-        .raw-doc-wrap th{background:#f3f2ef;text-align:left;padding:5px 8px;border:0.5px solid rgba(0,0,0,0.10);font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:#444441}
-        .raw-doc-wrap td{padding:4px 8px;border:0.5px solid rgba(0,0,0,0.10);vertical-align:top}
-        .raw-doc-wrap tr:nth-child(even) td{background:#f9f9f8}
+        .raw-doc-wrap th{background:var(--bg2, var(--bg3, #f3f2ef));text-align:left;padding:5px 8px;border:0.5px solid var(--border);font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted)}
+        .raw-doc-wrap td{padding:4px 8px;border:0.5px solid var(--border);vertical-align:top}
+        .raw-doc-wrap tr:nth-child(even) td{background:var(--bg3, #f9f9f8)}
         [data-ann-highlight]{cursor:pointer;transition:filter 0.15s}
         [data-ann-highlight]:hover{filter:brightness(0.94)}
-        .raw-doc-wrap h1{font-size:13px;font-weight:600;margin:16px 0 4px;color:#111;padding-bottom:4px;border-bottom:0.5px solid rgba(0,0,0,0.10)}
-        .raw-doc-wrap h2{font-size:12px;font-weight:600;margin:12px 0 4px;color:#333}
-        .raw-doc-wrap h3{font-size:11px;font-weight:600;margin:10px 0 3px;color:#444}
-        .raw-doc-wrap strong{font-weight:600;color:#111}
-        .raw-doc-wrap code{font-family:monospace;font-size:10px;background:#f3f2ef;padding:1px 3px;border-radius:3px}
-        .raw-doc-wrap hr{border:none;border-top:0.5px solid rgba(0,0,0,0.10);margin:10px 0}
+        .raw-doc-wrap h1{font-size:13px;font-weight:600;margin:16px 0 4px;color:var(--text);padding-bottom:4px;border-bottom:0.5px solid var(--border)}
+        .raw-doc-wrap h2{font-size:12px;font-weight:600;margin:12px 0 4px;color:var(--text)}
+        .raw-doc-wrap h3{font-size:11px;font-weight:600;margin:10px 0 3px;color:var(--text)}
+        .raw-doc-wrap strong{font-weight:600;color:var(--text)}
+        .raw-doc-wrap code{font-family:monospace;font-size:10px;background:var(--bg2, var(--bg3, #f3f2ef));padding:1px 3px;border-radius:3px}
+        .raw-doc-wrap hr{border:none;border-top:0.5px solid var(--border);margin:10px 0}
         .raw-doc-wrap li{margin:2px 0 2px 16px;line-height:1.6}
-        .raw-doc-wrap .kv-row{display:grid;grid-template-columns:160px 1fr;gap:4px 10px;padding:4px 0;border-bottom:0.5px solid rgba(0,0,0,0.06);align-items:baseline}
-        .raw-doc-wrap .pill-yes{display:inline-block;padding:1px 8px;border-radius:99px;background:#eaf3de;color:#27500a;border:0.5px solid #c0dd97;font-size:10px;font-weight:700}
+        .raw-doc-wrap .kv-row{display:grid;grid-template-columns:160px 1fr;gap:4px 10px;padding:4px 0;border-bottom:0.5px solid var(--border);align-items:baseline}
+        .raw-doc-wrap .pill-yes{display:inline-block;padding:1px 8px;border-radius:99px;background:color-mix(in srgb, var(--green) 14%, var(--bg));color:var(--green);border:0.5px solid color-mix(in srgb, var(--green) 40%, var(--bg));font-size:10px;font-weight:700}
         .raw-doc-wrap .kv-row:last-child{border-bottom:none}
         .raw-doc-wrap .kv-sub{grid-template-columns:140px 1fr;padding-left:14px;opacity:0.85}
         .raw-doc-wrap .kv-plain{padding:3px 0}
-        .raw-doc-wrap .kv-key{font-size:10px;font-weight:600;color:#666660;line-height:1.5}
-        .raw-doc-wrap .kv-val{font-size:11px;color:#111;line-height:1.6}
-        .raw-doc-wrap .kv-empty{color:#bbb;font-style:italic}
-        .raw-doc-wrap .pill-no{display:inline-block;padding:1px 8px;border-radius:99px;background:#fcebeb;color:#791f1f;border:0.5px solid #f7c1c1;font-size:10px;font-weight:700}
-.raw-doc-wrap .pill-neutral{display:inline-block;padding:1px 8px;border-radius:99px;background:#f3f2ef;color:#666660;border:0.5px solid rgba(0,0,0,0.15);font-size:10px;font-weight:700}
+        .raw-doc-wrap .kv-key{font-size:10px;font-weight:600;color:var(--muted);line-height:1.5}
+        .raw-doc-wrap .kv-val{font-size:11px;color:var(--text);line-height:1.6}
+        .raw-doc-wrap .kv-empty{color:var(--muted);font-style:italic}
+        .raw-doc-wrap .pill-no{display:inline-block;padding:1px 8px;border-radius:99px;background:color-mix(in srgb, var(--red) 14%, var(--bg));color:var(--red);border:0.5px solid color-mix(in srgb, var(--red) 40%, var(--bg));font-size:10px;font-weight:700}
+.raw-doc-wrap .pill-neutral{display:inline-block;padding:1px 8px;border-radius:99px;background:var(--bg2, var(--bg3, #f3f2ef));color:var(--muted);border:0.5px solid var(--border);font-size:10px;font-weight:700}
 .raw-doc-wrap .kv-d2{padding-left:28px;opacity:0.8}
 .raw-doc-wrap .kv-d3{padding-left:42px;opacity:0.75}
 .raw-doc-wrap .kv-d4{padding-left:56px;opacity:0.7}
-        .raw-doc-wrap .pill-selected{display:inline-block;padding:1px 8px;border-radius:99px;background:#e6f1fb;color:#0c447c;border:0.5px solid #b5d4f4;font-size:10px;font-weight:600}
-        .raw-doc-wrap .pill-unselected{display:inline-block;padding:1px 7px;border-radius:99px;background:#f9f9f8;color:#bbb;border:0.5px solid rgba(0,0,0,0.08);font-size:10px;text-decoration:line-through}
-        .raw-doc-wrap .pill-blank{color:#bbb;font-size:11px}
-        .empty-table-badge{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;margin:8px 0;border-radius:6px;background:#f3f2ef;border:0.5px solid rgba(0,0,0,0.10);font-size:11px;color:#888780}
-        .sparse-table-badge{display:flex;align-items:center;gap:6px;padding:6px 12px;margin:8px 0;border-radius:6px;background:#fffbeb;border:0.5px solid #fac775;font-size:11px;color:#633806}
+        .raw-doc-wrap .pill-selected{display:inline-block;padding:1px 8px;border-radius:99px;background:color-mix(in srgb, var(--blue) 14%, var(--bg));color:var(--blue);border:0.5px solid color-mix(in srgb, var(--blue) 40%, var(--bg));font-size:10px;font-weight:600}
+        .raw-doc-wrap .pill-unselected{display:inline-block;padding:1px 7px;border-radius:99px;background:var(--bg3, #f9f9f8);color:var(--muted);border:0.5px solid var(--border);font-size:10px;text-decoration:line-through}
+        .raw-doc-wrap .pill-blank{color:var(--muted);font-size:11px}
+        .raw-doc-wrap .bill-table-wrap{margin:10px 0}
+        .raw-doc-wrap .bill-table-label{font-size:9.5px;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:4px;font-weight:600}
+        .raw-doc-wrap table.bill-table{width:100%;border-collapse:collapse;font-size:11px}
+        .raw-doc-wrap table.bill-table th{background:var(--bg2, var(--bg3, #f3f2ef));padding:4px 8px;text-align:left;font-size:9.5px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);border:0.5px solid var(--border)}
+        .raw-doc-wrap table.bill-table td{padding:3px 8px;border:0.5px solid var(--border)}
+        .raw-doc-wrap table.bill-table tr:nth-child(even) td{background:var(--bg3, #f9f9f8)}
+        .raw-doc-wrap table.med-table td{font-size:10.5px}
+        .raw-doc-wrap .episode-header{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:12px 0 6px;padding:7px 12px;border-radius:6px;background:color-mix(in srgb, var(--blue) 9%, var(--bg));border-left:3px solid var(--blue)}
+        .raw-doc-wrap .ep-badge{font-size:9.5px;font-weight:700;padding:2px 8px;border-radius:99px;background:var(--blue);color:#fff;letter-spacing:0.04em;white-space:nowrap}
+        .raw-doc-wrap .ep-hospital{font-size:12px;font-weight:600;color:var(--text);flex:1;min-width:120px}
+        .raw-doc-wrap .ep-dates{font-size:10.5px;color:var(--muted);white-space:nowrap}
+        .raw-doc-wrap .ep-outcome{font-size:9.5px;font-weight:700;padding:2px 9px;border-radius:99px;text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap}
+        .raw-doc-wrap .ep-outcome-green{background:color-mix(in srgb, var(--green) 14%, var(--bg));color:var(--green)}
+        .raw-doc-wrap .ep-outcome-red{background:color-mix(in srgb, var(--red) 14%, var(--bg));color:var(--red)}
+        .raw-doc-wrap .ep-outcome-amber{background:color-mix(in srgb, var(--amber) 14%, var(--bg));color:var(--amber)}
+        .raw-doc-wrap .ep-outcome-blue{background:color-mix(in srgb, var(--blue) 14%, var(--bg));color:var(--blue)}
+        .raw-doc-wrap .ep-outcome-neutral{background:var(--bg2, var(--bg3, #f3f2ef));color:var(--muted)}        .empty-table-badge        .sparse-table-details{margin:8px 0;border-radius:6px;overflow:hidden;border:0.5px solid color-mix(in srgb, var(--amber) 45%, var(--bg))}
+        .sparse-table-summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px;padding:6px 12px;background:color-mix(in srgb, var(--amber) 10%, var(--bg));font-size:11px;color:var(--amber)}
+        .sparse-table-summary::-webkit-details-marker{display:none}
+        .sparse-table-details[open] .sparse-table-summary{border-bottom:0.5px solid color-mix(in srgb, var(--amber) 45%, var(--bg))}
+        .sparse-table-details table{margin:0}
         .sparse-preview{font-family:monospace;font-size:10px;opacity:0.8;margin-left:2px}
         .eti{font-size:13px;opacity:0.45}
-        mark.abnormal{background:#fcebeb;color:#791f1f;border-bottom:2px solid #e24b4a;border-radius:2px;padding:0 2px;font-weight:600}
-        mark.search-hit{background:#faeeda;color:#633806;border-radius:2px;padding:0 1px}
-        mark.search-active{background:#ef9f27;color:#fff;border-radius:2px;padding:0 1px}
+        mark.abnormal{background:color-mix(in srgb, var(--red) 14%, var(--bg));color:var(--red);border-bottom:2px solid var(--red);border-radius:2px;padding:0 2px;font-weight:600}
+        mark.finding-mark{cursor:pointer;transition:filter 0.15s}
+        mark.finding-mark:hover{filter:brightness(0.92)}
+        mark.search-hit{background:color-mix(in srgb, var(--amber) 18%, var(--bg));color:var(--amber);border-radius:2px;padding:0 1px}
+        mark.search-active{background:var(--amber);color:#fff;border-radius:2px;padding:0 1px}
         @keyframes spin{to{transform:rotate(360deg)}}
       `}</style>
 
@@ -1035,7 +1424,7 @@ const increaseFont = useCallback(() => {
         fontSize:12, fontFamily:"inherit", color:T.text, background:T.bgAlt,
         outline:"none", boxSizing:"border-box",
       }}
-      onFocus={e=>e.target.style.borderColor="#888"}
+      onFocus={e=>e.target.style.borderColor="var(--muted)"}
       onBlur={e=>e.target.style.borderColor=T.border}
     />
   </div>
@@ -1062,25 +1451,38 @@ const increaseFont = useCallback(() => {
     <option value="desc">Newest</option>
   </select>
 
+  {onRegenerateFindings && (
+    <button
+      onClick={handleRegenerateFindings}
+      disabled={regenLoading}
+      title="Re-run suspicious-finding detection over the documents already uploaded for this case"
+      style={{
+        display:"flex", alignItems:"center", gap:5,
+        padding:"4px 10px", border:`1px solid ${T.border}`, borderRadius:20,
+        background:T.bg, color:T.textSec, fontSize:11, fontWeight:600,
+        cursor: regenLoading ? "default" : "pointer", whiteSpace:"nowrap",
+      }}
+    >
+      <span style={{ display:"inline-block", animation: regenLoading ? "spin 0.8s linear infinite" : "none" }}>↻</span>
+      {regenLoading ? "Checking…" : "Re-check flags"}
+    </button>
+  )}
+  {regenError && (
+    <span style={{ fontSize:10, color:T.red }} title={regenError}>⚠ retry failed</span>
+  )}
+  {!regenError && findingsStatus === "error" && (
+    <span style={{ fontSize:10, color:T.red }} title={findingsError || "Findings generation failed on last run"}>
+      ⚠ last findings check failed
+    </span>
+  )}
   <div style={{ display:"flex", alignItems:"center", gap:2, flexShrink:0 }}>
     <button onClick={decreaseFont} disabled={fontScale<=FONT_MIN} title="Decrease font size" style={navBtnStyle(false)}>A−</button>
     <span style={{ fontSize:10, color:T.textMuted, minWidth:32, textAlign:"center" }}>{Math.round(fontScale*100)}%</span>
     <button onClick={increaseFont} disabled={fontScale>=FONT_MAX} title="Increase font size" style={navBtnStyle(false)}>A+</button>
   </div>
 </div>
-
       {/* ── Body ───────────────────────────────────────────────────── */}
       <div style={{ display:"flex", flex:1, minHeight:0, overflow:"hidden" }}>
-        <LeftSidebar
-          blocks={blocks}
-          activeIndex={activeBlockIndex}
-          onTimelineSelect={handleTimelineSelect}
-          abnormals={abnormals}
-          discFlags={discFlags}
-          abnormalIdx={abnormalIdx}
-          onAbnormalNav={(i) => { setAbnormalIdx(i); setActiveMode("abnormal"); goAbnormal(0); }}
-        />
-
 <div ref={containerRef} className="raw-doc-wrap" style={{ flex:1, overflowY:"auto", padding:"10px 12px", minWidth:0, zoom: fontScale }}>
               {topContent && (
     <div style={{ marginBottom: 12, borderBottom: `1px solid ${T.border}`, paddingBottom: 12 }}>
@@ -1114,6 +1516,7 @@ const increaseFont = useCallback(() => {
   globalSearchOffset={offset}
   blockRef={el=>{ blockRefs.current[block.index]=el; }}
   onOpenSource={onOpenSource}
+  findingsById={findingsById}
 />
                 </React.Fragment>
               );
@@ -1122,14 +1525,30 @@ const increaseFont = useCallback(() => {
           <div style={{ height:40 }} />
         </div>
 
-        <AnnotationsSidebar
-  docLabels={Object.fromEntries(
-    sortedBlocks.map(b => [
-      b.index,
-      b.pageRange ? `${b.type.label} (${b.pageRange})` : b.type.label,
-    ])
-  )}
-/>
+        {/* Right column: Issues on top, Reviewer Notes underneath — the
+            left "Documents"-panel timeline sidebar is gone; Issues moved
+            here instead. */}
+        <div style={{ display: "flex", flexDirection: "column", width: 320, flexShrink: 0, borderLeft: `1px solid ${T.border}`, overflow: "hidden" }}>
+          <IssuesPanelScrollWrap
+            abnormals={abnormals}
+            discFlags={discFlags}
+            findings={findings || []}
+            findingsStatus={findingsStatus}
+            abnormalIdx={abnormalIdx}
+            onAbnormalNav={(i) => { setAbnormalIdx(i); setActiveMode("abnormal"); goAbnormal(0); }}
+            onFindingNav={(id) => { setActiveFindingId(id); setActiveMode("finding"); }}
+          />
+          <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
+            <AnnotationsSidebar
+              docLabels={Object.fromEntries(
+                sortedBlocks.map(b => [
+                  b.index,
+                  b.pageRange ? `${b.type.label} (${b.pageRange})` : b.type.label,
+                ])
+              )}
+            />
+          </div>
+        </div>
       </div>
     </>
   );
@@ -1151,9 +1570,9 @@ const increaseFont = useCallback(() => {
 function navBtnStyle(danger) {
   return {
     width:24, height:24,
-    border:`1px solid ${danger?"#f7c1c1":"rgba(0,0,0,0.09)"}`,
-    background: danger?"#fcebeb":"#fff",
-    color: danger?"#791f1f":"#555550",
+    border:`1px solid ${danger?"color-mix(in srgb, var(--red) 35%, var(--bg))":"var(--border)"}`,
+    background: danger?"color-mix(in srgb, var(--red) 10%, var(--bg))":"var(--bg)",
+    color: danger?"var(--red)":"var(--muted)",
     borderRadius:4, cursor:"pointer", fontSize:10,
     display:"flex", alignItems:"center", justifyContent:"center",
   };

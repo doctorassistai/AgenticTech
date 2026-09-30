@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Cholamandalam MS General Insurance - Reimbursement Investigation Report</title>
+<style>
+  @page { size: A4; margin: 15mm 15mm; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: Arial, sans-serif; font-size: 10px; color: #000; background: #fff; }
+  .page { width: 180mm; margin: 0 auto; }
+
+  .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .header-logo { height: 46px; object-fit: contain; }
+
+  .date-line { margin-bottom: 10px; font-weight: bold; }
+  .addressee { margin-bottom: 12px; font-weight: bold; line-height: 1.5; }
+
+  .section-title { font-weight: bold; text-decoration: underline; margin: 12px 0 4px; font-size: 10.5px; }
+
+  table { width: 100%; border-collapse: collapse; margin-bottom: 8px; table-layout: fixed; }
+  td, th { border: 1px solid #000; padding: 4px 6px; vertical-align: top; font-size: 10px; word-wrap: break-word; }
+  .lbl { font-weight: bold; width: 42%; }
+  .val { width: 58%; }
+  .sec-hdr td { font-weight: bold; background: #f0f0f0; }
+
+  ul.remarks-list { margin-left: 16px; margin-bottom: 6px; }
+  ul.remarks-list li { margin-bottom: 3px; }
+
+  .boilerplate { font-weight: bold; margin: 10px 0; font-size: 10px; }
+  .closing { margin-top: 10px; margin-bottom: 4px; }
+
+  .enclosures ol { margin-left: 16px; }
+  .enclosures ol li { margin-bottom: 2px; }
+
+  .stamp-area { margin-top: 18px; display: flex; align-items: flex-end; gap: 20px; }
+  .stamp-img { width: 85px; height: 85px; object-fit: contain; }
+
+  .page-break { page-break-before: always; margin-top: 16px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+{% set od  = case.get('optimusDetails') or {} %}
+{% set cr  = case.get('cholaReimbursement') or {} %}
+{% set pd  = case.get('policyDetails') or {} %}
+
+<!-- HEADER -->
+<div class="header">
+  {% if header_image %}<img src="{{ header_image }}" class="header-logo" alt="Chola MS Logo">{% endif %}
+</div>
+
+<div class="date-line">Date: {{ case.reportDate or '' }}</div>
+
+<div class="addressee">
+  To,<br>
+  Cholamandalam MS General Insurance Company Ltd<br>
+  New No. 319, Old No.154, Shaw Wallace Building, 2nd Floor,<br>
+  ThambuChetty Street, Chennai - 600001
+</div>
+
+<!-- PRESENT CLAIM DETAILS -->
+<div class="section-title">Present Claim Details:-</div>
+<table>
+  <tr><td class="lbl">Name Of The Insured</td><td class="val">{{ case.claimantName or '' }}</td></tr>
+  <tr><td class="lbl">Our Ref. No.</td><td class="val">{{ case.caseId or '' }}</td></tr>
+  <tr><td class="lbl">Your Ref No</td><td class="val">{{ case.insurerRef or '' }}</td></tr>
+  <tr><td class="lbl">Policy Inception Date</td><td class="val">{{ pd.get('inceptionDate','') }}</td></tr>
+  <tr><td class="lbl">Type of Claim</td><td class="val">Reimbursement</td></tr>
+  <tr><td class="lbl">Hospital Name</td><td class="val">{{ hospital.name or '' }}</td></tr>
+  <tr><td class="lbl">Location</td><td class="val">{{ hospital.city or '' }}</td></tr>
+  <tr><td class="lbl">Claim Amount</td><td class="val">{{ case.claimedAmount or '' }}</td></tr>
+  <tr><td class="lbl">TAT</td><td class="val">{{ facts.investigation_tat or '' }} days</td></tr>
+  <tr><td class="lbl">Cholamandalam Triggers</td><td class="val">{{ case.claimTriggers or '' }}</td></tr>
+</table>
+
+<!-- INSURED & RELATED DETAILS -->
+<table>
+  <tr class="sec-hdr"><td colspan="2">INSURED &amp; RELATED DETAILS</td></tr>
+  <tr><td class="lbl">Name of the Proposer</td><td class="val">{{ case.policyHolderName or '' }}</td></tr>
+  <tr><td class="lbl">Name of the Patient (Insured)</td><td class="val">{{ case.claimantName or '' }}</td></tr>
+  <tr>
+    <td class="lbl">Residential address of the Insured/Patient including contact numbers</td>
+    <td class="val">{{ case.claimantAddress or '' }}{% if case.claimantMobile %} &mdash; {{ case.claimantMobile }}{% endif %}</td>
+  </tr>
+  <tr><td class="lbl">What is the occupation of the insured?</td><td class="val">{{ od.get('occupation','') }}</td></tr>
+  <tr><td class="lbl">In Doubtful cases - How far is the insured's residence from hospital?</td><td class="val">{{ od.get('residenceFromHospital','') }}</td></tr>
+  <tr><td class="lbl">In Doubtful cases - Reason for selecting this particular hospital</td><td class="val">{{ od.get('reasonForHospitalSelection','') }}</td></tr>
+  <tr><td class="lbl">In Doubtful cases - Are there any other good hospitals in between the insured's residence and the present hospital where he was admitted?</td><td class="val">{{ od.get('otherHospitalsInBetween','') }}</td></tr>
+  <tr><td class="lbl">Details of Family Physician / First Consulting Doctor</td><td class="val">{{ case.familyDoctor or '' }}</td></tr>
+  <tr><td class="lbl">Apart from this existing policy, how many other policies does the insured have (with us and with other insurers)</td><td class="val">{{ od.get('otherPolicies','') }}</td></tr>
+  <tr><td class="lbl">Details of earlier claims availed from us and importantly from Other insurers?</td><td class="val">{{ od.get('earlierClaims','') }}</td></tr>
+</table>
+
+<!-- HOSPITAL & DOCTOR RELATED -->
+<table>
+  <tr class="sec-hdr"><td colspan="2">HOSPITAL &amp; DOCTOR RELATED</td></tr>
+  <tr><td class="lbl">How many in-patient beds does this hospital have?</td><td class="val">{{ hospital.beds or '' }}</td></tr>
+  <tr><td class="lbl">Hospital Registration Number</td><td class="val">{{ hospital.registrationNumber or '' }}</td></tr>
+  <tr><td class="lbl">Is the hospital having Operation theatre, attached Pathology lab, attached Medical Store and other basic facilities?</td><td class="val">{{ od.get('basicFacilities','') }}</td></tr>
+  <tr><td class="lbl">Qualification of the Doctor</td><td class="val">{{ od.get('doctorQualification','') }}</td></tr>
+  <tr><td class="lbl">Number of RMO's / Doctors &amp; Nurses</td><td class="val">{{ cr.get('staffCount','') }}</td></tr>
+  <tr><td class="lbl">The different room rent tariff options available</td><td class="val">{{ od.get('roomRentTariff','') }}</td></tr>
+</table>
+
+<!-- FOR DISEASE RELATED CLAIMS -->
+<table>
+  <tr class="sec-hdr"><td colspan="2">FOR DISEASE RELATED CLAIMS</td></tr>
+  <tr><td class="lbl">What were the main symptoms for which the patient was admitted?</td><td class="val">{{ critical.diagnosis or '' }}</td></tr>
+  <tr>
+    <td class="lbl">Dates of hospitalization</td>
+    <td class="val">{{ hospital.admissionDate or '' }}{% if hospital.dischargeDate %} to {{ hospital.dischargeDate }}{% endif %}</td>
+  </tr>
+  <tr><td class="lbl">In case of any surgery done, Scar mark verification</td><td class="val">{{ od.get('scarMarkVerification','') }}</td></tr>
+  <tr><td class="lbl">Was the Line of Treatment (Medical / Surgical) in order and correlating with the diagnosis?</td><td class="val">{{ od.get('lineOfTreatmentInOrder','') }}</td></tr>
+  <tr><td class="lbl">Name of Surgeon &amp; Anaesthetist</td><td class="val">{{ od.get('surgeonAnesthetist','') }}</td></tr>
+  <tr><td class="lbl">Type of Anaesthesia given</td><td class="val">{{ cr.get('anaesthesiaType','') }}</td></tr>
+  <tr><td class="lbl">Is the stay justified or prolonged? If prolonged the reason for the same</td><td class="val">{{ od.get('stayJustified','') }}</td></tr>
+  <tr><td class="lbl">Medical / Surgical History with Duration</td><td class="val">{{ additional.pastMedicalHistory or '' }}</td></tr>
+  <tr><td class="lbl">Any Previous History of similar complaints?</td><td class="val">{{ od.get('previousHistory','') }}</td></tr>
+  <tr><td class="lbl">Attending Doctors opinion about the duration of the present ailment.</td><td class="val">{{ cr.get('doctorOpinionDuration','') }}</td></tr>
+  <tr><td class="lbl">Are the Diagnostic tests done in line with diagnosis?</td><td class="val">{{ od.get('diagnosticTestsInLine','') }}</td></tr>
+</table>
+
+<!-- ACCIDENT RELATED CLAIMS -->
+<table>
+  <tr class="sec-hdr"><td colspan="2">ACCIDENT RELATED CLAIMS</td></tr>
+  <tr><td class="lbl">Exact Date and time of Accident / Injury</td><td class="val">{{ accident.dateTime or '' }}</td></tr>
+  <tr><td class="lbl">Detailed narration of how the incident/injury happened</td><td class="val">{{ accident.narration or '' }}</td></tr>
+  <tr><td class="lbl">Is the insured holding any PA Policy with us or with any other insurers?</td><td class="val">{{ od.get('paPolicyDetails','') }}</td></tr>
+  <tr><td class="lbl">FIR/MLC done or not?</td><td class="val">{{ accident.firNumber or '' }}</td></tr>
+  <tr><td class="lbl">Scar Mark Verification</td><td class="val">{{ od.get('accidentScarMark','') }}</td></tr>
+  <tr><td class="lbl">Any alcoholism factor noted</td><td class="val">{{ od.get('alcoholismFactor','') }}</td></tr>
+  <tr><td class="lbl">Accident / Assault / Suicidal Attempt?</td><td class="val">{{ od.get('accidentType','') }}</td></tr>
+  <tr><td class="lbl">Whether stay justified or prolonged with reasons</td><td class="val">{{ cr.get('accidentStayJustified','') }}</td></tr>
+  <tr><td class="lbl">Attending Doctors opinion about the cause of injury and whether alcoholism was involved.</td><td class="val">{{ cr.get('doctorOpinionInjuryCause','') }}</td></tr>
+</table>
+
+<!-- VERIFICATION FROM HOSPITAL -->
+<div class="section-title">Verification from Hospital:-</div>
+<table>
+  <tr><td class="lbl">Indoor Register Verified for Insured's Entry</td><td class="val">{{ od.get('indoorRegisterVerified','') }}</td></tr>
+  <tr><td class="lbl">Any overwriting in dates</td><td class="val">{{ od.get('overwrittenInDates','') }}</td></tr>
+  <tr><td class="lbl">IPD papers seems to written in Single Stretch</td><td class="val">{{ od.get('ipdSingleStretch','') }}</td></tr>
+  <tr><td class="lbl">Inflation in Hospital bills</td><td class="val">{{ od.get('medicalStoreInflation','') }}</td></tr>
+</table>
+
+<!-- VERIFICATION FROM MEDICAL STORE -->
+<div class="section-title">Verification from Medical Store:-</div>
+<table>
+  <tr><td class="lbl">All Medical Bills Verified</td><td class="val">{{ cr.get('allMedicalBillsVerified','') }}</td></tr>
+  <tr><td class="lbl">All Medicine Mentioned in IPD papers matches with Medical Bills</td><td class="val">{{ od.get('medicineMatchBills','') }}</td></tr>
+  <tr><td class="lbl">Any Inflation of Bills</td><td class="val">{{ cr.get('medicalStoreBillInflation','') }}</td></tr>
+</table>
+
+<!-- VERIFICATION FROM PATHOLOGY LAB -->
+<div class="section-title">Verification from Pathology Lab:-</div>
+<table>
+  <tr><td class="lbl">All Investigation Reports Verified</td><td class="val">{{ cr.get('allInvestigationReportsVerified','') }}</td></tr>
+  <tr><td class="lbl">Lab register Verified</td><td class="val">{{ od.get('labRegisterVerified','') }}</td></tr>
+  <tr><td class="lbl">All Investigation reports done matches with Report mentioned on IPD papers</td><td class="val">{{ cr.get('reportsMatchIpd','') }}</td></tr>
+  <tr><td class="lbl">Any Inflation of Bills</td><td class="val">{{ od.get('labInflation','') }}</td></tr>
+</table>
+
+<!-- PAGE 2 -->
+<div class="page-break"></div>
+
+<!-- HI OBSERVATIONS -->
+<div class="section-title">HI Observations &ndash; As per the Triggers given &amp; survey done:-</div>
+<table>
+  <tr><td class="lbl">Duration of DM / HTN / Any other disease</td><td class="val">{{ cr.get('durationOfDisease','') }}</td></tr>
+  <tr><td class="lbl">Genuinity of Claim - Verification</td><td class="val">{{ cr.get('genuinityVerification','') }}</td></tr>
+  <tr><td class="lbl">Treating Doctor Qualification</td><td class="val">{{ od.get('doctorQualification','') }}</td></tr>
+  <tr><td class="lbl">Hospital norms</td><td class="val">{{ cr.get('hospitalNorms','') }}</td></tr>
+  <tr><td class="lbl">Inflation of bills</td><td class="val">{{ cr.get('billsInflation','') }}</td></tr>
+  <tr><td class="lbl">Verification of Medical Store Bill</td><td class="val">{{ cr.get('medicalStoreBillVerification','') }}</td></tr>
+  <tr><td class="lbl">Scar Mark Verification</td><td class="val">{{ cr.get('hiScarMarkVerification','') }}</td></tr>
+</table>
+
+<!-- REMARKS -->
+<div class="section-title">Remarks:-</div>
+
+<div style="font-weight:bold; text-decoration:underline; margin-bottom:4px;">Hospital Part</div>
+<ul class="remarks-list">
+  <li>Our FO visited hospital and verified ICP and took photographs.</li>
+  <li>{{ od.get('visitToHospital','') }}</li>
+</ul>
+
+<div style="font-weight:bold; text-decoration:underline; margin-bottom:4px;">Member Part</div>
+<ul class="remarks-list">
+  <li>Our FO visited member and done verification.</li>
+  <li>{{ od.get('visitToMember','') }}</li>
+</ul>
+
+<div class="boilerplate">The report is being issued strictly Without Prejudice, Strictly Confidential and strictly for purpose of Insurance Company's claims settlement process only.</div>
+
+<div class="closing">Thanking you,</div>
+<div class="closing">Yours truly,</div>
+<div class="closing">{{ investigation.investigatorName or '' }}</div>
+
+<!-- ENCLOSURES -->
+<div class="section-title">Enclosures:-</div>
+<div class="enclosures">
+  <div style="margin-bottom:4px;">Checklist:</div>
+  {% if case.enclosures %}
+    <div style="white-space: pre-line;">{{ case.enclosures }}</div>
+  {% else %}
+    <ol>
+      <li>Indoor case papers</li>
+      <li>Member verification statement</li>
+      <li>Investigation report</li>
+    </ol>
+  {% endif %}
+</div>
+
+{% if show_stamp %}
+<div class="stamp-area">
+  {% if stamp_image %}<img src="{{ stamp_image }}" class="stamp-img" alt="Stamp">{% endif %}
+</div>
+{% endif %}
+
+</div>
+</body>
+</html>

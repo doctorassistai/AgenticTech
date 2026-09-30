@@ -1452,7 +1452,7 @@ REPORT TEXT:
 """
 
     completion = groq_client.chat.completions.create(
-        model="llama-3.1-8b-instant",
+        model="openai/gpt-oss-20b",
         messages=[{"role": "user", "content": prompt}],
         temperature=0.1,
         max_tokens=2000
@@ -2127,7 +2127,7 @@ Before responding, verify:
     
     try:
         completion = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.1,
             max_tokens=4000,
@@ -2366,7 +2366,7 @@ def normalize_with_llm(state: ProcessingState) -> ProcessingState:
     
     try:
         completion = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.1,
             max_tokens=6000,

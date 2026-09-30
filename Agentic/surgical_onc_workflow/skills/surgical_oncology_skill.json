@@ -1,0 +1,1218 @@
+{
+  "skill_id": "surgical_oncology_intelligence",
+  "skill_name": "Surgical Oncology Intelligence Skill",
+  "specialty": "Surgical Oncology",
+  "version": 1,
+  "description": "Doctor-configurable selection layer over the existing 12-module Surgical Oncology Intelligence dashboard. It does not create or replace the underlying clinical agents.",
+  "modules": [
+    {
+      "module_id": "m1",
+      "num": "01 / 12",
+      "module_name": "Patient Assessment & Surgical Readiness",
+      "description": "",
+      "parameters": [
+        {
+          "id": "M01-P01",
+          "name": "Surgical Eligibility",
+          "backend_parameter": "Surgical Eligibility",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M01-P02",
+          "name": "ECOG/KPS & Frailty",
+          "backend_parameter": "ECOG/KPS & Frailty",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M01-P03",
+          "name": "Operability & Resectability",
+          "backend_parameter": "Operability & Resectability",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M01-P04",
+          "name": "Pre-Anesthesia Risk (ASA)",
+          "backend_parameter": "Pre-Anesthesia Risk (ASA)",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M01-P05",
+          "name": "Comorbidity Optimization",
+          "backend_parameter": "Comorbidity Optimization",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M01-P06",
+          "name": "Nutritional Risk (NRS-2002)",
+          "backend_parameter": "Nutritional Risk (NRS-2002)",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M01-P07",
+          "name": "Infection & Contraindication Screening",
+          "backend_parameter": "Infection & Contraindication Screening",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M01-P08",
+          "name": "Baseline Investigation Completeness",
+          "backend_parameter": "Baseline Investigation Completeness",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M01-P09",
+          "name": "Neoadjuvant Response Assessment",
+          "backend_parameter": "Neoadjuvant Response Assessment",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M01-P10",
+          "name": "Pre-operative Checklist",
+          "backend_parameter": "Pre-operative Checklist",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        }
+      ]
+    },
+    {
+      "module_id": "m2",
+      "num": "02 / 12",
+      "module_name": "Diagnosis, Staging & Surgical Planning",
+      "description": "",
+      "parameters": [
+        {
+          "id": "M02-P01",
+          "name": "Clinical TNM Staging",
+          "backend_parameter": "Clinical TNM Staging",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M02-P02",
+          "name": "AJCC Stage Grouping",
+          "backend_parameter": "AJCC Stage Grouping",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M02-P03",
+          "name": "Imaging & Pathology Correlation",
+          "backend_parameter": "Imaging & Pathology Correlation",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M02-P04",
+          "name": "Surgical Procedure Recommendation",
+          "backend_parameter": "Surgical Procedure Recommendation",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M02-P05",
+          "name": "Surgical Margin Planning",
+          "backend_parameter": "Surgical Margin Planning",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M02-P06",
+          "name": "Organ Preservation Assessment",
+          "backend_parameter": "Organ Preservation Assessment",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M02-P07",
+          "name": "Lymph Node Dissection Recommendation",
+          "backend_parameter": "Lymph Node Dissection Recommendation",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M02-P08",
+          "name": "Reconstruction Planning",
+          "backend_parameter": "Reconstruction Planning",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M02-P09",
+          "name": "Surgical Approach",
+          "backend_parameter": "Surgical Approach",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M02-P10",
+          "name": "High-Risk Anatomy Identification",
+          "backend_parameter": "High-Risk Anatomy Identification",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M02-P11",
+          "name": "Pre-op Imaging Review",
+          "backend_parameter": "Pre-op Imaging Review",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M02-P12",
+          "name": "Multidisciplinary Surgical Planning",
+          "backend_parameter": "Multidisciplinary Surgical Planning",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M02-P13",
+          "name": "Surgical Guideline Recommendation",
+          "backend_parameter": "Surgical Guideline Recommendation",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M02-P14",
+          "name": "Personalized Surgical Strategy",
+          "backend_parameter": "Personalized Surgical Strategy",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M02-P15",
+          "name": "Pre-operative Planning Summary",
+          "backend_parameter": "Pre-operative Planning Summary",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        }
+      ]
+    },
+    {
+      "module_id": "m3",
+      "num": "03 / 12",
+      "module_name": "Surgical Safety & Intraoperative Intelligence",
+      "description": "",
+      "parameters": [
+        {
+          "id": "M03-P01",
+          "name": "WHO Surgical Safety Checklist",
+          "backend_parameter": "WHO Surgical Safety Checklist",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M03-P02",
+          "name": "Procedure Verification",
+          "backend_parameter": "Procedure Verification",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M03-P03",
+          "name": "Implant & Device Verification",
+          "backend_parameter": "Implant & Device Verification",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M03-P04",
+          "name": "Blood Requirement Prediction",
+          "backend_parameter": "Blood Requirement Prediction",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M03-P05",
+          "name": "Antibiotic Prophylaxis",
+          "backend_parameter": "Antibiotic Prophylaxis",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M03-P06",
+          "name": "VTE Prophylaxis",
+          "backend_parameter": "VTE Prophylaxis",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M03-P07",
+          "name": "Intraoperative Risk Prediction",
+          "backend_parameter": "Intraoperative Risk Prediction",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M03-P08",
+          "name": "Surgical Duration Prediction",
+          "backend_parameter": "Surgical Duration Prediction",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M03-P09",
+          "name": "Intraoperative Complication",
+          "backend_parameter": "Intraoperative Complication",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M03-P10",
+          "name": "Critical Structure Risk Alerts",
+          "backend_parameter": "Critical Structure Risk Alerts",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M03-P11",
+          "name": "Intraoperative Documentation",
+          "backend_parameter": "Intraoperative Documentation",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M03-P12",
+          "name": "Surgical Workflow Dashboard",
+          "backend_parameter": "Surgical Workflow Dashboard",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        }
+      ]
+    },
+    {
+      "module_id": "m4",
+      "num": "04 / 12",
+      "module_name": "Pathology Correlation & Margin Intelligence",
+      "description": "",
+      "parameters": [
+        {
+          "id": "M04-P01",
+          "name": "Clinical vs. Pathological Stage",
+          "backend_parameter": "Clinical vs. Pathological Stage",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M04-P02",
+          "name": "Margin Status Analysis",
+          "backend_parameter": "Margin Status Analysis",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M04-P03",
+          "name": "Positive Margin Detection",
+          "backend_parameter": "Positive Margin Detection",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M04-P04",
+          "name": "Upstaging / Downstaging Detection",
+          "backend_parameter": "Upstaging / Downstaging Detection",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M04-P05",
+          "name": "Residual Disease Assessment",
+          "backend_parameter": "Residual Disease Assessment",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M04-P06",
+          "name": "Lymph Node Yield",
+          "backend_parameter": "Lymph Node Yield",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M04-P07",
+          "name": "Lymph Node Ratio",
+          "backend_parameter": "Lymph Node Ratio",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M04-P08",
+          "name": "Histopathology Summarization",
+          "backend_parameter": "Histopathology Summarization",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M04-P09",
+          "name": "Molecular Pathology Integration",
+          "backend_parameter": "Molecular Pathology Integration",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M04-P10",
+          "name": "Biomarker Correlation",
+          "backend_parameter": "Biomarker Correlation",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M04-P11",
+          "name": "Pathology Quality Validation",
+          "backend_parameter": "Pathology Quality Validation",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M04-P12",
+          "name": "Synoptic Report Completeness",
+          "backend_parameter": "Synoptic Report Completeness",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M04-P13",
+          "name": "MDT Re-discussion Trigger",
+          "backend_parameter": "MDT Re-discussion Trigger",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M04-P14",
+          "name": "Adjuvant Therapy Trigger",
+          "backend_parameter": "Adjuvant Therapy Trigger",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M04-P15",
+          "name": "Surgical Outcome Summary",
+          "backend_parameter": "Surgical Outcome Summary",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        }
+      ]
+    },
+    {
+      "module_id": "m5",
+      "num": "05 / 12",
+      "module_name": "Post-operative Management",
+      "description": "",
+      "parameters": [
+        {
+          "id": "M05-P01",
+          "name": "ERAS Protocol Compliance",
+          "backend_parameter": "ERAS Protocol Compliance",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M05-P02",
+          "name": "Post-operative Complication Prediction",
+          "backend_parameter": "Post-operative Complication Prediction",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M05-P03",
+          "name": "Clavien-Dindo Classification",
+          "backend_parameter": "Clavien-Dindo Classification",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M05-P04",
+          "name": "Wound Infection Detection",
+          "backend_parameter": "Wound Infection Detection",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M05-P05",
+          "name": "Anastomotic Leak Risk",
+          "backend_parameter": "Anastomotic Leak Risk",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M05-P06",
+          "name": "Post-operative Bleeding Detection",
+          "backend_parameter": "Post-operative Bleeding Detection",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M05-P07",
+          "name": "Drain Management",
+          "backend_parameter": "Drain Management",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M05-P08",
+          "name": "Pain Management",
+          "backend_parameter": "Pain Management",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M05-P09",
+          "name": "Nutrition Recovery Monitoring",
+          "backend_parameter": "Nutrition Recovery Monitoring",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M05-P10",
+          "name": "Discharge Readiness Assessment",
+          "backend_parameter": "Discharge Readiness Assessment",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M05-P11",
+          "name": "Readmission Risk Prediction",
+          "backend_parameter": "Readmission Risk Prediction",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M05-P12",
+          "name": "Post-operative Care Dashboard",
+          "backend_parameter": "Post-operative Care Dashboard",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        }
+      ]
+    },
+    {
+      "module_id": "m6",
+      "num": "06 / 12",
+      "module_name": "Surgical Quality & Outcome Analytics",
+      "description": "",
+      "parameters": [
+        {
+          "id": "M06-P01",
+          "name": "R0/R1/R2 Resection",
+          "backend_parameter": "R0/R1/R2 Resection",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M06-P02",
+          "name": "Margin Distance Analytics",
+          "backend_parameter": "Margin Distance Analytics",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M06-P03",
+          "name": "Lymph Node Harvest Quality",
+          "backend_parameter": "Lymph Node Harvest Quality",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M06-P04",
+          "name": "Surgical Quality Indicator Dashboard",
+          "backend_parameter": "Surgical Quality Indicator Dashboard",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M06-P05",
+          "name": "Complication Rate (this case)",
+          "backend_parameter": "Complication Rate (this case)",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M06-P06",
+          "name": "Mortality & Morbidity",
+          "backend_parameter": "Mortality & Morbidity",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M06-P07",
+          "name": "Re-operation Tracking",
+          "backend_parameter": "Re-operation Tracking",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M06-P08",
+          "name": "Length of Stay Analytics",
+          "backend_parameter": "Length of Stay Analytics",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M06-P09",
+          "name": "Enhanced Recovery Compliance",
+          "backend_parameter": "Enhanced Recovery Compliance",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M06-P10",
+          "name": "Surgical Performance Dashboard",
+          "backend_parameter": "Surgical Performance Dashboard",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        }
+      ]
+    },
+    {
+      "module_id": "m7",
+      "num": "07 / 12",
+      "module_name": "Adjuvant Therapy Decision Support",
+      "description": "",
+      "parameters": [
+        {
+          "id": "M07-P01",
+          "name": "Surgery vs. Pathology Correlation",
+          "backend_parameter": "Surgery vs. Pathology Correlation",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M07-P02",
+          "name": "Adjuvant Chemotherapy Recommendation",
+          "backend_parameter": "Adjuvant Chemotherapy Recommendation",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M07-P03",
+          "name": "Adjuvant Radiotherapy Recommendation",
+          "backend_parameter": "Adjuvant Radiotherapy Recommendation",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M07-P04",
+          "name": "Combined Modality Recommendation",
+          "backend_parameter": "Combined Modality Recommendation",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M07-P05",
+          "name": "High-Risk Feature Identification",
+          "backend_parameter": "High-Risk Feature Identification",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M07-P06",
+          "name": "Residual Disease Assessment",
+          "backend_parameter": "Residual Disease Assessment",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M07-P07",
+          "name": "Recurrence Risk Prediction",
+          "backend_parameter": "Recurrence Risk Prediction",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M07-P08",
+          "name": "Guideline Compliance Analysis",
+          "backend_parameter": "Guideline Compliance Analysis",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M07-P09",
+          "name": "MDT Recommendation Generator",
+          "backend_parameter": "MDT Recommendation Generator",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M07-P10",
+          "name": "Adjuvant Planning Dashboard",
+          "backend_parameter": "Adjuvant Planning Dashboard",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        }
+      ]
+    },
+    {
+      "module_id": "m8",
+      "num": "08 / 12",
+      "module_name": "Follow-up & Recurrence Surveillance",
+      "description": "",
+      "parameters": [
+        {
+          "id": "M08-P01",
+          "name": "Follow-up Schedule Generator",
+          "backend_parameter": "Follow-up Schedule Generator",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M08-P02",
+          "name": "Surveillance Imaging Recommendation",
+          "backend_parameter": "Surveillance Imaging Recommendation",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M08-P03",
+          "name": "Tumor Marker Monitoring",
+          "backend_parameter": "Tumor Marker Monitoring",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M08-P04",
+          "name": "Local Recurrence Detection",
+          "backend_parameter": "Local Recurrence Detection",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M08-P05",
+          "name": "Distant Metastasis Surveillance",
+          "backend_parameter": "Distant Metastasis Surveillance",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M08-P06",
+          "name": "Post-operative Functional Outcome",
+          "backend_parameter": "Post-operative Functional Outcome",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M08-P07",
+          "name": "Long-term Complication Monitoring",
+          "backend_parameter": "Long-term Complication Monitoring",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M08-P08",
+          "name": "Survivorship Care Planning",
+          "backend_parameter": "Survivorship Care Planning",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M08-P09",
+          "name": "Recurrence Risk Dashboard",
+          "backend_parameter": "Recurrence Risk Dashboard",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M08-P10",
+          "name": "Follow-up Compliance Monitoring",
+          "backend_parameter": "Follow-up Compliance Monitoring",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M08-P11",
+          "name": "Outcome Trend Analysis",
+          "backend_parameter": "Outcome Trend Analysis",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M08-P12",
+          "name": "Survivorship Dashboard",
+          "backend_parameter": "Survivorship Dashboard",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        }
+      ]
+    },
+    {
+      "module_id": "m9",
+      "num": "09 / 12",
+      "module_name": "Documentation & Clinical Intelligence",
+      "description": "",
+      "parameters": [
+        {
+          "id": "M09-P01",
+          "name": "Surgical Consultation Summary",
+          "backend_parameter": "Surgical Consultation Summary",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M09-P02",
+          "name": "Pre-operative Summary",
+          "backend_parameter": "Pre-operative Summary",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M09-P03",
+          "name": "Operative Note Generator",
+          "backend_parameter": "Operative Note Generator",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M09-P04",
+          "name": "Post-operative Progress Summary",
+          "backend_parameter": "Post-operative Progress Summary",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M09-P05",
+          "name": "Discharge Summary Generator",
+          "backend_parameter": "Discharge Summary Generator",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M09-P06",
+          "name": "Histopathology Correlation Summary",
+          "backend_parameter": "Histopathology Correlation Summary",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M09-P07",
+          "name": "MDT Summary Generator",
+          "backend_parameter": "MDT Summary Generator",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M09-P08",
+          "name": "Clinical Timeline Generator",
+          "backend_parameter": "Clinical Timeline Generator",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M09-P09",
+          "name": "Guideline Evidence Viewer",
+          "backend_parameter": "Guideline Evidence Viewer",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M09-P10",
+          "name": "Explainable AI Surgical Recommendation",
+          "backend_parameter": "Explainable AI Surgical Recommendation",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        }
+      ]
+    },
+    {
+      "module_id": "m10",
+      "num": "10 / 12",
+      "module_name": "Multidisciplinary Oncology Intelligence",
+      "description": "",
+      "parameters": [
+        {
+          "id": "M10-P01",
+          "name": "Tumor Board Preparation Engine",
+          "backend_parameter": "Tumor Board Preparation Engine",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M10-P02",
+          "name": "Stage Migration Detection",
+          "backend_parameter": "Stage Migration Detection",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M10-P03",
+          "name": "Treatment Sequence Recommendation",
+          "backend_parameter": "Treatment Sequence Recommendation",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M10-P04",
+          "name": "Surgery–Chemotherapy Correlation",
+          "backend_parameter": "Surgery–Chemotherapy Correlation",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M10-P05",
+          "name": "Surgery–Radiotherapy Correlation",
+          "backend_parameter": "Surgery–Radiotherapy Correlation",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M10-P06",
+          "name": "Molecular Tumor Board Support",
+          "backend_parameter": "Molecular Tumor Board Support",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M10-P07",
+          "name": "Clinical Trial Eligibility",
+          "backend_parameter": "Clinical Trial Eligibility",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M10-P08",
+          "name": "Cross-specialty Guideline Compliance",
+          "backend_parameter": "Cross-specialty Guideline Compliance",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M10-P09",
+          "name": "Patient-specific Risk Stratification",
+          "backend_parameter": "Patient-specific Risk Stratification",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M10-P10",
+          "name": "Personalized Treatment Roadmap",
+          "backend_parameter": "Personalized Treatment Roadmap",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M10-P11",
+          "name": "MDT Decision Tracking",
+          "backend_parameter": "MDT Decision Tracking",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M10-P12",
+          "name": "Longitudinal Oncology Dashboard",
+          "backend_parameter": "Longitudinal Oncology Dashboard",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        }
+      ]
+    },
+    {
+      "module_id": "m11",
+      "num": "11 / 12",
+      "module_name": "Surgical Pathology Intelligence",
+      "description": "",
+      "parameters": [
+        {
+          "id": "M11-P01",
+          "name": "Synoptic Pathology Validator",
+          "backend_parameter": "Synoptic Pathology Validator",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M11-P02",
+          "name": "Missing Pathology Parameter Detection",
+          "backend_parameter": "Missing Pathology Parameter Detection",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M11-P03",
+          "name": "Tumor Regression Grade",
+          "backend_parameter": "Tumor Regression Grade",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M11-P04",
+          "name": "Margin Mapping Visualization",
+          "backend_parameter": "Margin Mapping Visualization",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M11-P05",
+          "name": "Lymphovascular & Perineural Invasion",
+          "backend_parameter": "Lymphovascular & Perineural Invasion",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M11-P06",
+          "name": "Biomarker Extraction Engine",
+          "backend_parameter": "Biomarker Extraction Engine",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M11-P07",
+          "name": "Molecular Report Correlation",
+          "backend_parameter": "Molecular Report Correlation",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M11-P08",
+          "name": "Histology Variant Recognition",
+          "backend_parameter": "Histology Variant Recognition",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M11-P09",
+          "name": "Pathology Completeness Dashboard",
+          "backend_parameter": "Pathology Completeness Dashboard",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M11-P10",
+          "name": "Structured Pathology Intelligence Report",
+          "backend_parameter": "Structured Pathology Intelligence Report",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        }
+      ]
+    },
+    {
+      "module_id": "m12",
+      "num": "12 / 12",
+      "module_name": "Department Analytics & Operations",
+      "description": "",
+      "parameters": [
+        {
+          "id": "M12-P01",
+          "name": "Operating Room Utilization",
+          "backend_parameter": "Operating Room Utilization",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M12-P02",
+          "name": "Surgical Waiting List Optimization",
+          "backend_parameter": "Surgical Waiting List Optimization",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M12-P03",
+          "name": "Case Duration Analytics",
+          "backend_parameter": "Case Duration Analytics",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M12-P04",
+          "name": "Cancellation Prediction",
+          "backend_parameter": "Cancellation Prediction",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M12-P05",
+          "name": "Bed Occupancy Prediction",
+          "backend_parameter": "Bed Occupancy Prediction",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M12-P06",
+          "name": "Resource Utilization Dashboard",
+          "backend_parameter": "Resource Utilization Dashboard",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M12-P07",
+          "name": "Surgical Oncology Registry",
+          "backend_parameter": "Surgical Oncology Registry",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M12-P08",
+          "name": "Quality Benchmark Dashboard",
+          "backend_parameter": "Quality Benchmark Dashboard",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M12-P09",
+          "name": "Outcome Benchmarking",
+          "backend_parameter": "Outcome Benchmarking",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        },
+        {
+          "id": "M12-P10",
+          "name": "Surgical Department Performance Score",
+          "backend_parameter": "Surgical Department Performance Score",
+          "match_mode": "normalized_exact",
+          "description": "",
+          "type": "predefined"
+        }
+      ]
+    }
+  ],
+  "custom_parameter_policy": {
+    "type": "manual_review",
+    "description": "Doctor-added checks are stored as custom manual-review items and are not fabricated into backend clinical calculations."
+  },
+  "matching": {
+    "mode": "normalized_exact",
+    "source_field": "parameter",
+    "backend_row_shape": "The complete original agent row is preserved under result.output."
+  }
+}

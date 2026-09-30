@@ -103,8 +103,31 @@ from Agentic.Synoptic import router as Synoptic
 from Agentic.longitudinal_summary import router as longitudinal_summary
 from Agentic.oncology_case_view_service import router as case_view_router
 from Agentic.Insurance_claim_validation import router as Insurance_claim_validation
-
+from Agentic.chemotherapy_workflow.api import router as chemo_intelligence_router
+from Agentic.surgical_onc_workflow.api import router as sugical_dashboard
+from Agentic.radiation_onc_workflow.api import router as radiotherapy_intelligence_router
+from Agentic.pre_treatment_assessment import router as pre_treatment_assessment
+from Agentic.pre_treatment_assessment_retrieval import router as pre_treatment_router
+from Agentic.voice_assistant import router as voice_assistant
+from Agentic.chemotherapy_workflow.skills.api import router as chemotherapy_skill_router_skill
+from Agentic.radiation_onc_workflow.skills.api import router as radiation_skill_router_skill
+from Agentic.surgical_onc_workflow.skills.api import router as surgery_skill_router_skill
+from Agentic.investigation_ordering import router as investigation_ordering
+from Agentic.clinical_report_data import router as clinical_report_data_router
+from Agentic.longitudinal_summaryy import router as longitudinal_summary_router
+from Agentic.patient_story import router as patient_story
+from Agentic.baseline_verification import router as baseline_verification
+from Agentic.next_clinical_decision import router as next_clinical_decision
+from Agentic.first_line_plan import router as first_line_plan
+from Agentic.dosing import router as dosing
+from Agentic.treatment_readiness  import router as treatment_readiness
+from Agentic.doctor_decision import router as doctor_decision
+from Agentic.toxicity import router as toxicity
+from Agentic.radiation import router as radiation
+from Agentic.surgery import router as surgery
 load_dotenv()
+
+
 
 
 SECRET_KEY = os.getenv("SECRET_KEY")
@@ -156,7 +179,7 @@ api_key = os.getenv("GROQ_API_KEY")
 groq_client = Groq(api_key=api_key)
 
 model = ChatGroq(
-    model="llama-3.1-8b-instant",
+    model="openai/gpt-oss-20b",
     groq_api_key=api_key
 )
 
@@ -386,3 +409,25 @@ app.include_router(Synoptic)
 app.include_router(longitudinal_summary)
 app.include_router(case_view_router)
 app.include_router(Insurance_claim_validation)
+app.include_router(chemo_intelligence_router)
+app.include_router(sugical_dashboard)
+app.include_router(radiotherapy_intelligence_router)
+app.include_router(pre_treatment_assessment)
+app.include_router(pre_treatment_router)
+app.include_router(voice_assistant)
+app.include_router(chemotherapy_skill_router_skill)
+app.include_router(radiation_skill_router_skill)
+app.include_router(surgery_skill_router_skill)
+app.include_router(investigation_ordering)
+app.include_router(clinical_report_data_router)
+app.include_router(longitudinal_summary_router)
+app.include_router(patient_story)
+app.include_router(baseline_verification)
+app.include_router(next_clinical_decision)
+app.include_router(treatment_readiness)
+app.include_router(first_line_plan)
+app.include_router(dosing)
+app.include_router(doctor_decision)
+app.include_router(toxicity)
+app.include_router(surgery)
+app.include_router(radiation)

@@ -1,5 +1,4 @@
-import React, { useState, useCallback } from 'react';
-
+import React, { useState, useCallback, useEffect } from 'react';
 const API_BASE = 'https://doctorassist.ai/api';
 
 // ── Spinner ───────────────────────────────────────────────────────────────────
@@ -793,8 +792,8 @@ const generatePDF = async (data, patientId) => {
 // ═════════════════════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═════════════════════════════════════════════════════════════════════════════
-export default function InsuranceDocumentation({ patientId }) {
-  const [loading, setLoading] = useState(false);
+export default function InsuranceDocumentation({ patientId, liveTriageColour }) {
+    const [loading, setLoading] = useState(false);
   const [data, setData] = useState(null);
   const [edited, setEdited] = useState(null);
   const [editMode, setEditMode] = useState(false);
@@ -826,6 +825,25 @@ export default function InsuranceDocumentation({ patientId }) {
   const handleChange = useCallback((path, value) => {
     setEdited(prev => setPath(prev, path, value));
   }, []);
+
+  // Keep the Emergency Event triage colour in lockstep with the latest
+  // APPROVED AI clinical action, so this package never disagrees with the
+  // live triage shown elsewhere in the patient profile.
+  useEffect(() => {
+    if (!liveTriageColour) return;
+    setData(prev => {
+      if (!prev) return prev;
+      const cur = prev.insurance_claim_package?.emergency_event_documentation?.triage_colour;
+      if (cur === liveTriageColour) return prev;
+      return setPath(prev, 'insurance_claim_package.emergency_event_documentation.triage_colour', liveTriageColour);
+    });
+    setEdited(prev => {
+      if (!prev) return prev;
+      const cur = prev.insurance_claim_package?.emergency_event_documentation?.triage_colour;
+      if (cur === liveTriageColour) return prev;
+      return setPath(prev, 'insurance_claim_package.emergency_event_documentation.triage_colour', liveTriageColour);
+    });
+  }, [liveTriageColour, data, edited]);
 
   const pkg = edited?.insurance_claim_package || {};
   const pi = pkg.patient_identification || {};

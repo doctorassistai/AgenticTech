@@ -12,7 +12,7 @@ import {
 import { motion } from "framer-motion";
 
 import {
-  C, FONT, FW_LIGHT, FW_NORMAL, inputSx, fieldLabelSx, flagNoteSx,
+  C, FONT, FW_LIGHT, FW_NORMAL, FW_BOLD, inputSx, fieldLabelSx, flagNoteSx,
   sectionHeaderSx, saveBtnSx, outlineBtnSx, thSx, tdSx,
 } from "./surgical-oncology/shared/designTokens";
 import {
@@ -744,11 +744,11 @@ const ProcedureTab = ({ onSave, getSection }) => {
         next.bloodProducts = p.bloodProducts.map(row => {
           const match = v.find(x => x.product === row.product);
           if (match) {
-             const mergedRow = { ...row, checked: true };
-             Object.entries(match).forEach(([mK, mV]) => {
-               if (mV !== undefined && mV !== null && mV !== "") mergedRow[mK] = mV;
-             });
-             return mergedRow;
+            const mergedRow = { ...row, checked: true };
+            Object.entries(match).forEach(([mK, mV]) => {
+              if (mV !== undefined && mV !== null && mV !== "") mergedRow[mK] = mV;
+            });
+            return mergedRow;
           }
           return row;
         });
@@ -771,93 +771,113 @@ const ProcedureTab = ({ onSave, getSection }) => {
       {sub === 0 && (
         <Box>
           <TranscribePanel section="mm" onAutofill={fillMm} />
-          <SectionBox title="Mode of Anaesthesia">
-            <RdoGroup label="Mode (Select One)" options={["General", "Regional", "Both (General + Regional)", "MAC"]} value={mm.modeAnaesthesia} onChange={v => smm("modeAnaesthesia", v)} />
-          </SectionBox>
-          <SectionBox title="Intra-operative Monitoring">
-            <TableContainer>
-              <Table size="small">
-                <TableHead>
-                  <TableRow>{["Particulars", "Time", "Value", "Time", "Value"].map((h, i) => <TableCell key={i} sx={thSx}>{h}</TableCell>)}</TableRow>
-                </TableHead>
-                <TableBody>
-                  {["O2 (FiO2 %)", "N2O / Air", "Inhalation Agent", "IV Fluid", "Urine Output (ml)", "Blood Products"].map(row => {
-                    const rowData = mm.intraOpMonitoring?.[row] || [{ time: "", value: "" }, { time: "", value: "" }];
-                    return (
-                      <TableRow key={row}>
-                        <TableCell sx={tdSx}>{row}</TableCell>
-                        {[0, 1].map(p => (
-                          <React.Fragment key={p}>
-                            <TableCell sx={tdSx}>
-                              <TextField
-                                type="time"
-                                size="small"
-                                value={rowData[p]?.time || ""}
-                                onChange={(e) => {
-                                  const newRowData = [...rowData];
-                                  newRowData[p] = { ...newRowData[p], time: e.target.value };
-                                  smm("intraOpMonitoring", { ...mm.intraOpMonitoring, [row]: newRowData });
-                                }}
-                                sx={{ ...inputSx, width: 110 }}
-                                InputLabelProps={{ shrink: true }}
-                              />
-                            </TableCell>
-                            <TableCell sx={tdSx}>
-                              <TextField
-                                size="small"
-                                value={rowData[p]?.value || ""}
-                                onChange={(e) => {
-                                  const newRowData = [...rowData];
-                                  newRowData[p] = { ...newRowData[p], value: e.target.value };
-                                  smm("intraOpMonitoring", { ...mm.intraOpMonitoring, [row]: newRowData });
-                                }}
-                                sx={{ ...inputSx, width: 110 }}
-                                placeholder="Value"
-                              />
-                            </TableCell>
-                          </React.Fragment>
-                        ))}
-                      </TableRow>
-                    );
-                  })}
-                  <TableRow>
-                    <TableCell sx={tdSx}>Monitors Connected</TableCell>
-                    <TableCell colSpan={4} sx={tdSx}>
-                      <CbxGroup options={["ECG", "NIBP", "SpO2", "EtCO2", "Temp", "Pulse", "BP (Arterial)", "Others"]} value={mm.monitors} onChange={v => smm("monitors", v)} />
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </SectionBox>
-          <SectionBox title="IV Access">
-            <FG cols={3}>
-              <RdoGroup label="Timing" options={["Pre-Induction", "Post-Induction"]} value={mm.ivTiming} onChange={v => smm("ivTiming", v)} />
-              <RdoGroup label="Type" options={["Peripheral", "Central"]} value={mm.ivType} onChange={v => smm("ivType", v)} />
-              {mm.ivType === "Central" && (
-                <>
-                  <CbxGroup label="Site" options={["Internal Jugular Vein", "Subclavian Vein", "Femoral Vein"]} value={mm.centralSite} onChange={v => smm("centralSite", v)} />
-                  <CbxGroup label="Size" options={["5F", "7F", "Others"]} value={mm.centralSize} onChange={v => smm("centralSize", v)} />
-                  <TextField label="No of Attempts" value={mm.centralAttempts} type="number" size="small" onChange={e => smm("centralAttempts", e.target.value)} sx={inputSx} fullWidth />
-                  <Box sx={{ gridColumn: "1/-1" }}>
-                    <TextField label="Issues, if any" value={mm.centralIssues} size="small" multiline rows={2} onChange={e => smm("centralIssues", e.target.value)} sx={inputSx} fullWidth />
-                  </Box>
-                </>
-              )}
-            </FG>
-          </SectionBox>
-          <SectionBox title="Arterial Line">
-            <FG cols={3}>
-              <CbxGroup label="Site" options={["Radial", "Dorsalis Pedis", "Femoral"]} value={mm.artSite} onChange={v => smm("artSite", v)} />
-              <RdoGroup label="Laterality" options={["Right", "Left"]} value={mm.artLaterality} onChange={v => smm("artLaterality", v)} />
-              <CbxGroup label="Size (G)" options={["20G", "22G", "24G"]} value={mm.artSize} onChange={v => smm("artSize", v)} />
-              <RdoGroup label="Technique" options={["Standard Canula", "Seldinger"]} value={mm.artTechnique} onChange={v => smm("artTechnique", v)} />
-              <TextField label="No of Attempts" value={mm.artAttempts} type="number" size="small" onChange={e => smm("artAttempts", e.target.value)} sx={inputSx} fullWidth />
-              <TextField label="No of Operators" value={mm.artOperators} type="number" size="small" onChange={e => smm("artOperators", e.target.value)} sx={inputSx} fullWidth />
-              <Box sx={{ gridColumn: "1/-1" }}>
-                <TextField label="Issues, if any" value={mm.artIssues} size="small" multiline rows={2} onChange={e => smm("artIssues", e.target.value)} sx={inputSx} fullWidth />
+          <SectionBox title="Mode & Monitoring">
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <Box sx={{ p: 2, background: C.bgPrimary, border: `1px solid ${C.border}` }}>
+                <Typography sx={{ fontSize: 11, fontFamily: FONT, fontWeight: FW_BOLD, color: C.textSecond, textTransform: "uppercase", letterSpacing: "0.08em", mx: -2, mt: -2, px: 2, py: 1.25, mb: 2, background: C.bgTertiary, borderBottom: `1px solid ${C.border}`, display: "block" }}>
+                  Mode of Anaesthesia
+                </Typography>
+                <RdoGroup label="Mode (Select One)" options={["General", "Regional", "Both (General + Regional)", "MAC"]} value={mm.modeAnaesthesia} onChange={v => smm("modeAnaesthesia", v)} />
               </Box>
-            </FG>
+              <Box sx={{ p: 2, background: C.bgPrimary, border: `1px solid ${C.border}` }}>
+                <Typography sx={{ fontSize: 11, fontFamily: FONT, fontWeight: FW_BOLD, color: C.textSecond, textTransform: "uppercase", letterSpacing: "0.08em", mx: -2, mt: -2, px: 2, py: 1.25, mb: 2, background: C.bgTertiary, borderBottom: `1px solid ${C.border}`, display: "block" }}>
+                  Intra-operative Monitoring
+                </Typography>
+                <TableContainer>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>{["Particulars", "Time", "Value", "Time", "Value"].map((h, i) => <TableCell key={i} sx={thSx}>{h}</TableCell>)}</TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {["O2 (FiO2 %)", "N2O / Air", "Inhalation Agent", "IV Fluid", "Urine Output (ml)", "Blood Products"].map(row => {
+                        const rowData = mm.intraOpMonitoring?.[row] || [{ time: "", value: "" }, { time: "", value: "" }];
+                        return (
+                          <TableRow key={row}>
+                            <TableCell sx={tdSx}>{row}</TableCell>
+                            {[0, 1].map(p => (
+                              <React.Fragment key={p}>
+                                <TableCell sx={tdSx}>
+                                  <TextField
+                                    type="time"
+                                    size="small"
+                                    value={rowData[p]?.time || ""}
+                                    onChange={(e) => {
+                                      const newRowData = [...rowData];
+                                      newRowData[p] = { ...newRowData[p], time: e.target.value };
+                                      smm("intraOpMonitoring", { ...mm.intraOpMonitoring, [row]: newRowData });
+                                    }}
+                                    sx={{ ...inputSx, width: 110 }}
+                                    InputLabelProps={{ shrink: true }}
+                                  />
+                                </TableCell>
+                                <TableCell sx={tdSx}>
+                                  <TextField
+                                    size="small"
+                                    value={rowData[p]?.value || ""}
+                                    onChange={(e) => {
+                                      const newRowData = [...rowData];
+                                      newRowData[p] = { ...newRowData[p], value: e.target.value };
+                                      smm("intraOpMonitoring", { ...mm.intraOpMonitoring, [row]: newRowData });
+                                    }}
+                                    sx={{ ...inputSx, width: 110 }}
+                                    placeholder="Value"
+                                  />
+                                </TableCell>
+                              </React.Fragment>
+                            ))}
+                          </TableRow>
+                        );
+                      })}
+                      <TableRow>
+                        <TableCell sx={tdSx}>Monitors Connected</TableCell>
+                        <TableCell colSpan={4} sx={tdSx}>
+                          <CbxGroup options={["ECG", "NIBP", "SpO2", "EtCO2", "Temp", "Pulse", "BP (Arterial)", "Others"]} value={mm.monitors} onChange={v => smm("monitors", v)} />
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Box>
+            </Box>
+          </SectionBox>
+          <SectionBox title="Vascular Access">
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <Box sx={{ p: 2, background: C.bgPrimary, border: `1px solid ${C.border}` }}>
+                <Typography sx={{ fontSize: 11, fontFamily: FONT, fontWeight: FW_BOLD, color: C.textSecond, textTransform: "uppercase", letterSpacing: "0.08em", mx: -2, mt: -2, px: 2, py: 1.25, mb: 2, background: C.bgTertiary, borderBottom: `1px solid ${C.border}`, display: "block" }}>
+                  IV Access
+                </Typography>
+                <FG cols={3}>
+                  <RdoGroup label="Timing" options={["Pre-Induction", "Post-Induction"]} value={mm.ivTiming} onChange={v => smm("ivTiming", v)} />
+                  <RdoGroup label="Type" options={["Peripheral", "Central"]} value={mm.ivType} onChange={v => smm("ivType", v)} />
+                  {mm.ivType === "Central" && (
+                    <>
+                      <CbxGroup label="Site" options={["Internal Jugular Vein", "Subclavian Vein", "Femoral Vein"]} value={mm.centralSite} onChange={v => smm("centralSite", v)} />
+                      <CbxGroup label="Size" options={["5F", "7F", "Others"]} value={mm.centralSize} onChange={v => smm("centralSize", v)} />
+                      <TextField label="No of Attempts" value={mm.centralAttempts} type="number" size="small" onChange={e => smm("centralAttempts", e.target.value)} sx={inputSx} fullWidth />
+                      <Box sx={{ gridColumn: "1/-1" }}>
+                        <TextField label="Issues, if any" value={mm.centralIssues} size="small" multiline rows={2} onChange={e => smm("centralIssues", e.target.value)} sx={inputSx} fullWidth />
+                      </Box>
+                    </>
+                  )}
+                </FG>
+              </Box>
+              <Box sx={{ p: 2, background: C.bgPrimary, border: `1px solid ${C.border}` }}>
+                <Typography sx={{ fontSize: 11, fontFamily: FONT, fontWeight: FW_BOLD, color: C.textSecond, textTransform: "uppercase", letterSpacing: "0.08em", mx: -2, mt: -2, px: 2, py: 1.25, mb: 2, background: C.bgTertiary, borderBottom: `1px solid ${C.border}`, display: "block" }}>
+                  Arterial Line
+                </Typography>
+                <FG cols={3}>
+                  <CbxGroup label="Site" options={["Radial", "Dorsalis Pedis", "Femoral"]} value={mm.artSite} onChange={v => smm("artSite", v)} />
+                  <RdoGroup label="Laterality" options={["Right", "Left"]} value={mm.artLaterality} onChange={v => smm("artLaterality", v)} />
+                  <CbxGroup label="Size (G)" options={["20G", "22G", "24G"]} value={mm.artSize} onChange={v => smm("artSize", v)} />
+                  <RdoGroup label="Technique" options={["Standard Canula", "Seldinger"]} value={mm.artTechnique} onChange={v => smm("artTechnique", v)} />
+                  <TextField label="No of Attempts" value={mm.artAttempts} type="number" size="small" onChange={e => smm("artAttempts", e.target.value)} sx={inputSx} fullWidth />
+                  <TextField label="No of Operators" value={mm.artOperators} type="number" size="small" onChange={e => smm("artOperators", e.target.value)} sx={inputSx} fullWidth />
+                  <Box sx={{ gridColumn: "1/-1" }}>
+                    <TextField label="Issues, if any" value={mm.artIssues} size="small" multiline rows={2} onChange={e => smm("artIssues", e.target.value)} sx={inputSx} fullWidth />
+                  </Box>
+                </FG>
+              </Box>
+            </Box>
           </SectionBox>
           <Button sx={saveBtnSx} onClick={() => onSave("anaesthesia.mm", mm)}><SaveRounded sx={{ mr: 0.5, fontSize: 14 }} />Save Mode & Monitoring</Button>
         </Box>
@@ -868,115 +888,152 @@ const ProcedureTab = ({ onSave, getSection }) => {
         <Box>
           <TranscribePanel section="ga" onAutofill={fillGa} />
           <SectionBox title="Induction">
-            <FG cols={3}>
-              <TextField label="Time of Induction" type="time" size="small" value={ga.timeInduction || ""} onChange={e => sga("timeInduction", e.target.value)} sx={inputSx} fullWidth InputLabelProps={{ shrink: true }} />
-              <RdoGroup label="Preoxygenation" options={["Yes", "No"]} value={ga.preoxygenation} onChange={v => sga("preoxygenation", v)} />
-              <RdoGroup label="Induction" options={["Intravenous", "Inhalational"]} value={ga.induction} onChange={v => sga("induction", v)} />
-              <Box sx={{ gridColumn: "1/-1" }}>
-                <CbxGroup label="Intubation Response Prevention" options={["Opioids", "NTG", "Lignocaine", "Esmolol", "Labetalol", "Other"]} value={ga.intubRespPrev} onChange={v => sga("intubRespPrev", v)} />
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <Box sx={{ p: 2, background: C.bgPrimary, border: `1px solid ${C.border}` }}>
+                <Typography sx={{ fontSize: 11, fontFamily: FONT, fontWeight: FW_BOLD, color: C.textSecond, textTransform: "uppercase", letterSpacing: "0.08em", mx: -2, mt: -2, px: 2, py: 1.25, mb: 2, background: C.bgTertiary, borderBottom: `1px solid ${C.border}`, display: "block" }}>General</Typography>
+                <FG cols={3}>
+                  <TextField label="Time of Induction" type="time" size="small" value={ga.timeInduction || ""} onChange={e => sga("timeInduction", e.target.value)} sx={inputSx} fullWidth InputLabelProps={{ shrink: true }} />
+                  <RdoGroup label="Preoxygenation" options={["Yes", "No"]} value={ga.preoxygenation} onChange={v => sga("preoxygenation", v)} />
+                  <RdoGroup label="Induction" options={["Intravenous", "Inhalational"]} value={ga.induction} onChange={v => sga("induction", v)} />
+                  <Box sx={{ gridColumn: "1/-1" }}>
+                    <CbxGroup label="Intubation Response Prevention" options={["Opioids", "NTG", "Lignocaine", "Esmolol", "Labetalol", "Other"]} value={ga.intubRespPrev} onChange={v => sga("intubRespPrev", v)} />
+                  </Box>
+                </FG>
               </Box>
-            </FG>
-            <Box sx={{ mt: 1.5 }}>
-              <Typography sx={{ fontSize: 11, fontFamily: FONT, color: C.textMuted, mb: 0.5, letterSpacing: "0.05em", textTransform: "uppercase" }}>IV Opioids</Typography>
-              <FG cols={4}>
-                <TextField label="Fentanyl Dose (mcg)" size="small" value={ga.ivOpioidFentanyl || ""} onChange={e => sga("ivOpioidFentanyl", e.target.value)} sx={inputSx} fullWidth />
-                <TextField label="Morphine Dose (mg)" size="small" value={ga.ivOpioidMorphine || ""} onChange={e => sga("ivOpioidMorphine", e.target.value)} sx={inputSx} fullWidth />
-                <TextField label="Tramadol Dose (mg)" size="small" value={ga.ivOpioidTramadol || ""} onChange={e => sga("ivOpioidTramadol", e.target.value)} sx={inputSx} fullWidth />
-                <TextField label="Other (Specify & Dose)" size="small" value={ga.ivOpioidOther || ""} onChange={e => sga("ivOpioidOther", e.target.value)} sx={inputSx} fullWidth />
-              </FG>
-            </Box>
-            <Box sx={{ mt: 1.5 }}>
-              <Typography sx={{ fontSize: 11, fontFamily: FONT, color: C.textMuted, mb: 0.5, letterSpacing: "0.05em", textTransform: "uppercase" }}>IV Induction Agent</Typography>
-              <FG cols={5}>
-                <TextField label="Propofol (mg)" size="small" value={ga.ivInductionPropofol || ""} onChange={e => sga("ivInductionPropofol", e.target.value)} sx={inputSx} fullWidth />
-                <TextField label="Ketamine (mg)" size="small" value={ga.ivInductionKetamine || ""} onChange={e => sga("ivInductionKetamine", e.target.value)} sx={inputSx} fullWidth />
-                <TextField label="Etomidate (mg)" size="small" value={ga.ivInductionEtomidate || ""} onChange={e => sga("ivInductionEtomidate", e.target.value)} sx={inputSx} fullWidth />
-                <TextField label="Thiopentone (mg)" size="small" value={ga.ivInductionThiopentone || ""} onChange={e => sga("ivInductionThiopentone", e.target.value)} sx={inputSx} fullWidth />
-                <TextField label="Other (Specify & Dose)" size="small" value={ga.ivInductionOther || ""} onChange={e => sga("ivInductionOther", e.target.value)} sx={inputSx} fullWidth />
-              </FG>
-            </Box>
-            <FG cols={2} sx={{ mt: 1.5 }}>
-              <CbxGroup label="Carrier Gas Composition" options={["Air + O2", "N2O + O2"]} value={ga.carrierGas} onChange={v => sga("carrierGas", v)} />
-              <CbxGroup label="Inhalation Agent" options={["Isoflurane", "Sevoflurane"]} value={ga.inhalationAgent} onChange={v => sga("inhalationAgent", v)} />
-            </FG>
-            <Box sx={{ mt: 1.5 }}>
-              <Typography sx={{ fontSize: 11, fontFamily: FONT, color: C.textMuted, mb: 0.5, letterSpacing: "0.05em", textTransform: "uppercase" }}>Muscle Relaxant 1 - Intubation</Typography>
-              <FG cols={5}>
-                <TextField label="Succinyl Choline (mg)" size="small" value={ga.mr1Succ || ""} onChange={e => sga("mr1Succ", e.target.value)} sx={inputSx} fullWidth />
-                <TextField label="Rocuronium (mg)" size="small" value={ga.mr1Roc || ""} onChange={e => sga("mr1Roc", e.target.value)} sx={inputSx} fullWidth />
-                <TextField label="Vecuronium (mg)" size="small" value={ga.mr1Vec || ""} onChange={e => sga("mr1Vec", e.target.value)} sx={inputSx} fullWidth />
-                <TextField label="Atracurium (mg)" size="small" value={ga.mr1Atr || ""} onChange={e => sga("mr1Atr", e.target.value)} sx={inputSx} fullWidth />
-                <TextField label="Cis-Atracurium (mg)" size="small" value={ga.mr1Cis || ""} onChange={e => sga("mr1Cis", e.target.value)} sx={inputSx} fullWidth />
-              </FG>
-            </Box>
-            <Box sx={{ mt: 1.5 }}>
-              <Typography sx={{ fontSize: 11, fontFamily: FONT, color: C.textMuted, mb: 0.5, letterSpacing: "0.05em", textTransform: "uppercase" }}>Muscle Relaxant 2 - Maintenance</Typography>
-              <FG cols={5}>
-                <TextField label="Succinyl Choline (mg)" size="small" value={ga.mr2Succ || ""} onChange={e => sga("mr2Succ", e.target.value)} sx={inputSx} fullWidth />
-                <TextField label="Rocuronium (mg)" size="small" value={ga.mr2Roc || ""} onChange={e => sga("mr2Roc", e.target.value)} sx={inputSx} fullWidth />
-                <TextField label="Vecuronium (mg)" size="small" value={ga.mr2Vec || ""} onChange={e => sga("mr2Vec", e.target.value)} sx={inputSx} fullWidth />
-                <TextField label="Atracurium (mg)" size="small" value={ga.mr2Atr || ""} onChange={e => sga("mr2Atr", e.target.value)} sx={inputSx} fullWidth />
-                <TextField label="Cis-Atracurium (mg)" size="small" value={ga.mr2Cis || ""} onChange={e => sga("mr2Cis", e.target.value)} sx={inputSx} fullWidth />
-              </FG>
+              <Box sx={{ p: 2, background: C.bgPrimary, border: `1px solid ${C.border}` }}>
+                <Typography sx={{ fontSize: 11, fontFamily: FONT, fontWeight: FW_BOLD, color: C.textSecond, textTransform: "uppercase", letterSpacing: "0.08em", mx: -2, mt: -2, px: 2, py: 1.25, mb: 2, background: C.bgTertiary, borderBottom: `1px solid ${C.border}`, display: "block" }}>IV Opioids</Typography>
+                <FG cols={4}>
+                  <TextField label="Fentanyl Dose (mcg)" size="small" value={ga.ivOpioidFentanyl || ""} onChange={e => sga("ivOpioidFentanyl", e.target.value)} sx={inputSx} fullWidth />
+                  <TextField label="Morphine Dose (mg)" size="small" value={ga.ivOpioidMorphine || ""} onChange={e => sga("ivOpioidMorphine", e.target.value)} sx={inputSx} fullWidth />
+                  <TextField label="Tramadol Dose (mg)" size="small" value={ga.ivOpioidTramadol || ""} onChange={e => sga("ivOpioidTramadol", e.target.value)} sx={inputSx} fullWidth />
+                  <TextField label="Other (Specify & Dose)" size="small" value={ga.ivOpioidOther || ""} onChange={e => sga("ivOpioidOther", e.target.value)} sx={inputSx} fullWidth />
+                </FG>
+              </Box>
+              <Box sx={{ p: 2, background: C.bgPrimary, border: `1px solid ${C.border}` }}>
+                <Typography sx={{ fontSize: 11, fontFamily: FONT, fontWeight: FW_BOLD, color: C.textSecond, textTransform: "uppercase", letterSpacing: "0.08em", mx: -2, mt: -2, px: 2, py: 1.25, mb: 2, background: C.bgTertiary, borderBottom: `1px solid ${C.border}`, display: "block" }}>IV Induction Agent</Typography>
+                <FG cols={5}>
+                  <TextField label="Propofol (mg)" size="small" value={ga.ivInductionPropofol || ""} onChange={e => sga("ivInductionPropofol", e.target.value)} sx={inputSx} fullWidth />
+                  <TextField label="Ketamine (mg)" size="small" value={ga.ivInductionKetamine || ""} onChange={e => sga("ivInductionKetamine", e.target.value)} sx={inputSx} fullWidth />
+                  <TextField label="Etomidate (mg)" size="small" value={ga.ivInductionEtomidate || ""} onChange={e => sga("ivInductionEtomidate", e.target.value)} sx={inputSx} fullWidth />
+                  <TextField label="Thiopentone (mg)" size="small" value={ga.ivInductionThiopentone || ""} onChange={e => sga("ivInductionThiopentone", e.target.value)} sx={inputSx} fullWidth />
+                  <TextField label="Other (Specify & Dose)" size="small" value={ga.ivInductionOther || ""} onChange={e => sga("ivInductionOther", e.target.value)} sx={inputSx} fullWidth />
+                </FG>
+              </Box>
+              <Box sx={{ p: 2, background: C.bgPrimary, border: `1px solid ${C.border}` }}>
+                <Typography sx={{ fontSize: 11, fontFamily: FONT, fontWeight: FW_BOLD, color: C.textSecond, textTransform: "uppercase", letterSpacing: "0.08em", mx: -2, mt: -2, px: 2, py: 1.25, mb: 2, background: C.bgTertiary, borderBottom: `1px solid ${C.border}`, display: "block" }}>Inhalation</Typography>
+                <FG cols={2}>
+                  <CbxGroup label="Carrier Gas Composition" options={["Air + O2", "N2O + O2"]} value={ga.carrierGas} onChange={v => sga("carrierGas", v)} />
+                  <CbxGroup label="Inhalation Agent" options={["Isoflurane", "Sevoflurane"]} value={ga.inhalationAgent} onChange={v => sga("inhalationAgent", v)} />
+                </FG>
+              </Box>
+              <Box sx={{ p: 2, background: C.bgPrimary, border: `1px solid ${C.border}` }}>
+                <Typography sx={{ fontSize: 11, fontFamily: FONT, fontWeight: FW_BOLD, color: C.textSecond, textTransform: "uppercase", letterSpacing: "0.08em", mx: -2, mt: -2, px: 2, py: 1.25, mb: 2, background: C.bgTertiary, borderBottom: `1px solid ${C.border}`, display: "block" }}>Muscle Relaxant 1 - Intubation</Typography>
+                <FG cols={5}>
+                  <TextField label="Succinyl Choline (mg)" size="small" value={ga.mr1Succ || ""} onChange={e => sga("mr1Succ", e.target.value)} sx={inputSx} fullWidth />
+                  <TextField label="Rocuronium (mg)" size="small" value={ga.mr1Roc || ""} onChange={e => sga("mr1Roc", e.target.value)} sx={inputSx} fullWidth />
+                  <TextField label="Vecuronium (mg)" size="small" value={ga.mr1Vec || ""} onChange={e => sga("mr1Vec", e.target.value)} sx={inputSx} fullWidth />
+                  <TextField label="Atracurium (mg)" size="small" value={ga.mr1Atr || ""} onChange={e => sga("mr1Atr", e.target.value)} sx={inputSx} fullWidth />
+                  <TextField label="Cis-Atracurium (mg)" size="small" value={ga.mr1Cis || ""} onChange={e => sga("mr1Cis", e.target.value)} sx={inputSx} fullWidth />
+                </FG>
+              </Box>
+              <Box sx={{ p: 2, background: C.bgPrimary, border: `1px solid ${C.border}` }}>
+                <Typography sx={{ fontSize: 11, fontFamily: FONT, fontWeight: FW_BOLD, color: C.textSecond, textTransform: "uppercase", letterSpacing: "0.08em", mx: -2, mt: -2, px: 2, py: 1.25, mb: 2, background: C.bgTertiary, borderBottom: `1px solid ${C.border}`, display: "block" }}>Muscle Relaxant 2 - Maintenance</Typography>
+                <FG cols={5}>
+                  <TextField label="Succinyl Choline (mg)" size="small" value={ga.mr2Succ || ""} onChange={e => sga("mr2Succ", e.target.value)} sx={inputSx} fullWidth />
+                  <TextField label="Rocuronium (mg)" size="small" value={ga.mr2Roc || ""} onChange={e => sga("mr2Roc", e.target.value)} sx={inputSx} fullWidth />
+                  <TextField label="Vecuronium (mg)" size="small" value={ga.mr2Vec || ""} onChange={e => sga("mr2Vec", e.target.value)} sx={inputSx} fullWidth />
+                  <TextField label="Atracurium (mg)" size="small" value={ga.mr2Atr || ""} onChange={e => sga("mr2Atr", e.target.value)} sx={inputSx} fullWidth />
+                  <TextField label="Cis-Atracurium (mg)" size="small" value={ga.mr2Cis || ""} onChange={e => sga("mr2Cis", e.target.value)} sx={inputSx} fullWidth />
+                </FG>
+              </Box>
             </Box>
           </SectionBox>
 
           <SectionBox title="Airway & Intubation">
-            <Box sx={{ mb: 1.5 }}>
-              <CbxGroup label="Airway and Oxygen Delivery Devices" options={["ETT Standard", "ETT Preformed", "Double Lumen", "With Bronchial Blocker", "SGD Supreme", "SGD AuraGain", "SGD iGel", "SGD ProSeal", "Face Mask", "Nasal Prongs", "Hudson Mask", "Rigid Bronchoscope", "Tracheostomy Tube", "Others"]} value={ga.airwayDevice} onChange={v => sga("airwayDevice", v)} />
-            </Box>
-            <FG cols={3}>
-              <RdoGroup label="Mode of Intubation" options={["Awake", "GA + Muscle Relaxant", "GA + Spont. Ventilation", "Pre-Op Tracheostomy (LA)", "Not Applicable"]} value={ga.intubationMode} onChange={v => sga("intubationMode", v)} />
-              <CbxGroup label="Method of Intubation" options={["Video Laryngoscope - C Blade", "Video Laryngoscope - D Blade", "Standard Laryngoscope", "Flexible Bronchoscope", "Others"]} value={ga.intubationMethod} onChange={v => sga("intubationMethod", v)} />
-              <RdoGroup label="CL Grade" options={["1", "2A", "2B", "3", "4"]} value={ga.clGrade} onChange={v => sga("clGrade", v)} />
-              <RdoGroup label="POGO (%)" options={["0", "25", "50", "75", "100"]} value={ga.pogo} onChange={v => sga("pogo", v)} />
-              <CbxGroup label="Adjuncts" options={["Bougie", "Stylet", "Others"]} value={ga.adjuncts} onChange={v => sga("adjuncts", v)} />
-              <TextField label="Number of Attempts" type="number" size="small" value={ga.airwayAttempts || ""} onChange={e => sga("airwayAttempts", e.target.value)} sx={inputSx} fullWidth />
-              <TextField label="Number of Operators" type="number" size="small" value={ga.airwayOperators || ""} onChange={e => sga("airwayOperators", e.target.value)} sx={inputSx} fullWidth />
-            </FG>
-            <Box sx={{ mt: 1.5 }}>
-              <CbxGroup label="Complications" options={["Desaturation < 90%", "Significant trauma", "Aspiration of stomach contents", "Aspiration of blood", "Others"]} value={ga.airwayComplications} onChange={v => sga("airwayComplications", v)} />
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <Box sx={{ p: 2, background: C.bgPrimary, border: `1px solid ${C.border}` }}>
+                <Typography sx={{ fontSize: 11, fontFamily: FONT, fontWeight: FW_BOLD, color: C.textSecond, textTransform: "uppercase", letterSpacing: "0.08em", mx: -2, mt: -2, px: 2, py: 1.25, mb: 2, background: C.bgTertiary, borderBottom: `1px solid ${C.border}`, display: "block" }}>Airway and Oxygen Delivery Devices</Typography>
+                <CbxGroup options={["ETT Standard", "ETT Preformed", "Double Lumen", "With Bronchial Blocker", "SGD Supreme", "SGD AuraGain", "SGD iGel", "SGD ProSeal", "Face Mask", "Nasal Prongs", "Hudson Mask", "Rigid Bronchoscope", "Tracheostomy Tube", "Others"]} value={ga.airwayDevice} onChange={v => sga("airwayDevice", v)} />
+              </Box>
+
+              <Box sx={{ p: 2, background: C.bgPrimary, border: `1px solid ${C.border}` }}>
+                <Typography sx={{ fontSize: 11, fontFamily: FONT, fontWeight: FW_BOLD, color: C.textSecond, textTransform: "uppercase", letterSpacing: "0.08em", mx: -2, mt: -2, px: 2, py: 1.25, mb: 2, background: C.bgTertiary, borderBottom: `1px solid ${C.border}`, display: "block" }}>Intubation Details</Typography>
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mb: 1.5 }}>
+                  <RdoGroup label="Mode of Intubation" options={["Awake", "GA + Muscle Relaxant", "GA + Spont. Ventilation", "Pre-Op Tracheostomy (LA)", "Not Applicable"]} value={ga.intubationMode} onChange={v => sga("intubationMode", v)} />
+                  <CbxGroup label="Method of Intubation" options={["Video Laryngoscope - C Blade", "Video Laryngoscope - D Blade", "Standard Laryngoscope", "Flexible Bronchoscope", "Others"]} value={ga.intubationMethod} onChange={v => sga("intubationMethod", v)} />
+                  <RdoGroup label="CL Grade" options={["1", "2A", "2B", "3", "4"]} value={ga.clGrade} onChange={v => sga("clGrade", v)} />
+                </Box>
+              </Box>
+
+              <Box sx={{ p: 2, background: C.bgPrimary, border: `1px solid ${C.border}` }}>
+                <Typography sx={{ fontSize: 11, fontFamily: FONT, fontWeight: FW_BOLD, color: C.textSecond, textTransform: "uppercase", letterSpacing: "0.08em", mx: -2, mt: -2, px: 2, py: 1.25, mb: 2, background: C.bgTertiary, borderBottom: `1px solid ${C.border}`, display: "block" }}>Intubation Adjuncts & Attempts</Typography>
+                <FG cols={3}>
+                  <RdoGroup label="POGO (%)" options={["0", "25", "50", "75", "100"]} value={ga.pogo} onChange={v => sga("pogo", v)} />
+                  <CbxGroup label="Adjuncts" options={["Bougie", "Stylet", "Others"]} value={ga.adjuncts} onChange={v => sga("adjuncts", v)} />
+                  <TextField label="Number of Attempts" type="number" size="small" value={ga.airwayAttempts || ""} onChange={e => sga("airwayAttempts", e.target.value)} sx={inputSx} fullWidth />
+                  <TextField label="Number of Operators" type="number" size="small" value={ga.airwayOperators || ""} onChange={e => sga("airwayOperators", e.target.value)} sx={inputSx} fullWidth />
+                </FG>
+              </Box>
+
+              <Box sx={{ p: 2, background: C.bgPrimary, border: `1px solid ${C.border}` }}>
+                <Typography sx={{ fontSize: 11, fontFamily: FONT, fontWeight: FW_BOLD, color: C.textSecond, textTransform: "uppercase", letterSpacing: "0.08em", mx: -2, mt: -2, px: 2, py: 1.25, mb: 2, background: C.bgTertiary, borderBottom: `1px solid ${C.border}`, display: "block" }}>Airway Complications</Typography>
+                <CbxGroup options={["Desaturation < 90%", "Significant trauma", "Aspiration of stomach contents", "Aspiration of blood", "Others"]} value={ga.airwayComplications} onChange={v => sga("airwayComplications", v)} />
+              </Box>
             </Box>
           </SectionBox>
 
           <SectionBox title="Maintenance & Ventilation">
-            <FG cols={3}>
-              <RdoGroup label="Inhalational Maintenance" options={["O2 + N2O + Volatile", "O2 + Air + Volatile"]} value={ga.maintInhalational} onChange={v => sga("maintInhalational", v)} />
-              <CbxGroup label="TIVA / Inhalation Details" options={["Propofol", "Dexmedetomidine", "Remifentanil", "Others"]} value={ga.maintTiva} onChange={v => sga("maintTiva", v)} />
-              <CbxGroup label="Breathing System" options={["Circle Absorber", "Jackson Rees", "Magill's", "Bains"]} value={ga.breathingSystem} onChange={v => sga("breathingSystem", v)} />
-              <Box sx={{ gridColumn: "1/-1" }}>
-                <CbxGroup label="Ventilator Mode" options={["Spontaneous", "Pressure Support", "Volume Control", "Pressure Control", "Others"]} value={ga.ventMode} onChange={v => sga("ventMode", v)} />
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <Box sx={{ p: 2, background: C.bgPrimary, border: `1px solid ${C.border}` }}>
+                <Typography sx={{ fontSize: 11, fontFamily: FONT, fontWeight: FW_BOLD, color: C.textSecond, textTransform: "uppercase", letterSpacing: "0.08em", mx: -2, mt: -2, px: 2, py: 1.25, mb: 2, background: C.bgTertiary, borderBottom: `1px solid ${C.border}`, display: "block" }}>Maintenance Drugs</Typography>
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                  <RdoGroup label="Inhalational Maintenance" options={["O2 + N2O + Volatile", "O2 + Air + Volatile"]} value={ga.maintInhalational} onChange={v => sga("maintInhalational", v)} />
+                  <CbxGroup label="TIVA / Inhalation Details" options={["Propofol", "Dexmedetomidine", "Remifentanil", "Others"]} value={ga.maintTiva} onChange={v => sga("maintTiva", v)} />
+                </Box>
               </Box>
-            </FG>
-            <Box sx={{ mt: 1.5 }}>
-              <Typography sx={{ fontSize: 11, fontFamily: FONT, color: C.textMuted, mb: 0.5, letterSpacing: "0.05em", textTransform: "uppercase" }}>Non-Opioid Analgesic Drugs</Typography>
-              <FG cols={3}>
-                <TextField label="Paracetamol (mg)" size="small" value={ga.nonOpioidPara || ""} onChange={e => sga("nonOpioidPara", e.target.value)} sx={inputSx} fullWidth />
-                <TextField label="Diclofenac (mg)" size="small" value={ga.nonOpioidDiclo || ""} onChange={e => sga("nonOpioidDiclo", e.target.value)} sx={inputSx} fullWidth />
-                <TextField label="Others (Specify & Dose)" size="small" value={ga.nonOpioidOther || ""} onChange={e => sga("nonOpioidOther", e.target.value)} sx={inputSx} fullWidth />
-              </FG>
-            </Box>
-            <Box sx={{ mt: 1.5 }}>
-              <Typography sx={{ fontSize: 11, fontFamily: FONT, color: C.textMuted, mb: 0.5, letterSpacing: "0.05em", textTransform: "uppercase" }}>Antiemetic Drugs</Typography>
-              <FG cols={4}>
-                <TextField label="Metoclopramide (mg)" size="small" value={ga.antiemeticMetoclo || ""} onChange={e => sga("antiemeticMetoclo", e.target.value)} sx={inputSx} fullWidth />
-                <TextField label="Ondansetron (mg)" size="small" value={ga.antiemeticOndan || ""} onChange={e => sga("antiemeticOndan", e.target.value)} sx={inputSx} fullWidth />
-                <TextField label="Dexamethasone (mg)" size="small" value={ga.antiemeticDexa || ""} onChange={e => sga("antiemeticDexa", e.target.value)} sx={inputSx} fullWidth />
-                <TextField label="Others (Specify & Dose)" size="small" value={ga.antiemeticOther || ""} onChange={e => sga("antiemeticOther", e.target.value)} sx={inputSx} fullWidth />
-              </FG>
+
+              <Box sx={{ p: 2, background: C.bgPrimary, border: `1px solid ${C.border}` }}>
+                <Typography sx={{ fontSize: 11, fontFamily: FONT, fontWeight: FW_BOLD, color: C.textSecond, textTransform: "uppercase", letterSpacing: "0.08em", mx: -2, mt: -2, px: 2, py: 1.25, mb: 2, background: C.bgTertiary, borderBottom: `1px solid ${C.border}`, display: "block" }}>Breathing System & Ventilation</Typography>
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                  <CbxGroup label="Breathing System" options={["Circle Absorber", "Jackson Rees", "Magill's", "Bains"]} value={ga.breathingSystem} onChange={v => sga("breathingSystem", v)} />
+                  <CbxGroup label="Ventilator Mode" options={["Spontaneous", "Pressure Support", "Volume Control", "Pressure Control", "Others"]} value={ga.ventMode} onChange={v => sga("ventMode", v)} />
+                </Box>
+              </Box>
+              <Box sx={{ p: 2, background: C.bgPrimary, border: `1px solid ${C.border}` }}>
+                <Typography sx={{ fontSize: 11, fontFamily: FONT, fontWeight: FW_BOLD, color: C.textSecond, textTransform: "uppercase", letterSpacing: "0.08em", mx: -2, mt: -2, px: 2, py: 1.25, mb: 2, background: C.bgTertiary, borderBottom: `1px solid ${C.border}`, display: "block" }}>Non-Opioid Analgesic Drugs</Typography>
+                <FG cols={3}>
+                  <TextField label="Paracetamol (mg)" size="small" value={ga.nonOpioidPara || ""} onChange={e => sga("nonOpioidPara", e.target.value)} sx={inputSx} fullWidth />
+                  <TextField label="Diclofenac (mg)" size="small" value={ga.nonOpioidDiclo || ""} onChange={e => sga("nonOpioidDiclo", e.target.value)} sx={inputSx} fullWidth />
+                  <TextField label="Others (Specify & Dose)" size="small" value={ga.nonOpioidOther || ""} onChange={e => sga("nonOpioidOther", e.target.value)} sx={inputSx} fullWidth />
+                </FG>
+              </Box>
+              <Box sx={{ p: 2, background: C.bgPrimary, border: `1px solid ${C.border}` }}>
+                <Typography sx={{ fontSize: 11, fontFamily: FONT, fontWeight: FW_BOLD, color: C.textSecond, textTransform: "uppercase", letterSpacing: "0.08em", mx: -2, mt: -2, px: 2, py: 1.25, mb: 2, background: C.bgTertiary, borderBottom: `1px solid ${C.border}`, display: "block" }}>Antiemetic Drugs</Typography>
+                <FG cols={4}>
+                  <TextField label="Metoclopramide (mg)" size="small" value={ga.antiemeticMetoclo || ""} onChange={e => sga("antiemeticMetoclo", e.target.value)} sx={inputSx} fullWidth />
+                  <TextField label="Ondansetron (mg)" size="small" value={ga.antiemeticOndan || ""} onChange={e => sga("antiemeticOndan", e.target.value)} sx={inputSx} fullWidth />
+                  <TextField label="Dexamethasone (mg)" size="small" value={ga.antiemeticDexa || ""} onChange={e => sga("antiemeticDexa", e.target.value)} sx={inputSx} fullWidth />
+                  <TextField label="Others (Specify & Dose)" size="small" value={ga.antiemeticOther || ""} onChange={e => sga("antiemeticOther", e.target.value)} sx={inputSx} fullWidth />
+                </FG>
+              </Box>
             </Box>
           </SectionBox>
 
           <SectionBox title="Ventilation Settings">
-            <FG cols={3}>
-              <TextField label="Tidal Volume / Preset Pressure" size="small" value={ga.vt || ""} onChange={e => sga("vt", e.target.value)} sx={inputSx} fullWidth placeholder="ml or cmH2O" />
-              <TextField label="Rate / Minute" type="number" size="small" value={ga.rr || ""} onChange={e => sga("rr", e.target.value)} sx={inputSx} fullWidth placeholder="Breaths/min" />
-              <TextField label="I:E Ratio" size="small" value={ga.ieRatio || ""} onChange={e => sga("ieRatio", e.target.value)} sx={inputSx} fullWidth placeholder="e.g., 1:2" />
-              <TextField label="PEEP (cm H2O)" type="number" size="small" value={ga.peep || ""} onChange={e => sga("peep", e.target.value)} sx={inputSx} fullWidth />
-              <TextField label="Airway Pressure (cm H2O)" type="number" size="small" value={ga.airwayPressure || ""} onChange={e => sga("airwayPressure", e.target.value)} sx={inputSx} fullWidth />
-              <TextField label="EtCO2 (mm Hg)" type="number" size="small" value={ga.etco2 || ""} onChange={e => sga("etco2", e.target.value)} sx={inputSx} fullWidth />
-              <RdoGroup label="Gas Scavenging" options={["Yes", "No"]} value={ga.gasScavenging} onChange={v => sga("gasScavenging", v)} />
-            </FG>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <Box sx={{ p: 2, background: C.bgPrimary, border: `1px solid ${C.border}` }}>
+                <Typography sx={{ fontSize: 11, fontFamily: FONT, fontWeight: FW_BOLD, color: C.textSecond, textTransform: "uppercase", letterSpacing: "0.08em", mx: -2, mt: -2, px: 2, py: 1.25, mb: 2, background: C.bgTertiary, borderBottom: `1px solid ${C.border}`, display: "block" }}>Settings</Typography>
+                <FG cols={3}>
+                  <TextField label="Tidal Volume / Preset Pressure" size="small" value={ga.vt || ""} onChange={e => sga("vt", e.target.value)} sx={inputSx} fullWidth placeholder="ml or cmH2O" />
+                  <TextField label="Rate / Minute" type="number" size="small" value={ga.rr || ""} onChange={e => sga("rr", e.target.value)} sx={inputSx} fullWidth placeholder="Breaths/min" />
+                  <TextField label="I:E Ratio" size="small" value={ga.ieRatio || ""} onChange={e => sga("ieRatio", e.target.value)} sx={inputSx} fullWidth placeholder="e.g., 1:2" />
+                  <TextField label="PEEP (cm H2O)" type="number" size="small" value={ga.peep || ""} onChange={e => sga("peep", e.target.value)} sx={inputSx} fullWidth />
+                  <TextField label="Airway Pressure (cm H2O)" type="number" size="small" value={ga.airwayPressure || ""} onChange={e => sga("airwayPressure", e.target.value)} sx={inputSx} fullWidth />
+                  <TextField label="EtCO2 (mm Hg)" type="number" size="small" value={ga.etco2 || ""} onChange={e => sga("etco2", e.target.value)} sx={inputSx} fullWidth />
+                  <RdoGroup label="Gas Scavenging" options={["Yes", "No"]} value={ga.gasScavenging} onChange={v => sga("gasScavenging", v)} />
+                </FG>
+              </Box>
+            </Box>
           </SectionBox>
           <Button sx={saveBtnSx} onClick={() => onSave("anaesthesia.ga", ga)}><SaveRounded sx={{ mr: 0.5, fontSize: 14 }} />Save General Anaesthesia</Button>
         </Box>
@@ -987,240 +1044,286 @@ const ProcedureTab = ({ onSave, getSection }) => {
         <Box>
           <TranscribePanel section="reg" onAutofill={fillReg} />
           <SectionBox title="Select Regional Block Type(s)">
-            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
-              {[["showSpinal", "Spinal"], ["showEpidural", "Epidural"], ["showCSE", "CSE"], ["showPNB", "Peripheral Nerve Block"], ["showFascial", "Fascial Plane Block"], ["showIVRA", "IVRA"], ["showOther", "Others"]].map(([key, label]) => (
-                <Box key={key} onClick={() => sreg(key, !reg[key])}
-                  sx={{ px: 2, py: 0.7, border: `1px solid ${reg[key] ? C.black : C.border}`, background: reg[key] ? C.black : C.white, color: reg[key] ? C.white : C.textSecond, fontSize: 12, fontFamily: FONT, cursor: "pointer", transition: "all 0.15s", "&:hover": { borderColor: C.black } }}>
-                  {label}
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <Box sx={{ p: 2, background: C.bgPrimary, border: `1px solid ${C.border}` }}>
+                <Typography sx={{ fontSize: 11, fontFamily: FONT, fontWeight: FW_BOLD, color: C.textSecond, textTransform: "uppercase", letterSpacing: "0.08em", mx: -2, mt: -2, px: 2, py: 1.25, mb: 2, background: C.bgTertiary, borderBottom: `1px solid ${C.border}`, display: "block" }}>Block Selection</Typography>
+                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+                  {[["showSpinal", "Spinal"], ["showEpidural", "Epidural"], ["showCSE", "CSE"], ["showPNB", "Peripheral Nerve Block"], ["showFascial", "Fascial Plane Block"], ["showIVRA", "IVRA"], ["showOther", "Others"]].map(([key, label]) => (
+                    <Box key={key} onClick={() => sreg(key, !reg[key])}
+                      sx={{ px: 2, py: 0.7, border: `1px solid ${reg[key] ? C.black : C.border}`, background: reg[key] ? C.black : C.white, color: reg[key] ? C.white : C.textSecond, fontSize: 12, fontFamily: FONT, cursor: "pointer", transition: "all 0.15s", "&:hover": { borderColor: C.black } }}>
+                      {label}
+                    </Box>
+                  ))}
                 </Box>
-              ))}
-            </Box>
-            {reg.showOther && (
-              <Box sx={{ mt: 2 }}>
-                <TextField label="Other (Specify)" value={reg.otherDetails || ""} size="small" onChange={e => sreg("otherDetails", e.target.value)} sx={inputSx} fullWidth />
+                {reg.showOther && (
+                  <Box sx={{ mt: 2 }}>
+                    <TextField label="Other (Specify)" value={reg.otherDetails || ""} size="small" onChange={e => sreg("otherDetails", e.target.value)} sx={inputSx} fullWidth />
+                  </Box>
+                )}
+                <Box sx={{ mt: 2 }}>
+                  <RdoGroup label="Regional Anaesthesia Timing" options={["Asleep", "Awake"]} value={reg.raTiming} onChange={v => sreg("raTiming", v)} />
+                </Box>
               </Box>
-            )}
-            <Box sx={{ mt: 2 }}>
-              <RdoGroup label="Regional Anaesthesia Timing" options={["Asleep", "Awake"]} value={reg.raTiming} onChange={v => sreg("raTiming", v)} />
             </Box>
           </SectionBox>
 
           {reg.showSpinal && (
             <SectionBox title="1. Spinal Anaesthesia">
-              <FG cols={3}>
-                <RdoGroup label="Posture" options={["Lateral", "Sitting"]} value={reg.spinal.posture} onChange={v => sreg("spinal.posture", v)} />
-                <TextField label="Needle Type" value={reg.spinal.needleType} size="small" onChange={e => sreg("spinal.needleType", e.target.value)} sx={inputSx} fullWidth />
-                <TextField label="Size" value={reg.spinal.needleSize} size="small" onChange={e => sreg("spinal.needleSize", e.target.value)} sx={inputSx} fullWidth />
-                <RdoGroup label="Site of Insertion" options={["L3-L4", "L4-L5", "Others"]} value={reg.spinal.site} onChange={v => sreg("spinal.site", v)} />
-                <RdoGroup label="Approach" options={["Median", "Paramedian"]} value={reg.spinal.approach} onChange={v => sreg("spinal.approach", v)} />
-                <TextField label="No of Attempts" value={reg.spinal.attempts} type="number" size="small" onChange={e => sreg("spinal.attempts", e.target.value)} sx={inputSx} fullWidth />
-                <TextField label="No of Operators" value={reg.spinal.operators} type="number" size="small" onChange={e => sreg("spinal.operators", e.target.value)} sx={inputSx} fullWidth />
-                <Box sx={{ gridColumn: "1/-1" }}>
-                  <CbxGroup label="Time" options={["Start of Surgery", "End of Surgery"]} value={reg.spinal.timing} onChange={v => sreg("spinal.timing", v)} />
-                  {(reg.spinal.timing || []).length > 0 && (
-                    <Box sx={{ display: "flex", gap: 2, mt: 1 }}>
-                      {reg.spinal.timing.includes("Start of Surgery") && (
-                        <TextField label="Start Time" type="time" value={reg.spinal.startTime || ""} size="small" onChange={e => sreg("spinal.startTime", e.target.value)} sx={{ ...inputSx, minWidth: 160 }} InputLabelProps={{ shrink: true }} />
-                      )}
-                      {reg.spinal.timing.includes("End of Surgery") && (
-                        <TextField label="End Time" type="time" value={reg.spinal.endTime || ""} size="small" onChange={e => sreg("spinal.endTime", e.target.value)} sx={{ ...inputSx, minWidth: 160 }} InputLabelProps={{ shrink: true }} />
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <Box sx={{ p: 2, background: C.bgPrimary, border: `1px solid ${C.border}` }}>
+                  <Typography sx={{ fontSize: 11, fontFamily: FONT, fontWeight: FW_BOLD, color: C.textSecond, textTransform: "uppercase", letterSpacing: "0.08em", mx: -2, mt: -2, px: 2, py: 1.25, mb: 2, background: C.bgTertiary, borderBottom: `1px solid ${C.border}`, display: "block" }}>Spinal Details</Typography>
+                  <FG cols={3}>
+                    <RdoGroup label="Posture" options={["Lateral", "Sitting"]} value={reg.spinal.posture} onChange={v => sreg("spinal.posture", v)} />
+                    <TextField label="Needle Type" value={reg.spinal.needleType} size="small" onChange={e => sreg("spinal.needleType", e.target.value)} sx={inputSx} fullWidth />
+                    <TextField label="Size" value={reg.spinal.needleSize} size="small" onChange={e => sreg("spinal.needleSize", e.target.value)} sx={inputSx} fullWidth />
+                    <RdoGroup label="Site of Insertion" options={["L3-L4", "L4-L5", "Others"]} value={reg.spinal.site} onChange={v => sreg("spinal.site", v)} />
+                    <RdoGroup label="Approach" options={["Median", "Paramedian"]} value={reg.spinal.approach} onChange={v => sreg("spinal.approach", v)} />
+                    <TextField label="No of Attempts" value={reg.spinal.attempts} type="number" size="small" onChange={e => sreg("spinal.attempts", e.target.value)} sx={inputSx} fullWidth />
+                    <TextField label="No of Operators" value={reg.spinal.operators} type="number" size="small" onChange={e => sreg("spinal.operators", e.target.value)} sx={inputSx} fullWidth />
+                    <Box sx={{ gridColumn: "1/-1" }}>
+                      <CbxGroup label="Time" options={["Start of Surgery", "End of Surgery"]} value={reg.spinal.timing} onChange={v => sreg("spinal.timing", v)} />
+                      {(reg.spinal.timing || []).length > 0 && (
+                        <Box sx={{ display: "flex", gap: 2, mt: 1 }}>
+                          {reg.spinal.timing.includes("Start of Surgery") && (
+                            <TextField label="Start Time" type="time" value={reg.spinal.startTime || ""} size="small" onChange={e => sreg("spinal.startTime", e.target.value)} sx={{ ...inputSx, minWidth: 160 }} InputLabelProps={{ shrink: true }} />
+                          )}
+                          {reg.spinal.timing.includes("End of Surgery") && (
+                            <TextField label="End Time" type="time" value={reg.spinal.endTime || ""} size="small" onChange={e => sreg("spinal.endTime", e.target.value)} sx={{ ...inputSx, minWidth: 160 }} InputLabelProps={{ shrink: true }} />
+                          )}
+                        </Box>
                       )}
                     </Box>
-                  )}
-                </Box>
-                <TextField label="Local Anaesthetic" value={reg.spinal.la} size="small" onChange={e => sreg("spinal.la", e.target.value)} sx={inputSx} fullWidth />
-                <TextField label="Concentration (%)" value={reg.spinal.concentration} size="small" onChange={e => sreg("spinal.concentration", e.target.value)} sx={inputSx} fullWidth />
-                <TextField label="Volume (ml)" value={reg.spinal.volume} size="small" onChange={e => sreg("spinal.volume", e.target.value)} sx={inputSx} fullWidth />
-                <Box sx={{ gridColumn: "1/-1" }}><TextField label="Adjuvants (Drug and Dose)" value={reg.spinal.adjuvants} size="small" multiline rows={2} onChange={e => sreg("spinal.adjuvants", e.target.value)} sx={inputSx} fullWidth /></Box>
+                    <TextField label="Local Anaesthetic" value={reg.spinal.la} size="small" onChange={e => sreg("spinal.la", e.target.value)} sx={inputSx} fullWidth />
+                    <TextField label="Concentration (%)" value={reg.spinal.concentration} size="small" onChange={e => sreg("spinal.concentration", e.target.value)} sx={inputSx} fullWidth />
+                    <TextField label="Volume (ml)" value={reg.spinal.volume} size="small" onChange={e => sreg("spinal.volume", e.target.value)} sx={inputSx} fullWidth />
+                    <Box sx={{ gridColumn: "1/-1" }}><TextField label="Adjuvants (Drug and Dose)" value={reg.spinal.adjuvants} size="small" multiline rows={2} onChange={e => sreg("spinal.adjuvants", e.target.value)} sx={inputSx} fullWidth /></Box>
 
-                <Box sx={{ display: "flex", gap: 2 }}>
-                  <RdoGroup label="Spinal Catheter" options={["Yes", "No"]} value={reg.spinal.catheter} onChange={v => sreg("spinal.catheter", v)} />
-                  {reg.spinal.catheter === "Yes" && <TextField label="Catheter Details" value={reg.spinal.catheterDetails || ""} size="small" onChange={e => sreg("spinal.catheterDetails", e.target.value)} sx={{ ...inputSx, flex: 1 }} />}
-                </Box>
-                <Box sx={{ display: "flex", gap: 2, gridColumn: "span 2" }}>
-                  <RdoGroup label="Extent of Block" options={["Checked", "Not checked"]} value={reg.spinal.blockExtent} onChange={v => sreg("spinal.blockExtent", v)} />
-                  {reg.spinal.blockExtent === "Checked" && <TextField label="Details" value={reg.spinal.blockExtentDetails || ""} size="small" onChange={e => sreg("spinal.blockExtentDetails", e.target.value)} sx={{ ...inputSx, flex: 1 }} />}
-                </Box>
+                    <Box sx={{ display: "flex", gap: 2 }}>
+                      <RdoGroup label="Spinal Catheter" options={["Yes", "No"]} value={reg.spinal.catheter} onChange={v => sreg("spinal.catheter", v)} />
+                      {reg.spinal.catheter === "Yes" && <TextField label="Catheter Details" value={reg.spinal.catheterDetails || ""} size="small" onChange={e => sreg("spinal.catheterDetails", e.target.value)} sx={{ ...inputSx, flex: 1 }} />}
+                    </Box>
+                    <Box sx={{ display: "flex", gap: 2, gridColumn: "span 2" }}>
+                      <RdoGroup label="Extent of Block" options={["Checked", "Not checked"]} value={reg.spinal.blockExtent} onChange={v => sreg("spinal.blockExtent", v)} />
+                      {reg.spinal.blockExtent === "Checked" && <TextField label="Details" value={reg.spinal.blockExtentDetails || ""} size="small" onChange={e => sreg("spinal.blockExtentDetails", e.target.value)} sx={{ ...inputSx, flex: 1 }} />}
+                    </Box>
 
-                <Box sx={{ gridColumn: "1/-1" }}>
-                  <CbxGroup label="Complications" options={["No action", "Inadequate", "High Spinal", "Total Spinal", "Severe hypotension", "Others"]} value={reg.spinal.complications} onChange={v => sreg("spinal.complications", v)} />
+                    <Box sx={{ gridColumn: "1/-1" }}>
+                      <CbxGroup label="Complications" options={["No action", "Inadequate", "High Spinal", "Total Spinal", "Severe hypotension", "Others"]} value={reg.spinal.complications} onChange={v => sreg("spinal.complications", v)} />
+                    </Box>
+                  </FG>
                 </Box>
-              </FG>
+              </Box>
             </SectionBox>
           )}
 
           {reg.showEpidural && (
             <SectionBox title="2. Epidural Anaesthesia">
-              <FG cols={3}>
-                <RdoGroup label="Posture" options={["Lateral", "Sitting"]} value={reg.epidural.posture} onChange={v => sreg("epidural.posture", v)} />
-                <TextField label="Needle Type" value={reg.epidural.needleType} size="small" onChange={e => sreg("epidural.needleType", e.target.value)} sx={inputSx} fullWidth />
-                <TextField label="Size" value={reg.epidural.needleSize} size="small" onChange={e => sreg("epidural.needleSize", e.target.value)} sx={inputSx} fullWidth />
-                <CbxGroup label="Site of Insertion" options={["Lumbar", "Thoracic", "Others"]} value={reg.epidural.site} onChange={v => sreg("epidural.site", v)} />
-                <Box sx={{ gridColumn: "1/-1" }}><TextField label="Insertion Details" value={reg.epidural.insertionDetails} size="small" multiline rows={2} onChange={e => sreg("epidural.insertionDetails", e.target.value)} sx={inputSx} fullWidth /></Box>
-                <RdoGroup label="Approach" options={["Median", "Paramedian"]} value={reg.epidural.approach} onChange={v => sreg("epidural.approach", v)} />
-                <Box sx={{ gridColumn: "1/-1" }}>
-                  <RdoGroup label="Technique" options={["Intermittent LOR - Air", "Intermittent LOR - Saline", "Continuous Saline", "Hanging drop", "Others"]} value={reg.epidural.technique} onChange={v => sreg("epidural.technique", v)} row={false} />
-                  <FlagNote>Single choice possible</FlagNote>
-                </Box>
-                <TextField label="Depth of Epidural Space (cm)" value={reg.epidural.depthSpace} size="small" onChange={e => sreg("epidural.depthSpace", e.target.value)} sx={inputSx} fullWidth />
-                <TextField label="Depth of Catheter Insertion (cm)" value={reg.epidural.catheterDepth} size="small" onChange={e => sreg("epidural.catheterDepth", e.target.value)} sx={inputSx} fullWidth />
-                <TextField label="No of Attempts" value={reg.epidural.attempts} type="number" size="small" onChange={e => sreg("epidural.attempts", e.target.value)} sx={inputSx} fullWidth />
-                <TextField label="No of Operators" value={reg.epidural.operators} type="number" size="small" onChange={e => sreg("epidural.operators", e.target.value)} sx={inputSx} fullWidth />
-                <Box sx={{ gridColumn: "1/-1" }}>
-                  <CbxGroup label="Time" options={["Start of Surgery", "End of Surgery"]} value={reg.epidural.timing} onChange={v => sreg("epidural.timing", v)} />
-                  {(reg.epidural.timing || []).length > 0 && (
-                    <Box sx={{ display: "flex", gap: 2, mt: 1 }}>
-                      {reg.epidural.timing.includes("Start of Surgery") && (
-                        <TextField label="Start Time" type="time" value={reg.epidural.startTime || ""} size="small" onChange={e => sreg("epidural.startTime", e.target.value)} sx={{ ...inputSx, minWidth: 160 }} InputLabelProps={{ shrink: true }} />
-                      )}
-                      {reg.epidural.timing.includes("End of Surgery") && (
-                        <TextField label="End Time" type="time" value={reg.epidural.endTime || ""} size="small" onChange={e => sreg("epidural.endTime", e.target.value)} sx={{ ...inputSx, minWidth: 160 }} InputLabelProps={{ shrink: true }} />
-                      )}
-                    </Box>
-                  )}
-                </Box>
-
-                <Box sx={{ gridColumn: "1/-1", mt: 1, p: 1, border: `1px solid ${C.border}`, borderRadius: 1 }}>
-                  <Typography sx={{ fontSize: 12, fontWeight: 500, fontFamily: FONT, mb: 1 }}>Test Dose</Typography>
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <Box sx={{ p: 2, background: C.bgPrimary, border: `1px solid ${C.border}` }}>
+                  <Typography sx={{ fontSize: 11, fontFamily: FONT, fontWeight: FW_BOLD, color: C.textSecond, textTransform: "uppercase", letterSpacing: "0.08em", mx: -2, mt: -2, px: 2, py: 1.25, mb: 2, background: C.bgTertiary, borderBottom: `1px solid ${C.border}`, display: "block" }}>Insertion Details</Typography>
                   <FG cols={3}>
-                    <Box sx={{ display: "flex", gap: 1 }}>
-                      <Checkbox size="small" checked={!!reg.epidural.testIntrathecal} onChange={e => sreg("epidural.testIntrathecal", e.target.checked)} />
-                      <TextField label="For Intrathecal (Drug & Dose)" size="small" value={reg.epidural.testIntrathecalDetails || ""} onChange={e => sreg("epidural.testIntrathecalDetails", e.target.value)} sx={inputSx} fullWidth />
-                    </Box>
-                    <Box sx={{ display: "flex", gap: 1 }}>
-                      <Checkbox size="small" checked={!!reg.epidural.testIntravascular} onChange={e => sreg("epidural.testIntravascular", e.target.checked)} />
-                      <TextField label="For Intravascular (Drug & Dose)" size="small" value={reg.epidural.testIntravascularDetails || ""} onChange={e => sreg("epidural.testIntravascularDetails", e.target.value)} sx={inputSx} fullWidth />
-                    </Box>
-                    <Box sx={{ display: "flex", gap: 1 }}>
-                      <Checkbox size="small" checked={!!reg.epidural.testPositive} onChange={e => sreg("epidural.testPositive", e.target.checked)} />
-                      <TextField label="Positive Details" size="small" value={reg.epidural.testPositiveDetails || ""} onChange={e => sreg("epidural.testPositiveDetails", e.target.value)} sx={inputSx} fullWidth />
-                    </Box>
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                      <Checkbox size="small" checked={!!reg.epidural.testNegative} onChange={e => sreg("epidural.testNegative", e.target.checked)} />
-                      <Typography sx={{ fontSize: 12, fontFamily: FONT }}>Negative</Typography>
+                    <RdoGroup label="Posture" options={["Lateral", "Sitting"]} value={reg.epidural.posture} onChange={v => sreg("epidural.posture", v)} />
+                    <TextField label="Needle Type" value={reg.epidural.needleType} size="small" onChange={e => sreg("epidural.needleType", e.target.value)} sx={inputSx} fullWidth />
+                    <TextField label="Size" value={reg.epidural.needleSize} size="small" onChange={e => sreg("epidural.needleSize", e.target.value)} sx={inputSx} fullWidth />
+                    <CbxGroup label="Site of Insertion" options={["Lumbar", "Thoracic", "Others"]} value={reg.epidural.site} onChange={v => sreg("epidural.site", v)} />
+                    <Box sx={{ gridColumn: "1/-1" }}><TextField label="Insertion Details" value={reg.epidural.insertionDetails} size="small" multiline rows={2} onChange={e => sreg("epidural.insertionDetails", e.target.value)} sx={inputSx} fullWidth /></Box>
+                    <RdoGroup label="Approach" options={["Median", "Paramedian"]} value={reg.epidural.approach} onChange={v => sreg("epidural.approach", v)} />
+                    <TextField label="Depth of Epidural Space (cm)" value={reg.epidural.depthSpace} size="small" onChange={e => sreg("epidural.depthSpace", e.target.value)} sx={inputSx} fullWidth />
+                    <TextField label="Depth of Catheter Insertion (cm)" value={reg.epidural.catheterDepth} size="small" onChange={e => sreg("epidural.catheterDepth", e.target.value)} sx={inputSx} fullWidth />
+                    <TextField label="No of Attempts" value={reg.epidural.attempts} type="number" size="small" onChange={e => sreg("epidural.attempts", e.target.value)} sx={inputSx} fullWidth />
+                    <TextField label="No of Operators" value={reg.epidural.operators} type="number" size="small" onChange={e => sreg("epidural.operators", e.target.value)} sx={inputSx} fullWidth />
+                    <Box sx={{ gridColumn: "1/-1" }}>
+                      <CbxGroup label="Time" options={["Start of Surgery", "End of Surgery"]} value={reg.epidural.timing} onChange={v => sreg("epidural.timing", v)} />
+                      {(reg.epidural.timing || []).length > 0 && (
+                        <Box sx={{ display: "flex", gap: 2, mt: 1 }}>
+                          {reg.epidural.timing.includes("Start of Surgery") && (
+                            <TextField label="Start Time" type="time" value={reg.epidural.startTime || ""} size="small" onChange={e => sreg("epidural.startTime", e.target.value)} sx={{ ...inputSx, minWidth: 160 }} InputLabelProps={{ shrink: true }} />
+                          )}
+                          {reg.epidural.timing.includes("End of Surgery") && (
+                            <TextField label="End Time" type="time" value={reg.epidural.endTime || ""} size="small" onChange={e => sreg("epidural.endTime", e.target.value)} sx={{ ...inputSx, minWidth: 160 }} InputLabelProps={{ shrink: true }} />
+                          )}
+                        </Box>
+                      )}
                     </Box>
                   </FG>
                 </Box>
 
-                <TextField label="Local Anaesthetic" value={reg.epidural.la} size="small" onChange={e => sreg("epidural.la", e.target.value)} sx={inputSx} fullWidth />
-                <TextField label="Concentration (%)" value={reg.epidural.concentration} size="small" onChange={e => sreg("epidural.concentration", e.target.value)} sx={inputSx} fullWidth />
-                <TextField label="Volume (ml)" value={reg.epidural.volume} size="small" onChange={e => sreg("epidural.volume", e.target.value)} sx={inputSx} fullWidth />
-                <TextField label="Loading Dose" value={reg.epidural.loadingDose} size="small" onChange={e => sreg("epidural.loadingDose", e.target.value)} sx={inputSx} fullWidth />
-                <TextField label="Infusion" value={reg.epidural.infusion} size="small" onChange={e => sreg("epidural.infusion", e.target.value)} sx={inputSx} fullWidth />
-                <Box sx={{ gridColumn: "1/-1" }}><TextField label="Adjuvants (Drug and Dose)" value={reg.epidural.adjuvants} size="small" multiline rows={2} onChange={e => sreg("epidural.adjuvants", e.target.value)} sx={inputSx} fullWidth /></Box>
-
-                <Box sx={{ display: "flex", gap: 2, gridColumn: "1/-1" }}>
-                  <RdoGroup label="Extent of Block" options={["Checked", "Not checked"]} value={reg.epidural.blockExtent} onChange={v => sreg("epidural.blockExtent", v)} />
-                  {reg.epidural.blockExtent === "Checked" && <TextField label="Details" value={reg.epidural.blockExtentDetails || ""} size="small" onChange={e => sreg("epidural.blockExtentDetails", e.target.value)} sx={{ ...inputSx, flex: 1, mt: 2 }} />}
+                <Box sx={{ p: 2, background: C.bgPrimary, border: `1px solid ${C.border}` }}>
+                  <Typography sx={{ fontSize: 11, fontFamily: FONT, fontWeight: FW_BOLD, color: C.textSecond, textTransform: "uppercase", letterSpacing: "0.08em", mx: -2, mt: -2, px: 2, py: 1.25, mb: 2, background: C.bgTertiary, borderBottom: `1px solid ${C.border}`, display: "block" }}>Technique & Test Dose</Typography>
+                  <Box sx={{ mb: 1.5 }}>
+                    <RdoGroup label="Technique" options={["Intermittent LOR - Air", "Intermittent LOR - Saline", "Continuous Saline", "Hanging drop", "Others"]} value={reg.epidural.technique} onChange={v => sreg("epidural.technique", v)} />
+                  </Box>
+                  <Box sx={{ p: 1, border: `1px solid ${C.border}`, borderRadius: 1 }}>
+                    <Typography sx={{ fontSize: 12, fontWeight: 500, fontFamily: FONT, mb: 1 }}>Test Dose</Typography>
+                    <FG cols={3}>
+                      <Box sx={{ display: "flex", gap: 1 }}>
+                        <Checkbox size="small" checked={!!reg.epidural.testIntrathecal} onChange={e => sreg("epidural.testIntrathecal", e.target.checked)} />
+                        <TextField label="For Intrathecal (Drug & Dose)" size="small" value={reg.epidural.testIntrathecalDetails || ""} onChange={e => sreg("epidural.testIntrathecalDetails", e.target.value)} sx={inputSx} fullWidth />
+                      </Box>
+                      <Box sx={{ display: "flex", gap: 1 }}>
+                        <Checkbox size="small" checked={!!reg.epidural.testIntravascular} onChange={e => sreg("epidural.testIntravascular", e.target.checked)} />
+                        <TextField label="For Intravascular (Drug & Dose)" size="small" value={reg.epidural.testIntravascularDetails || ""} onChange={e => sreg("epidural.testIntravascularDetails", e.target.value)} sx={inputSx} fullWidth />
+                      </Box>
+                      <Box sx={{ display: "flex", gap: 1 }}>
+                        <Checkbox size="small" checked={!!reg.epidural.testPositive} onChange={e => sreg("epidural.testPositive", e.target.checked)} />
+                        <TextField label="Positive Details" size="small" value={reg.epidural.testPositiveDetails || ""} onChange={e => sreg("epidural.testPositiveDetails", e.target.value)} sx={inputSx} fullWidth />
+                      </Box>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                        <Checkbox size="small" checked={!!reg.epidural.testNegative} onChange={e => sreg("epidural.testNegative", e.target.checked)} />
+                        <Typography sx={{ fontSize: 12, fontFamily: FONT }}>Negative</Typography>
+                      </Box>
+                    </FG>
+                  </Box>
                 </Box>
 
-                <Box sx={{ gridColumn: "1/-1" }}><CbxGroup label="Complications" options={["None", "Inadequate", "Intravascular injection", "Dural puncture", "High block", "Others"]} value={reg.epidural.complications} onChange={v => sreg("epidural.complications", v)} /></Box>
-              </FG>
+                <Box sx={{ p: 2, background: C.bgPrimary, border: `1px solid ${C.border}` }}>
+                  <Typography sx={{ fontSize: 11, fontFamily: FONT, fontWeight: FW_BOLD, color: C.textSecond, textTransform: "uppercase", letterSpacing: "0.08em", mx: -2, mt: -2, px: 2, py: 1.25, mb: 2, background: C.bgTertiary, borderBottom: `1px solid ${C.border}`, display: "block" }}>Block Specifics & Complications</Typography>
+                  <FG cols={3}>
+                    <TextField label="Local Anaesthetic" value={reg.epidural.la} size="small" onChange={e => sreg("epidural.la", e.target.value)} sx={inputSx} fullWidth />
+                    <TextField label="Concentration (%)" value={reg.epidural.concentration} size="small" onChange={e => sreg("epidural.concentration", e.target.value)} sx={inputSx} fullWidth />
+                    <TextField label="Volume (ml)" value={reg.epidural.volume} size="small" onChange={e => sreg("epidural.volume", e.target.value)} sx={inputSx} fullWidth />
+                    <TextField label="Loading Dose" value={reg.epidural.loadingDose} size="small" onChange={e => sreg("epidural.loadingDose", e.target.value)} sx={inputSx} fullWidth />
+                    <TextField label="Infusion" value={reg.epidural.infusion} size="small" onChange={e => sreg("epidural.infusion", e.target.value)} sx={inputSx} fullWidth />
+                    <Box sx={{ gridColumn: "1/-1" }}><TextField label="Adjuvants (Drug and Dose)" value={reg.epidural.adjuvants} size="small" multiline rows={2} onChange={e => sreg("epidural.adjuvants", e.target.value)} sx={inputSx} fullWidth /></Box>
+                    <Box sx={{ display: "flex", gap: 2, gridColumn: "1/-1" }}>
+                      <RdoGroup label="Extent of Block" options={["Checked", "Not checked"]} value={reg.epidural.blockExtent} onChange={v => sreg("epidural.blockExtent", v)} />
+                      {reg.epidural.blockExtent === "Checked" && <TextField label="Details" value={reg.epidural.blockExtentDetails || ""} size="small" onChange={e => sreg("epidural.blockExtentDetails", e.target.value)} sx={{ ...inputSx, flex: 1, mt: 2 }} />}
+                    </Box>
+                    <Box sx={{ gridColumn: "1/-1" }}><CbxGroup label="Complications" options={["None", "Inadequate", "Intravascular injection", "Dural puncture", "High block", "Others"]} value={reg.epidural.complications} onChange={v => sreg("epidural.complications", v)} /></Box>
+                  </FG>
+                </Box>
+              </Box>
             </SectionBox>
           )}
 
           {reg.showCSE && (
             <SectionBox title="3. Combined Spinal Epidural (CSE)">
-              <FG cols={1}>
-                <RdoGroup label="Technique" options={["Spinal followed by Epidural", "Epidural followed by Spinal"]} value={reg.cseTechnique} onChange={v => sreg("cseTechnique", v)} />
-              </FG>
-              <Typography sx={{ mt: 1, fontSize: 11, fontFamily: FONT, color: C.textMuted }}>* Please also open both Spinal and Epidural sections above to fill in the respective details.</Typography>
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <Box sx={{ p: 2, background: C.bgPrimary, border: `1px solid ${C.border}` }}>
+                  <Typography sx={{ fontSize: 11, fontFamily: FONT, fontWeight: FW_BOLD, color: C.textSecond, textTransform: "uppercase", letterSpacing: "0.08em", mx: -2, mt: -2, px: 2, py: 1.25, mb: 2, background: C.bgTertiary, borderBottom: `1px solid ${C.border}`, display: "block" }}>CSE Details</Typography>
+                  <FG cols={1}>
+                    <RdoGroup label="Technique" options={["Spinal followed by Epidural", "Epidural followed by Spinal"]} value={reg.cseTechnique} onChange={v => sreg("cseTechnique", v)} />
+                  </FG>
+                  <Typography sx={{ mt: 1, fontSize: 11, fontFamily: FONT, color: C.textMuted }}>* Please also open both Spinal and Epidural sections above to fill in the respective details.</Typography>
+                </Box>
+              </Box>
             </SectionBox>
           )}
 
           {reg.showPNB && (
             <SectionBox title="4. Peripheral Nerve Block">
-              <Box sx={{ mb: 1.5 }}>
-                <CbxGroup label="Name of Block" options={["Brachial Plexus - Interscalene", "Brachial Plexus - Supraclavicular", "Brachial Plexus - Axillary", "Other Upper Limb", "Femoral", "Sciatic", "Other Lower Limb", "Others"]} value={reg.pnb.nerve || []} onChange={v => sreg("pnb.nerve", v)} />
-                <FlagNote>Multiple choice possible</FlagNote>
-              </Box>
-              <FG cols={3}>
-                <RdoGroup label="Posture" options={["Lateral", "Sitting"]} value={reg.pnb.posture} onChange={v => sreg("pnb.posture", v)} />
-                <RdoGroup label="Laterality" options={["Right", "Left", "Bilateral"]} value={reg.pnb.laterality} onChange={v => sreg("pnb.laterality", v)} />
-                <CbxGroup label="Technique" options={["USG Guided", "Nerve Stimulator Guided", "Landmark Technique"]} value={reg.pnb.technique || []} onChange={v => sreg("pnb.technique", v)} />
-                <TextField label="Needle Type" value={reg.pnb.needleType} size="small" onChange={e => sreg("pnb.needleType", e.target.value)} sx={inputSx} fullWidth />
-                <TextField label="Size" value={reg.pnb.needleSize} size="small" onChange={e => sreg("pnb.needleSize", e.target.value)} sx={inputSx} fullWidth />
-                <TextField label="Site of Insertion" value={reg.pnb.site} size="small" onChange={e => sreg("pnb.site", e.target.value)} sx={inputSx} fullWidth />
-                <Box sx={{ gridColumn: "1/-1" }}>
-                  <CbxGroup label="Time" options={["Start of Surgery", "End of Surgery"]} value={reg.pnb.timing} onChange={v => sreg("pnb.timing", v)} />
-                  {(reg.pnb.timing || []).length > 0 && (
-                    <Box sx={{ display: "flex", gap: 2, mt: 1 }}>
-                      {reg.pnb.timing.includes("Start of Surgery") && (
-                        <TextField label="Start Time" type="time" value={reg.pnb.startTime || ""} size="small" onChange={e => sreg("pnb.startTime", e.target.value)} sx={{ ...inputSx, minWidth: 160 }} InputLabelProps={{ shrink: true }} />
-                      )}
-                      {reg.pnb.timing.includes("End of Surgery") && (
-                        <TextField label="End Time" type="time" value={reg.pnb.endTime || ""} size="small" onChange={e => sreg("pnb.endTime", e.target.value)} sx={{ ...inputSx, minWidth: 160 }} InputLabelProps={{ shrink: true }} />
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <Box sx={{ p: 2, background: C.bgPrimary, border: `1px solid ${C.border}` }}>
+                  <Typography sx={{ fontSize: 11, fontFamily: FONT, fontWeight: FW_BOLD, color: C.textSecond, textTransform: "uppercase", letterSpacing: "0.08em", mx: -2, mt: -2, px: 2, py: 1.25, mb: 2, background: C.bgTertiary, borderBottom: `1px solid ${C.border}`, display: "block" }}>Name of Block</Typography>
+                  <CbxGroup options={["Brachial Plexus - Interscalene", "Brachial Plexus - Supraclavicular", "Brachial Plexus - Axillary", "Other Upper Limb", "Femoral", "Sciatic", "Other Lower Limb", "Others"]} value={reg.pnb.nerve || []} onChange={v => sreg("pnb.nerve", v)} />
+                  <FlagNote>Multiple choice possible</FlagNote>
+                </Box>
+                <Box sx={{ p: 2, background: C.bgPrimary, border: `1px solid ${C.border}` }}>
+                  <Typography sx={{ fontSize: 11, fontFamily: FONT, fontWeight: FW_BOLD, color: C.textSecond, textTransform: "uppercase", letterSpacing: "0.08em", mx: -2, mt: -2, px: 2, py: 1.25, mb: 2, background: C.bgTertiary, borderBottom: `1px solid ${C.border}`, display: "block" }}>PNB Details</Typography>
+                  <FG cols={3}>
+                    <Box sx={{ gridColumn: "1/-1" }}>
+                      <CbxGroup label="Technique" options={["USG Guided", "Nerve Stimulator Guided", "Landmark Technique"]} value={reg.pnb.technique || []} onChange={v => sreg("pnb.technique", v)} />
+                    </Box>
+                    <RdoGroup label="Posture" options={["Lateral", "Sitting"]} value={reg.pnb.posture} onChange={v => sreg("pnb.posture", v)} />
+                    <RdoGroup label="Laterality" options={["Right", "Left", "Bilateral"]} value={reg.pnb.laterality} onChange={v => sreg("pnb.laterality", v)} />
+                    <Box />
+                    
+                    <TextField label="Needle Type" value={reg.pnb.needleType} size="small" onChange={e => sreg("pnb.needleType", e.target.value)} sx={inputSx} fullWidth />
+                    <TextField label="Size" value={reg.pnb.needleSize} size="small" onChange={e => sreg("pnb.needleSize", e.target.value)} sx={inputSx} fullWidth />
+                    <TextField label="Site of Insertion" value={reg.pnb.site} size="small" onChange={e => sreg("pnb.site", e.target.value)} sx={inputSx} fullWidth />
+                    <Box sx={{ gridColumn: "1/-1" }}>
+                      <CbxGroup label="Time" options={["Start of Surgery", "End of Surgery"]} value={reg.pnb.timing} onChange={v => sreg("pnb.timing", v)} />
+                      {(reg.pnb.timing || []).length > 0 && (
+                        <Box sx={{ display: "flex", gap: 3, mt: 1 }}>
+                          {reg.pnb.timing.includes("Start of Surgery") && (
+                            <TextField label="Start Time" type="time" value={reg.pnb.startTime || ""} size="small" onChange={e => sreg("pnb.startTime", e.target.value)} sx={{ ...inputSx, minWidth: 160 }} InputLabelProps={{ shrink: true }} />
+                          )}
+                          {reg.pnb.timing.includes("End of Surgery") && (
+                            <TextField label="End Time" type="time" value={reg.pnb.endTime || ""} size="small" onChange={e => sreg("pnb.endTime", e.target.value)} sx={{ ...inputSx, minWidth: 160 }} InputLabelProps={{ shrink: true }} />
+                          )}
+                        </Box>
                       )}
                     </Box>
-                  )}
+                    <TextField label="Local Anaesthetic" value={reg.pnb.la} size="small" onChange={e => sreg("pnb.la", e.target.value)} sx={inputSx} fullWidth />
+                    <TextField label="Concentration (%)" value={reg.pnb.concentration} size="small" onChange={e => sreg("pnb.concentration", e.target.value)} sx={inputSx} fullWidth />
+                    <TextField label="Volume (ml)" value={reg.pnb.volume} size="small" onChange={e => sreg("pnb.volume", e.target.value)} sx={inputSx} fullWidth />
+                    <Box sx={{ gridColumn: "1/-1" }}><TextField label="Adjuvants (Drug, Concentration, Volume)" value={reg.pnb.adjuvants} size="small" multiline rows={2} onChange={e => sreg("pnb.adjuvants", e.target.value)} sx={inputSx} fullWidth /></Box>
+                    <RdoGroup label="Catheter" options={["Yes", "No"]} value={reg.pnb.catheter} onChange={v => sreg("pnb.catheter", v)} />
+                    <Box sx={{ display: "flex", gap: 2, gridColumn: "span 2" }}>
+                      <RdoGroup label="Extent of Block" options={["Checked", "Not checked"]} value={reg.pnb.blockExtent} onChange={v => sreg("pnb.blockExtent", v)} />
+                      {reg.pnb.blockExtent === "Checked" && <TextField label="Details" value={reg.pnb.blockExtentDetails || ""} size="small" onChange={e => sreg("pnb.blockExtentDetails", e.target.value)} sx={{ ...inputSx, flex: 1 }} />}
+                    </Box>
+                    <Box sx={{ gridColumn: "1/-1" }}><TextField label="Complications" value={reg.pnb.complications} size="small" multiline rows={2} onChange={e => sreg("pnb.complications", e.target.value)} sx={inputSx} fullWidth placeholder="Complications if any" /></Box>
+                    <Box sx={{ gridColumn: "1/-1" }}><TextField label="Any Other Comments" value={reg.pnb.comments} size="small" multiline rows={2} onChange={e => sreg("pnb.comments", e.target.value)} sx={inputSx} fullWidth /></Box>
+                  </FG>
                 </Box>
-                <TextField label="Local Anaesthetic" value={reg.pnb.la} size="small" onChange={e => sreg("pnb.la", e.target.value)} sx={inputSx} fullWidth />
-                <TextField label="Concentration (%)" value={reg.pnb.concentration} size="small" onChange={e => sreg("pnb.concentration", e.target.value)} sx={inputSx} fullWidth />
-                <TextField label="Volume (ml)" value={reg.pnb.volume} size="small" onChange={e => sreg("pnb.volume", e.target.value)} sx={inputSx} fullWidth />
-                <Box sx={{ gridColumn: "1/-1" }}><TextField label="Adjuvants (Drug, Concentration, Volume)" value={reg.pnb.adjuvants} size="small" multiline rows={2} onChange={e => sreg("pnb.adjuvants", e.target.value)} sx={inputSx} fullWidth /></Box>
-                <RdoGroup label="Catheter" options={["Yes", "No"]} value={reg.pnb.catheter} onChange={v => sreg("pnb.catheter", v)} />
-                <Box sx={{ display: "flex", gap: 2, gridColumn: "span 2" }}>
-                  <RdoGroup label="Extent of Block" options={["Checked", "Not checked"]} value={reg.pnb.blockExtent} onChange={v => sreg("pnb.blockExtent", v)} />
-                  {reg.pnb.blockExtent === "Checked" && <TextField label="Details" value={reg.pnb.blockExtentDetails || ""} size="small" onChange={e => sreg("pnb.blockExtentDetails", e.target.value)} sx={{ ...inputSx, flex: 1 }} />}
-                </Box>
-                <Box sx={{ gridColumn: "1/-1" }}><TextField label="Complications" value={reg.pnb.complications} size="small" multiline rows={2} onChange={e => sreg("pnb.complications", e.target.value)} sx={inputSx} fullWidth placeholder="Complications if any" /></Box>
-                <Box sx={{ gridColumn: "1/-1" }}><TextField label="Any Other Comments" value={reg.pnb.comments} size="small" multiline rows={2} onChange={e => sreg("pnb.comments", e.target.value)} sx={inputSx} fullWidth /></Box>
-              </FG>
+              </Box>
             </SectionBox>
           )}
 
           {reg.showFascial && (
             <SectionBox title="5. Fascial Plane Block">
-              <Box sx={{ mb: 1.5 }}>
-                <CbxGroup label="Name of Fascial Block" options={["Thoracic", "Abdominal", "Others"]} value={reg.fascial.block || []} onChange={v => sreg("fascial.block", v)} />
-                <FlagNote>Multiple choice possible with details of each option</FlagNote>
-              </Box>
-              <FG cols={3}>
-                <RdoGroup label="Laterality" options={["Right", "Left", "Bilateral"]} value={reg.fascial.laterality} onChange={v => sreg("fascial.laterality", v)} />
-                <RdoGroup label="Posture" options={["Lateral", "Sitting"]} value={reg.fascial.posture} onChange={v => sreg("fascial.posture", v)} />
-                <RdoGroup label="USG Guided" options={["Yes", "No"]} value={reg.fascial.usg} onChange={v => sreg("fascial.usg", v)} />
-                <TextField label="Needle Type" value={reg.fascial.needleType} size="small" onChange={e => sreg("fascial.needleType", e.target.value)} sx={inputSx} fullWidth />
-                <TextField label="Size" value={reg.fascial.needleSize} size="small" onChange={e => sreg("fascial.needleSize", e.target.value)} sx={inputSx} fullWidth />
-                <Box sx={{ gridColumn: "1/-1" }}>
-                  <CbxGroup label="Time" options={["Start of Surgery", "End of Surgery"]} value={reg.fascial.timing} onChange={v => sreg("fascial.timing", v)} />
-                  {(reg.fascial.timing || []).length > 0 && (
-                    <Box sx={{ display: "flex", gap: 2, mt: 1 }}>
-                      {reg.fascial.timing.includes("Start of Surgery") && (
-                        <TextField label="Start Time" type="time" value={reg.fascial.startTime || ""} size="small" onChange={e => sreg("fascial.startTime", e.target.value)} sx={{ ...inputSx, minWidth: 160 }} InputLabelProps={{ shrink: true }} />
-                      )}
-                      {reg.fascial.timing.includes("End of Surgery") && (
-                        <TextField label="End Time" type="time" value={reg.fascial.endTime || ""} size="small" onChange={e => sreg("fascial.endTime", e.target.value)} sx={{ ...inputSx, minWidth: 160 }} InputLabelProps={{ shrink: true }} />
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <Box sx={{ p: 2, background: C.bgPrimary, border: `1px solid ${C.border}` }}>
+                  <Typography sx={{ fontSize: 11, fontFamily: FONT, fontWeight: FW_BOLD, color: C.textSecond, textTransform: "uppercase", letterSpacing: "0.08em", mx: -2, mt: -2, px: 2, py: 1.25, mb: 2, background: C.bgTertiary, borderBottom: `1px solid ${C.border}`, display: "block" }}>Name of Fascial Block</Typography>
+                  <CbxGroup options={["Thoracic", "Abdominal", "Others"]} value={reg.fascial.block || []} onChange={v => sreg("fascial.block", v)} />
+                  <FlagNote>Multiple choice possible with details of each option</FlagNote>
+                </Box>
+                <Box sx={{ p: 2, background: C.bgPrimary, border: `1px solid ${C.border}` }}>
+                  <Typography sx={{ fontSize: 11, fontFamily: FONT, fontWeight: FW_BOLD, color: C.textSecond, textTransform: "uppercase", letterSpacing: "0.08em", mx: -2, mt: -2, px: 2, py: 1.25, mb: 2, background: C.bgTertiary, borderBottom: `1px solid ${C.border}`, display: "block" }}>Fascial Details</Typography>
+                  <FG cols={3}>
+                    <RdoGroup label="Laterality" options={["Right", "Left", "Bilateral"]} value={reg.fascial.laterality} onChange={v => sreg("fascial.laterality", v)} />
+                    <RdoGroup label="Posture" options={["Lateral", "Sitting"]} value={reg.fascial.posture} onChange={v => sreg("fascial.posture", v)} />
+                    <RdoGroup label="USG Guided" options={["Yes", "No"]} value={reg.fascial.usg} onChange={v => sreg("fascial.usg", v)} />
+                    <TextField label="Needle Type" value={reg.fascial.needleType} size="small" onChange={e => sreg("fascial.needleType", e.target.value)} sx={inputSx} fullWidth />
+                    <TextField label="Size" value={reg.fascial.needleSize} size="small" onChange={e => sreg("fascial.needleSize", e.target.value)} sx={inputSx} fullWidth />
+                    <Box sx={{ gridColumn: "1/-1" }}>
+                      <CbxGroup label="Time" options={["Start of Surgery", "End of Surgery"]} value={reg.fascial.timing} onChange={v => sreg("fascial.timing", v)} />
+                      {(reg.fascial.timing || []).length > 0 && (
+                        <Box sx={{ display: "flex", gap: 2, mt: 1 }}>
+                          {reg.fascial.timing.includes("Start of Surgery") && (
+                            <TextField label="Start Time" type="time" value={reg.fascial.startTime || ""} size="small" onChange={e => sreg("fascial.startTime", e.target.value)} sx={{ ...inputSx, minWidth: 160 }} InputLabelProps={{ shrink: true }} />
+                          )}
+                          {reg.fascial.timing.includes("End of Surgery") && (
+                            <TextField label="End Time" type="time" value={reg.fascial.endTime || ""} size="small" onChange={e => sreg("fascial.endTime", e.target.value)} sx={{ ...inputSx, minWidth: 160 }} InputLabelProps={{ shrink: true }} />
+                          )}
+                        </Box>
                       )}
                     </Box>
-                  )}
+                    <TextField label="Local Anaesthetic" value={reg.fascial.la} size="small" onChange={e => sreg("fascial.la", e.target.value)} sx={inputSx} fullWidth />
+                    <TextField label="Concentration (%)" value={reg.fascial.concentration} size="small" onChange={e => sreg("fascial.concentration", e.target.value)} sx={inputSx} fullWidth />
+                    <TextField label="Volume (ml)" value={reg.fascial.volume} size="small" onChange={e => sreg("fascial.volume", e.target.value)} sx={inputSx} fullWidth />
+                    <Box sx={{ gridColumn: "1/-1" }}><TextField label="Adjuvants (Drug, Concentration, Volume)" value={reg.fascial.adjuvants} size="small" multiline rows={2} onChange={e => sreg("fascial.adjuvants", e.target.value)} sx={inputSx} fullWidth /></Box>
+                    <RdoGroup label="Catheter" options={["Yes", "No"]} value={reg.fascial.catheter} onChange={v => sreg("fascial.catheter", v)} />
+                    <Box sx={{ display: "flex", gap: 2, gridColumn: "span 2" }}>
+                      <RdoGroup label="Extent of Block" options={["Checked", "Not checked"]} value={reg.fascial.blockExtent} onChange={v => sreg("fascial.blockExtent", v)} />
+                      {reg.fascial.blockExtent === "Checked" && <TextField label="Details" value={reg.fascial.blockExtentDetails || ""} size="small" onChange={e => sreg("fascial.blockExtentDetails", e.target.value)} sx={{ ...inputSx, flex: 1 }} />}
+                    </Box>
+                    <Box sx={{ gridColumn: "1/-1" }}><TextField label="Complications" value={reg.fascial.complications} size="small" multiline rows={2} onChange={e => sreg("fascial.complications", e.target.value)} sx={inputSx} fullWidth placeholder="Complications if any" /></Box>
+                  </FG>
                 </Box>
-                <TextField label="Local Anaesthetic" value={reg.fascial.la} size="small" onChange={e => sreg("fascial.la", e.target.value)} sx={inputSx} fullWidth />
-                <TextField label="Concentration (%)" value={reg.fascial.concentration} size="small" onChange={e => sreg("fascial.concentration", e.target.value)} sx={inputSx} fullWidth />
-                <TextField label="Volume (ml)" value={reg.fascial.volume} size="small" onChange={e => sreg("fascial.volume", e.target.value)} sx={inputSx} fullWidth />
-                <Box sx={{ gridColumn: "1/-1" }}><TextField label="Adjuvants (Drug, Concentration, Volume)" value={reg.fascial.adjuvants} size="small" multiline rows={2} onChange={e => sreg("fascial.adjuvants", e.target.value)} sx={inputSx} fullWidth /></Box>
-                <RdoGroup label="Catheter" options={["Yes", "No"]} value={reg.fascial.catheter} onChange={v => sreg("fascial.catheter", v)} />
-                <Box sx={{ display: "flex", gap: 2, gridColumn: "span 2" }}>
-                  <RdoGroup label="Extent of Block" options={["Checked", "Not checked"]} value={reg.fascial.blockExtent} onChange={v => sreg("fascial.blockExtent", v)} />
-                  {reg.fascial.blockExtent === "Checked" && <TextField label="Details" value={reg.fascial.blockExtentDetails || ""} size="small" onChange={e => sreg("fascial.blockExtentDetails", e.target.value)} sx={{ ...inputSx, flex: 1 }} />}
-                </Box>
-                <Box sx={{ gridColumn: "1/-1" }}><TextField label="Complications" value={reg.fascial.complications} size="small" multiline rows={2} onChange={e => sreg("fascial.complications", e.target.value)} sx={inputSx} fullWidth placeholder="Complications if any" /></Box>
-              </FG>
+              </Box>
             </SectionBox>
           )}
 
           {reg.showIVRA && (
             <SectionBox title="6. IVRA (Bier's Block)">
-              <FG cols={3}>
-                <RdoGroup label="Site" options={["Upper", "Lower"]} value={reg.ivra.limb} onChange={v => sreg("ivra.limb", v)} />
-                <TextField label="Duration (minutes)" value={reg.ivra.duration} type="number" size="small" onChange={e => sreg("ivra.duration", e.target.value)} sx={inputSx} fullWidth />
-                <TextField label="Local Anaesthetic Name" value={reg.ivra.la} size="small" onChange={e => sreg("ivra.la", e.target.value)} sx={inputSx} fullWidth />
-                <TextField label="Concentration (%)" value={reg.ivra.concentration} size="small" onChange={e => sreg("ivra.concentration", e.target.value)} sx={inputSx} fullWidth />
-                <TextField label="Volume (ml)" value={reg.ivra.volume} size="small" onChange={e => sreg("ivra.volume", e.target.value)} sx={inputSx} fullWidth />
-                <Box sx={{ gridColumn: "1/-1" }}><TextField label="Adjuvants (Drug, Concentration, Volume)" value={reg.ivra.adjuvants} size="small" multiline rows={2} onChange={e => sreg("ivra.adjuvants", e.target.value)} sx={inputSx} fullWidth /></Box>
-                <TextField label="Extent of Block" value={reg.ivra.blockExtent} size="small" onChange={e => sreg("ivra.blockExtent", e.target.value)} sx={inputSx} fullWidth placeholder="Block details" />
-                <TextField label="Tourniquet Details" value={reg.ivra.tourniquet} size="small" onChange={e => sreg("ivra.tourniquet", e.target.value)} sx={inputSx} fullWidth />
-                <Box sx={{ gridColumn: "1/-1" }}><TextField label="Complications" value={reg.ivra.complications} size="small" multiline rows={2} onChange={e => sreg("ivra.complications", e.target.value)} sx={inputSx} fullWidth placeholder="Complications if any" /></Box>
-              </FG>
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <Box sx={{ p: 2, background: C.bgPrimary, border: `1px solid ${C.border}` }}>
+                  <Typography sx={{ fontSize: 11, fontFamily: FONT, fontWeight: FW_BOLD, color: C.textSecond, textTransform: "uppercase", letterSpacing: "0.08em", mx: -2, mt: -2, px: 2, py: 1.25, mb: 2, background: C.bgTertiary, borderBottom: `1px solid ${C.border}`, display: "block" }}>IVRA Details</Typography>
+                  <FG cols={3}>
+                    <RdoGroup label="Site" options={["Upper", "Lower"]} value={reg.ivra.limb} onChange={v => sreg("ivra.limb", v)} />
+                    <TextField label="Duration (minutes)" value={reg.ivra.duration} type="number" size="small" onChange={e => sreg("ivra.duration", e.target.value)} sx={inputSx} fullWidth />
+                    <TextField label="Local Anaesthetic Name" value={reg.ivra.la} size="small" onChange={e => sreg("ivra.la", e.target.value)} sx={inputSx} fullWidth />
+                    <TextField label="Concentration (%)" value={reg.ivra.concentration} size="small" onChange={e => sreg("ivra.concentration", e.target.value)} sx={inputSx} fullWidth />
+                    <TextField label="Volume (ml)" value={reg.ivra.volume} size="small" onChange={e => sreg("ivra.volume", e.target.value)} sx={inputSx} fullWidth />
+                    <Box sx={{ gridColumn: "1/-1" }}><TextField label="Adjuvants (Drug, Concentration, Volume)" value={reg.ivra.adjuvants} size="small" multiline rows={2} onChange={e => sreg("ivra.adjuvants", e.target.value)} sx={inputSx} fullWidth /></Box>
+                    <TextField label="Extent of Block" value={reg.ivra.blockExtent} size="small" onChange={e => sreg("ivra.blockExtent", e.target.value)} sx={inputSx} fullWidth placeholder="Block details" />
+                    <TextField label="Tourniquet Details" value={reg.ivra.tourniquet} size="small" onChange={e => sreg("ivra.tourniquet", e.target.value)} sx={inputSx} fullWidth />
+                    <Box sx={{ gridColumn: "1/-1" }}><TextField label="Complications" value={reg.ivra.complications} size="small" multiline rows={2} onChange={e => sreg("ivra.complications", e.target.value)} sx={inputSx} fullWidth placeholder="Complications if any" /></Box>
+                  </FG>
+                </Box>
+              </Box>
             </SectionBox>
           )}
 
@@ -1230,126 +1333,180 @@ const ProcedureTab = ({ onSave, getSection }) => {
 
       {/* ── Sub-tab 3: MAC / Local */}
       {sub === 3 && (
-        <Box>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
           <TranscribePanel section="mac" onAutofill={fillMac} />
+
           <SectionBox title="Local Anaesthetic">
-            <FG cols={3}>
-              <TextField label="Drug Name" value={mac.laDrug} size="small" onChange={e => smac("laDrug", e.target.value)} sx={inputSx} fullWidth />
-              <TextField label="Concentration (%)" value={mac.laConc} size="small" onChange={e => smac("laConc", e.target.value)} sx={inputSx} fullWidth />
-              <TextField label="Volume (ml)" value={mac.laVolume} size="small" onChange={e => smac("laVolume", e.target.value)} sx={inputSx} fullWidth />
-              <CbxGroup label="Route" options={["Infiltration", "Topical Application", "Others"]} value={mac.laRoute} onChange={v => smac("laRoute", v)} />
-            </FG>
-          </SectionBox>
-          <SectionBox title="Additives">
-            <FG cols={3}>
-              <TextField label="Name of Drug" value={mac.additiveDrug} size="small" onChange={e => smac("additiveDrug", e.target.value)} sx={inputSx} fullWidth />
-              <TextField label="Concentration (%)" value={mac.additiveConc} size="small" onChange={e => smac("additiveConc", e.target.value)} sx={inputSx} fullWidth />
-              <TextField label="Volume (ml)" value={mac.additiveVolume} size="small" onChange={e => smac("additiveVolume", e.target.value)} sx={inputSx} fullWidth />
-            </FG>
-          </SectionBox>
-          <SectionBox title="Sedatives">
-            <FlagNote>Multiple choice possible</FlagNote>
-            <Box sx={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 2, mt: 1.5 }}>
-              {[["Propofol", "propofol", "mg"], ["Ketamine", "ketamine", "mg"], ["Midazolam", "midazolam", "mg"], ["Fentanyl", "fentanyl", "mcg"], ["Dexmedetomidine", "dexmedetomidine", "mcg"]].map(([label, key, unit]) => (
-                <Box key={key} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  <Typography sx={{ fontSize: 12, fontFamily: FONT, minWidth: 120 }}>{label}</Typography>
-                  <TextField value={mac[key]} size="small" placeholder={`Dose (${unit})`} onChange={e => smac(key, e.target.value)} sx={{ ...inputSx, flex: 1 }} />
-                </Box>
-              ))}
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <Box sx={{ p: 2, background: C.bgPrimary, border: `1px solid ${C.border}` }}>
+                <Typography sx={{ fontSize: 11, fontFamily: FONT, fontWeight: FW_BOLD, color: C.textSecond, textTransform: "uppercase", letterSpacing: "0.08em", mx: -2, mt: -2, px: 2, py: 1.25, mb: 2, background: C.bgTertiary, borderBottom: `1px solid ${C.border}`, display: "block" }}>Details</Typography>
+                <FG cols={3}>
+                  <TextField label="Drug Name" value={mac.laDrug} size="small" onChange={e => smac("laDrug", e.target.value)} sx={inputSx} fullWidth />
+                  <TextField label="Concentration (%)" value={mac.laConc} size="small" onChange={e => smac("laConc", e.target.value)} sx={inputSx} fullWidth />
+                  <TextField label="Volume (ml)" value={mac.laVolume} size="small" onChange={e => smac("laVolume", e.target.value)} sx={inputSx} fullWidth />
+                  <CbxGroup label="Route" options={["Infiltration", "Topical Application", "Others"]} value={mac.laRoute} onChange={v => smac("laRoute", v)} />
+                </FG>
+              </Box>
             </Box>
           </SectionBox>
-          <SectionBox title="Monitoring & Complications">
-            <FG cols={3}>
-              <Sel label="Ramsay Sedation Scale" value={mac.ramsay} onChange={v => smac("ramsay", v)}
-                options={["1 - Anxious/agitated", "2 - Cooperative/oriented", "3 - Responds to commands", "4 - Asleep/brisk response", "5 - Asleep/sluggish response", "6 - No response"]} />
-              <RdoGroup label="Oxygen Supplementation" options={["No", "Nasal Prongs", "Face Mask", "Others"]} value={mac.oxygenSupp} onChange={v => smac("oxygenSupp", v)} />
-              <Box sx={{ gridColumn: "1/-1" }}><CbxGroup label="Complications" options={["Emergency Airway intervention needed", "Conversion to GA", "Others"]} value={mac.complications} onChange={v => smac("complications", v)} /></Box>
-            </FG>
+
+          <SectionBox title="Additives">
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <Box sx={{ p: 2, background: C.bgPrimary, border: `1px solid ${C.border}` }}>
+                <Typography sx={{ fontSize: 11, fontFamily: FONT, fontWeight: FW_BOLD, color: C.textSecond, textTransform: "uppercase", letterSpacing: "0.08em", mx: -2, mt: -2, px: 2, py: 1.25, mb: 2, background: C.bgTertiary, borderBottom: `1px solid ${C.border}`, display: "block" }}>Details</Typography>
+                <FG cols={3}>
+                  <TextField label="Name of Drug" value={mac.additiveDrug} size="small" onChange={e => smac("additiveDrug", e.target.value)} sx={inputSx} fullWidth />
+                  <TextField label="Concentration (%)" value={mac.additiveConc} size="small" onChange={e => smac("additiveConc", e.target.value)} sx={inputSx} fullWidth />
+                  <TextField label="Volume (ml)" value={mac.additiveVolume} size="small" onChange={e => smac("additiveVolume", e.target.value)} sx={inputSx} fullWidth />
+                </FG>
+              </Box>
+            </Box>
           </SectionBox>
+
+          <SectionBox title="Sedatives">
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <Box sx={{ p: 2, background: C.bgPrimary, border: `1px solid ${C.border}` }}>
+                <Typography sx={{ fontSize: 11, fontFamily: FONT, fontWeight: FW_BOLD, color: C.textSecond, textTransform: "uppercase", letterSpacing: "0.08em", mx: -2, mt: -2, px: 2, py: 1.25, mb: 2, background: C.bgTertiary, borderBottom: `1px solid ${C.border}`, display: "block" }}>Details</Typography>
+                <FlagNote>Multiple choice possible</FlagNote>
+                <Box sx={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 2, mt: 1.5 }}>
+                  {[["Propofol", "propofol", "mg"], ["Ketamine", "ketamine", "mg"], ["Midazolam", "midazolam", "mg"], ["Fentanyl", "fentanyl", "mcg"], ["Dexmedetomidine", "dexmedetomidine", "mcg"]].map(([label, key, unit]) => (
+                    <Box key={key} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      <Typography sx={{ fontSize: 12, fontFamily: FONT, minWidth: 120 }}>{label}</Typography>
+                      <TextField value={mac[key]} size="small" placeholder={`Dose (${unit})`} onChange={e => smac(key, e.target.value)} sx={{ ...inputSx, flex: 1 }} />
+                    </Box>
+                  ))}
+                </Box>
+              </Box>
+            </Box>
+          </SectionBox>
+
+          <SectionBox title="Monitoring & Complications">
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <Box sx={{ p: 2, background: C.bgPrimary, border: `1px solid ${C.border}` }}>
+                <Typography sx={{ fontSize: 11, fontFamily: FONT, fontWeight: FW_BOLD, color: C.textSecond, textTransform: "uppercase", letterSpacing: "0.08em", mx: -2, mt: -2, px: 2, py: 1.25, mb: 2, background: C.bgTertiary, borderBottom: `1px solid ${C.border}`, display: "block" }}>Details</Typography>
+                <FG cols={3}>
+                  <Sel label="Ramsay Sedation Scale" value={mac.ramsay} onChange={v => smac("ramsay", v)}
+                    options={["1 - Anxious/agitated", "2 - Cooperative/oriented", "3 - Responds to commands", "4 - Asleep/brisk response", "5 - Asleep/sluggish response", "6 - No response"]} />
+                  <RdoGroup label="Oxygen Supplementation" options={["No", "Nasal Prongs", "Face Mask", "Others"]} value={mac.oxygenSupp} onChange={v => smac("oxygenSupp", v)} />
+                  <Box sx={{ gridColumn: "1/-1" }}><CbxGroup label="Complications" options={["Emergency Airway intervention needed", "Conversion to GA", "Others"]} value={mac.complications} onChange={v => smac("complications", v)} /></Box>
+                </FG>
+              </Box>
+            </Box>
+          </SectionBox>
+
           <Button sx={saveBtnSx} onClick={() => onSave("anaesthesia.mac", mac)}><SaveRounded sx={{ mr: 0.5, fontSize: 14 }} />Save MAC / Local</Button>
         </Box>
       )}
 
       {/* ── Sub-tab 4: Intra-op / Fluids */}
       {sub === 4 && (
-        <Box>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
           <TranscribePanel section="io" onAutofill={fillIo} />
+
           <SectionBox title="Patient Position & Warming">
-            <FG cols={3}>
-              <Box sx={{ gridColumn: "1/-1" }}>
-                <CbxGroup label="Patient Position" options={["Supine", "Supine with extension of head", "Supine with Lithotomy", "Trendelenberg", "Reverse Trendelenberg", "Prone", "Semi Prone", "Right Lateral", "Left Lateral", "Others"]} value={io.patientPosition} onChange={v => sio("patientPosition", v)} />
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <Box sx={{ p: 2, background: C.bgPrimary, border: `1px solid ${C.border}` }}>
+                <Typography sx={{ fontSize: 11, fontFamily: FONT, fontWeight: FW_BOLD, color: C.textSecond, textTransform: "uppercase", letterSpacing: "0.08em", mx: -2, mt: -2, px: 2, py: 1.25, mb: 2, background: C.bgTertiary, borderBottom: `1px solid ${C.border}`, display: "block" }}>Patient Position</Typography>
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mb: 1.5 }}>
+                  <CbxGroup options={["Supine", "Supine with extension of head", "Supine with Lithotomy", "Trendelenberg", "Reverse Trendelenberg", "Prone", "Semi Prone", "Right Lateral", "Left Lateral", "Others"]} value={io.patientPosition} onChange={v => sio("patientPosition", v)} />
+                </Box>
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+                  <RdoGroup label="Pressure Areas Padded" options={["Yes", "No"]} value={io.pressureAreas} onChange={v => sio("pressureAreas", v)} />
+                  <RdoGroup label="Eyes Shut and Taped" options={["Yes", "No"]} value={io.eyesShut} onChange={v => sio("eyesShut", v)} />
+                </Box>
               </Box>
-              <RdoGroup label="Pressure Areas Padded" options={["Yes", "No"]} value={io.pressureAreas} onChange={v => sio("pressureAreas", v)} />
-              <RdoGroup label="Eyes Shut and Taped" options={["Yes", "No"]} value={io.eyesShut} onChange={v => sio("eyesShut", v)} />
-              <Box sx={{ gridColumn: "1/-1" }}>
-                <CbxGroup label="Maintenance of Normothermia" options={["None", "Inline Fluid Warmer", "Warming Blanket", "Warming Mattress", "Others"]} value={io.normothermia} onChange={v => sio("normothermia", v)} />
+              <Box sx={{ p: 2, background: C.bgPrimary, border: `1px solid ${C.border}` }}>
+                <Typography sx={{ fontSize: 11, fontFamily: FONT, fontWeight: FW_BOLD, color: C.textSecond, textTransform: "uppercase", letterSpacing: "0.08em", mx: -2, mt: -2, px: 2, py: 1.25, mb: 2, background: C.bgTertiary, borderBottom: `1px solid ${C.border}`, display: "block" }}>Temperature Management</Typography>
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                  <CbxGroup label="Maintenance of Normothermia" options={["None", "Inline Fluid Warmer", "Warming Blanket", "Warming Mattress", "Others"]} value={io.normothermia} onChange={v => sio("normothermia", v)} />
+                  <CbxGroup label="Temperature Monitoring" options={["None", "Skin", "Nasopharyngeal", "Oro-esophageal", "Other core"]} value={io.tempMonitoring} onChange={v => sio("tempMonitoring", v)} />
+                </Box>
               </Box>
-              <CbxGroup label="Temperature Monitoring" options={["None", "Skin", "Nasopharyngeal", "Oro-esophageal", "Other core"]} value={io.tempMonitoring} onChange={v => sio("tempMonitoring", v)} />
-            </FG>
+            </Box>
           </SectionBox>
 
           <SectionBox title="IV Fluids">
-            <TableContainer>
-              <Table size="small">
-                <TableHead><TableRow><TableCell sx={thSx}>Fluid Type</TableCell><TableCell sx={thSx}>Volume (ml)</TableCell></TableRow></TableHead>
-                <TableBody>
-                  {[["Ringer Lactate", "ringerLactate"], ["Normal Saline", "normalSaline"], ["Dextrose Normal Saline", "dns"], ["5% Dextrose", "dextrose5"], ["10% Dextrose", "dextrose10"], ["Plasmalyte", "plasmalyte"], ["Gelofusine", "gelofusine"], ["Albumin 20%", "albumin20"], ["Albumin 5%", "albumin5"], ["Mannitol 20%", "mannitol20"], ["1% DRL", "drl1"], ["2% DRL", "drl2"], ["Others", "others"]].map(([label, key]) => (
-                    <TableRow key={key} sx={{ "&:hover": { background: C.bgSecondary } }}>
-                      <TableCell sx={tdSx}>{label}</TableCell>
-                      <TableCell sx={tdSx}><TextField type="number" size="small" placeholder="ml" value={io.ivFluids[key]} onChange={e => sivf(key, e.target.value)} sx={{ ...inputSx, width: 120 }} /></TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <Box sx={{ p: 2, background: C.bgPrimary, border: `1px solid ${C.border}` }}>
+                <Typography sx={{ fontSize: 11, fontFamily: FONT, fontWeight: FW_BOLD, color: C.textSecond, textTransform: "uppercase", letterSpacing: "0.08em", mx: -2, mt: -2, px: 2, py: 1.25, mb: 2, background: C.bgTertiary, borderBottom: `1px solid ${C.border}`, display: "block" }}>Details</Typography>
+                <TableContainer>
+                  <Table size="small">
+                    <TableHead><TableRow><TableCell sx={thSx}>Fluid Type</TableCell><TableCell sx={thSx}>Volume (ml)</TableCell></TableRow></TableHead>
+                    <TableBody>
+                      {[["Ringer Lactate", "ringerLactate"], ["Normal Saline", "normalSaline"], ["Dextrose Normal Saline", "dns"], ["5% Dextrose", "dextrose5"], ["10% Dextrose", "dextrose10"], ["Plasmalyte", "plasmalyte"], ["Gelofusine", "gelofusine"], ["Albumin 20%", "albumin20"], ["Albumin 5%", "albumin5"], ["Mannitol 20%", "mannitol20"], ["1% DRL", "drl1"], ["2% DRL", "drl2"], ["Others", "others"]].map(([label, key]) => (
+                        <TableRow key={key} sx={{ "&:hover": { background: C.bgSecondary } }}>
+                          <TableCell sx={tdSx}>{label}</TableCell>
+                          <TableCell sx={tdSx}><TextField type="number" size="small" placeholder="ml" value={io.ivFluids[key]} onChange={e => sivf(key, e.target.value)} sx={{ ...inputSx, width: 120 }} /></TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Box>
+            </Box>
           </SectionBox>
 
           <SectionBox title="Blood / Blood Products / Coagulation Products">
-            <FlagNote>Multiple choice possible. Mention Volume, Bag No, Reaction for each.</FlagNote>
-            <Box sx={{ mt: 1, overflowX: "auto" }}>
-              <Table size="small">
-                <TableHead>
-                  <TableRow>{["Product", "Volume (ml)", "Bag No", "Reaction", "Reaction Details"].map(h => <TableCell key={h} sx={thSx}>{h}</TableCell>)}</TableRow>
-                </TableHead>
-                <TableBody>
-                  {io.bloodProducts.map((bp, i) => (
-                    <TableRow key={bp.product} sx={{ "&:hover": { background: C.bgSecondary } }}>
-                      <TableCell sx={tdSx}>
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                          <Checkbox size="small" checked={bp.checked} onChange={e => sbp(i, "checked", e.target.checked)} sx={{ color: C.border, "&.Mui-checked": { color: C.black }, p: 0.4 }} />
-                          <Typography sx={{ fontSize: 12, fontFamily: FONT }}>{bp.product}</Typography>
-                        </Box>
-                      </TableCell>
-                      <TableCell sx={tdSx}><TextField type="number" size="small" placeholder="ml" value={bp.volume} onChange={e => sbp(i, "volume", e.target.value)} sx={{ ...inputSx, width: 90 }} disabled={!bp.checked} /></TableCell>
-                      <TableCell sx={tdSx}><TextField size="small" placeholder="Bag#" value={bp.bagNo} onChange={e => sbp(i, "bagNo", e.target.value)} sx={{ ...inputSx, width: 90 }} disabled={!bp.checked} /></TableCell>
-                      <TableCell sx={tdSx}>
-                        <RadioGroup row value={bp.reaction} onChange={e => sbp(i, "reaction", e.target.value)}>
-                          {["Yes", "No"].map(v => <FormControlLabel key={v} value={v} control={<Radio size="small" sx={{ color: C.border, "&.Mui-checked": { color: C.black }, p: 0.4 }} />} label={<Typography sx={{ fontSize: 11, fontFamily: FONT }}>{v}</Typography>} disabled={!bp.checked} />)}
-                        </RadioGroup>
-                      </TableCell>
-                      <TableCell sx={tdSx}><TextField size="small" placeholder="Details if yes" value={bp.details} onChange={e => sbp(i, "details", e.target.value)} sx={{ ...inputSx, width: 160 }} disabled={!bp.checked || bp.reaction !== "Yes"} /></TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <Box sx={{ p: 2, background: C.bgPrimary, border: `1px solid ${C.border}` }}>
+                <Typography sx={{ fontSize: 11, fontFamily: FONT, fontWeight: FW_BOLD, color: C.textSecond, textTransform: "uppercase", letterSpacing: "0.08em", mx: -2, mt: -2, px: 2, py: 1.25, mb: 2, background: C.bgTertiary, borderBottom: `1px solid ${C.border}`, display: "block" }}>Details</Typography>
+                <FlagNote>Multiple choice possible. Mention Volume, Bag No, Reaction for each.</FlagNote>
+                <Box sx={{ mt: 1, overflowX: "auto" }}>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>{["Product", "Volume (ml)", "Bag No", "Reaction", "Reaction Details"].map(h => <TableCell key={h} sx={thSx}>{h}</TableCell>)}</TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {io.bloodProducts.map((bp, i) => (
+                        <TableRow key={bp.product} sx={{ "&:hover": { background: C.bgSecondary } }}>
+                          <TableCell sx={tdSx}>
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                              <Checkbox size="small" checked={bp.checked} onChange={e => sbp(i, "checked", e.target.checked)} sx={{ color: C.border, "&.Mui-checked": { color: C.black }, p: 0.4 }} />
+                              <Typography sx={{ fontSize: 12, fontFamily: FONT }}>{bp.product}</Typography>
+                            </Box>
+                          </TableCell>
+                          <TableCell sx={tdSx}><TextField type="number" size="small" placeholder="ml" value={bp.volume} onChange={e => sbp(i, "volume", e.target.value)} sx={{ ...inputSx, width: 90 }} disabled={!bp.checked} /></TableCell>
+                          <TableCell sx={tdSx}><TextField size="small" placeholder="Bag#" value={bp.bagNo} onChange={e => sbp(i, "bagNo", e.target.value)} sx={{ ...inputSx, width: 90 }} disabled={!bp.checked} /></TableCell>
+                          <TableCell sx={tdSx}>
+                            <RadioGroup row value={bp.reaction} onChange={e => sbp(i, "reaction", e.target.value)}>
+                              {["Yes", "No"].map(v => <FormControlLabel key={v} value={v} control={<Radio size="small" sx={{ color: C.border, "&.Mui-checked": { color: C.black }, p: 0.4 }} />} label={<Typography sx={{ fontSize: 11, fontFamily: FONT }}>{v}</Typography>} disabled={!bp.checked} />)}
+                            </RadioGroup>
+                          </TableCell>
+                          <TableCell sx={tdSx}><TextField size="small" placeholder="Details if yes" value={bp.details} onChange={e => sbp(i, "details", e.target.value)} sx={{ ...inputSx, width: 160 }} disabled={!bp.checked || bp.reaction !== "Yes"} /></TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </Box>
+              </Box>
             </Box>
           </SectionBox>
 
           <SectionBox title="Total Output">
-            <FG cols={3}>
-              <TextField label="Blood Loss (ml)" value={io.bloodLoss} type="number" size="small" onChange={e => sio("bloodLoss", e.target.value)} sx={inputSx} fullWidth />
-              <TextField label="Urine Output (ml)" value={io.urineOutput} type="number" size="small" onChange={e => sio("urineOutput", e.target.value)} sx={inputSx} fullWidth />
-              <TextField label="Other Losses" value={io.otherLosses} size="small" onChange={e => sio("otherLosses", e.target.value)} sx={inputSx} fullWidth placeholder="Specify" />
-            </FG>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <Box sx={{ p: 2, background: C.bgPrimary, border: `1px solid ${C.border}` }}>
+                <Typography sx={{ fontSize: 11, fontFamily: FONT, fontWeight: FW_BOLD, color: C.textSecond, textTransform: "uppercase", letterSpacing: "0.08em", mx: -2, mt: -2, px: 2, py: 1.25, mb: 2, background: C.bgTertiary, borderBottom: `1px solid ${C.border}`, display: "block" }}>Details</Typography>
+                <FG cols={3}>
+                  <TextField label="Blood Loss (ml)" value={io.bloodLoss} type="number" size="small" onChange={e => sio("bloodLoss", e.target.value)} sx={inputSx} fullWidth />
+                  <TextField label="Urine Output (ml)" value={io.urineOutput} type="number" size="small" onChange={e => sio("urineOutput", e.target.value)} sx={inputSx} fullWidth />
+                  <TextField label="Other Losses" value={io.otherLosses} size="small" onChange={e => sio("otherLosses", e.target.value)} sx={inputSx} fullWidth placeholder="Specify" />
+                </FG>
+              </Box>
+            </Box>
           </SectionBox>
 
           <SectionBox title="Intra-Operative Complications">
-            <Box>
-              <CbxGroup label="Complications" options={["Airway related", "Cardiovascular", "Respiratory", "Haemorrhagic", "CNS", "Dyselectrolytemia", "Other Metabolic", "Others"]} value={io.complications} onChange={v => sio("complications", v)} />
-              <FlagNote>Multiple option, details of each option</FlagNote>
-            </Box>
-            <Box sx={{ mt: 1.5 }}>
-              <TextField label="Details of Complications" value={io.complicationDetails} size="small" multiline rows={3} onChange={e => sio("complicationDetails", e.target.value)} sx={inputSx} fullWidth placeholder="Describe each complication" />
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <Box sx={{ p: 2, background: C.bgPrimary, border: `1px solid ${C.border}` }}>
+                <Typography sx={{ fontSize: 11, fontFamily: FONT, fontWeight: FW_BOLD, color: C.textSecond, textTransform: "uppercase", letterSpacing: "0.08em", mx: -2, mt: -2, px: 2, py: 1.25, mb: 2, background: C.bgTertiary, borderBottom: `1px solid ${C.border}`, display: "block" }}>Details</Typography>
+                <Box>
+                  <CbxGroup label="Complications" options={["Airway related", "Cardiovascular", "Respiratory", "Haemorrhagic", "CNS", "Dyselectrolytemia", "Other Metabolic", "Others"]} value={io.complications} onChange={v => sio("complications", v)} />
+                  <FlagNote>Multiple option, details of each option</FlagNote>
+                </Box>
+                <Box sx={{ mt: 1.5 }}>
+                  <TextField label="Details of Complications" value={io.complicationDetails} size="small" multiline rows={3} onChange={e => sio("complicationDetails", e.target.value)} sx={inputSx} fullWidth placeholder="Describe each complication" />
+                </Box>
+              </Box>
             </Box>
           </SectionBox>
           <Button sx={saveBtnSx} onClick={() => onSave("anaesthesia.io", io)}><SaveRounded sx={{ mr: 0.5, fontSize: 14 }} />Save Intra-op / Fluids</Button>
@@ -1358,56 +1515,76 @@ const ProcedureTab = ({ onSave, getSection }) => {
 
       {/* ── Sub-tab 5: End Op / Post-op */}
       {sub === 5 && (
-        <Box>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
           <TranscribePanel section="eo" onAutofill={fillEo} />
+
           <SectionBox title="End Op Notes">
-            <FG cols={3}>
-              <TextField label="Reversal at Time" value={eo.reversalTime} type="time" size="small" onChange={e => seo("reversalTime", e.target.value)} sx={inputSx} fullWidth InputLabelProps={{ shrink: true }} />
-              <CbxGroup label="Reversal Drug" options={["Neostigmine + Glycopyrrolate", "Sugamadex", "None"]} value={eo.reversalDrug} onChange={v => seo("reversalDrug", v)} />
-              <TextField label="Reversal Dose" value={eo.reversalDose} size="small" onChange={e => seo("reversalDose", e.target.value)} sx={inputSx} fullWidth placeholder="Dose details" />
-              <RdoGroup label="Extubation" options={["Uneventful", "Needed Reintubation", "Not Extubated"]} value={eo.extubation} onChange={v => seo("extubation", v)} />
-              <RdoGroup label="Post Op Ventilation" options={["No", "Planned", "Unplanned"]} value={eo.postOpVent} onChange={v => seo("postOpVent", v)} />
-              <Box sx={{ gridColumn: "1/-1" }}>
-                <CbxGroup label="Vasoactive Drugs at End of Surgery" options={["Adrenaline", "Nor-Adrenaline", "Dobutamine", "Vasopressin", "Amiodarone", "NTG", "Labetalol", "Esmolol", "Others"]} value={eo.vasoactiveDrugs} onChange={v => seo("vasoactiveDrugs", v)} />
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <Box sx={{ p: 2, background: C.bgPrimary, border: `1px solid ${C.border}` }}>
+                <Typography sx={{ fontSize: 11, fontFamily: FONT, fontWeight: FW_BOLD, color: C.textSecond, textTransform: "uppercase", letterSpacing: "0.08em", mx: -2, mt: -2, px: 2, py: 1.25, mb: 2, background: C.bgTertiary, borderBottom: `1px solid ${C.border}`, display: "block" }}>Reversal & Extubation</Typography>
+                <FG cols={3}>
+                  <TextField label="Reversal at Time" value={eo.reversalTime} type="time" size="small" onChange={e => seo("reversalTime", e.target.value)} sx={inputSx} fullWidth InputLabelProps={{ shrink: true }} />
+                  <CbxGroup label="Reversal Drug" options={["Neostigmine + Glycopyrrolate", "Sugamadex", "None"]} value={eo.reversalDrug} onChange={v => seo("reversalDrug", v)} />
+                  <TextField label="Reversal Dose" value={eo.reversalDose} size="small" onChange={e => seo("reversalDose", e.target.value)} sx={inputSx} fullWidth placeholder="Dose details" />
+                  <RdoGroup label="Extubation" options={["Uneventful", "Needed Reintubation", "Not Extubated"]} value={eo.extubation} onChange={v => seo("extubation", v)} />
+                  <RdoGroup label="Post Op Ventilation" options={["No", "Planned", "Unplanned"]} value={eo.postOpVent} onChange={v => seo("postOpVent", v)} />
+                </FG>
+              </Box>
+              <Box sx={{ p: 2, background: C.bgPrimary, border: `1px solid ${C.border}` }}>
+                <Typography sx={{ fontSize: 11, fontFamily: FONT, fontWeight: FW_BOLD, color: C.textSecond, textTransform: "uppercase", letterSpacing: "0.08em", mx: -2, mt: -2, px: 2, py: 1.25, mb: 2, background: C.bgTertiary, borderBottom: `1px solid ${C.border}`, display: "block" }}>Vasoactive Drugs</Typography>
+                <CbxGroup options={["Adrenaline", "Nor-Adrenaline", "Dobutamine", "Vasopressin", "Amiodarone", "NTG", "Labetalol", "Esmolol", "Others"]} value={eo.vasoactiveDrugs} onChange={v => seo("vasoactiveDrugs", v)} />
                 <FlagNote>With infusion rates. Multiple choice possible.</FlagNote>
               </Box>
-              <Box sx={{ gridColumn: "1/-1" }}>
-                <CbxGroup label="Post Extubation Complications" options={["Laryngospasm", "Bronchospasm", "Upper airway obstruction", "Hypoventilation", "Hypopnoea", "Others"]} value={eo.postExtubComps} onChange={v => seo("postExtubComps", v)} />
+              <Box sx={{ p: 2, background: C.bgPrimary, border: `1px solid ${C.border}` }}>
+                <Typography sx={{ fontSize: 11, fontFamily: FONT, fontWeight: FW_BOLD, color: C.textSecond, textTransform: "uppercase", letterSpacing: "0.08em", mx: -2, mt: -2, px: 2, py: 1.25, mb: 2, background: C.bgTertiary, borderBottom: `1px solid ${C.border}`, display: "block" }}>Post Extubation Complications</Typography>
+                <CbxGroup options={["Laryngospasm", "Bronchospasm", "Upper airway obstruction", "Hypoventilation", "Hypopnoea", "Others"]} value={eo.postExtubComps} onChange={v => seo("postExtubComps", v)} />
               </Box>
-            </FG>
+            </Box>
           </SectionBox>
 
           <SectionBox title="End Op Vital Parameters">
-            <FG cols={3}>
-              <Box sx={{ gridColumn: "1/-1" }}>
-                <RdoGroup label="Patient Condition" options={["Patient fully awake and obeys commands", "Patient sleepy but unobstructed airway", "Sedated on Ventilator support"]} value={eo.patientCondition} onChange={v => seo("patientCondition", v)} />
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <Box sx={{ p: 2, background: C.bgPrimary, border: `1px solid ${C.border}` }}>
+                <Typography sx={{ fontSize: 11, fontFamily: FONT, fontWeight: FW_BOLD, color: C.textSecond, textTransform: "uppercase", letterSpacing: "0.08em", mx: -2, mt: -2, px: 2, py: 1.25, mb: 2, background: C.bgTertiary, borderBottom: `1px solid ${C.border}`, display: "block" }}>Patient Condition</Typography>
+                <RdoGroup options={["Patient fully awake and obeys commands", "Patient sleepy but unobstructed airway", "Sedated on Ventilator support"]} value={eo.patientCondition} onChange={v => seo("patientCondition", v)} row={false} />
               </Box>
-              <TextField label="PR (bpm)" value={eo.pr} type="number" size="small" onChange={e => seo("pr", e.target.value)} sx={inputSx} fullWidth />
-              <TextField label="BP (mmHg)" value={eo.bp} size="small" onChange={e => seo("bp", e.target.value)} sx={inputSx} fullWidth placeholder="e.g., 120/80" />
-              <TextField label="SpO2 (%)" value={eo.spo2} type="number" size="small" onChange={e => seo("spo2", e.target.value)} sx={inputSx} fullWidth />
-              <TextField label="RR (breaths/min)" value={eo.rr} type="number" size="small" onChange={e => seo("rr", e.target.value)} sx={inputSx} fullWidth />
-              <TextField label="Temperature (°C)" value={eo.temperature} type="number" size="small" onChange={e => seo("temperature", e.target.value)} sx={inputSx} fullWidth />
-              <Box sx={{ gridColumn: "1/-1" }}>
+              <Box sx={{ p: 2, background: C.bgPrimary, border: `1px solid ${C.border}` }}>
+                <Typography sx={{ fontSize: 11, fontFamily: FONT, fontWeight: FW_BOLD, color: C.textSecond, textTransform: "uppercase", letterSpacing: "0.08em", mx: -2, mt: -2, px: 2, py: 1.25, mb: 2, background: C.bgTertiary, borderBottom: `1px solid ${C.border}`, display: "block" }}>Vitals & Monitoring</Typography>
+                <FG cols={3}>
+                  <TextField label="PR (bpm)" value={eo.pr} type="number" size="small" onChange={e => seo("pr", e.target.value)} sx={inputSx} fullWidth />
+                  <TextField label="BP (mmHg)" value={eo.bp} size="small" onChange={e => seo("bp", e.target.value)} sx={inputSx} fullWidth placeholder="e.g., 120/80" />
+                  <TextField label="SpO2 (%)" value={eo.spo2} type="number" size="small" onChange={e => seo("spo2", e.target.value)} sx={inputSx} fullWidth />
+                  <TextField label="RR (breaths/min)" value={eo.rr} type="number" size="small" onChange={e => seo("rr", e.target.value)} sx={inputSx} fullWidth />
+                  <TextField label="Temperature (°C)" value={eo.temperature} type="number" size="small" onChange={e => seo("temperature", e.target.value)} sx={inputSx} fullWidth />
+                  <RdoGroup label="Level of Post Op Monitoring" options={["Routine", "High Dependency", "Intensive Care"]} value={eo.monitorLevel} onChange={v => seo("monitorLevel", v)} />
+                </FG>
+              </Box>
+              <Box sx={{ p: 2, background: C.bgPrimary, border: `1px solid ${C.border}` }}>
+                <Typography sx={{ fontSize: 11, fontFamily: FONT, fontWeight: FW_BOLD, color: C.textSecond, textTransform: "uppercase", letterSpacing: "0.08em", mx: -2, mt: -2, px: 2, py: 1.25, mb: 2, background: C.bgTertiary, borderBottom: `1px solid ${C.border}`, display: "block" }}>Airway Adjunct</Typography>
                 <RdoGroup label="Patient Shifted With Airway Adjunct" options={["Endotracheal Tube", "Tracheostomy Tube", "Oropharyngeal Airway", "Nasopharyngeal Airway", "None of the above"]} value={eo.airwayAdjunct} onChange={v => seo("airwayAdjunct", v)} />
                 <FlagNote>Single choice possible</FlagNote>
               </Box>
-              <RdoGroup label="Level of Post Op Monitoring" options={["Routine", "High Dependency", "Intensive Care"]} value={eo.monitorLevel} onChange={v => seo("monitorLevel", v)} />
-            </FG>
+            </Box>
           </SectionBox>
 
           <SectionBox title="Post Operative Advice">
-            <FG cols={3}>
-              <RdoGroup label="Oxygen Supplementation" options={["Yes", "No"]} value={eo.oxygenSupp} onChange={v => seo("oxygenSupp", v)} />
-              <TextField label="NPO For (Hours)" value={eo.npoHours} type="number" size="small" onChange={e => seo("npoHours", e.target.value)} sx={inputSx} fullWidth />
-              <TextField label="IVF Maintenance (ml/hour)" value={eo.ivfRate} type="number" size="small" onChange={e => seo("ivfRate", e.target.value)} sx={inputSx} fullWidth />
-              <Box sx={{ gridColumn: "1/-1" }}><TextField label="Analgesics Orders" value={eo.analgesics} size="small" multiline rows={2} onChange={e => seo("analgesics", e.target.value)} sx={inputSx} fullWidth placeholder="Analgesic protocol" /></Box>
-              <Box sx={{ gridColumn: "1/-1" }}><TextField label="Antiemetics Given" value={eo.antiemetics} size="small" multiline rows={2} onChange={e => seo("antiemetics", e.target.value)} sx={inputSx} fullWidth /></Box>
-              <Box sx={{ gridColumn: "1/-1" }}><TextField label="Pre-op Chronic Medications" value={eo.chronicMeds} size="small" multiline rows={2} onChange={e => seo("chronicMeds", e.target.value)} sx={inputSx} fullWidth placeholder="Continue/Stop medications" /></Box>
-              <Box sx={{ gridColumn: "1/-1" }}>
-                <CbxGroup label="Investigations" options={["CBC", "Electrolytes", "Biochemistry", "Coagulation", "TEG", "X-ray", "ECG", "Others"]} value={eo.investigations} onChange={v => seo("investigations", v)} />
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <Box sx={{ p: 2, background: C.bgPrimary, border: `1px solid ${C.border}` }}>
+                <Typography sx={{ fontSize: 11, fontFamily: FONT, fontWeight: FW_BOLD, color: C.textSecond, textTransform: "uppercase", letterSpacing: "0.08em", mx: -2, mt: -2, px: 2, py: 1.25, mb: 2, background: C.bgTertiary, borderBottom: `1px solid ${C.border}`, display: "block" }}>Details</Typography>
+                <FG cols={3}>
+                  <RdoGroup label="Oxygen Supplementation" options={["Yes", "No"]} value={eo.oxygenSupp} onChange={v => seo("oxygenSupp", v)} />
+                  <TextField label="NPO For (Hours)" value={eo.npoHours} type="number" size="small" onChange={e => seo("npoHours", e.target.value)} sx={inputSx} fullWidth />
+                  <TextField label="IVF Maintenance (ml/hour)" value={eo.ivfRate} type="number" size="small" onChange={e => seo("ivfRate", e.target.value)} sx={inputSx} fullWidth />
+                  <Box sx={{ gridColumn: "1/-1" }}><TextField label="Analgesics Orders" value={eo.analgesics} size="small" multiline rows={2} onChange={e => seo("analgesics", e.target.value)} sx={inputSx} fullWidth placeholder="Analgesic protocol" /></Box>
+                  <Box sx={{ gridColumn: "1/-1" }}><TextField label="Antiemetics Given" value={eo.antiemetics} size="small" multiline rows={2} onChange={e => seo("antiemetics", e.target.value)} sx={inputSx} fullWidth /></Box>
+                  <Box sx={{ gridColumn: "1/-1" }}><TextField label="Pre-op Chronic Medications" value={eo.chronicMeds} size="small" multiline rows={2} onChange={e => seo("chronicMeds", e.target.value)} sx={inputSx} fullWidth placeholder="Continue/Stop medications" /></Box>
+                  <Box sx={{ gridColumn: "1/-1" }}>
+                    <CbxGroup label="Investigations" options={["CBC", "Electrolytes", "Biochemistry", "Coagulation", "TEG", "X-ray", "ECG", "Others"]} value={eo.investigations} onChange={v => seo("investigations", v)} />
+                  </Box>
+                  <Box sx={{ gridColumn: "1/-1" }}><TextField label="Other Comments" value={eo.otherComments} size="small" multiline rows={3} onChange={e => seo("otherComments", e.target.value)} sx={inputSx} fullWidth placeholder="Additional post-op instructions" /></Box>
+                </FG>
               </Box>
-              <Box sx={{ gridColumn: "1/-1" }}><TextField label="Other Comments" value={eo.otherComments} size="small" multiline rows={3} onChange={e => seo("otherComments", e.target.value)} sx={inputSx} fullWidth placeholder="Additional post-op instructions" /></Box>
-            </FG>
+            </Box>
           </SectionBox>
           <Button sx={saveBtnSx} onClick={() => onSave("anaesthesia.eo", eo)}><SaveRounded sx={{ mr: 0.5, fontSize: 14 }} />Save End Op / Post-op</Button>
         </Box>
@@ -1543,8 +1720,8 @@ const AnaesthesiaRecord = ({ patientId, doctorId, doctorName, demoBookingData })
               <LocalHospitalRounded sx={{ fontSize: 24, color: C.white }} />
             </Box>
             <Box>
-              <Typography sx={{ fontSize: "0.6rem", textTransform: "uppercase", letterSpacing: "0.2em", color: C.textMuted, fontFamily: FONT, mb: 0.25 }}>Surgical Oncology</Typography>
-              <Typography sx={{ fontSize: 20, fontWeight: FW_LIGHT, fontFamily: FONT, color: C.textPrimary, letterSpacing: "-0.02em" }}>Anaesthesia Record</Typography>
+              <Typography sx={{ fontSize: "0.6rem", textTransform: "uppercase", letterSpacing: "0.2em", color: C.textMuted, fontFamily: FONT, mb: 0.25 }}>Anaesthesia Workflow</Typography>
+              <Typography sx={{ fontSize: 20, fontWeight: FW_LIGHT, fontFamily: FONT, color: C.textPrimary, letterSpacing: "-0.02em" }}>Record</Typography>
             </Box>
           </Box>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>

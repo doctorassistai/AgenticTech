@@ -139,8 +139,8 @@ groq_client = Groq(api_key=GROQ_API_KEY)
 KOLKATA     = pytz.timezone("Asia/Kolkata")
 router      = APIRouter(prefix="", tags=["Structured Notes"])
 
-MODEL_STEP_A = "llama-3.1-8b-instant"
-MODEL_STEP_B = "llama-3.3-70b-versatile"
+MODEL_STEP_A = "openai/gpt-oss-20b"
+MODEL_STEP_B = "openai/gpt-oss-120b"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1146,7 +1146,7 @@ def _repair_json(raw: str) -> str:
     return raw
 
 
-def _raw_llm_call(prompt: str, model: str, max_tokens: int) -> str:
+def _raw_llm_call(prompt: str, model: str, max_tokens: int) -> tuple[str, Optional[str]]:
     completion = groq_client.chat.completions.create(
         model=model,
         messages=[{"role": "user", "content": prompt}],
@@ -1154,11 +1154,32 @@ def _raw_llm_call(prompt: str, model: str, max_tokens: int) -> str:
         response_format={"type": "json_object"},
         max_tokens=max_tokens,
     )
-    return completion.choices[0].message.content
+    choice = completion.choices[0]
+    return choice.message.content, getattr(choice, "finish_reason", None)
 
 
 def _safe_llm_json(prompt: str, model: str, max_tokens: int) -> dict:
     raw = ""
+    try:
+        raw, finish_reason = _raw_llm_call(prompt, model, max_tokens)
+        if finish_reason == "length":
+            logger.warning(
+                "LLM output truncated by max_tokens={} (finish_reason=length, model={}). "
+                "Raw length={}. Retrying once with a higher token budget instead of "
+                "silently repairing a partial object.",
+                max_tokens, model, len(raw or ""),
+            )
+            retry_tokens = min(max_tokens * 2, 16000)
+            raw, finish_reason = _raw_llm_call(prompt, model, retry_tokens)
+            if finish_reason == "length":
+                logger.error(
+                    "LLM output STILL truncated after retry at max_tokens={}. "
+                    "Proceeding to repair path, but resulting note may be missing "
+                    "trailing sections.",
+                    retry_tokens,
+                )
+        return json.loads(_repair_json(raw))
+    except (BadRequestError, json.JSONDecodeError) as first_err:    raw = ""
     try:
         raw = _raw_llm_call(prompt, model, max_tokens)
         return json.loads(_repair_json(raw))
@@ -1707,6 +1728,21 @@ def _sanitize_unsupported_note_fields(note: dict, facts: dict, raw_text: str) ->
     return note
 
 
+# NEW — deterministic risk_level reconciliation, keyed off the FINAL
+# triage_colour (post-override). This exists because triage_colour is
+# forced deterministic (compute_triage_colour / EVIS-authoritative) while
+# risk_level was still left as whatever the LLM wrote in Step-B, so the
+# two could disagree (e.g. Green colour with a leftover "High" risk_level
+# from the model's own independently-worded assessment). Applied AFTER
+# triage_colour is finalized so it can never itself go stale.
+_RISK_LEVEL_BY_TRIAGE_COLOUR = {
+    "red":    "Critical",
+    "yellow": "Moderate",
+    "green":  "Low",
+    "black":  "Immediately_Life_Threatening",
+}
+
+
 def _merge_extracted_facts(
     note: dict,
     facts: dict,
@@ -2060,6 +2096,13 @@ def _merge_extracted_facts(
         else:
             ta["triage_colour"] = computed_colour
             ta["triage_colour_source"] = "deterministic_fallback_no_evis_data"
+
+        # NEW — force risk_level to agree with the FINAL triage_colour so
+        # the two fields can never contradict each other in the discharge
+        # summary (this is the fix for triage=Green / risk_level=High).
+        final_colour_key = str(ta.get("triage_colour") or "").strip().lower()
+        if final_colour_key in _RISK_LEVEL_BY_TRIAGE_COLOUR:
+            ta["risk_level"] = _RISK_LEVEL_BY_TRIAGE_COLOUR[final_colour_key]
     except Exception as exc:
         logger.warning("Deterministic triage colour computation failed, leaving LLM value: {}", exc)
     note["triage_assessment"] = ta
@@ -2179,7 +2222,7 @@ async def generate_emergency_structured_note(request: Request):
         note_prompt = _build_note_prompt(payloads, extracted_facts, case_type_info)
         logger.info("╠══ STEP-B PROMPT (first 3000 chars) ══╣\n{}", note_prompt[:3000])
 
-        llm_output: dict = _safe_llm_json(note_prompt, MODEL_STEP_B, max_tokens=5000)
+        llm_output: dict = _safe_llm_json(note_prompt, MODEL_STEP_B, max_tokens=9000)
         logger.info("╠══ STEP-B OUTPUT ══╣\n{}",
                     json.dumps(llm_output, indent=2, default=str))
 

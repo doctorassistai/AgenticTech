@@ -1,0 +1,3552 @@
+[
+ {
+  "id": "MACT-2026-0112",
+  "cnr": "KABC0A0011232026",
+  "mvc": "MVC 1123/2026",
+  "court": "MACT (SCCH-7), Bengaluru",
+  "district": "Bengaluru Urban",
+  "state": "Karnataka",
+  "type": "Death",
+  "accident": "2025-11-02",
+  "place": "Hosur Road, near Silk Board junction",
+  "filed": "2026-02-14",
+  "noticeOn": "2026-02-27",
+  "darOn": "2026-01-28",
+  "stage": 6,
+  "courtStage": "Claimant evidence",
+  "priority": "High",
+  "officer": "K. Meenakshi",
+  "advocate": "Adv. S. Raghavendra",
+  "cAdv": "Adv. P. Manjunath",
+  "hospital": "Medisure Hospital, Koramangala",
+  "accType": "Rear-end",
+  "vehCat": "Goods carriage",
+  "victim": {
+   "name": "Ramesh Gowda",
+   "age": 42,
+   "sex": "M",
+   "occ": "Goods-vehicle driver (salaried, private transporter)"
+  },
+  "vehicle": {
+   "reg": "KA-51-AD-4471",
+   "cls": "Tanker · goods carriage",
+   "gvw": "16,200 kg",
+   "commercial": true
+  },
+  "policy": {
+   "no": "GCV-2506-KA-0048817",
+   "from": "2025-06-18",
+   "to": "2026-06-17",
+   "kind": "Commercial goods vehicle package"
+  },
+  "driver": {
+   "name": "Naveen K.",
+   "dl": "KA05 2014 0031187",
+   "cls": "HGV (transport)",
+   "valid": "2027-03-11"
+  },
+  "claimed": 12000000,
+  "reserve": 7200000,
+  "next": "2026-10-08",
+  "purpose": "Claimant evidence — PW2 (employer)",
+  "income": {
+   "claimed": 45000,
+   "range": [
+    26500,
+    29000
+   ],
+   "sources": [
+    [
+     "Salary certificate (issued 20-01-2026)",
+     45000,
+     "employer"
+    ],
+    [
+     "Bank credits, 12-month average",
+     27800,
+     "account aggregator"
+    ],
+    [
+     "ESI wage record",
+     26500,
+     "ESIC"
+    ],
+    [
+     "Transporter wage register (Oct 2025)",
+     28600,
+     "employer register"
+    ]
+   ]
+  },
+  "deps": [
+   [
+    "Wife",
+    36,
+    "Yes"
+   ],
+   [
+    "Son",
+    12,
+    "Yes"
+   ],
+   [
+    "Daughter",
+    9,
+    "Yes"
+   ],
+   [
+    "Mother",
+    64,
+    "?"
+   ]
+  ],
+  "q": {
+   "emp": "fixed",
+   "married": true,
+   "depClaim": 4,
+   "depIns": 3,
+   "consClaim": 4,
+   "consIns": 3,
+   "medClaim": 38000,
+   "medVer": 38000,
+   "contribIns": 10,
+   "contribTrib": 0
+  },
+  "timeline": [
+   [
+    "02 Nov 2025 21:18",
+    "Victim leaves transporter depot, Bommanahalli",
+    "Depot gate register"
+   ],
+   [
+    "21:41",
+    "Tanker enters flyover down-ramp",
+    "Toll-plaza CCTV"
+   ],
+   [
+    "21:46",
+    "Collision — tanker rear-ends motorcycle in left lane",
+    "Site plan · MVI"
+   ],
+   [
+    "21:58",
+    "Police patrol reaches spot",
+    "DAR Part A"
+   ],
+   [
+    "22:31",
+    "Brought dead, MLC recorded",
+    "MLC"
+   ],
+   [
+    "03 Nov 2025 11:40",
+    "Post-mortem: crush injuries to head and chest",
+    "PM report"
+   ],
+   [
+    "04 Nov 2025 10:10",
+    "FIR registered (≈36 h after accident)",
+    "FIR"
+   ]
+  ],
+  "conflicts": [
+   [
+    "FIR records time of accident as 21:15",
+    "CCTV frame and MLC place collision at ≈21:46",
+    "med"
+   ],
+   [
+    "FIR narrative: victim “crossing on foot”",
+    "Site plan and MVI (motorcycle damage) show victim riding a motorcycle",
+    "high"
+   ]
+  ],
+  "coverage": [
+   [
+    "Policy in force on accident date",
+    "Yes — 18-06-2025 to 17-06-2026",
+    "Policy schedule p.1",
+    "ok"
+   ],
+   [
+    "Vehicle matches policy (chassis/engine)",
+    "Match",
+    "Policy p.1 · RC",
+    "ok"
+   ],
+   [
+    "Use consistent with policy",
+    "Goods carriage, hire",
+    "RC · permit",
+    "ok"
+   ],
+   [
+    "Driver licence valid for class",
+    "HGV transport, valid to 11-03-2027",
+    "Licence registry",
+    "ok"
+   ],
+   [
+    "National permit",
+    "Valid to 2027-08",
+    "Vehicle registry",
+    "ok"
+   ],
+   [
+    "Fitness certificate",
+    "Valid to 2026-01-30",
+    "Vehicle registry",
+    "ok"
+   ],
+   [
+    "Breach indicators",
+    "None found",
+    "—",
+    "ok"
+   ]
+  ],
+  "liab": {
+   "est": [
+    "Insured tanker involved — CCTV frame 21:45:52 and MVI front-bumper damage",
+    "Policy in force; driver licensed for HGV"
+   ],
+   "disp": [
+    "Victim’s position (on foot vs motorcycle) — FIR vs site plan",
+    "Helmet use not recorded in FIR or seizure memo"
+   ],
+   "miss": [
+    "Victim’s own driving licence",
+    "Helmet seizure memo"
+   ],
+   "pro": [
+    "Absence of helmet may be argued to aggravate head injury"
+   ],
+   "con": [
+    "Rear-end collision in same lane indicates primary negligence of insured driver",
+    "Chest crush injuries independent of helmet use"
+   ],
+   "contrib": [
+    10,
+    0
+   ]
+  },
+  "med": null,
+  "flags": [
+   [
+    "med",
+    "Employer salary certificate issued 79 days after accident",
+    "Certificate dated 20-01-2026; no pre-accident payslips produced"
+   ],
+   [
+    "low",
+    "FIR delayed about 36 hours",
+    "Family at hospital and post-mortem — explanation plausible"
+   ],
+   [
+    "med",
+    "Mother claimed as dependant; ration card shows separate household",
+    "Ration card p.1 lists mother under elder son"
+   ]
+  ],
+  "law": [
+   "sarla",
+   "pranay",
+   "magma",
+   "jhaveri"
+  ]
+ },
+ {
+  "id": "MACT-2026-0087",
+  "cnr": "KLER0A0004182026",
+  "mvc": "OP(MV) 418/2026",
+  "court": "MACT, Ernakulam",
+  "district": "Ernakulam",
+  "state": "Kerala",
+  "type": "Injury",
+  "accident": "2025-09-21",
+  "place": "Vyttila–Kundannoor bypass signal",
+  "filed": "2026-01-12",
+  "noticeOn": "2026-01-24",
+  "darOn": "2025-11-30",
+  "stage": 7,
+  "courtStage": "Notice — Form XI offer pending response",
+  "priority": "Medium",
+  "officer": "Anoop Jacob",
+  "advocate": "Adv. Thomas Varghese",
+  "cAdv": "Adv. R. Lekha",
+  "hospital": "Cochin Medical Trust Hospital",
+  "accType": "Rear-end",
+  "vehCat": "Private car",
+  "victim": {
+   "name": "Priya Nair",
+   "age": 29,
+   "sex": "F",
+   "occ": "Senior software engineer (permanent, MNC)"
+  },
+  "vehicle": {
+   "reg": "KL-07-CX-2290",
+   "cls": "Private car (LMV)",
+   "gvw": "1,560 kg",
+   "commercial": false
+  },
+  "policy": {
+   "no": "PC-2503-KL-0112903",
+   "from": "2025-03-14",
+   "to": "2026-03-13",
+   "kind": "Private car package"
+  },
+  "driver": {
+   "name": "Joseph Mathew (owner)",
+   "dl": "KL07 2009 0012765",
+   "cls": "LMV",
+   "valid": "2029-05-02"
+  },
+  "claimed": 6800000,
+  "reserve": 2800000,
+  "next": "2026-10-13",
+  "purpose": "Form XI offer — claimant response",
+  "income": {
+   "claimed": 142000,
+   "range": [
+    138900,
+    142300
+   ],
+   "sources": [
+    [
+     "Payslips Jun–Aug 2025 (gross)",
+     142300,
+     "employer"
+    ],
+    [
+     "Form 16 FY 2024-25 (monthly equivalent)",
+     138900,
+     "income tax"
+    ],
+    [
+     "Bank salary credits (net)",
+     108400,
+     "account aggregator"
+    ]
+   ]
+  },
+  "deps": [],
+  "med": {
+   "inj": [
+    "Right tibia–fibula shaft fracture (compound, Gustilo II)",
+    "Contusion, right shoulder"
+   ],
+   "path": [
+    [
+     "21 Sep 2025",
+     "Emergency admission"
+    ],
+    [
+     "22 Sep 2025",
+     "ORIF with intramedullary nail"
+    ],
+    [
+     "27 Sep 2025",
+     "Discharged"
+    ],
+    [
+     "18 Dec 2025",
+     "Follow-up: union progressing"
+    ],
+    [
+     "15 Jan 2026",
+     "Resumed full duties (employer letter)"
+    ],
+    [
+     "14 May 2026",
+     "Disability certificate: 22% permanent, right lower limb"
+    ]
+   ],
+   "disClaim": 22,
+   "disCert": 22,
+   "disAI": 6,
+   "billsClaim": 685000,
+   "billsVer": 612400,
+   "notes": [
+    "Employer letter: full duties from 15-01-2026, no salary reduction",
+    "Duplicate pharmacy invoice PH-22871 (p.44 and p.61)"
+   ]
+  },
+  "q": {
+   "emp": "permanent",
+   "disClaim": 22,
+   "disIns": 5,
+   "disTrib": 8,
+   "medClaim": 685000,
+   "medVer": 612400,
+   "months": 4,
+   "lossPct": 0.5,
+   "attendant": 40000,
+   "transport": 25000,
+   "futureMed": 60000,
+   "pain": 100000,
+   "amenities": 50000,
+   "contribIns": 0,
+   "contribTrib": 0
+  },
+  "timeline": [
+   [
+    "21 Sep 2025 08:42",
+    "Scooter stationary at red signal",
+    "Signal CCTV"
+   ],
+   [
+    "08:43",
+    "Insured car rear-ends scooter",
+    "CCTV · MVI"
+   ],
+   [
+    "08:55",
+    "Ambulance pick-up",
+    "108 log"
+   ],
+   [
+    "09:20",
+    "ER admission, MLC recorded",
+    "MLC"
+   ],
+   [
+    "21 Sep 2025 14:05",
+    "FIR registered",
+    "FIR"
+   ]
+  ],
+  "conflicts": [
+   [
+    "Petition: “bedridden for six months”",
+    "Employer leave record: 3.5 months sick leave; resumed 15-01-2026",
+    "med"
+   ]
+  ],
+  "coverage": [
+   [
+    "Policy in force on accident date",
+    "Yes",
+    "Policy schedule",
+    "ok"
+   ],
+   [
+    "Vehicle matches policy",
+    "Match",
+    "RC",
+    "ok"
+   ],
+   [
+    "Driver licence valid",
+    "LMV valid to 2029",
+    "Licence registry",
+    "ok"
+   ],
+   [
+    "Breach indicators",
+    "None",
+    "—",
+    "ok"
+   ]
+  ],
+  "liab": {
+   "est": [
+    "Rear-end collision at signal on CCTV",
+    "Driver’s statement admits failure to brake"
+   ],
+   "disp": [],
+   "miss": [],
+   "pro": [],
+   "con": [
+    "Clear negligence of insured driver"
+   ],
+   "contrib": [
+    0,
+    0
+   ]
+  },
+  "flags": [
+   [
+    "med",
+    "Duplicate pharmacy invoice (₹72,600)",
+    "Invoice PH-22871 appears at p.44 and p.61"
+   ],
+   [
+    "low",
+    "Certified disability exceeds functional impact on earnings",
+    "Full salary continued after return to work"
+   ]
+  ],
+  "law": [
+   "rajkumar",
+   "sidram",
+   "pranay",
+   "gohar"
+  ],
+  "settle": {
+   "status": "Offer made",
+   "offerOn": "2026-09-02",
+   "offer": null,
+   "demand": null,
+   "note": "Claimant response due at 13-10-2026 hearing"
+  }
+ },
+ {
+  "id": "MACT-2025-0934",
+  "cnr": "DLST0A0026712025",
+  "mvc": "MACT 2671/2025",
+  "court": "MACT, Saket Courts, New Delhi",
+  "district": "South Delhi",
+  "state": "Delhi",
+  "type": "Death",
+  "accident": "2025-06-11",
+  "place": "Mehrauli–Badarpur Road, near Saket metro",
+  "filed": "2025-08-19",
+  "noticeOn": "2025-09-02",
+  "darOn": "2025-08-01",
+  "stage": 9,
+  "courtStage": "Claimant evidence",
+  "priority": "High",
+  "officer": "Ritu Malhotra",
+  "advocate": "Adv. Vikram Sethi",
+  "cAdv": "Adv. N. Qureshi",
+  "hospital": "AIIMS Trauma Centre",
+  "accType": "U-turn / side impact",
+  "vehCat": "Taxi",
+  "victim": {
+   "name": "Mohd. Irfan",
+   "age": 24,
+   "sex": "M",
+   "occ": "App-based delivery rider (self-employed)"
+  },
+  "vehicle": {
+   "reg": "DL-1R-TA-7784",
+   "cls": "Taxi (LMV, transport)",
+   "gvw": "1,640 kg",
+   "commercial": true
+  },
+  "policy": {
+   "no": "CV-2502-DL-0077412",
+   "from": "2025-02-01",
+   "to": "2026-01-31",
+   "kind": "Commercial vehicle — taxi"
+  },
+  "driver": {
+   "name": "Rakesh Yadav",
+   "dl": "DL03 2016 0098121",
+   "cls": "LMV",
+   "valid": "2036-04-18"
+  },
+  "claimed": 8500000,
+  "reserve": 2600000,
+  "next": "2026-10-06",
+  "purpose": "Cross-examination of PW1 (father)",
+  "income": {
+   "claimed": 32000,
+   "range": [
+    18400,
+    21000
+   ],
+   "sources": [
+    [
+     "Platform payout statement (Apr–May 2025 avg)",
+     21000,
+     "platform"
+    ],
+    [
+     "Bank credits, 6-month average",
+     18400,
+     "account aggregator"
+    ],
+    [
+     "Minimum-wage benchmark (semi-skilled)",
+     20000,
+     "wage master"
+    ]
+   ]
+  },
+  "deps": [
+   [
+    "Father",
+    52,
+    "Yes"
+   ],
+   [
+    "Mother",
+    48,
+    "Yes"
+   ],
+   [
+    "Brother",
+    16,
+    "?"
+   ]
+  ],
+  "q": {
+   "emp": "self",
+   "married": false,
+   "depClaim": 3,
+   "depIns": 2,
+   "consClaim": 2,
+   "consIns": 2,
+   "medClaim": 62000,
+   "medVer": 54500,
+   "contribIns": 25,
+   "contribTrib": 10
+  },
+  "timeline": [
+   [
+    "11 Jun 2025 23:14",
+    "Last delivery completed (platform log)",
+    "Platform"
+   ],
+   [
+    "23:20",
+    "Taxi takes U-turn across carriageway; motorcycle strikes side",
+    "Site plan · eyewitness PW3"
+   ],
+   [
+    "23:41",
+    "Brought to trauma centre",
+    "MLC"
+   ],
+   [
+    "12 Jun 2025 02:10",
+    "Declared dead",
+    "Death summary"
+   ],
+   [
+    "12 Jun 2025 09:30",
+    "FIR registered",
+    "FIR"
+   ]
+  ],
+  "conflicts": [
+   [
+    "PW3 (eyewitness): motorcycle “very fast”",
+    "Platform GPS: 31 km/h in the minute before impact",
+    "med"
+   ],
+   [
+    "Site plan: U-turn at unmarked median gap",
+    "Traffic police note: gap closed by barricade since May 2025",
+    "med"
+   ]
+  ],
+  "coverage": [
+   [
+    "Policy in force on accident date",
+    "Yes",
+    "Policy schedule",
+    "ok"
+   ],
+   [
+    "Driver licence valid for class",
+    "LMV (covers taxi of LMV class)",
+    "Licence registry",
+    "ok",
+    [
+     "mukund",
+     "rambha"
+    ]
+   ],
+   [
+    "Permit valid",
+    "Expired 20-05-2025 — 22 days before accident",
+    "Vehicle registry permit history",
+    "bad",
+    [
+     "amrit"
+    ]
+   ],
+   [
+    "Fitness certificate",
+    "Valid to 2026-02",
+    "Vehicle registry",
+    "ok"
+   ],
+   [
+    "Recovery right",
+    "Pay-and-recover likely if liability fastened",
+    "Permit breach",
+    "warn",
+    [
+     "amrit",
+     "swaran"
+    ]
+   ]
+  ],
+  "liab": {
+   "est": [
+    "Taxi executed U-turn across carriageway",
+    "Insured vehicle identified by registration in FIR"
+   ],
+   "disp": [
+    "Speed of motorcycle",
+    "Whether median gap was open"
+   ],
+   "miss": [
+    "Barricade record from traffic police",
+    "Victim’s driving licence"
+   ],
+   "pro": [
+    "Eyewitness suggests excess speed of motorcycle"
+   ],
+   "con": [
+    "GPS speed 31 km/h does not support excess speed",
+    "U-turn across traffic is primary cause"
+   ],
+   "contrib": [
+    25,
+    10
+   ]
+  },
+  "med": null,
+  "flags": [
+   [
+    "high",
+    "Permit expired 22 days before accident",
+    "Permit history: valid to 20-05-2025"
+   ],
+   [
+    "low",
+    "Brother (16) claimed as dependant while father is earning",
+    "School record and father’s employment certificate"
+   ]
+  ],
+  "law": [
+   "sarla",
+   "pranay",
+   "munna",
+   "amrit",
+   "magma"
+  ],
+  "recovery": {
+   "potential": true,
+   "basis": "Permit expired — pay and recover from owner (Amrit Paul Singh)",
+   "against": "Owner — S. K. Cabs (R1)"
+  }
+ },
+ {
+  "id": "MACT-2025-0711",
+  "cnr": "MHPU0A0009442025",
+  "mvc": "MACP 944/2025",
+  "court": "MACT, Pune",
+  "district": "Pune",
+  "state": "Maharashtra",
+  "type": "Injury",
+  "accident": "2025-01-17",
+  "place": "Pune–Solapur Highway, Loni Kalbhor",
+  "filed": "2025-04-02",
+  "noticeOn": "2025-04-19",
+  "darOn": "2025-03-20",
+  "stage": 10,
+  "courtStage": "Referred to Lok Adalat",
+  "priority": "Medium",
+  "officer": "S. Deshmukh",
+  "advocate": "Adv. M. Kulkarni",
+  "cAdv": "Adv. R. Shaikh",
+  "hospital": "Sahyadri Care Hospital, Hadapsar",
+  "accType": "Overtaking / head-on",
+  "vehCat": "Contract carriage bus",
+  "victim": {
+   "name": "Suresh Patil",
+   "age": 51,
+   "sex": "M",
+   "occ": "Farmer (sugarcane, 3.2 acres)"
+  },
+  "vehicle": {
+   "reg": "MH-12-QW-8812",
+   "cls": "Contract carriage bus",
+   "gvw": "14,900 kg",
+   "commercial": true
+  },
+  "policy": {
+   "no": "CV-2410-MH-0203318",
+   "from": "2024-10-05",
+   "to": "2025-10-04",
+   "kind": "Passenger carrying commercial"
+  },
+  "driver": {
+   "name": "Dattatray Jadhav",
+   "dl": "MH12 2005 0044390",
+   "cls": "HPMV / HTV (transport)",
+   "valid": "2027-09-30"
+  },
+  "claimed": 4200000,
+  "reserve": 1500000,
+  "next": "2026-10-17",
+  "purpose": "Lok Adalat sitting (DLSA)",
+  "income": {
+   "claimed": 35000,
+   "range": [
+    18800,
+    21300
+   ],
+   "sources": [
+    [
+     "Cane bills from sugar factory (gross, monthly equiv.)",
+     34160,
+     "factory receipts"
+    ],
+    [
+     "Net after cultivation cost (agri-department norm 45%)",
+     18800,
+     "computed"
+    ],
+    [
+     "Bank credits, 12-month average",
+     21300,
+     "account aggregator"
+    ],
+    [
+     "7/12 land extract — 3.2 acres",
+     null,
+     "land records"
+    ]
+   ]
+  },
+  "deps": [],
+  "med": {
+   "inj": [
+    "Fracture, left clavicle",
+    "Scalp laceration (6 cm)",
+    "Claimed: left hemiparesis"
+   ],
+   "path": [
+    [
+     "17 Jan 2025",
+     "Admission; CT brain — no abnormality"
+    ],
+    [
+     "19 Jan 2025",
+     "Clavicle fixation"
+    ],
+    [
+     "26 Jan 2025",
+     "Discharged; neuro examination normal"
+    ],
+    [
+     "10 Mar 2026",
+     "Disability certificate: 40% whole body (hemiparesis)"
+    ]
+   ],
+   "disClaim": 40,
+   "disCert": 40,
+   "disAI": 12,
+   "billsClaim": 410000,
+   "billsVer": 386000,
+   "notes": [
+    "CT brain 17-01-2025: normal",
+    "Discharge summary silent on weakness or hemiparesis",
+    "Certificate issued 14 months after accident"
+   ]
+  },
+  "q": {
+   "emp": "self",
+   "disClaim": 40,
+   "disIns": 10,
+   "disTrib": 15,
+   "medClaim": 410000,
+   "medVer": 386000,
+   "months": 3,
+   "lossPct": 1,
+   "attendant": 30000,
+   "transport": 20000,
+   "futureMed": 25000,
+   "pain": 75000,
+   "amenities": 40000,
+   "contribIns": 20,
+   "contribTrib": 10
+  },
+  "timeline": [
+   [
+    "17 Jan 2025 17:05",
+    "Bus overtakes truck on two-lane stretch",
+    "Site plan"
+   ],
+   [
+    "17:06",
+    "Head-on contact with motorcycle",
+    "MVI · site plan"
+   ],
+   [
+    "17:45",
+    "Admitted, MLC",
+    "MLC"
+   ],
+   [
+    "18 Jan 2025 11:00",
+    "FIR registered",
+    "FIR"
+   ]
+  ],
+  "conflicts": [
+   [
+    "Disability certificate: hemiparesis",
+    "CT brain normal; discharge neuro examination normal",
+    "high"
+   ]
+  ],
+  "coverage": [
+   [
+    "Policy in force",
+    "Yes",
+    "Policy schedule",
+    "ok"
+   ],
+   [
+    "Driver licence valid",
+    "HTV transport valid",
+    "Licence registry",
+    "ok"
+   ],
+   [
+    "Permit",
+    "Contract carriage permit valid",
+    "Vehicle registry",
+    "ok"
+   ],
+   [
+    "Fitness",
+    "Valid",
+    "Vehicle registry",
+    "ok"
+   ]
+  ],
+  "liab": {
+   "est": [
+    "Bus overtaking on two-lane stretch"
+   ],
+   "disp": [
+    "Victim riding on wrong side per bus driver"
+   ],
+   "miss": [
+    "Independent eyewitness"
+   ],
+   "pro": [
+    "Driver statement places motorcycle on wrong side"
+   ],
+   "con": [
+    "Site plan impact point on motorcycle’s lane"
+   ],
+   "contrib": [
+    20,
+    10
+   ]
+  },
+  "flags": [
+   [
+    "high",
+    "Disability certificate not supported by contemporaneous records",
+    "CT normal; issued 14 months post-accident"
+   ],
+   [
+    "med",
+    "Certifying doctor signs disability boards in 6 other portfolio claims",
+    "Dr. A. Kulkarni — 6 claims since 2024"
+   ]
+  ],
+  "law": [
+   "rajkumar",
+   "sidram",
+   "pranay",
+   "jhaveri"
+  ],
+  "settle": {
+   "status": "Lok Adalat listed",
+   "offerOn": "2026-09-10",
+   "offer": null,
+   "demand": 2400000,
+   "note": "Claimant demand ₹24 L at pre-sitting"
+  }
+ },
+ {
+  "id": "MACT-2024-0402",
+  "cnr": "UPLK0A0061222024",
+  "mvc": "MACP 612/2024",
+  "court": "MACT, Lucknow",
+  "district": "Lucknow",
+  "state": "Uttar Pradesh",
+  "type": "Death",
+  "accident": "2024-08-09",
+  "place": "Shaheed Path, Gomti Nagar Extension",
+  "filed": "2024-10-21",
+  "noticeOn": "2024-11-06",
+  "darOn": "2024-10-01",
+  "stage": 12,
+  "courtStage": "Award pronounced",
+  "priority": "High",
+  "officer": "Amit Srivastava",
+  "advocate": "Adv. P. K. Tiwari",
+  "cAdv": "Adv. S. Rizvi",
+  "hospital": "Apex Trauma Centre, Lucknow",
+  "accType": "Pedestrian",
+  "vehCat": "Private car",
+  "victim": {
+   "name": "Lakshmi Devi",
+   "age": 58,
+   "sex": "F",
+   "occ": "Homemaker"
+  },
+  "vehicle": {
+   "reg": "UP-32-HT-5521",
+   "cls": "Private car (LMV)",
+   "gvw": "1,450 kg",
+   "commercial": false
+  },
+  "policy": {
+   "no": "PC-2404-UP-0091120",
+   "from": "2024-04-11",
+   "to": "2025-04-10",
+   "kind": "Private car package"
+  },
+  "driver": {
+   "name": "Rohit Verma",
+   "dl": "UP32 2012 0056621",
+   "cls": "LMV",
+   "valid": "2032-01-15"
+  },
+  "claimed": 5500000,
+  "reserve": 1500000,
+  "next": null,
+  "purpose": "Award received 18-09-2026",
+  "income": {
+   "claimed": 15000,
+   "range": [
+    9000,
+    12000
+   ],
+   "sources": [
+    [
+     "Notional income — homemaker (Kirti)",
+     null,
+     "no documentary income"
+    ],
+    [
+     "State minimum wage, unskilled (benchmark)",
+     10500,
+     "wage master"
+    ],
+    [
+     "Portfolio awards, homemaker 50–60 (median)",
+     11000,
+     "corpus"
+    ]
+   ]
+  },
+  "deps": [
+   [
+    "Husband",
+    62,
+    "Yes"
+   ],
+   [
+    "Son",
+    34,
+    "No — earning"
+   ],
+   [
+    "Daughter",
+    31,
+    "No — married"
+   ]
+  ],
+  "q": {
+   "emp": "notional",
+   "married": true,
+   "depClaim": 1,
+   "depIns": 1,
+   "consClaim": 3,
+   "consIns": 3,
+   "medClaim": 182000,
+   "medVer": 164000,
+   "contribIns": 0,
+   "contribTrib": 0
+  },
+  "timeline": [
+   [
+    "09 Aug 2024 06:10",
+    "Victim crossing at zebra crossing (morning walk)",
+    "Site plan"
+   ],
+   [
+    "06:11",
+    "Car strikes pedestrian",
+    "CCTV"
+   ],
+   [
+    "06:40",
+    "Admitted",
+    "MLC"
+   ],
+   [
+    "11 Aug 2024",
+    "Death during treatment",
+    "Death summary"
+   ]
+  ],
+  "conflicts": [],
+  "coverage": [
+   [
+    "Policy in force",
+    "Yes",
+    "Policy schedule",
+    "ok"
+   ],
+   [
+    "Driver licence valid",
+    "LMV valid",
+    "Licence registry",
+    "ok"
+   ]
+  ],
+  "liab": {
+   "est": [
+    "Pedestrian on zebra crossing (CCTV)"
+   ],
+   "disp": [],
+   "miss": [],
+   "pro": [],
+   "con": [
+    "Clear negligence"
+   ],
+   "contrib": [
+    0,
+    0
+   ]
+  },
+  "med": null,
+  "flags": [],
+  "law": [
+   "kirti",
+   "sarla",
+   "pranay",
+   "magma"
+  ],
+  "award": {
+   "date": "2026-09-18",
+   "interest": 9,
+   "params": [
+    [
+     "Monthly income (notional)",
+     "₹9,000",
+     "₹15,000"
+    ],
+    [
+     "Future prospects",
+     "10%",
+     "25%"
+    ],
+    [
+     "Multiplier",
+     "9",
+     "11"
+    ],
+    [
+     "Personal deduction",
+     "1/3",
+     "1/3"
+    ],
+    [
+     "Consortium (persons)",
+     "3",
+     "3"
+    ],
+    [
+     "Medical expenses",
+     "₹1,64,000",
+     "₹1,82,000"
+    ],
+    [
+     "Interest",
+     "7.5%",
+     "9%"
+    ]
+   ],
+   "heads": [
+    [
+     "Loss of dependency",
+     1650000,
+     712800
+    ],
+    [
+     "Loss of estate",
+     18150,
+     18150
+    ],
+    [
+     "Funeral",
+     18150,
+     18150
+    ],
+    [
+     "Consortium (3)",
+     145200,
+     145200
+    ],
+    [
+     "Medical expenses",
+     182000,
+     164000
+    ]
+   ],
+   "issues": [
+    {
+     "t": "Incorrect multiplier",
+     "f": "Tribunal applied multiplier 11 for deceased aged 58.",
+     "e": "Age 58 per Aadhaar and PM report; Sarla Verma table gives 9 for 56–60.",
+     "law": [
+      "sarla",
+      "munna"
+     ],
+     "impact": 300000,
+     "s": "Strong",
+     "key": "mult"
+    },
+    {
+     "t": "Future prospects above prescribed band",
+     "f": "Tribunal added 25% future prospects.",
+     "e": "Age 58, notional income: Pranay Sethi band for 50–60 is 10%.",
+     "law": [
+      "pranay",
+      "kirti"
+     ],
+     "impact": 162000,
+     "s": "Strong",
+     "key": "fp"
+    },
+    {
+     "t": "Notional income ₹15,000",
+     "f": "Tribunal accepted claimed notional income.",
+     "e": "No documentary income; within discretion under Kirti.",
+     "law": [
+      "kirti"
+     ],
+     "impact": 475200,
+     "s": "Weak",
+     "key": "inc"
+    },
+    {
+     "t": "Interest at 9%",
+     "f": "Interest awarded at 9% p.a. from petition date.",
+     "e": "Rate is discretionary; portfolio median 7.5% for this tribunal.",
+     "law": [],
+     "impact": 58900,
+     "s": "Weak"
+    },
+    {
+     "t": "Consortium to adult children",
+     "f": "Filial consortium granted to earning son and married daughter.",
+     "e": "Permissible under Magma — dependency not required.",
+     "law": [
+      "magma"
+     ],
+     "impact": 0,
+     "s": "No ground"
+    }
+   ],
+   "decision": "Appeal proposed on multiplier and future prospects",
+   "decided": false
+  }
+ },
+ {
+  "id": "MACT-2024-1188",
+  "cnr": "RJJP0A0011882024",
+  "mvc": "MAC 1188/2024",
+  "court": "MACT-II, Jaipur Metropolitan",
+  "district": "Jaipur",
+  "state": "Rajasthan",
+  "type": "Injury",
+  "accident": "2024-05-26",
+  "place": "Tonk Road, Sanganer flyover",
+  "filed": "2024-07-15",
+  "noticeOn": "2024-07-29",
+  "darOn": "2024-07-02",
+  "stage": 13,
+  "courtStage": "Award pronounced",
+  "priority": "High",
+  "officer": "N. Rathore",
+  "advocate": "Adv. H. S. Shekhawat",
+  "cAdv": "Adv. D. Meena",
+  "hospital": "SMS Hospital, Jaipur",
+  "accType": "Side swipe",
+  "vehCat": "Light goods vehicle",
+  "victim": {
+   "name": "Arjun Singh",
+   "age": 34,
+   "sex": "M",
+   "occ": "Taxi driver (self-employed)"
+  },
+  "vehicle": {
+   "reg": "RJ-14-GD-3390",
+   "cls": "Light goods vehicle",
+   "gvw": "3,200 kg",
+   "commercial": true
+  },
+  "policy": {
+   "no": "GCV-2402-RJ-0033190",
+   "from": "2024-02-20",
+   "to": "2025-02-19",
+   "kind": "Commercial goods vehicle"
+  },
+  "driver": {
+   "name": "Mahesh Saini",
+   "dl": "RJ14 2015 0077210",
+   "cls": "LMV (non-transport endorsement)",
+   "valid": "2035-06-09"
+  },
+  "claimed": 7500000,
+  "reserve": 4200000,
+  "next": null,
+  "purpose": "Appeal limitation 28-10-2026",
+  "income": {
+   "claimed": 25000,
+   "range": [
+    16500,
+    19000
+   ],
+   "sources": [
+    [
+     "Taxi owner’s certificate",
+     25000,
+     "claimant"
+    ],
+    [
+     "Bank credits, 12-month average",
+     17600,
+     "account aggregator"
+    ],
+    [
+     "ITR AY 2024-25 (monthly equiv.)",
+     16500,
+     "income tax"
+    ]
+   ]
+  },
+  "deps": [],
+  "med": {
+   "inj": [
+    "Crush injury, left leg — below-knee amputation",
+    "Fracture, left radius"
+   ],
+   "path": [
+    [
+     "26 May 2024",
+     "Admission; emergency debridement"
+    ],
+    [
+     "28 May 2024",
+     "Below-knee amputation"
+    ],
+    [
+     "12 Jun 2024",
+     "Discharged"
+    ],
+    [
+     "Feb 2025",
+     "Prosthesis fitted"
+    ],
+    [
+     "Apr 2025",
+     "Disability certificate: 60% permanent"
+    ]
+   ],
+   "disClaim": 100,
+   "disCert": 60,
+   "disAI": 70,
+   "billsClaim": 360000,
+   "billsVer": 340000,
+   "notes": [
+    "Commercial driving licence surrendered — cannot drive taxi with manual controls",
+    "Raj Kumar: functional loss can reach 100% for driver with amputation"
+   ]
+  },
+  "q": {
+   "emp": "self",
+   "disClaim": 100,
+   "disIns": 60,
+   "disTrib": 100,
+   "medClaim": 360000,
+   "medVer": 340000,
+   "months": 8,
+   "lossPct": 1,
+   "attendant": 120000,
+   "transport": 30000,
+   "futureMed": 450000,
+   "pain": 150000,
+   "amenities": 100000,
+   "contribIns": 0,
+   "contribTrib": 0
+  },
+  "timeline": [
+   [
+    "26 May 2024 19:32",
+    "Goods van side-swipes parked taxi while victim loading luggage",
+    "Site plan"
+   ],
+   [
+    "20:05",
+    "Admitted, MLC",
+    "MLC"
+   ],
+   [
+    "27 May 2024",
+    "FIR registered",
+    "FIR"
+   ]
+  ],
+  "conflicts": [],
+  "coverage": [
+   [
+    "Policy in force",
+    "Yes",
+    "Policy schedule",
+    "ok"
+   ],
+   [
+    "Driver licence for class",
+    "LMV licence; vehicle GVW 3,200 kg (LMV class)",
+    "Licence registry · RC",
+    "warn",
+    [
+     "mukund",
+     "rambha"
+    ]
+   ],
+   [
+    "Permit / fitness",
+    "Valid",
+    "Vehicle registry",
+    "ok"
+   ]
+  ],
+  "liab": {
+   "est": [
+    "Van struck parked taxi"
+   ],
+   "disp": [],
+   "miss": [],
+   "pro": [
+    "Licence lacks transport endorsement"
+   ],
+   "con": [
+    "LMV licence suffices for transport vehicle ≤7,500 kg (Mukund Dewangan, affirmed 2024)"
+   ],
+   "contrib": [
+    0,
+    0
+   ]
+  },
+  "flags": [],
+  "law": [
+   "rajkumar",
+   "sidram",
+   "mukund",
+   "rambha"
+  ],
+  "award": {
+   "date": "2026-07-30",
+   "interest": 7.5,
+   "params": [
+    [
+     "Monthly income",
+     "₹16,500",
+     "₹18,000"
+    ],
+    [
+     "Future prospects",
+     "40%",
+     "40%"
+    ],
+    [
+     "Multiplier",
+     "16",
+     "16"
+    ],
+    [
+     "Functional disability",
+     "60%",
+     "100%"
+    ],
+    [
+     "Licence breach defence",
+     "Raised",
+     "Rejected"
+    ]
+   ],
+   "heads": [
+    [
+     "Future loss of earning capacity",
+     4838400,
+     2903040
+    ],
+    [
+     "Medical expenses",
+     340000,
+     340000
+    ],
+    [
+     "Loss of income during treatment (8 months)",
+     144000,
+     132000
+    ],
+    [
+     "Prosthesis & future medical",
+     450000,
+     450000
+    ],
+    [
+     "Attendant charges",
+     120000,
+     120000
+    ],
+    [
+     "Pain and suffering",
+     150000,
+     150000
+    ],
+    [
+     "Loss of amenities",
+     100000,
+     100000
+    ],
+    [
+     "Transport",
+     30000,
+     30000
+    ]
+   ],
+   "issues": [
+    {
+     "t": "Functional disability taken at 100%",
+     "f": "Tribunal held victim unable to pursue occupation of driver.",
+     "e": "Licence surrendered; below-knee amputation. Raj Kumar recognises 100% functional loss for drivers in such cases.",
+     "law": [
+      "rajkumar"
+     ],
+     "impact": 1935360,
+     "s": "Weak"
+    },
+    {
+     "t": "Licence breach rejected",
+     "f": "Tribunal rejected the transport-endorsement defence.",
+     "e": "GVW 3,200 kg — LMV class; Mukund Dewangan affirmed by Constitution Bench in 2024.",
+     "law": [
+      "mukund",
+      "rambha"
+     ],
+     "impact": 0,
+     "s": "No ground"
+    },
+    {
+     "t": "Income ₹18,000 vs ITR ₹16,500",
+     "f": "Tribunal took midpoint of bank and certificate.",
+     "e": "Difference 9%; within evidence range.",
+     "law": [],
+     "impact": 500000,
+     "s": "Weak"
+    }
+   ],
+   "decision": "No appeal recommended — comply with award",
+   "decided": false
+  }
+ },
+ {
+  "id": "MACT-2024-0876",
+  "cnr": "TNCH0A0038762024",
+  "mvc": "MCOP 3876/2024",
+  "court": "MACT (Chief Judge, Court of Small Causes), Chennai",
+  "district": "Chennai",
+  "state": "Tamil Nadu",
+  "type": "Death",
+  "accident": "2024-09-30",
+  "place": "OMR, Thoraipakkam",
+  "filed": "2024-12-10",
+  "noticeOn": "2024-12-26",
+  "darOn": "2024-11-25",
+  "stage": 14,
+  "courtStage": "Award — deposit made",
+  "priority": "Low",
+  "officer": "R. Lakshmi",
+  "advocate": "Adv. K. Senthil",
+  "cAdv": "Adv. M. Arul",
+  "hospital": "Global Health City, Perumbakkam",
+  "accType": "Head-on",
+  "vehCat": "Private bus",
+  "victim": {
+   "name": "Venkatesh R.",
+   "age": 38,
+   "sex": "M",
+   "occ": "Government school teacher (permanent)"
+  },
+  "vehicle": {
+   "reg": "TN-14-BK-7702",
+   "cls": "Contract carriage (staff bus)",
+   "gvw": "12,000 kg",
+   "commercial": true
+  },
+  "policy": {
+   "no": "CV-2404-TN-0181002",
+   "from": "2024-04-01",
+   "to": "2025-03-31",
+   "kind": "Passenger carrying commercial"
+  },
+  "driver": {
+   "name": "S. Murugan",
+   "dl": "TN14 2008 0023311",
+   "cls": "HTV (transport)",
+   "valid": "2028-10-22"
+  },
+  "claimed": 16500000,
+  "reserve": 12000000,
+  "next": null,
+  "purpose": "Disbursal order awaited",
+  "income": {
+   "claimed": 68400,
+   "range": [
+    58000,
+    58000
+   ],
+   "sources": [
+    [
+     "Salary certificate (net of tax)",
+     58000,
+     "employer"
+    ],
+    [
+     "Pay slip gross",
+     68400,
+     "employer"
+    ],
+    [
+     "Form 16",
+     67900,
+     "income tax"
+    ]
+   ]
+  },
+  "deps": [
+   [
+    "Wife",
+    35,
+    "Yes"
+   ],
+   [
+    "Son",
+    10,
+    "Yes"
+   ],
+   [
+    "Daughter",
+    6,
+    "Yes"
+   ],
+   [
+    "Father",
+    66,
+    "Yes"
+   ],
+   [
+    "Mother",
+    61,
+    "Yes"
+   ]
+  ],
+  "q": {
+   "emp": "permanent",
+   "married": true,
+   "depClaim": 5,
+   "depIns": 5,
+   "consClaim": 5,
+   "consIns": 5,
+   "medClaim": 95000,
+   "medVer": 95000,
+   "contribIns": 0,
+   "contribTrib": 0
+  },
+  "timeline": [
+   [
+    "30 Sep 2024 07:50",
+    "Bus crosses median while overtaking",
+    "Site plan"
+   ],
+   [
+    "07:51",
+    "Head-on collision with victim’s car",
+    "MVI"
+   ],
+   [
+    "08:30",
+    "Brought dead",
+    "MLC"
+   ]
+  ],
+  "conflicts": [],
+  "coverage": [
+   [
+    "Policy in force",
+    "Yes",
+    "Policy schedule",
+    "ok"
+   ],
+   [
+    "Driver licence",
+    "HTV valid",
+    "Licence registry",
+    "ok"
+   ],
+   [
+    "Permit / fitness",
+    "Valid",
+    "Vehicle registry",
+    "ok"
+   ]
+  ],
+  "liab": {
+   "est": [
+    "Bus crossed median"
+   ],
+   "disp": [],
+   "miss": [],
+   "pro": [],
+   "con": [
+    "Clear negligence"
+   ],
+   "contrib": [
+    0,
+    0
+   ]
+  },
+  "med": null,
+  "flags": [],
+  "law": [
+   "sarla",
+   "pranay",
+   "magma"
+  ],
+  "award": {
+   "date": "2026-06-20",
+   "interest": 7.5,
+   "params": [
+    [
+     "Monthly income (net of tax)",
+     "₹58,000",
+     "₹58,000"
+    ],
+    [
+     "Future prospects",
+     "50%",
+     "50%"
+    ],
+    [
+     "Multiplier",
+     "15",
+     "15"
+    ],
+    [
+     "Personal deduction",
+     "1/4",
+     "1/4"
+    ]
+   ],
+   "heads": [
+    [
+     "Loss of dependency",
+     11745000,
+     11745000
+    ],
+    [
+     "Loss of estate",
+     18150,
+     18150
+    ],
+    [
+     "Funeral",
+     18150,
+     18150
+    ],
+    [
+     "Consortium (5)",
+     242000,
+     242000
+    ],
+    [
+     "Medical expenses",
+     95000,
+     95000
+    ]
+   ],
+   "issues": [],
+   "decision": "Complied — no appeal",
+   "decided": true
+  },
+  "payment": {
+   "on": "2026-08-05",
+   "utr": "UTR SBIN226217004511",
+   "note": "Deposited in tribunal account; disbursal order awaited"
+  }
+ },
+ {
+  "id": "MACT-2023-0553",
+  "cnr": "HRHS0A0005532023",
+  "mvc": "MACT 553/2023",
+  "court": "MACT, Hisar",
+  "district": "Hisar",
+  "state": "Haryana",
+  "type": "Death",
+  "accident": "2023-03-04",
+  "place": "NH-9, near Barwala",
+  "filed": "2023-05-22",
+  "noticeOn": "2023-06-08",
+  "darOn": "2023-05-01",
+  "stage": 15,
+  "courtStage": "Execution",
+  "priority": "Medium",
+  "officer": "P. Dahiya",
+  "advocate": "Adv. R. K. Bishnoi",
+  "cAdv": "Adv. S. Punia",
+  "hospital": "Civil Hospital, Hisar",
+  "accType": "Rear-end",
+  "vehCat": "Goods carriage",
+  "victim": {
+   "name": "Rajbir Singh",
+   "age": 46,
+   "sex": "M",
+   "occ": "Dairy farmer"
+  },
+  "vehicle": {
+   "reg": "HR-39-D-7710",
+   "cls": "Goods carriage (truck)",
+   "gvw": "25,000 kg",
+   "commercial": true
+  },
+  "policy": {
+   "no": "GCV-2211-HR-0071441",
+   "from": "2022-11-20",
+   "to": "2023-11-19",
+   "kind": "Commercial goods vehicle"
+  },
+  "driver": {
+   "name": "Balwan",
+   "dl": "HR39 2004 0011172",
+   "cls": "HTV",
+   "valid": "Expired 2019-08-14"
+  },
+  "claimed": 9000000,
+  "reserve": 4830000,
+  "next": "2026-10-15",
+  "purpose": "Execution — attachment of HR-39-D-7710",
+  "income": {
+   "claimed": 40000,
+   "range": [
+    24000,
+    27000
+   ],
+   "sources": [
+    [
+     "Milk society payments",
+     26400,
+     "society ledger"
+    ],
+    [
+     "Bank credits",
+     24000,
+     "bank"
+    ]
+   ]
+  },
+  "deps": [
+   [
+    "Wife",
+    42,
+    "Yes"
+   ],
+   [
+    "Son",
+    19,
+    "Yes"
+   ],
+   [
+    "Daughter",
+    16,
+    "Yes"
+   ],
+   [
+    "Mother",
+    70,
+    "Yes"
+   ]
+  ],
+  "q": {
+   "emp": "self",
+   "married": true,
+   "depClaim": 4,
+   "depIns": 4,
+   "consClaim": 4,
+   "consIns": 4,
+   "medClaim": 186000,
+   "medVer": 186000,
+   "contribIns": 0,
+   "contribTrib": 0
+  },
+  "timeline": [
+   [
+    "04 Mar 2023 05:40",
+    "Truck rear-ends motorcycle in fog",
+    "Site plan"
+   ],
+   [
+    "06:15",
+    "Brought dead",
+    "MLC"
+   ]
+  ],
+  "conflicts": [],
+  "coverage": [
+   [
+    "Policy in force",
+    "Yes",
+    "Policy schedule",
+    "ok"
+   ],
+   [
+    "Driver licence valid",
+    "Expired 14-08-2019, not renewed",
+    "Licence registry",
+    "bad",
+    [
+     "swaran"
+    ]
+   ],
+   [
+    "Recovery right",
+    "Pay-and-recover ordered in award",
+    "Award para 21",
+    "warn",
+    [
+     "swaran"
+    ]
+   ]
+  ],
+  "liab": {
+   "est": [
+    "Rear-end collision"
+   ],
+   "disp": [],
+   "miss": [],
+   "pro": [
+    "Licence expired four years earlier — fundamental breach"
+   ],
+   "con": [],
+   "contrib": [
+    0,
+    0
+   ]
+  },
+  "med": null,
+  "flags": [],
+  "law": [
+   "swaran",
+   "sarla",
+   "pranay"
+  ],
+  "award": {
+   "date": "2025-10-14",
+   "interest": 7.5,
+   "params": [
+    [
+     "Monthly income",
+     "₹24,000",
+     "₹26,400"
+    ],
+    [
+     "Future prospects",
+     "25%",
+     "25%"
+    ],
+    [
+     "Multiplier",
+     "13",
+     "13"
+    ],
+    [
+     "Pay and recover",
+     "Sought",
+     "Granted"
+    ]
+   ],
+   "heads": [
+    [
+     "Loss of dependency",
+     4410000,
+     4000000
+    ],
+    [
+     "Loss of estate",
+     18150,
+     18150
+    ],
+    [
+     "Funeral",
+     18150,
+     18150
+    ],
+    [
+     "Consortium (4)",
+     193600,
+     193600
+    ],
+    [
+     "Medical expenses",
+     186000,
+     186000
+    ]
+   ],
+   "issues": [],
+   "decision": "Complied — recovery right preserved",
+   "decided": true
+  },
+  "payment": {
+   "on": "2025-12-19",
+   "utr": "UTR PUNB225353001882",
+   "note": "Deposited with interest"
+  },
+  "recovery": {
+   "basis": "Driver’s licence expired — pay and recover (award para 21)",
+   "against": "Owner — Jagdish Road Carriers (R1)",
+   "ep": "Execution Petition 44/2026, filed 12-03-2026",
+   "recovered": [
+    [
+     "2026-05-20",
+     500000,
+     "Part payment under court direction"
+    ],
+    [
+     "2026-08-14",
+     700000,
+     "Instalment 2"
+    ]
+   ],
+   "next": "Attachment of HR-39-D-7710 — 15-10-2026"
+  }
+ },
+ {
+  "id": "MACT-2026-0131",
+  "cnr": "CGRP0A0022142026",
+  "mvc": "MACT 2214/2026",
+  "court": "MACT, Raipur",
+  "district": "Raipur",
+  "state": "Chhattisgarh",
+  "type": "Death",
+  "accident": "2026-07-08",
+  "place": "Raipur–Bilaspur Road, Tilda turn",
+  "filed": "2026-09-16",
+  "noticeOn": "2026-09-26",
+  "darOn": null,
+  "stage": 0,
+  "courtStage": "Notice issued",
+  "priority": "Medium",
+  "officer": "Unassigned",
+  "advocate": "—",
+  "cAdv": "Adv. K. Sahu",
+  "hospital": "Dr. BRAM Hospital, Raipur",
+  "accType": "Hit from behind",
+  "vehCat": "Goods carriage",
+  "victim": {
+   "name": "Anil Kumar Sahu",
+   "age": 31,
+   "sex": "M",
+   "occ": "Mason (self-employed)"
+  },
+  "vehicle": {
+   "reg": "CG-04-MN-2219",
+   "cls": "Goods carriage",
+   "gvw": "9,600 kg",
+   "commercial": true
+  },
+  "policy": {
+   "no": "GCV-2603-CG-0012277",
+   "from": "2026-03-02",
+   "to": "2027-03-01",
+   "kind": "Commercial goods vehicle"
+  },
+  "driver": {
+   "name": "—",
+   "dl": "—",
+   "cls": "—",
+   "valid": "—"
+  },
+  "claimed": 6000000,
+  "reserve": 0,
+  "next": "2026-10-27",
+  "purpose": "Appearance & written statement",
+  "income": {
+   "claimed": 25000,
+   "range": null,
+   "sources": []
+  },
+  "deps": [
+   [
+    "Wife",
+    28,
+    "Yes"
+   ],
+   [
+    "Son",
+    4,
+    "Yes"
+   ],
+   [
+    "Mother",
+    55,
+    "?"
+   ]
+  ],
+  "q": {
+   "emp": "self",
+   "married": true,
+   "depClaim": 3,
+   "depIns": 3,
+   "consClaim": 3,
+   "consIns": 3,
+   "medClaim": 0,
+   "medVer": 0,
+   "contribIns": 0,
+   "contribTrib": 0
+  },
+  "timeline": [
+   [
+    "08 Jul 2026",
+    "Accident (as per petition)",
+    "Claim petition"
+   ]
+  ],
+  "conflicts": [],
+  "coverage": [],
+  "liab": null,
+  "med": null,
+  "flags": [],
+  "law": []
+ },
+ {
+  "id": "MACT-2026-0133",
+  "cnr": "KAMY0A0007712026",
+  "mvc": "MVC 771/2026",
+  "court": "MACT (II Addl. Sr. Civil Judge), Mysuru",
+  "district": "Mysuru",
+  "state": "Karnataka",
+  "type": "Death",
+  "accident": "2026-06-14",
+  "place": "Mysuru Ring Road, Hebbal junction",
+  "filed": "2026-09-02",
+  "noticeOn": "2026-09-12",
+  "darOn": "2026-09-25",
+  "stage": 2,
+  "courtStage": "Notice served",
+  "priority": "Medium",
+  "officer": "K. Meenakshi",
+  "advocate": "Adv. S. Raghavendra",
+  "cAdv": "Adv. H. Prakash",
+  "hospital": "K. R. Hospital, Mysuru",
+  "accType": "Side impact",
+  "vehCat": "Private car",
+  "victim": {
+   "name": "Shivaprasad M.",
+   "age": 47,
+   "sex": "M",
+   "occ": "Bank clerk (permanent, co-operative bank)"
+  },
+  "vehicle": {
+   "reg": "KA-09-MF-6630",
+   "cls": "Private car (LMV)",
+   "gvw": "1,510 kg",
+   "commercial": false
+  },
+  "policy": {
+   "no": "PC-2601-KA-0090771",
+   "from": "2026-01-19",
+   "to": "2027-01-18",
+   "kind": "Private car package"
+  },
+  "driver": {
+   "name": "Pradeep Gowda",
+   "dl": "KA09 2018 0029910",
+   "cls": "LMV",
+   "valid": "2038-02-11"
+  },
+  "claimed": 9500000,
+  "reserve": 4500000,
+  "next": "2026-10-19",
+  "purpose": "Written statement",
+  "income": {
+   "claimed": 52000,
+   "range": [
+    47800,
+    49600
+   ],
+   "sources": [
+    [
+     "Salary slip (Jun 2026)",
+     49600,
+     "employer"
+    ],
+    [
+     "Bank credits (net)",
+     47800,
+     "account aggregator"
+    ]
+   ]
+  },
+  "deps": [
+   [
+    "Wife",
+    43,
+    "Yes"
+   ],
+   [
+    "Daughter",
+    17,
+    "Yes"
+   ],
+   [
+    "Son",
+    13,
+    "Yes"
+   ]
+  ],
+  "q": {
+   "emp": "permanent",
+   "married": true,
+   "depClaim": 3,
+   "depIns": 3,
+   "consClaim": 3,
+   "consIns": 3,
+   "medClaim": 210000,
+   "medVer": 0,
+   "contribIns": 0,
+   "contribTrib": 0
+  },
+  "timeline": [
+   [
+    "14 Jun 2026 20:12",
+    "Car jumps signal; strikes scooter side-on",
+    "FIR"
+   ],
+   [
+    "20:40",
+    "Admitted",
+    "MLC"
+   ],
+   [
+    "16 Jun 2026",
+    "Death during treatment",
+    "Death summary"
+   ]
+  ],
+  "conflicts": [],
+  "coverage": [
+   [
+    "Policy in force",
+    "Yes",
+    "Policy schedule",
+    "ok"
+   ],
+   [
+    "Driver licence valid",
+    "LMV valid",
+    "Licence registry",
+    "ok"
+   ]
+  ],
+  "liab": {
+   "est": [
+    "Signal jump recorded in FIR"
+   ],
+   "disp": [],
+   "miss": [
+    "Signal CCTV"
+   ],
+   "pro": [],
+   "con": [],
+   "contrib": [
+    0,
+    0
+   ]
+  },
+  "med": null,
+  "flags": [],
+  "law": [
+   "sarla",
+   "pranay",
+   "magma",
+   "gohar"
+  ],
+  "docState": {
+   "Discharge summary / IP records": "Requested",
+   "Medical bills": "Requested",
+   "Bank statements (12 months)": "Consent sent",
+   "Income proof (salary / ITR / Form 16)": "Received",
+   "Charge sheet": "Awaited",
+   "Mechanical inspection report": "Requested",
+   "Legal heir / dependency proof": "Requested"
+  }
+ },
+ {
+  "id": "MACT-2026-0126",
+  "cnr": "TSHY0A0031092026",
+  "mvc": "OP 3109/2026",
+  "court": "MACT (Chief Judge, City Civil Court), Hyderabad",
+  "district": "Hyderabad",
+  "state": "Telangana",
+  "type": "Injury",
+  "accident": "2026-04-03",
+  "place": "Mehdipatnam Rythu Bazar road",
+  "filed": "2026-07-20",
+  "noticeOn": "2026-08-04",
+  "darOn": "2026-07-01",
+  "stage": 3,
+  "courtStage": "Notice served",
+  "priority": "Medium",
+  "officer": "V. Reddy",
+  "advocate": "Adv. A. Rao",
+  "cAdv": "Adv. S. Hussain",
+  "hospital": "Osmania General Hospital",
+  "accType": "Side impact",
+  "vehCat": "Goods auto-rickshaw",
+  "victim": {
+   "name": "Fathima Begum (minor, through father)",
+   "age": 17,
+   "sex": "F",
+   "occ": "Student, Class XII"
+  },
+  "vehicle": {
+   "reg": "TS-13-UB-4410",
+   "cls": "Goods auto-rickshaw (3W)",
+   "gvw": "995 kg",
+   "commercial": true
+  },
+  "policy": {
+   "no": "GCV-2511-TS-0044910",
+   "from": "2025-11-08",
+   "to": "2026-11-07",
+   "kind": "Commercial goods vehicle (3W)"
+  },
+  "driver": {
+   "name": "Mohd. Saleem",
+   "dl": "TS13 2019 0031880",
+   "cls": "LMV · 3W transport",
+   "valid": "2039-07-01"
+  },
+  "claimed": 2800000,
+  "reserve": 1100000,
+  "next": "2026-10-23",
+  "purpose": "Written statement",
+  "income": {
+   "claimed": null,
+   "range": [
+    12000,
+    15000
+   ],
+   "sources": [
+    [
+     "Notional income — student (Kishan Gopal)",
+     null,
+     "no income"
+    ],
+    [
+     "Minimum-wage benchmark (skilled)",
+     15000,
+     "wage master"
+    ]
+   ]
+  },
+  "deps": [],
+  "med": {
+   "inj": [
+    "Fracture, right femur (shaft)",
+    "Fracture, right patella"
+   ],
+   "path": [
+    [
+     "03 Apr 2026",
+     "Admission"
+    ],
+    [
+     "05 Apr 2026",
+     "IM nailing, femur; patella tension-band wiring"
+    ],
+    [
+     "15 Apr 2026",
+     "Discharged"
+    ],
+    [
+     "Jul 2026",
+     "Board exam missed; supplementary scheduled"
+    ]
+   ],
+   "disClaim": 30,
+   "disCert": null,
+   "disAI": 10,
+   "billsClaim": 295000,
+   "billsVer": 271000,
+   "notes": [
+    "Disability certificate not yet produced",
+    "Loss of academic year claimed — school letter received"
+   ]
+  },
+  "q": {
+   "emp": "notional",
+   "disClaim": 30,
+   "disIns": 8,
+   "disTrib": 12,
+   "medClaim": 295000,
+   "medVer": 271000,
+   "months": 3,
+   "lossPct": 0,
+   "attendant": 45000,
+   "transport": 20000,
+   "futureMed": 80000,
+   "pain": 100000,
+   "amenities": 75000,
+   "contribIns": 0,
+   "contribTrib": 0
+  },
+  "timeline": [
+   [
+    "03 Apr 2026 16:20",
+    "Pillion on scooter driven by father",
+    "FIR"
+   ],
+   [
+    "16:21",
+    "Goods auto turns right without signal; side impact",
+    "Site plan"
+   ],
+   [
+    "16:50",
+    "Admitted",
+    "MLC"
+   ]
+  ],
+  "conflicts": [
+   [
+    "FIR: father riding without helmet",
+    "Petition silent; helmet not relevant to femur injury",
+    "low"
+   ]
+  ],
+  "coverage": [
+   [
+    "Policy in force",
+    "Yes",
+    "Policy schedule",
+    "ok"
+   ],
+   [
+    "Driver licence for 3W transport",
+    "Valid",
+    "Licence registry",
+    "ok"
+   ],
+   [
+    "Permit / fitness",
+    "Valid",
+    "Vehicle registry",
+    "ok"
+   ]
+  ],
+  "liab": {
+   "est": [
+    "Right turn without signal"
+   ],
+   "disp": [
+    "Speed of scooter"
+   ],
+   "miss": [
+    "Eyewitness"
+   ],
+   "pro": [],
+   "con": [
+    "Site plan shows auto cutting across"
+   ],
+   "contrib": [
+    0,
+    0
+   ]
+  },
+  "flags": [],
+  "law": [
+   "kishan",
+   "rajkumar",
+   "sidram"
+  ],
+  "docState": {
+   "Disability certificate": "Awaited",
+   "Charge sheet": "Awaited"
+  }
+ },
+ {
+  "id": "MACT-2026-0098",
+  "cnr": "MPIN0A0017752026",
+  "mvc": "MACC 1775/2026",
+  "court": "MACT (XIV ADJ), Indore",
+  "district": "Indore",
+  "state": "Madhya Pradesh",
+  "type": "Injury",
+  "accident": "2025-12-20",
+  "place": "AB Road, Vijay Nagar square",
+  "filed": "2026-03-09",
+  "noticeOn": "2026-03-24",
+  "darOn": "2026-02-22",
+  "stage": 5,
+  "courtStage": "Written statement",
+  "priority": "Medium",
+  "officer": "S. Jain",
+  "advocate": "Adv. R. Dubey",
+  "cAdv": "Adv. A. Khan",
+  "hospital": "CHL Hospital, Indore",
+  "accType": "Multi-vehicle",
+  "vehCat": "Stage carriage bus",
+  "victim": {
+   "name": "Deepak Sharma",
+   "age": 45,
+   "sex": "M",
+   "occ": "Hardware shop owner (GST registered)"
+  },
+  "vehicle": {
+   "reg": "MP-09-PA-1177",
+   "cls": "City bus (stage carriage)",
+   "gvw": "16,000 kg",
+   "commercial": true
+  },
+  "policy": {
+   "no": "CV-2507-MP-0017702",
+   "from": "2025-07-15",
+   "to": "2026-07-14",
+   "kind": "Passenger carrying commercial"
+  },
+  "driver": {
+   "name": "Ramesh Chouhan",
+   "dl": "MP09 2007 0014550",
+   "cls": "HPMV transport",
+   "valid": "2027-11-30"
+  },
+  "claimed": 4800000,
+  "reserve": 1900000,
+  "next": "2026-10-21",
+  "purpose": "Issues to be framed",
+  "income": {
+   "claimed": 60000,
+   "range": [
+    31000,
+    36000
+   ],
+   "sources": [
+    [
+     "GSTR-3B turnover × margin 12%",
+     36000,
+     "GST"
+    ],
+    [
+     "ITR AY 2025-26",
+     31000,
+     "income tax"
+    ],
+    [
+     "Bank credits (business, net)",
+     34500,
+     "account aggregator"
+    ]
+   ]
+  },
+  "deps": [],
+  "med": {
+   "inj": [
+    "Fracture, L1 vertebra (stable)",
+    "Rib fractures (3)"
+   ],
+   "path": [
+    [
+     "20 Dec 2025",
+     "Admission; ICU 2 days"
+    ],
+    [
+     "23 Dec 2025",
+     "Conservative management, brace"
+    ],
+    [
+     "30 Dec 2025",
+     "Discharged"
+    ],
+    [
+     "Jun 2026",
+     "Disability certificate: 25%"
+    ]
+   ],
+   "disClaim": 25,
+   "disCert": 25,
+   "disAI": 12,
+   "billsClaim": 520000,
+   "billsVer": 498000,
+   "notes": [
+    "Shop continued by brother during recovery (GST filings uninterrupted)"
+   ]
+  },
+  "q": {
+   "emp": "self",
+   "disClaim": 25,
+   "disIns": 10,
+   "disTrib": 15,
+   "medClaim": 520000,
+   "medVer": 498000,
+   "months": 4,
+   "lossPct": 0.6,
+   "attendant": 40000,
+   "transport": 20000,
+   "futureMed": 50000,
+   "pain": 100000,
+   "amenities": 50000,
+   "contribIns": 40,
+   "contribTrib": 40
+  },
+  "timeline": [
+   [
+    "20 Dec 2025 19:05",
+    "Truck (insured elsewhere) brakes suddenly",
+    "Site plan"
+   ],
+   [
+    "19:05",
+    "Bus swerves, strikes motorcycle",
+    "MVI (both vehicles)"
+   ],
+   [
+    "19:40",
+    "Admitted, MLC",
+    "MLC"
+   ]
+  ],
+  "conflicts": [
+   [
+    "FIR names bus alone",
+    "Site plan and MVI show truck involvement",
+    "med"
+   ]
+  ],
+  "coverage": [
+   [
+    "Policy in force",
+    "Yes",
+    "Policy schedule",
+    "ok"
+   ],
+   [
+    "Driver licence valid",
+    "Valid",
+    "Licence registry",
+    "ok"
+   ],
+   [
+    "Permit / fitness",
+    "Valid",
+    "Vehicle registry",
+    "ok"
+   ],
+   [
+    "Other tortfeasor",
+    "Truck MP-09-HG-6621 insured with another insurer — not impleaded",
+    "Site plan · MVI",
+    "warn",
+    [
+     "khenyei"
+    ]
+   ]
+  ],
+  "liab": {
+   "est": [
+    "Two vehicles involved — composite negligence"
+   ],
+   "disp": [
+    "Apportionment between bus and truck"
+   ],
+   "miss": [
+    "Truck driver statement",
+    "Impleadment of truck owner & insurer"
+   ],
+   "pro": [
+    "Truck’s sudden braking initiated the sequence — apportion 40% to truck"
+   ],
+   "con": [
+    "Claimant may recover wholly from either tortfeasor (Khenyei)"
+   ],
+   "contrib": [
+    40,
+    40
+   ]
+  },
+  "flags": [
+   [
+    "med",
+    "FIR omits second vehicle",
+    "Site plan and MVI record truck MP-09-HG-6621"
+   ]
+  ],
+  "law": [
+   "khenyei",
+   "sidram",
+   "rajkumar"
+  ]
+ },
+ {
+  "id": "MACT-2025-0620",
+  "cnr": "WBKL0A0014402025",
+  "mvc": "MAC 1440/2025",
+  "court": "MACT (Judge, 2nd Bench), City Civil Court, Calcutta",
+  "district": "Kolkata",
+  "state": "West Bengal",
+  "type": "Death",
+  "accident": "2025-12-03",
+  "place": "EM Bypass, Ruby crossing",
+  "filed": "2026-01-30",
+  "noticeOn": "2026-02-12",
+  "darOn": "2026-01-20",
+  "stage": 8,
+  "courtStage": "Written statement filed",
+  "priority": "High",
+  "darDispute": "FIR records a self-skid with no other vehicle; petition alleges a second motorcycle; premium paid about 30 hours before accident. Surveyor report forwarded to DCP.",
+  "officer": "S. Banerjee",
+  "advocate": "Adv. A. Chatterjee",
+  "cAdv": "Adv. T. Das",
+  "hospital": "Lifeline Nursing Home, Kasba",
+  "accType": "Skid / self-fall",
+  "vehCat": "Two-wheeler",
+  "victim": {
+   "name": "Sandeep Ghosh",
+   "age": 27,
+   "sex": "M",
+   "occ": "Sales executive (private)"
+  },
+  "vehicle": {
+   "reg": "WB-06-AF-3321",
+   "cls": "Motorcycle",
+   "gvw": "—",
+   "commercial": false
+  },
+  "policy": {
+   "no": "TW-2512-WB-0031219",
+   "from": "2025-12-01",
+   "to": "2026-11-30",
+   "kind": "Two-wheeler third-party"
+  },
+  "driver": {
+   "name": "Bapan Roy (rider, owner)",
+   "dl": "WB06 2017 0055512",
+   "cls": "MCWG",
+   "valid": "2037-01-09"
+  },
+  "claimed": 6500000,
+  "reserve": 2400000,
+  "next": "2026-11-04",
+  "purpose": "Issues & claimant evidence",
+  "income": {
+   "claimed": 35000,
+   "range": [
+    16000,
+    18500
+   ],
+   "sources": [
+    [
+     "Offer letter (Aug 2025)",
+     18500,
+     "employer"
+    ],
+    [
+     "Bank credits, 4 months",
+     16000,
+     "account aggregator"
+    ],
+    [
+     "Employer certificate (post-accident)",
+     35000,
+     "employer"
+    ]
+   ]
+  },
+  "deps": [
+   [
+    "Father",
+    58,
+    "Yes"
+   ],
+   [
+    "Mother",
+    52,
+    "Yes"
+   ]
+  ],
+  "q": {
+   "emp": "fixed",
+   "married": false,
+   "depClaim": 2,
+   "depIns": 2,
+   "consClaim": 2,
+   "consIns": 2,
+   "medClaim": 140000,
+   "medVer": 88000,
+   "contribIns": 20,
+   "contribTrib": 10
+  },
+  "timeline": [
+   [
+    "03 Dec 2025 00:40",
+    "Motorcycle (victim pillion) skids near crossing",
+    "FIR"
+   ],
+   [
+    "01:30",
+    "Admitted, Lifeline Nursing Home",
+    "MLC"
+   ],
+   [
+    "04 Dec 2025 06:10",
+    "Death",
+    "Death summary"
+   ],
+   [
+    "06 Dec 2025",
+    "FIR registered (3 days)",
+    "FIR"
+   ]
+  ],
+  "conflicts": [
+   [
+    "FIR: motorcycle skidded; no other vehicle",
+    "Petition: “hit by speeding motorcycle” (insured vehicle as offending)",
+    "high"
+   ],
+   [
+    "Policy start 01-12-2025",
+    "Accident 03-12-2025 00:40 — 2 days after inception",
+    "high"
+   ]
+  ],
+  "coverage": [
+   [
+    "Policy in force",
+    "Yes — incepted 2 days before accident",
+    "Policy schedule; premium receipt 30-11-2025 18:22",
+    "warn"
+   ],
+   [
+    "Pillion cover under TP policy",
+    "Pillion is third party for liability",
+    "Policy wording",
+    "ok"
+   ],
+   [
+    "Rider licence",
+    "MCWG valid",
+    "Licence registry",
+    "ok"
+   ]
+  ],
+  "liab": {
+   "est": [
+    "Victim was pillion on insured motorcycle"
+   ],
+   "disp": [
+    "Whether another vehicle was involved",
+    "Whether rider was negligent (skid on wet road)"
+   ],
+   "miss": [
+    "CCTV at crossing",
+    "Rider’s statement"
+   ],
+   "pro": [
+    "Petition and FIR narratives conflict"
+   ],
+   "con": [
+    "Pillion rider can claim against rider’s insurer for rider’s negligence"
+   ],
+   "contrib": [
+    20,
+    10
+   ]
+  },
+  "med": null,
+  "flags": [
+   [
+    "high",
+    "Policy incepted 2 days before accident",
+    "Premium paid 30-11-2025 18:22; accident 03-12-2025 00:40 — verify payment channel & proposal"
+   ],
+   [
+    "high",
+    "Hospital, claimant advocate and witness recur in 3 other claims",
+    "Lifeline Nursing Home · Adv. T. Das · witness Bapi Mondal — MACT-2025-0301, -0417, -0588"
+   ],
+   [
+    "med",
+    "Employer certificate issued after accident nearly doubles offer-letter salary",
+    "₹35,000 vs ₹18,500"
+   ]
+  ],
+  "law": [
+   "sarla",
+   "pranay",
+   "munna",
+   "siddique",
+   "magma"
+  ]
+ },
+ {
+  "id": "MACT-2026-0119",
+  "cnr": "MHNG0A0012062026",
+  "mvc": "MACP 1206/2026 (s.164)",
+  "court": "MACT, Nagpur",
+  "district": "Nagpur",
+  "state": "Maharashtra",
+  "type": "No-fault",
+  "nfKind": "Death",
+  "accident": "2026-02-18",
+  "place": "Wardha Road, Chinch Bhawan",
+  "filed": "2026-04-06",
+  "noticeOn": "2026-04-20",
+  "darOn": "2026-05-12",
+  "stage": 7,
+  "courtStage": "Form XI offer filed",
+  "priority": "Low",
+  "officer": "M. Deshpande",
+  "advocate": "Adv. N. Joshi",
+  "cAdv": "Adv. P. Wankhede",
+  "hospital": "Government Medical College, Nagpur",
+  "accType": "Pedestrian",
+  "vehCat": "Goods carriage",
+  "victim": {
+   "name": "Baburao Wankhede",
+   "age": 63,
+   "sex": "M",
+   "occ": "Retired mill worker"
+  },
+  "vehicle": {
+   "reg": "MH-40-BL-2291",
+   "cls": "Goods carriage (LGV)",
+   "gvw": "6,800 kg",
+   "commercial": true
+  },
+  "policy": {
+   "no": "GCV-2508-MH-0120612",
+   "from": "2025-08-22",
+   "to": "2026-08-21",
+   "kind": "Commercial goods vehicle"
+  },
+  "driver": {
+   "name": "Sachin Meshram",
+   "dl": "MH40 2011 0071230",
+   "cls": "LMV / LGV transport",
+   "valid": "2031-03-19"
+  },
+  "claimed": 500000,
+  "reserve": 500000,
+  "next": "2026-10-14",
+  "purpose": "Claimant response to Form XI offer",
+  "income": {
+   "claimed": null,
+   "range": [
+    0,
+    0
+   ],
+   "sources": []
+  },
+  "deps": [
+   [
+    "Wife",
+    59,
+    "Yes"
+   ],
+   [
+    "Son",
+    35,
+    "No — earning"
+   ]
+  ],
+  "q": {
+   "emp": "fixed",
+   "married": true,
+   "depClaim": 1,
+   "depIns": 1,
+   "consClaim": 2,
+   "consIns": 2,
+   "medClaim": 0,
+   "medVer": 0,
+   "contribIns": 0,
+   "contribTrib": 0
+  },
+  "timeline": [
+   [
+    "18 Feb 2026 06:30",
+    "Pedestrian struck by reversing goods vehicle",
+    "FIR"
+   ],
+   [
+    "07:10",
+    "Brought dead",
+    "MLC"
+   ],
+   [
+    "12 May 2026",
+    "DAR received",
+    "Police eDAR"
+   ]
+  ],
+  "conflicts": [],
+  "coverage": [
+   [
+    "Policy in force",
+    "Yes",
+    "Policy schedule",
+    "ok"
+   ],
+   [
+    "Driver licence valid",
+    "LMV / LGV transport valid",
+    "Licence registry",
+    "ok"
+   ],
+   [
+    "Permit / fitness",
+    "Valid",
+    "Vehicle registry",
+    "ok"
+   ]
+  ],
+  "liab": {
+   "est": [
+    "Insured vehicle involved (FIR, DAR)",
+    "No-fault claim: negligence need not be pleaded or proved"
+   ],
+   "disp": [],
+   "miss": [],
+   "pro": [],
+   "con": [],
+   "contrib": [
+    0,
+    0
+   ]
+  },
+  "med": null,
+  "flags": [],
+  "law": [
+   "gohar"
+  ],
+  "settle": {
+   "status": "Offer made",
+   "offerOn": "2026-06-08",
+   "offer": 500000,
+   "demand": null,
+   "note": "Form XI offer of the fixed s.164 amount filed; claimant response due 14-10-2026"
+  }
+ },
+ {
+  "id": "MACT-2025-0455",
+  "cnr": "TNCH0A0045502025",
+  "mvc": "MCOP 4550/2025",
+  "court": "MACT (Chief Judge, Court of Small Causes), Chennai",
+  "district": "Chennai",
+  "state": "Tamil Nadu",
+  "type": "Injury",
+  "accident": "2025-03-14",
+  "place": "GST Road, Guindy",
+  "filed": "2025-05-20",
+  "noticeOn": "2025-06-04",
+  "darOn": "2025-05-02",
+  "stage": 14,
+  "courtStage": "Disposed — Lok Adalat award",
+  "priority": "Medium",
+  "officer": "R. Lakshmi",
+  "advocate": "Adv. K. Senthil",
+  "cAdv": "Adv. V. Murali",
+  "hospital": "Kauvery Hospital, Alwarpet",
+  "accType": "Rear-end",
+  "vehCat": "Stage carriage bus",
+  "victim": {
+   "name": "Karthik S.",
+   "age": 33,
+   "sex": "M",
+   "occ": "Delivery van driver (salaried)"
+  },
+  "vehicle": {
+   "reg": "TN-01-AN-4402",
+   "cls": "Stage carriage bus",
+   "gvw": "15,500 kg",
+   "commercial": true
+  },
+  "policy": {
+   "no": "CV-2410-TN-0145502",
+   "from": "2024-10-02",
+   "to": "2025-10-01",
+   "kind": "Passenger carrying commercial"
+  },
+  "driver": {
+   "name": "P. Elumalai",
+   "dl": "TN01 2006 0040121",
+   "cls": "HTV (transport)",
+   "valid": "2028-02-14"
+  },
+  "claimed": 2800000,
+  "reserve": 1300000,
+  "next": null,
+  "purpose": "Pay Lok Adalat award by 12 Oct 2026",
+  "income": {
+   "claimed": 28000,
+   "range": [
+    21000,
+    23500
+   ],
+   "sources": [
+    [
+     "Payslips (gross)",
+     23500,
+     "employer"
+    ],
+    [
+     "Bank credits",
+     21000,
+     "account aggregator"
+    ]
+   ]
+  },
+  "deps": [],
+  "med": {
+   "inj": [
+    "Fracture, right tibial plateau",
+    "Ligament tear, right knee"
+   ],
+   "path": [
+    [
+     "14 Mar 2025",
+     "Admission"
+    ],
+    [
+     "16 Mar 2025",
+     "ORIF, tibial plateau"
+    ],
+    [
+     "24 Mar 2025",
+     "Discharged"
+    ],
+    [
+     "Oct 2025",
+     "Disability certificate: 18%"
+    ]
+   ],
+   "disClaim": 18,
+   "disCert": 18,
+   "disAI": 10,
+   "billsClaim": 420000,
+   "billsVer": 401000,
+   "notes": [
+    "Returned to lighter duties in Aug 2025"
+   ]
+  },
+  "q": {
+   "emp": "fixed",
+   "disClaim": 18,
+   "disIns": 8,
+   "disTrib": 12,
+   "medClaim": 420000,
+   "medVer": 401000,
+   "months": 5,
+   "lossPct": 1,
+   "attendant": 30000,
+   "transport": 20000,
+   "futureMed": 60000,
+   "pain": 100000,
+   "amenities": 50000,
+   "contribIns": 0,
+   "contribTrib": 0
+  },
+  "timeline": [
+   [
+    "14 Mar 2025 19:10",
+    "Bus rear-ends delivery van at signal",
+    "FIR · CCTV"
+   ]
+  ],
+  "conflicts": [],
+  "coverage": [
+   [
+    "Policy in force",
+    "Yes",
+    "Policy schedule",
+    "ok"
+   ],
+   [
+    "Driver licence valid",
+    "HTV valid",
+    "Licence registry",
+    "ok"
+   ],
+   [
+    "Permit / fitness",
+    "Valid",
+    "Vehicle registry",
+    "ok"
+   ]
+  ],
+  "liab": {
+   "est": [
+    "Rear-end collision on CCTV"
+   ],
+   "disp": [],
+   "miss": [],
+   "pro": [],
+   "con": [
+    "Clear negligence"
+   ],
+   "contrib": [
+    0,
+    0
+   ]
+  },
+  "flags": [],
+  "law": [
+   "rajkumar",
+   "sidram",
+   "ptthomas"
+  ],
+  "settle": {
+   "status": "Settled — Lok Adalat award",
+   "offerOn": "2025-06-01",
+   "offer": 980000,
+   "demand": 1400000,
+   "settled": 1150000,
+   "settledOn": "2026-09-12",
+   "note": "National Lok Adalat 12 Sep 2026 — pay within 30 days"
+  }
+ },
+ {
+  "id": "MACT-2025-0512",
+  "cnr": "TSHY0A0051202025",
+  "mvc": "OP 5120/2025",
+  "court": "MACT (Chief Judge, City Civil Court), Hyderabad",
+  "district": "Hyderabad",
+  "state": "Telangana",
+  "type": "Death",
+  "accident": "2025-04-22",
+  "place": "Outer Ring Road, Gachibowli exit",
+  "filed": "2025-07-01",
+  "noticeOn": "2025-07-15",
+  "darOn": "2025-06-30",
+  "stage": 16,
+  "courtStage": "Disposed — Lok Adalat award",
+  "priority": "Low",
+  "officer": "V. Reddy",
+  "advocate": "Adv. A. Rao",
+  "cAdv": "Adv. S. Hussain",
+  "hospital": "Continental Hospitals, Gachibowli",
+  "accType": "Side impact",
+  "vehCat": "Private car",
+  "victim": {
+   "name": "Ravi Teja K.",
+   "age": 35,
+   "sex": "M",
+   "occ": "Auto-rickshaw driver (self-employed)"
+  },
+  "vehicle": {
+   "reg": "TS-07-FK-9120",
+   "cls": "Private car (LMV)",
+   "gvw": "1,520 kg",
+   "commercial": false
+  },
+  "policy": {
+   "no": "PC-2502-TS-0051209",
+   "from": "2025-02-10",
+   "to": "2026-02-09",
+   "kind": "Private car package"
+  },
+  "driver": {
+   "name": "Sai Kiran",
+   "dl": "TS07 2016 0061188",
+   "cls": "LMV",
+   "valid": "2036-05-30"
+  },
+  "claimed": 4500000,
+  "reserve": 2600000,
+  "next": null,
+  "purpose": "Closed",
+  "income": {
+   "claimed": 25000,
+   "range": [
+    15500,
+    17500
+   ],
+   "sources": [
+    [
+     "Bank credits (fares)",
+     15500,
+     "account aggregator"
+    ],
+    [
+     "Minimum-wage benchmark (skilled)",
+     17500,
+     "wage master"
+    ]
+   ]
+  },
+  "deps": [
+   [
+    "Wife",
+    30,
+    "Yes"
+   ],
+   [
+    "Son",
+    7,
+    "Yes"
+   ],
+   [
+    "Daughter",
+    4,
+    "Yes"
+   ],
+   [
+    "Mother",
+    58,
+    "Yes"
+   ]
+  ],
+  "q": {
+   "emp": "self",
+   "married": true,
+   "depClaim": 4,
+   "depIns": 4,
+   "consClaim": 4,
+   "consIns": 4,
+   "medClaim": 96000,
+   "medVer": 96000,
+   "contribIns": 0,
+   "contribTrib": 0
+  },
+  "timeline": [
+   [
+    "22 Apr 2025 22:40",
+    "Car exits ORR at speed; strikes auto-rickshaw",
+    "FIR"
+   ],
+   [
+    "23:20",
+    "Brought dead",
+    "MLC"
+   ]
+  ],
+  "conflicts": [],
+  "coverage": [
+   [
+    "Policy in force",
+    "Yes",
+    "Policy schedule",
+    "ok"
+   ],
+   [
+    "Driver licence valid",
+    "LMV valid",
+    "Licence registry",
+    "ok"
+   ]
+  ],
+  "liab": {
+   "est": [
+    "Side impact at exit ramp"
+   ],
+   "disp": [],
+   "miss": [],
+   "pro": [],
+   "con": [
+    "Clear negligence"
+   ],
+   "contrib": [
+    0,
+    0
+   ]
+  },
+  "flags": [],
+  "law": [
+   "sarla",
+   "pranay",
+   "magma",
+   "ptthomas"
+  ],
+  "settle": {
+   "status": "Settled — Lok Adalat award",
+   "offerOn": "2025-07-28",
+   "offer": 2050000,
+   "demand": 2900000,
+   "settled": 2350000,
+   "settledOn": "2026-06-13",
+   "note": "National Lok Adalat 13 Jun 2026"
+  },
+  "payment": {
+   "on": "2026-07-03",
+   "utr": "UTR SBIN226184009921",
+   "note": "Paid; minors’ share in FD"
+  }
+ },
+ {
+  "id": "MACT-2023-0219",
+  "cnr": "MHNS0A0002192023",
+  "mvc": "MACP 219/2023",
+  "court": "MACT, Nashik",
+  "district": "Nashik",
+  "state": "Maharashtra",
+  "type": "Injury",
+  "accident": "2022-11-12",
+  "place": "Mumbai–Agra Highway, Dwarka circle",
+  "filed": "2023-02-06",
+  "noticeOn": "2023-02-20",
+  "darOn": "2023-01-18",
+  "stage": 16,
+  "courtStage": "Disposed — Lok Adalat",
+  "priority": "Low",
+  "officer": "S. Deshmukh",
+  "advocate": "Adv. M. Kulkarni",
+  "cAdv": "Adv. P. Gaikwad",
+  "hospital": "Wockhardt Hospital, Nashik",
+  "accType": "Side swipe",
+  "vehCat": "Private car",
+  "victim": {
+   "name": "Kavita Jadhav",
+   "age": 39,
+   "sex": "F",
+   "occ": "Tailor (self-employed)"
+  },
+  "vehicle": {
+   "reg": "MH-15-GR-2210",
+   "cls": "Private car (LMV)",
+   "gvw": "1,300 kg",
+   "commercial": false
+  },
+  "policy": {
+   "no": "PC-2207-MH-0045210",
+   "from": "2022-07-10",
+   "to": "2023-07-09",
+   "kind": "Private car package"
+  },
+  "driver": {
+   "name": "Sanket More",
+   "dl": "MH15 2014 0033010",
+   "cls": "LMV",
+   "valid": "2034-03-15"
+  },
+  "claimed": 1800000,
+  "reserve": 800000,
+  "next": null,
+  "purpose": "Closed",
+  "income": {
+   "claimed": 15000,
+   "range": [
+    9500,
+    11000
+   ],
+   "sources": [
+    [
+     "Bank credits",
+     9500,
+     "bank"
+    ],
+    [
+     "Minimum-wage benchmark",
+     11000,
+     "wage master"
+    ]
+   ]
+  },
+  "deps": [],
+  "med": {
+   "inj": [
+    "Fracture, left humerus"
+   ],
+   "path": [
+    [
+     "12 Nov 2022",
+     "Admission, ORIF"
+    ],
+    [
+     "18 Nov 2022",
+     "Discharged"
+    ]
+   ],
+   "disClaim": 15,
+   "disCert": 15,
+   "disAI": 6,
+   "billsClaim": 240000,
+   "billsVer": 228000,
+   "notes": []
+  },
+  "q": {
+   "emp": "self",
+   "disClaim": 15,
+   "disIns": 5,
+   "disTrib": 6,
+   "medClaim": 240000,
+   "medVer": 228000,
+   "months": 3,
+   "lossPct": 1,
+   "attendant": 15000,
+   "transport": 10000,
+   "futureMed": 20000,
+   "pain": 50000,
+   "amenities": 25000,
+   "contribIns": 0,
+   "contribTrib": 0
+  },
+  "timeline": [
+   [
+    "12 Nov 2022 18:20",
+    "Car side-swipes scooter",
+    "FIR"
+   ]
+  ],
+  "conflicts": [],
+  "coverage": [
+   [
+    "Policy in force",
+    "Yes",
+    "Policy schedule",
+    "ok"
+   ]
+  ],
+  "liab": {
+   "est": [
+    "Side swipe by insured car"
+   ],
+   "disp": [],
+   "miss": [],
+   "pro": [],
+   "con": [],
+   "contrib": [
+    0,
+    0
+   ]
+  },
+  "flags": [],
+  "law": [
+   "rajkumar",
+   "sidram"
+  ],
+  "settle": {
+   "status": "Settled",
+   "offerOn": "2025-10-02",
+   "offer": 700000,
+   "demand": 1200000,
+   "settled": 740000,
+   "settledOn": "2025-11-08",
+   "note": "Settled in Lok Adalat"
+  },
+  "payment": {
+   "on": "2025-12-02",
+   "utr": "UTR HDFC225336002190",
+   "note": "Paid in full"
+  }
+ }
+]

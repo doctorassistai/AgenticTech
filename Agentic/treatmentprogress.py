@@ -22,7 +22,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 router = APIRouter(prefix="/treatment-progress", tags=["Treatment Progress"])
 
 llm = ChatGroq(
-    model="llama-3.3-70b-versatile",
+    model="openai/gpt-oss-120b",
     temperature=0.1,
     groq_api_key=os.getenv("GROQ_API_KEY"),
     max_tokens=5000,

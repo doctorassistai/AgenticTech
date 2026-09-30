@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from "react";
-
 /* ═══════════════════════════════════════════════════════════════════════════
  * ExtractionNotificationProvider
  *
@@ -76,7 +75,6 @@ export function useExtractionEvents() {
   }
   return ctx;
 }
-
 export function ExtractionNotificationProvider({ children }) {
   const [activeCaseIds, setActiveCaseIds] = useState(() => new Set());
   const [eventsByCaseId, setEventsByCaseId] = useState({});
@@ -94,21 +92,25 @@ export function ExtractionNotificationProvider({ children }) {
     setTimeout(() => dismissToast(id), TOAST_MS);
   }, [dismissToast]);
 
-  useEffect(() => {
-    const doctorId = localStorage.getItem("user_id") || "";
-    if (!doctorId) return;
+    useEffect(() => {
     let cancelled = false;
 
     const poll = () => {
       fetch(`${b}/insurance/web/advanced-upload/active-tasks`, {
-        headers: { "X-User-Id": doctorId, "X-User-Role": "auditing-doctor-new" },
+        credentials: "include",
       })
         .then((r) => r.json())
         .then((d) => {
           if (cancelled) return;
           setActiveCaseIds(new Set(d.active_case_ids || []));
 
-          const events = d.events || [];
+          // Defense in depth: even though the backend already filters
+          // active-tasks/events to document_extraction (see
+          // case_documents_router.py), never let a findings-only task
+          // (task_type === "findings") drive the extraction badge/toast
+          // here — that's a distinct background job, not a document
+          // extraction, and must not flip a case's "Extracting" state.
+          const events = (d.events || []).filter((ev) => ev.task_type !== "findings");
           if (events.length === 0) return;
 
           setEventsByCaseId((prev) => {

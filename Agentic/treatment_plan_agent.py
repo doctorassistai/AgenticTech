@@ -34,7 +34,7 @@ from langchain_groq import ChatGroq
 
 # Graph libraries
 import networkx as nx
-from neo4j import GraphDatabase
+from neo4j import GraphDatabase, AsyncGraphDatabase
 
 # Logging
 from loguru import logger
@@ -92,7 +92,9 @@ import os
 from pydantic import BaseModel, Field
 from typing import List, Optional
 from bson import ObjectId
-
+# token_tracking.py removed — usage now POSTed to:
+#   https://doctorassist.ai/api/hms/users/data/context/log-input-tokens
+#   https://doctorassist.ai/api/hms/users/data/context/log-output-tokens 
 
 
 router = APIRouter(
@@ -128,6 +130,244 @@ patient_user_collection = database["patient_users"]
 doctor_user_collection = database["doctor_users"]
 
 doctor_guidelines_collection = database["doctor_guidelines"]
+
+# =====================================================================
+# TOKEN USAGE — fire-and-forget POSTs to the standalone token endpoints
+# =====================================================================
+
+LOG_TOKENS_URL = "https://doctorassist.ai/api/hms/users/data/context/log-tokens"
+
+
+async def _post_token_log(url: str, payload: dict):
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            await client.post(url, json=payload)
+    except Exception as e:
+        logger.warning(f"⚠️ Fire-and-forget token log POST to {url} failed (non-blocking): {e}")
+
+
+def fire_and_forget_token_log(doctor_id: str, feature: str, model: str, input_tokens: int, output_tokens: int):
+    """
+    Fires a single combined POST to /log-tokens (input + output tokens together,
+    one call/entry) without blocking or awaiting the result. Reusable from any
+    pipeline/location in the codebase — just call this with doctor_id, feature,
+    model, and both token counts.
+    """
+    if not doctor_id:
+        logger.warning("fire_and_forget_token_log: no doctor_id — skipping token log")
+        return
+
+    payload = {
+        "doctor_id": doctor_id,
+        "feature": feature,
+        "model": model,
+        "input_tokens": input_tokens,
+        "output_tokens": output_tokens,
+    }
+
+    try:
+        loop = asyncio.get_running_loop()
+        loop.create_task(_post_token_log(LOG_TOKENS_URL, payload))
+    except RuntimeError:
+        threading.Thread(target=lambda: asyncio.run(_post_token_log(LOG_TOKENS_URL, payload)), daemon=True).start()
+
+
+def _extract_token_usage(response) -> tuple:
+    """Best-effort (input_tokens, output_tokens) extraction from a ChatGroq/AIMessage response."""
+    try:
+        usage = getattr(response, "usage_metadata", None)
+        if usage:
+            return int(usage.get("input_tokens", 0) or 0), int(usage.get("output_tokens", 0) or 0)
+    except Exception:
+        pass
+    try:
+        token_usage = (getattr(response, "response_metadata", {}) or {}).get("token_usage", {})
+        return int(token_usage.get("prompt_tokens", 0) or 0), int(token_usage.get("completion_tokens", 0) or 0)
+    except Exception:
+        pass
+    return 0, 0
+
+
+def _track_usage(state: dict, response) -> None:
+    """Accumulates one LLM call's token usage into state's running totals."""
+    in_tok, out_tok = _extract_token_usage(response)
+    state["total_input_tokens"] = state.get("total_input_tokens", 0) + in_tok
+    state["total_output_tokens"] = state.get("total_output_tokens", 0) + out_tok
+
+
+# =====================================================================
+# NEO4J — PATIENT GRAPH RETRIEVAL (ASYNC)
+#
+# Separate from the synchronous TreatmentKnowledgeGraph driver above (which
+# queries Disease/Treatment guideline nodes) — this driver queries the
+# per-patient longitudinal entity graph: every Treatment / Procedure /
+# Diagnosis / Medication / LabResult / VitalSign / Finding / Anatomy /
+# Measurement node ever linked to this patient, grouped by source document,
+# ordered chronologically. Nothing about disease/field names is hardcoded —
+# fully schema-agnostic, same as the tumor board pipeline.
+# =====================================================================
+
+NEO4J_URI_ENV  = os.getenv("NEO4J_URI", "bolt://neo4j:7687")
+NEO4J_USER_ENV = os.getenv("NEO4J_USER", "neo4j")
+NEO4J_PASS_ENV = os.getenv("NEO4J_PASSWORD", "password")
+
+try:
+    patient_graph_driver = AsyncGraphDatabase.driver(NEO4J_URI_ENV, auth=(NEO4J_USER_ENV, NEO4J_PASS_ENV))
+    logger.info(f"🔗 Patient graph (async) driver initialised | uri={NEO4J_URI_ENV}")
+except Exception as _pg_err:
+    patient_graph_driver = None
+    logger.error(f"❌ Patient graph driver initialisation failed: {_pg_err}")
+
+
+async def fetch_patient_graph_documents(patient_id: str) -> List[Dict]:
+    """Full longitudinal entity graph for a patient. Non-fatal on failure — the
+    pipeline always falls back to an empty timeline rather than blocking."""
+
+    if patient_graph_driver is None:
+        logger.warning("   [Neo4j] patient graph driver not initialised — skipping graph fetch")
+        return []
+
+    cypher = """
+    MATCH (p:Patient {patient_id: $patient_id})-[r]->(n)
+    OPTIONAL MATCH (n)-[:SUPPORTED_BY_EVIDENCE]->(e:Evidence)
+    WITH r, n, e,
+        CASE
+            WHEN e IS NULL OR e.document_date IS NULL OR e.document_date = "null"
+            THEN NULL ELSE toString(e.document_date)
+        END AS raw_date,
+        coalesce(e.document_name, "unknown") AS document
+    WITH r, n, e, document, raw_date,
+        CASE
+            WHEN raw_date IS NULL THEN NULL
+            WHEN raw_date =~ '\\d{4}-\\d{2}-\\d{2}' THEN date(raw_date)
+            WHEN raw_date =~ '\\d{2}-\\d{2}-\\d{4}'
+            THEN date({year: toInteger(split(raw_date,'-')[2]), month: toInteger(split(raw_date,'-')[1]), day: toInteger(split(raw_date,'-')[0])})
+            WHEN raw_date =~ '\\d{2}-[A-Za-z]{3}-\\d{4}'
+            THEN date({
+                year:  toInteger(split(raw_date,'-')[2]),
+                month: CASE split(raw_date,'-')[1]
+                    WHEN 'Jan' THEN 1 WHEN 'Feb' THEN 2 WHEN 'Mar' THEN 3
+                    WHEN 'Apr' THEN 4 WHEN 'May' THEN 5 WHEN 'Jun' THEN 6
+                    WHEN 'Jul' THEN 7 WHEN 'Aug' THEN 8 WHEN 'Sep' THEN 9
+                    WHEN 'Oct' THEN 10 WHEN 'Nov' THEN 11 WHEN 'Dec' THEN 12
+                    ELSE NULL END,
+                day: toInteger(split(raw_date,'-')[0])
+            })
+            ELSE NULL
+        END AS document_date
+    WITH document, document_date,
+        collect({
+            relation: type(r),
+            entity_type: CASE
+                WHEN n:Treatment THEN "Treatment" WHEN n:Procedure THEN "Procedure"
+                WHEN n:Diagnosis THEN "Diagnosis" WHEN n:Medication THEN "Medication"
+                WHEN n:LabResult THEN "Lab Result" WHEN n:VitalSign THEN "Vital Sign"
+                WHEN n:Finding THEN "Finding" WHEN n:Anatomy THEN "Anatomy"
+                WHEN n:Measurement THEN "Measurement" ELSE head(labels(n))
+            END,
+            name: coalesce(n.name, n.details, n.description, n.drug_name, n.test_name, n.vital_type, n.value),
+            date: raw_date,
+            evidence: e.evidence_text
+        }) AS entities
+    RETURN document, document_date, entities
+    ORDER BY document_date ASC
+    """
+
+    try:
+        async with patient_graph_driver.session() as session:
+            result = await session.run(cypher, patient_id=patient_id)
+            docs: List[Dict] = []
+            async for record in result:
+                docs.append({
+                    "document":      record["document"],
+                    "document_date": str(record["document_date"]),
+                    "entities":      record["entities"],
+                })
+            logger.info(f"   [Neo4j] patient graph fetch | patient={patient_id} | documents={len(docs)}")
+            return docs
+    except Exception as e:
+        logger.error(f"   [Neo4j] patient graph fetch FAILED for {patient_id}: {e}")
+        return []
+
+
+def _render_graph_timeline(graph_documents: List[Dict], max_chars: int = 200000) -> str:
+    """Renders a list of graph documents into a compact chronological text block."""
+    if not graph_documents:
+        return ""
+    lines: List[str] = []
+    for doc in graph_documents:
+        date_str = doc.get("document_date") or "undated"
+        doc_name = doc.get("document") or "unknown document"
+        lines.append(f"[{date_str}] {doc_name}")
+        for ent in (doc.get("entities") or []):
+            etype = ent.get("entity_type", "Entity")
+            name  = ent.get("name", "")
+            if not name:
+                continue
+            evidence = ent.get("evidence")
+            suffix = f" (evidence: {evidence})" if evidence else ""
+            lines.append(f"    - {etype}: {name}{suffix}")
+    full_text = "\n".join(lines)
+    if len(full_text) <= max_chars:
+        return full_text
+    truncated = full_text[-max_chars:]
+    first_newline = truncated.find("\n")
+    if first_newline != -1:
+        truncated = truncated[first_newline + 1:]
+    return f"[... earlier history truncated for length ...]\n{truncated}"
+
+
+def _chunk_graph_documents(
+    graph_documents: List[Dict[str, Any]],
+    batch_size: int = 5,
+    large_doc_chars: int = 3000,
+) -> List[List[Dict[str, Any]]]:
+    """
+    Groups graph documents into batches of `batch_size` (default 5). Any single document
+    whose serialized size is >= large_doc_chars is sent alone in its own batch instead of
+    being grouped, so an oversized document is never truncated or crowded by neighbours.
+    No field/disease names are assumed anywhere here — purely size-driven batching.
+    """
+    chunks: List[List[Dict[str, Any]]] = []
+    current: List[Dict[str, Any]] = []
+    for doc in graph_documents:
+        try:
+            doc_size = len(json.dumps(doc, default=str))
+        except Exception:
+            doc_size = 0
+        if doc_size >= large_doc_chars:
+            if current:
+                chunks.append(current)
+                current = []
+            chunks.append([doc])
+            continue
+        current.append(doc)
+        if len(current) >= batch_size:
+            chunks.append(current)
+            current = []
+    if current:
+        chunks.append(current)
+    return chunks
+
+
+async def _render_graph_timeline_parallel(
+    graph_documents: List[Dict[str, Any]],
+    batch_size: int = 5,
+) -> str:
+    """
+    Splits graph_documents into batches of `batch_size` (oversized docs become their own
+    batch) and renders every batch CONCURRENTLY via asyncio.gather, then reassembles them
+    in original chronological order. This is the "5 per iteration, in parallel" step.
+    """
+    if not graph_documents:
+        return ""
+    chunks = _chunk_graph_documents(graph_documents, batch_size=batch_size)
+
+    async def _render_one(chunk: List[Dict[str, Any]]) -> str:
+        return await asyncio.to_thread(_render_graph_timeline, chunk, 200000)
+
+    rendered_parts = await asyncio.gather(*[_render_one(c) for c in chunks])
+    return "\n".join(part for part in rendered_parts if part)
 
 
 # =====================================================================
@@ -1059,6 +1299,11 @@ class TreatmentPlanState(TypedDict):
     # ✅ FIX 1: Added patient_summary to state
     patient_summary: Optional[Dict[str, Any]]
 
+    # NEW — Neo4j patient graph (raw docs + rendered timeline text), fetched once and
+    # shared across all downstream agents / all 3 strategy runs
+    graph_documents: List[Dict[str, Any]]
+    graph_timeline_text: str
+
     # Doctor's selected guidelines (fetched from doctor_guidelines_collection)
     doctor_guidelines: List[Dict[str, Any]]
     allowed_guideline_titles: List[str]
@@ -1110,6 +1355,10 @@ class TreatmentPlanState(TypedDict):
     # Metadata
     error: Optional[str]
     warnings: List[str]
+
+    # Token usage tracking (NEW)
+    total_input_tokens: int
+    total_output_tokens: int
 
 
 # ==================================================================
@@ -1296,6 +1545,52 @@ class TreatmentKnowledgeGraph:
 
 
 # =====================================================================
+# LAYER 0: PATIENT GRAPH RETRIEVAL (NEW)
+# =====================================================================
+
+class PatientGraphRetrievalAgent:
+    """
+    Pulls the patient's full Neo4j entity graph and renders it into a timeline text block,
+    processed in batches of up to 5 documents (an oversized document is sent alone),
+    rendered concurrently for minimum latency. Purely additive — a Neo4j failure never
+    blocks the pipeline, it just proceeds with an empty timeline and a warning.
+    """
+
+    async def retrieve_graph(self, state: TreatmentPlanState) -> TreatmentPlanState:
+        logger.info("🕸️ [Graph Retrieval] Starting")
+
+        if state.get("graph_timeline_text"):
+            logger.info("🕸️ [Graph Retrieval] Already populated upstream — skipping re-fetch")
+            return state
+
+        patient_id = state["treatment_input"].patient_id
+        fetch_start = datetime.now()
+
+        graph_documents: List[Dict[str, Any]] = []
+        try:
+            graph_documents = await fetch_patient_graph_documents(patient_id)
+        except Exception as e:
+            logger.error(f"❌ [Graph Retrieval] Unexpected error: {e}\n{traceback.format_exc()}")
+
+        timeline_text = await _render_graph_timeline_parallel(graph_documents, batch_size=5)
+
+        state["graph_documents"] = graph_documents
+        state["graph_timeline_text"] = timeline_text
+
+        if not graph_documents:
+            state["warnings"].append(
+                "No patient knowledge-graph history available — proceeding without it"
+            )
+
+        logger.info(
+            f"✅ [Graph Retrieval] documents={len(graph_documents)} "
+            f"| timeline_chars={len(timeline_text)} "
+            f"| elapsed={(datetime.now() - fetch_start).total_seconds():.2f}s"
+        )
+        return state
+
+
+# =====================================================================
 # LAYER 1: TREATMENT INTENT & GOAL IDENTIFICATION
 # =====================================================================
 
@@ -1312,27 +1607,19 @@ class TreatmentIntentAgent:
         
         treatment_input = state["treatment_input"]
         primary_dx = treatment_input.primary_diagnosis
-        patient_summary = state.get("patient_summary") or {}
-        logger.info(f"📋 Patient summary retrieved: {patient_summary}")
+        graph_timeline_text = state.get("graph_timeline_text") or "No graph history available"
+        logger.info(f"🕸️ Patient graph timeline in state | chars={len(graph_timeline_text)}")
 
-        # ── FULL, SCHEMA-AGNOSTIC PATIENT CONTEXT ──
-        # Pulls the entire patient_summary document (tumor size, stage, biomarkers,
-        # labs, imaging, prior treatments, current condition, timeline, etc.) instead
-        # of only clinical_summary paragraphs + a trimmed timeline slice.
-        summary_data = patient_summary.get("summary", {}) if isinstance(patient_summary, dict) else {}
-        clinical_summary_text = "\n\n".join(summary_data.get("paragraphs", []))
-
-        timeline_data = patient_summary.get("timeline", {}) if isinstance(patient_summary, dict) else {}
-        timeline_entries = timeline_data.get("timeline", [])
-
+        # ── FULL, SCHEMA-AGNOSTIC PATIENT CONTEXT — sourced from the Neo4j patient graph ──
+        # This is the entire longitudinal graph (every document/lab/imaging/medication/
+        # procedure/finding ever captured for this patient), not a hand-picked subset.
         agentic_context = {
-            "clinical_summary": clinical_summary_text,
-            "timeline": timeline_entries
+            "neo4j_patient_graph_timeline": graph_timeline_text
         }
 
         patient_summary_json = json.dumps(agentic_context, indent=2, default=str)
 
-        logger.info(f"🎯 TreatmentIntentAgent | agentic_context: {patient_summary_json}")
+        logger.info(f"🎯 TreatmentIntentAgent | agentic_context chars: {len(patient_summary_json)}")
         strategy = state.get("current_strategy", TreatmentStrategy.STANDARD)
         prognosis = state.get("prognosis")
         prognosis_context = ""
@@ -1365,8 +1652,8 @@ class TreatmentIntentAgent:
         Only assign palliative if distant organ metastasis is explicitly documented in the imaging above.
         """
 
-        if not patient_summary:
-            logger.warning("Patient summary is missing. Using default values.")
+        if not state.get("graph_documents"):
+            logger.warning("Patient graph history is missing. Using default values.")
 
         # Handle case when no primary diagnosis is provided
         if not primary_dx:
@@ -1439,6 +1726,7 @@ Return ONLY JSON."""
                 HumanMessage(content=prompt)
             ])
             
+            _track_usage(state, response)
             result = self._parse_json(response.content)
             
             # FIX: Handle invalid intent values
@@ -1549,52 +1837,26 @@ class GuidelineRetrievalAgent:
         primary_dx = treatment_input.primary_diagnosis
         resolved_specialty = state.get("resolved_specialty") or resolve_specialty_label(treatment_input.doctor_speciality)
 
-        # ── FULL, SCHEMA-AGNOSTIC PATIENT CONTEXT ──
-        patient_summary = state.get("patient_summary") or {}
-        logger.info(f"📋 Patient summary retrieved: {patient_summary}")
-        summary_data = patient_summary.get("summary", {}) if isinstance(patient_summary, dict) else {}
-        clinical_summary_text = "\n\n".join(summary_data.get("paragraphs", []))
-
-        timeline_data = patient_summary.get("timeline", {}) if isinstance(patient_summary, dict) else {}
-        timeline_entries = timeline_data.get("timeline", [])
+        # ── FULL, SCHEMA-AGNOSTIC PATIENT CONTEXT — sourced from the Neo4j patient graph ──
+        graph_timeline_text = state.get("graph_timeline_text") or "No graph history available"
+        logger.info(f"🕸️ Patient graph timeline in state | chars={len(graph_timeline_text)}")
 
         agentic_context = {
-            "clinical_summary": clinical_summary_text,
-            "timeline": timeline_entries
+            "neo4j_patient_graph_timeline": graph_timeline_text
         }
 
         patient_summary_json = json.dumps(agentic_context, indent=2, default=str)
-        logger.info(f"📚 GuidelineRetrievalAgent | agentic_context: {patient_summary_json}")
+        logger.info(f"📚 GuidelineRetrievalAgent | agentic_context chars: {len(patient_summary_json)}")
 
-        # ── Extract prior_treatments for Neo4j query — scan the full record instead of a
-        #    single predefined "treatment_timeline" key, since summary pipelines vary in
-        #    where they nest this. ──
+        # ── Extract prior_treatments directly from graph entities (Treatment/Medication/
+        #    Procedure nodes) instead of walking a schema-varying patient_summary document ──
+        graph_documents = state.get("graph_documents") or []
         prior_treatments: List[str] = []
-        full_record = patient_summary or {}
-
-        def _collect_prior_treatments(obj: Any) -> List[str]:
-            found = []
-            if isinstance(obj, dict):
-                for k, v in obj.items():
-                    key_lower = str(k).lower()
-                    if "treatment" in key_lower or "regimen" in key_lower or "therapy" in key_lower:
-                        if isinstance(v, list):
-                            for item in v:
-                                if isinstance(item, dict):
-                                    t = item.get("treatment") or item.get("name") or item.get("regimen")
-                                    if t:
-                                        found.append(t)
-                                elif isinstance(item, str) and item:
-                                    found.append(item)
-                        elif isinstance(v, str) and v:
-                            found.append(v)
-                    found.extend(_collect_prior_treatments(v))
-            elif isinstance(obj, list):
-                for item in obj:
-                    found.extend(_collect_prior_treatments(item))
-            return found
-
-        prior_treatments = list(dict.fromkeys(_collect_prior_treatments(full_record)))
+        for doc in graph_documents:
+            for ent in (doc.get("entities") or []):
+                if ent.get("entity_type") in ("Treatment", "Medication", "Procedure") and ent.get("name"):
+                    prior_treatments.append(ent["name"])
+        prior_treatments = list(dict.fromkeys(prior_treatments))
 
         if prior_treatments:
             logger.info(f"📚 Prior treatments found: {prior_treatments} — will fetch next-line guidelines")
@@ -1790,7 +2052,7 @@ class PharmacologicalAgent:
         self.llm = llm
         self.kg = knowledge_graph
 
-    def _get_stage_context(self, stage: Optional[str], disease: str) -> str:
+    def _get_stage_context(self, stage: Optional[str], disease: str, state: Optional[dict] = None) -> str:
         """
         Dynamically generates stage-appropriate clinical constraints
         using the LLM's medical knowledge — works for ANY disease/specialty.
@@ -1823,6 +2085,8 @@ class PharmacologicalAgent:
                 HumanMessage(content=prompt)
             ])
             
+            if state is not None:
+                _track_usage(state, response)
             stage_context = response.content.strip()
             
             # Safety fallback if response is empty or too short
@@ -1901,23 +2165,16 @@ class PharmacologicalAgent:
         logger.info("💊 Pharmacological Agent: Starting")
         
         treatment_input = state["treatment_input"]
-        patient_summary = state.get("patient_summary") or {}
-        logger.info(f"📋 Patient summary retrieved: {patient_summary}")
+        graph_timeline_text = state.get("graph_timeline_text") or "No graph history available"
+        logger.info(f"🕸️ Patient graph timeline in state | chars={len(graph_timeline_text)}")
 
-        # ── FULL, SCHEMA-AGNOSTIC PATIENT CONTEXT ──
-        summary_data = patient_summary.get("summary", {}) if isinstance(patient_summary, dict) else {}
-        clinical_summary_text = "\n\n".join(summary_data.get("paragraphs", []))
-
-        timeline_data = patient_summary.get("timeline", {}) if isinstance(patient_summary, dict) else {}
-        timeline_entries = timeline_data.get("timeline", [])
-
+        # ── FULL, SCHEMA-AGNOSTIC PATIENT CONTEXT — sourced from the Neo4j patient graph ──
         agentic_context = {
-            "clinical_summary": clinical_summary_text,
-            "timeline": timeline_entries
+            "neo4j_patient_graph_timeline": graph_timeline_text
         }
 
         patient_summary_json = json.dumps(agentic_context, indent=2, default=str)
-        logger.info(f"💊 PharmacologicalAgent | agentic_context: {patient_summary_json}")
+        logger.info(f"💊 PharmacologicalAgent | agentic_context chars: {len(patient_summary_json)}")
         primary_dx = treatment_input.primary_diagnosis
         guideline_recs = state.get("guideline_recommendations", {})
 
@@ -2031,7 +2288,7 @@ CRITICAL RULES:
                 if t.get("modality") == "pharmacological"
             ]
 
-            stage_context = self._get_stage_context(primary_dx.stage, primary_dx.disease)
+            stage_context = self._get_stage_context(primary_dx.stage, primary_dx.disease, state)
 
             strategy = state.get("current_strategy", TreatmentStrategy.STANDARD)
 
@@ -2143,6 +2400,7 @@ Return ONLY JSON array."""
                 HumanMessage(content=prompt)
             ])
             
+            _track_usage(state, response)
             drugs_json = self._parse_json_array(response.content)
             candidate_drugs = []
             
@@ -2401,18 +2659,11 @@ class ProceduralAgent:
         logger.info("🔪 Procedural Agent: Starting")
 
         treatment_input = state["treatment_input"]
-        patient_summary = state.get("patient_summary") or {}
-        logger.info(f"📋 Patient summary retrieved: {patient_summary}")
+        graph_timeline_text = state.get("graph_timeline_text") or "No graph history available"
+        logger.info(f"🕸️ Patient graph timeline in state | chars={len(graph_timeline_text)}")
 
-        # ── FULL, SCHEMA-AGNOSTIC PATIENT CONTEXT (no field allow-list) ──
-        try:
-            full_patient_record = copy.deepcopy(patient_summary) if isinstance(patient_summary, dict) else {}
-        except Exception:
-            full_patient_record = patient_summary if isinstance(patient_summary, dict) else {}
-        if isinstance(full_patient_record, dict):
-            full_patient_record.pop("_id", None)
-
-        patient_summary_json = to_json({"full_patient_record": full_patient_record})
+        # ── FULL, SCHEMA-AGNOSTIC PATIENT CONTEXT — sourced from the Neo4j patient graph ──
+        patient_summary_json = to_json({"neo4j_patient_graph_timeline": graph_timeline_text})
 
         primary_dx = treatment_input.primary_diagnosis
         guideline_recs = state.get("guideline_recommendations", {})
@@ -2637,6 +2888,7 @@ CRITICAL RULES:
                 SystemMessage(content=f"You are a specialty-scoped ({resolved_specialty}) surgical decision-making assistant. Return only a JSON array."),
                 HumanMessage(content=prompt)
             ])
+            _track_usage(state, response)
             logger.info(f"procedures_json:{response}")
 
             procedures_json = self._parse_json_array(response.content)
@@ -2824,19 +3076,12 @@ class InvestigationAgent:
         logger.info("🔬 Investigation Agent: Starting")
         
         treatment_input = state["treatment_input"]
-        patient_summary = state.get("patient_summary") or {}
-        logger.info(f"📋 Patient summary retrieved: {patient_summary}")
+        graph_timeline_text = state.get("graph_timeline_text") or "No graph history available"
+        logger.info(f"🕸️ Patient graph timeline in state | chars={len(graph_timeline_text)}")
 
-        # ── FULL, SCHEMA-AGNOSTIC PATIENT CONTEXT ──
-        summary_data = patient_summary.get("summary", {}) if isinstance(patient_summary, dict) else {}
-        clinical_summary_text = "\n\n".join(summary_data.get("paragraphs", []))
-
-        timeline_data = patient_summary.get("timeline", {}) if isinstance(patient_summary, dict) else {}
-        timeline_entries = timeline_data.get("timeline", [])
-
+        # ── FULL, SCHEMA-AGNOSTIC PATIENT CONTEXT — sourced from the Neo4j patient graph ──
         agentic_context = {
-            "clinical_summary": clinical_summary_text,
-            "timeline": timeline_entries
+            "neo4j_patient_graph_timeline": graph_timeline_text
         }
 
         patient_summary_json = json.dumps(agentic_context, indent=2, default=str)
@@ -3065,6 +3310,7 @@ Examples:
                 HumanMessage(content=prompt)
             ])
             
+            _track_usage(state, response)
             investigations_json = self._parse_json_array(response.content)
             
             candidate_investigations = []
@@ -3159,19 +3405,12 @@ class LifestyleAgent:
         logger.info("🏃 Lifestyle Agent: Starting")
         
         treatment_input = state["treatment_input"]
-        patient_summary = state.get("patient_summary") or {}
-        logger.info(f"📋 Patient summary retrieved: {patient_summary}")
+        graph_timeline_text = state.get("graph_timeline_text") or "No graph history available"
+        logger.info(f"🕸️ Patient graph timeline in state | chars={len(graph_timeline_text)}")
 
-        # ── FULL, SCHEMA-AGNOSTIC PATIENT CONTEXT ──
-        summary_data = patient_summary.get("summary", {}) if isinstance(patient_summary, dict) else {}
-        clinical_summary_text = "\n\n".join(summary_data.get("paragraphs", []))
-
-        timeline_data = patient_summary.get("timeline", {}) if isinstance(patient_summary, dict) else {}
-        timeline_entries = timeline_data.get("timeline", [])
-
+        # ── FULL, SCHEMA-AGNOSTIC PATIENT CONTEXT — sourced from the Neo4j patient graph ──
         agentic_context = {
-            "clinical_summary": clinical_summary_text,
-            "timeline": timeline_entries
+            "neo4j_patient_graph_timeline": graph_timeline_text
         }
 
         patient_summary_json = json.dumps(agentic_context, indent=2, default=str)
@@ -3348,6 +3587,7 @@ CRITICAL RULES:
                 HumanMessage(content=prompt)
             ])
             
+            _track_usage(state, response)
             lifestyle_json = self._parse_json_array(response.content)
             
             lifestyle_recommendations = []
@@ -3431,19 +3671,12 @@ class FollowUpAgent:
         logger.info("📅 Follow-up Agent: Starting")
         
         treatment_input = state["treatment_input"]
-        patient_summary = state.get("patient_summary") or {}
-        logger.info(f"📋 Patient summary retrieved: {patient_summary}")
+        graph_timeline_text = state.get("graph_timeline_text") or "No graph history available"
+        logger.info(f"🕸️ Patient graph timeline in state | chars={len(graph_timeline_text)}")
 
-        # ── FULL, SCHEMA-AGNOSTIC PATIENT CONTEXT ──
-        summary_data = patient_summary.get("summary", {}) if isinstance(patient_summary, dict) else {}
-        clinical_summary_text = "\n\n".join(summary_data.get("paragraphs", []))
-
-        timeline_data = patient_summary.get("timeline", {}) if isinstance(patient_summary, dict) else {}
-        timeline_entries = timeline_data.get("timeline", [])
-
+        # ── FULL, SCHEMA-AGNOSTIC PATIENT CONTEXT — sourced from the Neo4j patient graph ──
         agentic_context = {
-            "clinical_summary": clinical_summary_text,
-            "timeline": timeline_entries
+            "neo4j_patient_graph_timeline": graph_timeline_text
         }
 
         patient_summary_json = json.dumps(agentic_context, indent=2, default=str)
@@ -3623,6 +3856,7 @@ CRITICAL RULES:
                 HumanMessage(content=prompt)
             ])
             
+            _track_usage(state, response)
             followup_json = self._parse_json(response.content)
             
             def _normalize_list(items, key="parameter") -> List[str]:
@@ -3853,12 +4087,16 @@ class TreatmentPlanAssembler:
 class ClinicalEvaluationAgent:
     def __init__(self, llm: ChatGroq):
         self.llm = llm
+        self.last_input_tokens = 0
+        self.last_output_tokens = 0
 
     async def evaluate(
         self,
         plan: TreatmentPlan,
         treatment_input: TreatmentPlanInput,
         patient_summary: Optional[Dict[str, Any]],
+        doctor_guidelines: Optional[List[Dict[str, Any]]] = None,
+        graph_timeline_text: Optional[str] = None,
     ) -> ValidationResult:
         logger.info(f"🧠 Evaluating | strategy={plan.strategy.value} | specialty={plan.treating_specialty}")
 
@@ -3866,20 +4104,11 @@ class ClinicalEvaluationAgent:
         all_drugs = plan.first_line_drugs + plan.adjunctive_drugs
         resolved_specialty = plan.treating_specialty or resolve_specialty_label(treatment_input.doctor_speciality)
 
-        # ── FULL, SCHEMA-AGNOSTIC PATIENT CONTEXT ──
-        # Previously this hand-picked clinical_summary/timeline/treatment_timeline keys
-        # from patient_summary. It now reuses the same full-record builder as every other
-        # agent, so the audit sees exactly the same complete patient data (tumor size,
-        # stage, biomarkers, labs, prior treatments, everything) as the generation agents did.
-        summary_data_eval = patient_summary.get("summary", {}) if isinstance(patient_summary, dict) else {}
-        clinical_summary_text_eval = "\n\n".join(summary_data_eval.get("paragraphs", []))
-
-        timeline_data_eval = patient_summary.get("timeline", {}) if isinstance(patient_summary, dict) else {}
-        timeline_entries_eval = timeline_data_eval.get("timeline", [])
-
+        # ── FULL, SCHEMA-AGNOSTIC PATIENT CONTEXT — sourced from the Neo4j patient graph ──
+        # The audit now sees exactly the same complete longitudinal graph timeline the
+        # generation agents used, instead of a hand-picked patient_summary subset.
         agentic_context_eval = {
-            "clinical_summary": clinical_summary_text_eval,
-            "timeline": timeline_entries_eval
+            "neo4j_patient_graph_timeline": graph_timeline_text or "No graph history available"
         }
         patient_summary_json_eval = json.dumps(agentic_context_eval, indent=2, default=str)
 
@@ -4002,7 +4231,7 @@ class ClinicalEvaluationAgent:
     D4. GUIDELINE VIOLATIONS: Flag any recommendation that directly contradicts the APPROVED GUIDELINES listed below. Also flag any recommendation that cites a guideline NOT in the approved list.
 
     APPROVED GUIDELINES FOR THIS DOCTOR (audit must be based ONLY on these):
-    {chr(10).join(f"  [{g.get('id')}] {g.get('title')} — {g.get('explanation', '')}" for g in (getattr(treatment_input, '_doctor_guidelines', None) or []))}
+    {chr(10).join(f"  [{g.get('id')}] {g.get('title')} — {g.get('explanation', '')}" for g in (doctor_guidelines or []))}
 
     SECTION E — STRATEGY & FOLLOW-UP:
     E1. STRATEGY APPROPRIATENESS: Given the diagnosis severity and intent, is the {plan.strategy.value} strategy appropriate? Flag under-treatment (too conservative for a curable aggressive cancer) or over-treatment (too aggressive for a palliative intent).
@@ -4076,6 +4305,7 @@ class ClinicalEvaluationAgent:
                 HumanMessage(content=evaluation_prompt)
             ])
 
+            self.last_input_tokens, self.last_output_tokens = _extract_token_usage(resp)
             logger.info(f"  🔍 LLM evaluation response: {resp.content[:300]}")
             result = self._parse_json(resp.content)
 
@@ -4183,6 +4413,7 @@ def create_treatment_plan_workflow(
     """Create LangGraph treatment planning workflow (with Specialty Skill Layer)"""
     
     # Initialize agents
+    graph_agent = PatientGraphRetrievalAgent()
     intent_agent = TreatmentIntentAgent(llm)
     specialty_skill_agent = SpecialtySkillAgent()
     guideline_agent = GuidelineRetrievalAgent(knowledge_graph)
@@ -4212,6 +4443,7 @@ def create_treatment_plan_workflow(
         return state
 
     # Add nodes
+    workflow.add_node("fetch_patient_graph", graph_agent.retrieve_graph)
     workflow.add_node("intent_identification", intent_agent.determine_intent)
     workflow.add_node("specialty_skill_selection", specialty_skill_agent.select_skill)
     workflow.add_node("guideline_retrieval", guideline_agent.retrieve_guidelines)
@@ -4225,12 +4457,13 @@ def create_treatment_plan_workflow(
     workflow.add_node("assemble", assembler.assemble)
     
     # Set entry point
-    workflow.set_entry_point("intent_identification")
+    workflow.set_entry_point("fetch_patient_graph")
     
     # Define edges
-    # Patient Summary -> Timeline -> Primary Diagnosis -> [Intent] -> Doctor Specialty
+    # Neo4j Patient Graph -> [Intent] -> Doctor Specialty
     #   -> Specialty Skill Selection -> Guideline Retrieval -> Treatment Planning Agents
     #   -> Specialty-Specific Treatment Plan
+    workflow.add_edge("fetch_patient_graph", "intent_identification")
     workflow.add_edge("intent_identification", "specialty_skill_selection")
     workflow.add_edge("specialty_skill_selection", "guideline_retrieval")
     workflow.add_edge("guideline_retrieval", "exclusion_filter")
@@ -4281,6 +4514,8 @@ async def generate_treatment_plan(
         initial_state: TreatmentPlanState = {
             "treatment_input": treatment_input,
             "patient_summary": patient_summary,
+            "graph_documents": [],
+            "graph_timeline_text": "",
             "current_strategy": TreatmentStrategy.STANDARD,
             "prognosis": treatment_input.prognosis,
             "doctor_guidelines": [],
@@ -4303,7 +4538,9 @@ async def generate_treatment_plan(
             "lifestyle_recommendations": [],
             "treatment_plan": None,
             "error": None,
-            "warnings": []
+            "warnings": [],
+            "total_input_tokens": 0,
+            "total_output_tokens": 0,
         }
         
         # Run workflow
@@ -4365,32 +4602,36 @@ def create_default_treatment_plan(treatment_input: TreatmentPlanInput) -> Treatm
         confidence_score=0.6
     )
 
-async def generate_three_treatment_plans(
+def _run_single_strategy_sync(
+    strategy: TreatmentStrategy,
     treatment_input: TreatmentPlanInput,
     llm: ChatGroq,
     neo4j_uri: str,
     neo4j_user: str,
     neo4j_password: str,
-    patient_summary: Optional[Dict[str, Any]] = None,
-) -> List[TreatmentPlan]:
-
-    logger.info(f"🚀 Multi-Plan Generation | Patient={treatment_input.patient_id}")
-
+    patient_summary: Optional[Dict[str, Any]],
+    graph_documents: List[Dict[str, Any]],
+    graph_timeline_text: str,
+) -> TreatmentPlan:
+    """
+    Runs ONE full strategy pipeline (LangGraph workflow + clinical evaluation) to completion
+    on its OWN worker thread with its OWN event loop. Called via asyncio.to_thread() so the
+    three strategies (conservative/standard/aggressive) execute concurrently on separate OS
+    threads instead of serially — the LLM calls are blocking network I/O, which releases the
+    GIL while waiting on Groq, so real wall-clock overlap happens across threads.
+    """
     knowledge_graph = TreatmentKnowledgeGraph(neo4j_uri, neo4j_user, neo4j_password)
-    eval_agent = ClinicalEvaluationAgent(llm)
-
-    strategies = [TreatmentStrategy.CONSERVATIVE, TreatmentStrategy.STANDARD, TreatmentStrategy.AGGRESSIVE]
-    enriched_plans: List[TreatmentPlan] = []
-
+    strategy_start = datetime.now()
     try:
-        workflow = create_treatment_plan_workflow(llm, knowledge_graph)
-
-        for strategy in strategies:
-            logger.info(f"\n▶ Generating {strategy.value.upper()} plan")
+        async def _inner() -> TreatmentPlan:
+            workflow = create_treatment_plan_workflow(llm, knowledge_graph)
+            eval_agent = ClinicalEvaluationAgent(llm)
 
             initial_state: TreatmentPlanState = {
                 "treatment_input": treatment_input,
                 "patient_summary": patient_summary,
+                "graph_documents": graph_documents,
+                "graph_timeline_text": graph_timeline_text,
                 "current_strategy": strategy,
                 "prognosis": treatment_input.prognosis,
                 "doctor_guidelines": [],
@@ -4414,26 +4655,97 @@ async def generate_three_treatment_plans(
                 "treatment_plan": None,
                 "error": None,
                 "warnings": [],
+                "total_input_tokens": 0,
+                "total_output_tokens": 0,
             }
 
             final_state = await workflow.ainvoke(initial_state)
             plan: TreatmentPlan = final_state.get("treatment_plan") or create_default_treatment_plan(treatment_input)
             plan.strategy = strategy
 
-            # Attach doctor guidelines so ClinicalEvaluationAgent can enforce approved-only audit
-            treatment_input._doctor_guidelines = final_state.get("doctor_guidelines", [])
-            val_result = await eval_agent.evaluate(plan, treatment_input, patient_summary)
+            val_result = await eval_agent.evaluate(
+                plan,
+                treatment_input,
+                patient_summary,
+                doctor_guidelines=final_state.get("doctor_guidelines", []),
+                graph_timeline_text=graph_timeline_text,
+            )
             plan.validation_result = val_result
             plan.confidence_score = val_result.validation_score
             plan.guideline_compliance_score = val_result.guideline_compliance_score
 
-            logger.info(
-                f"  ✅ {strategy.value.upper()} | specialty={plan.treating_specialty} | "
-                f"valid={val_result.is_valid} | "
-                f"val_score={val_result.validation_score:.2f} | "
-                f"guideline={val_result.guideline_compliance_score:.2f}"
-            )
-            enriched_plans.append(plan)
+            plan._total_input_tokens = final_state.get("total_input_tokens", 0) + eval_agent.last_input_tokens
+            plan._total_output_tokens = final_state.get("total_output_tokens", 0) + eval_agent.last_output_tokens
+
+            return plan
+
+        plan = asyncio.run(_inner())
+        elapsed = (datetime.now() - strategy_start).total_seconds()
+        logger.info(
+            f"  ✅ {strategy.value.upper()} | specialty={plan.treating_specialty} | "
+            f"valid={plan.validation_result.is_valid} | "
+            f"val_score={plan.validation_result.validation_score:.2f} | "
+            f"guideline={plan.validation_result.guideline_compliance_score:.2f} | "
+            f"cycle_time={elapsed:.2f}s"
+        )
+        return plan
+    finally:
+        knowledge_graph.close()
+
+
+async def generate_three_treatment_plans(
+    treatment_input: TreatmentPlanInput,
+    llm: ChatGroq,
+    neo4j_uri: str,
+    neo4j_user: str,
+    neo4j_password: str,
+    patient_summary: Optional[Dict[str, Any]] = None,
+) -> List[TreatmentPlan]:
+
+    logger.info(f"🚀 Multi-Plan Generation | Patient={treatment_input.patient_id}")
+
+    # ── Fetch the patient's Neo4j graph ONCE, render it in parallel 5-doc batches, and
+    #    share it across all 3 strategies — avoids fetching/rendering the same longitudinal
+    #    history three times and gives every strategy identical, complete context.
+    fetch_start = datetime.now()
+    graph_documents: List[Dict[str, Any]] = []
+    try:
+        graph_documents = await fetch_patient_graph_documents(treatment_input.patient_id)
+    except Exception as e:
+        logger.error(f"❌ [Multi-Plan] Graph fetch failed: {e}")
+    graph_timeline_text = await _render_graph_timeline_parallel(graph_documents, batch_size=5)
+    logger.info(
+        f"🕸️ [Multi-Plan] Shared graph ready | documents={len(graph_documents)} "
+        f"| timeline_chars={len(graph_timeline_text)} "
+        f"| fetch_time={(datetime.now() - fetch_start).total_seconds():.2f}s"
+    )
+
+    strategies = [TreatmentStrategy.CONSERVATIVE, TreatmentStrategy.STANDARD, TreatmentStrategy.AGGRESSIVE]
+
+    # ── Run all 3 strategies concurrently on separate OS threads ──
+    parallel_start = datetime.now()
+    tasks = [
+        asyncio.to_thread(
+            _run_single_strategy_sync,
+            strategy,
+            treatment_input,
+            llm,
+            neo4j_uri,
+            neo4j_user,
+            neo4j_password,
+            patient_summary,
+            graph_documents,
+            graph_timeline_text,
+        )
+        for strategy in strategies
+    ]
+    enriched_plans: List[TreatmentPlan] = list(await asyncio.gather(*tasks))
+    logger.info(
+        f"⏱️ [Multi-Plan] All 3 strategies completed in parallel | "
+        f"elapsed={(datetime.now() - parallel_start).total_seconds():.2f}s"
+    )
+
+    if True:
 
         def _clinical_rank_score(p: TreatmentPlan) -> float:
             """
@@ -4495,10 +4807,21 @@ async def generate_three_treatment_plans(
                 f"flagged_removals={len(plan.validation_result.recommendations_to_remove) if plan.validation_result else 0}"
             )
 
-        return enriched_plans
+        # Fire-and-forget: sum tokens across all 3 strategies, POST once, don't block the response
+        total_input = sum(getattr(p, "_total_input_tokens", 0) for p in enriched_plans)
+        total_output = sum(getattr(p, "_total_output_tokens", 0) for p in enriched_plans)
+        doctor_id_for_log = treatment_input.patient_preferences  # doctor sys_id, see build_treatment_input
+        model_for_log = getattr(llm, "model_name", "openai/gpt-oss-120b")
+        fire_and_forget_token_log(
+            doctor_id=doctor_id_for_log,
+            feature="treatment_plan_generation",
+            model=model_for_log,
+            input_tokens=total_input,
+            output_tokens=total_output,
+        )
+        logger.info(f"📤 Fired token usage log: input={total_input} output={total_output} doctor={doctor_id_for_log}")
 
-    finally:
-        knowledge_graph.close()
+        return enriched_plans
 
 
 # =====================================================================
@@ -4697,9 +5020,9 @@ async def generate_treatment_plan_endpoint(
         logger.info(f"   - Completed Investigations: {len(treatment_input.completed_investigations)}")
         
         # Step 6: Initialize LLM
-        logger.info(f"🤖 Initializing LLM (llama-3.3-70b-versatile)...")
+        logger.info(f"🤖 Initializing LLM (openai/gpt-oss-120b)...")
         llm = ChatGroq(
-            model="llama-3.3-70b-versatile",
+            model="openai/gpt-oss-120b",
             groq_api_key=os.getenv("GROQ_API_KEY"),
             temperature=0.1,
             max_retries=2,

@@ -9,12 +9,13 @@ import random
 import re
 from groq import Groq
 from routes.agents.base import run_pass1
+from services.groq_rate_limiter import reserve_tokens, estimate_tokens
 logger = logging.getLogger(__name__)
 
 import os
 _groq = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
-_MODEL = "llama-3.3-70b-versatile"
+_MODEL = "openai/gpt-oss-120b"
 _MAX_TOKENS = 4000
 _TEXT_LIMIT = 85_000
 
@@ -22,13 +23,13 @@ _TEXT_LIMIT = 85_000
 # ═══════════════════════════════════════════════════════════════════════════
 # LOW-LEVEL CALLS
 # ═══════════════════════════════════════════════════════════════════════════
-
-
 def _call_groq_sync(system_prompt: str, user_prompt: str) -> Dict[str, Any]:
-    max_retries = 5
     base_delay = 5.0
+    attempt = 0
 
-    for attempt in range(max_retries):
+    while True:
+        attempt += 1
+        reserve_tokens(estimate_tokens(system_prompt, user_prompt, _MAX_TOKENS))
         try:
             completion = _groq.chat.completions.create(
                 model=_MODEL,
@@ -47,13 +48,13 @@ def _call_groq_sync(system_prompt: str, user_prompt: str) -> Dict[str, Any]:
             err_str = str(exc)
 
             if "rate_limit_exceeded" in err_str or "429" in err_str:
-                wait = base_delay * (2 ** attempt) + random.uniform(0, 2)
+                wait = min(base_delay * (2 ** min(attempt, 6)) + random.uniform(0, 2), 60)
                 match = re.search(r'try again in ([\d.]+)s', err_str)
                 if match:
                     wait = float(match.group(1)) + 1.0
                 logger.warning(
-                    "Rate limit hit (attempt %d/%d), waiting %.1fs...",
-                    attempt + 1, max_retries, wait
+                    "Rate limit hit (attempt %d), waiting %.1fs... (will keep retrying, never giving up)",
+                    attempt, wait
                 )
                 time.sleep(wait)
                 continue
@@ -71,11 +72,8 @@ def _call_groq_sync(system_prompt: str, user_prompt: str) -> Dict[str, Any]:
                 except Exception:
                     logger.error("Could not parse failed_generation as JSON")
 
-            logger.error("Groq call failed: %s", exc)
+            logger.error("Groq call failed (non-rate-limit): %s", exc)
             return {}
-
-    logger.error("Groq call failed after %d retries (rate limit)", max_retries)
-    return {}
 
 def _call_groq_sync_with_tokens(
     system_prompt: str,
@@ -273,7 +271,6 @@ Return a JSON object with ONLY these keys (null if not found):
 {
   "claimantName": null,
   "claimantMobile": null,
-  "claimantEmail": null,
   "claimantAge": null,
   "relationship": null,
   "idProofType": null,
@@ -306,7 +303,6 @@ SEMANTIC MAPPINGS FOR THIS AGENT:
   NEVER invent a mobile number. Do not use any other number from the document.
 - hospitalDetails.hospitalContactNumber: phone near hospital name/address only
 - hospitalDetails.hospitalEmail: email near hospital name/address
-- claimantEmail: email near patient name/address
 - idProofNumber: Aadhaar 12-digit, strip spaces. "9813 1170 0414" → "981311700414"
 - idProofType: "Aadhaar Card" if QR + Government of India header + 12-digit number
 - claimantName: on Aadhaar, name in CAPS below photo
@@ -353,11 +349,7 @@ _A3_SCHEMA = """
 Return a JSON object with ONLY these keys (null if not found):
 {
   "criticalDetails.diagnosis": null,
-  "criticalDetails.procedure": null,
-  "criticalDetails.implants": null,
-  "criticalDetails.surgeryDate": null,
   "additionalMedicalDetails.diagnosisSummary": null,
-  "additionalMedicalDetails.clinicalSummary": null,
   "additionalMedicalDetails.chiefComplaints": null,
   "additionalMedicalDetails.pastHistory": null,
   "additionalMedicalDetails.generalExamination": null,
@@ -366,10 +358,6 @@ Return a JSON object with ONLY these keys (null if not found):
   "additionalMedicalDetails.investigatorHospitalOpinion": null,
   "additionalMedicalDetails.investigatorMemberOpinion": null,
   "additionalMedicalDetails.firstConsultationDate": null,
-  "obstetricDetails.gestationAge": null,
-  "obstetricDetails.edd": null,
-  "obstetricDetails.gravidaParity": null,
-  "obstetricDetails.fetalCondition": null,
   "medicalStaff.pathologistName": null,
   "medicalStaff.pathologistDesignation": null,
   "medicalStaff.pathologistRegNo": null,
@@ -381,7 +369,6 @@ Return a JSON object with ONLY these keys (null if not found):
 SEMANTIC MAPPINGS FOR THIS AGENT:
 
 criticalDetails.diagnosis → final diagnosis | clinical impression | medical condition
-criticalDetails.procedure → surgery | operative procedure | LSCS | ORIF | delivery method
 additionalMedicalDetails.chiefComplaints → c/o | presenting complaints | fever | pain
 additionalMedicalDetails.chiefComplaints:
   MUST be a JSON array of strings, even if only one complaint.
@@ -405,18 +392,7 @@ additionalMedicalDetails.vitals:
 
   Format: include every value found.
   Never summarise as "stable" or "within normal limits". 
-additionalMedicalDetails.clinicalSummary:
-  Write a 4‑6 sentence summary covering:
-    - reason for admission (chief complaints)
-    - key vitals on admission
-    - major interventions (ICU, vasopressors, antibiotics, ventilation)
-    - duration of stay (admission date to discharge date)
-    - condition at discharge
-  Use verbatim phrasing from the discharge summary when possible.
-  Do NOT write a one‑line summary or generic "patient was treated".
 medicalStaff.radiologistName → doctor signing scan/ultrasound report
-obstetricDetails.gravidaParity → full obstetric score as written: G2P2L2E1
-obstetricDetails.fetalCondition → baby gender, weight, APGAR, time of birth
 
 IMPORTANT: Infer from shorthand clinical notes, OBG abbreviations, progress records.
 """
@@ -472,21 +448,12 @@ Return a JSON object with ONLY these keys (null if not found):
   "accidentDetails.place": null,
   "accidentDetails.firNumber": null,
   "accidentDetails.mlcNumber": null,
-  "accidentDetails.mlcRegistered": null,
-  "accidentDetails.mlcCollected": null,
-  "accidentDetails.accidentNarration": null,
   "deathDetails.date": null,
   "deathDetails.time": null,
   "deathDetails.reason": null,
   "deathDetails.beneficiaryName": null,
   "accidentDetails.firstAidDetails": null,
-  "accidentDetails.firstAidHospital": null,
-  "accidentDetails.firstAidDateTime": null,
-  "billingDetails.grossAmount": null,
-"billingDetails.discountAmount": null,
-"billingDetails.netAmountReceived": null,
-"billingDetails.paymentMode": null,
-"billingDetails.lineItems": null,
+  "accidentDetails.firstAidHospital": null
 }
 
 SEMANTIC MAPPINGS FOR THIS AGENT:
@@ -495,11 +462,6 @@ billingDetails.finalBillAmount:
   Extract from the IPD Bill table that matches the current patient's name and IP number.
   Use the "Grand Amount" or "Final Amount" row.
   Do NOT use the "Final Bill amount paid at the hospital" from the Insured Verification Form.
-room_tariff_per_day:
-  From the correct patient's IPD bill, find the line item for bed/room charges.
-  Extract the unit price (Rate) column. If the duration is multiple days, compute per day.
-  If unit price is not present, compute as total bed charge divided by number of days.
-  If not found, return null.
 
 billingDetails.roomType:
 Priority 1:
@@ -549,32 +511,12 @@ AND
 
 accidentDetails.mlcNumber → MLC No | police intimation number | A.R. No.
 accidentDetails.firNumber → FIR No | PC NO
-accidentDetails.accidentNarration → "Alleged Causes" | H/o | how injury occurred
 accidentDetails.firstAidDetails → condition on arrival + vitals + immediate treatment
 accidentDetails.firstAidHospital → hospital name from accident report header
-accidentDetails.firstAidDateTime → "Hospital Arrival Date/Time" → YYYY-MM-DD HH:MM
-billingDetails.grossAmount:
-  "Grand Total", "Gross Amount", "Total Bill" — verbatim with Rs.
 
 billingDetails.discountAmount:
   Look for "Discount:" in the bill summary footer of the correct patient's bill.
   Extract the numeric value. If not found, return 0.
-
-billingDetails.netAmountReceived:
-  "Amount Received", "Net Payable", "Amount Paid"
-
-billingDetails.paymentMode:
-  "Cash", "Online", "Card", "Cheque", "NEFT"
-
-billingDetails.lineItems:
-  Extract EVERY row from ALL subtables of the IPD bill for the correct patient.
-  Do NOT stop after the first table.
-  Look for sections with headers like "Doctor Fees", "Hospital", "Ward Charges",
-  "Clinical Chemistry", "Haematology", "Immunology", "MRI", "Microbiology", "POCT",
-  "Serology", "Xray", "Pharmacy".
-  For each row, create an object: {"item": "<item name>", "amount": <plain number>}
-  Include all rows, even if amount is zero or negative (returns/refunds).
-  Return the full array.
 
 IMPORTANT: Return amounts as plain numbers only.
 """
@@ -633,8 +575,10 @@ description → 4-6 sentence clinical-investigative narrative covering:
   admission vitals, key treatment, police/MLC status, any fraud flags.
   Third person, past tense, factual.
 
-riskDetails.triggers → fraud triggers | risk triggers | suspicious indicators from email
-riskDetails.investigationInstruction → "please investigate" | insurer remarks
+riskDetails.triggers → fraud triggers | risk triggers | suspicious indicators from email.
+  MUST be returned as a single plain string, never a JSON array or object.
+  If multiple triggers are found, combine them into one string separated by
+  "; ", e.g. "PED suspected; duration mismatch". Do NOT return a list.riskDetails.investigationInstruction → "please investigate" | insurer remarks
 riskDetails.riskScore → numeric only if explicitly stated
 riskDetails.riskLevel → infer: "High" if fraud/suspected language, "Medium" if verify language
 investigationDetails.dataCollectedFrom → name + designation of person data collected from
@@ -665,94 +609,10 @@ DOCUMENT TEXT:
     return result
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# AGENT A6 — Investigation Checklist
-# ═══════════════════════════════════════════════════════════════════════════
+# Agent A6 (Investigation Checklist) was removed entirely — every one of
+# its checklist.* fields was unused (no "checklist" object exists on the
+# case form), so calling it was a wasted LLM round-trip on every document.
 
-_A6_SYSTEM = _SHARED_RULES + """
-You are an insurance investigation checklist specialist.
-Answer each checklist item with "Yes", "No", or "NA".
-- "Yes" = evidence found in documents that this was verified/collected
-- "No"  = explicitly stated as not done or missing
-- "NA"  = no information at all about this item
-"""
-
-_A6_SCHEMA = """
-Return a JSON object with ONLY these keys:
-{
-  "checklist.idProofInsured": null,
-  "checklist.hospitalExistence": null,
-  "checklist.admissionVerified": null,
-  "checklist.treatmentParticulars": null,
-  "checklist.copyOfICP": null,
-  "checklist.labVicinity": null,
-  "checklist.labRegistersVerified": null,
-  "checklist.billsReceipts": null,
-  "checklist.medicinePurchases": null,
-  "checklist.signatureMatching": null,
-  "checklist.otReceiptBooks": null,
-  "checklist.anyOther": null
-}
-
-RULES:
-checklist.idProofInsured:
-  Return "Yes" if any of these are found:
-    - Aadhaar number in the Insured Verification Form
-    - PAN card, Voter ID, Passport number
-    - A checkbox "ID proof collected: YES [x]"
-  Otherwise return "NA".
-checklist.hospitalExistence → "Yes" if hospital name, address, reg number present
-checklist.admissionVerified → "Yes" if admission date, IP number, case sheet found
-checklist.treatmentParticulars → "Yes" if diagnosis, treatment notes, discharge summary found
-checklist.copyOfICP:
-  Look for "IP Register Collected:" in the field officer form.
-  Same logic: "YES [x]" → "Yes", "NO [ ]" → "No", else "NA".
-checklist.labVicinity → "Yes" if lab reports + lab address present
-checklist.labRegistersVerified:
-  Look in the field officer form for the line "Lab Register collected:".
-  If the line contains "YES [x]" or "YES ✓" → "Yes".
-  If it contains "NO [ ]" → "No".
-  If the section is absent → "NA".
-# Example: If the field officer form shows "Lab Register collected: YES [x]", return "Yes".
-# Similarly for "IP Register Collected: YES [x]" → checklist.copyOfICP = "Yes".
-# In agent_a6_checklist, inside the user prompt, add:
-EXAMPLE:
-Field officer form snippet:
-"Lab Register collected: YES [x]"
-Output: "checklist.labRegistersVerified": "Yes"
-
-checklist.billsReceipts → "Yes" if hospital bills/receipts found
-checklist.medicinePurchases → "Yes" if pharmacy bills found
-checklist.signatureMatching → "Yes" if multiple signed documents present
-checklist.otReceiptBooks → "Yes" if OT notes/records found
-checklist.anyOther → null always
-
-Default to "NA" when uncertain.
-"""
-
-async def agent_a6_checklist(
-    text: str,
-    pass1_result: Dict[str, Any],
-) -> Dict[str, Any]:
-    facts = _build_pre_extracted_facts(pass1_result)
-
-    user = f"""
-{_A6_SCHEMA}
-
-{facts}
-
-DOCUMENT TEXT:
-{text[:_TEXT_LIMIT]}
-"""
-
-    result = await _call_groq(_A6_SYSTEM, user)
-
-    logger.info(
-        "A6 Checklist agent: %d fields found",
-        sum(1 for v in result.values() if v is not None),
-    )
-
-    return result
 
 _A7_SYSTEM = _SHARED_RULES + """
 You are an insurance investigation instruction analyst.
@@ -825,11 +685,18 @@ DOCUMENT TEXT:
 # ═══════════════════════════════════════════════════════════════════════════
 
 def _merge_flat_results(*dicts: Dict[str, Any]) -> Dict[str, Any]:
+    # Index of A3 (Medical) and A7 (Email) within the tuple passed to
+    # _merge_flat_results. This MUST match the order of the asyncio.gather
+    # call in run_multiagent_extraction below:
+    #   0: A1-Policy, 1: A2-Claimant, 2: A3-Medical,
+    #   3: A4-Billing, 4: A5-Risk, 5: A7-Email
+    # (A6-Checklist was removed, which is why A7 is now index 5, not 6.)
+    A3_INDEX = 2
+    A7_INDEX = 5
+
     A3_KEYS = {
-        "criticalDetails.diagnosis", "criticalDetails.procedure",
-        "criticalDetails.implants", "criticalDetails.surgeryDate",
+        "criticalDetails.diagnosis",
         "additionalMedicalDetails.diagnosisSummary",
-        "additionalMedicalDetails.clinicalSummary",
         "additionalMedicalDetails.chiefComplaints",
         "additionalMedicalDetails.pastHistory",
         "additionalMedicalDetails.generalExamination",
@@ -838,8 +705,6 @@ def _merge_flat_results(*dicts: Dict[str, Any]) -> Dict[str, Any]:
         "additionalMedicalDetails.investigatorHospitalOpinion",
         "additionalMedicalDetails.investigatorMemberOpinion",
         "additionalMedicalDetails.firstConsultationDate",
-        "obstetricDetails.gestationAge", "obstetricDetails.edd",
-        "obstetricDetails.gravidaParity", "obstetricDetails.fetalCondition",
         "medicalStaff.pathologistName", "medicalStaff.pathologistDesignation",
         "medicalStaff.pathologistRegNo", "medicalStaff.radiologistName",
         "medicalStaff.radiologistDesignation", "medicalStaff.radiologistRegNo",
@@ -848,8 +713,8 @@ def _merge_flat_results(*dicts: Dict[str, Any]) -> Dict[str, Any]:
 
     merged: Dict[str, Any] = {}
     for idx, d in enumerate(dicts):
-        is_a3 = (idx == 2)
-        is_a7 = (idx == 6)
+        is_a3 = (idx == A3_INDEX)
+        is_a7 = (idx == A7_INDEX)
         for key, value in d.items():
             if value is None:
                 continue
@@ -870,12 +735,104 @@ def _merge_flat_results(*dicts: Dict[str, Any]) -> Dict[str, Any]:
         if isinstance(cc, str) and "," in cc:
             merged["additionalMedicalDetails.chiefComplaints"] = [c.strip() for c in cc.split(",")]
 
+    # Defensive: riskDetails.triggers must reach the router as a plain string.
+    # The A5 prompt now instructs Groq to always return a string, but this
+    # normalizes any list it still emits (e.g. from a salvaged/malformed
+    # response) so a downstream .strip() call never sees a list.
+    if "riskDetails.triggers" in merged:
+        trig = merged["riskDetails.triggers"]
+        if isinstance(trig, list):
+            merged["riskDetails.triggers"] = "; ".join(
+                str(t).strip() for t in trig if t not in (None, "")
+            )
+
     return merged
+
+
 async def _empty_a7() -> Dict[str, Any]:
     # No email/trigger text was supplied for this document — never let A7
     # read the raw document text and mistake clinical/report language for
     # investigation instructions.
     return {"emailInstructions": None, "suggestedTriggers": []}
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# FORM FIELD ALLOW-LIST
+# ═══════════════════════════════════════════════════════════════════════════
+# Every key here matches an actual field on BLANK_FORM in NewCase.jsx.
+# Agents historically over-extract (riskDetails.*, checklist.*,
+# emailInstructions, obstetricDetails.*, criticalDetails.procedure/implants/
+# surgeryDate, clinicalSummary, claimantEmail, several billingDetails/
+# accidentDetails sub-fields) — none of those exist on the form, but were
+# still being persisted to insurance_claims_new. This allow-list is the
+# single choke point that strips them before persistence, for every caller.
+FORM_ALLOWED_FIELDS = {
+    # A1 — Policy & Claim Identity
+    "insurer", "policyNumber", "policyType", "insurerRef",
+    "insurerContact", "insurerContactInfo",
+    "policyDetails.startDate", "policyDetails.endDate", "policyDetails.inceptionDate",
+    "policyDetails.coverageType", "policyDetails.preExistingDisease", "policyDetails.roomRentLimit",
+    "claimMode", "claimSubtype", "claimedAmount", "sumInsured",
+    "dateOfIncident", "dateOfIntimation",
+    "cashlessDetails.tpaName", "cashlessDetails.admissionType", "cashlessDetails.estimatedCost",
+
+    # A2 — Claimant & Hospital
+    "claimantName", "claimantMobile", "claimantAge", "relationship",
+    "idProofType", "idProofNumber", "claimantAddress", "city", "district", "pinCode",
+    "hospitalDetails.name", "hospitalDetails.address", "hospitalDetails.type",
+    "hospitalDetails.doctorName", "hospitalDetails.admissionDate", "hospitalDetails.dischargeDate",
+    "hospitalDetails.city", "hospitalDetails.department",
+    "hospitalDetails.hospitalContactNumber", "hospitalDetails.hospitalEmail",
+    "reimbursementDetails.accountName", "reimbursementDetails.bankDetails", "reimbursementDetails.ifsc",
+
+    # A3 — Medical & Clinical
+    "criticalDetails.diagnosis",
+    "additionalMedicalDetails.diagnosisSummary", "additionalMedicalDetails.chiefComplaints",
+    "additionalMedicalDetails.pastHistory", "additionalMedicalDetails.generalExamination",
+    "additionalMedicalDetails.localExamination", "additionalMedicalDetails.vitals",
+    "additionalMedicalDetails.investigatorHospitalOpinion",
+    "additionalMedicalDetails.investigatorMemberOpinion",
+    "additionalMedicalDetails.firstConsultationDate",
+    "medicalStaff.pathologistName", "medicalStaff.pathologistDesignation", "medicalStaff.pathologistRegNo",
+    "medicalStaff.radiologistName", "medicalStaff.radiologistDesignation", "medicalStaff.radiologistRegNo",
+
+    # A4 — Billing, Accident & Death
+    "billingDetails.finalBillAmount", "billingDetails.discountAmount",
+    "billingDetails.roomType", "billingDetails.tariffType",
+    "accidentDetails.dateTime", "accidentDetails.place",
+    "accidentDetails.firNumber", "accidentDetails.mlcNumber",
+    "accidentDetails.firstAidDetails", "accidentDetails.firstAidHospital",
+    "deathDetails.date", "deathDetails.time", "deathDetails.reason", "deathDetails.beneficiaryName",
+
+    # A5 — Risk, Investigation & Description
+    # (riskDetails.* dropped — no such object on the form)
+    "description",
+    "investigationDetails.investigatorName", "investigationDetails.investigatorDesignation",
+    "investigationDetails.dataCollectedFrom",
+
+    # A6 — Investigation Checklist: nothing kept, no "checklist" object on the form.
+}
+
+# Non-form fields kept anyway because something downstream depends on them.
+# suggestedTriggers isn't a form field itself, but drives the trigger
+# suggestion UI in CaseDocumentUpload.jsx / FormTabs (which writes the
+# user's picks into the real form field claimTriggers).
+EXTRA_ALLOWED_NONFORM_FIELDS = {"suggestedTriggers"}
+
+
+def _filter_to_form_fields(merged: Dict[str, Any]) -> Dict[str, Any]:
+    """Drop every extracted key that isn't an actual case-form field (or an
+    explicit non-form exception). Runs once, centrally, so every caller of
+    run_multiagent_extraction gets pre-filtered output."""
+    allowed = FORM_ALLOWED_FIELDS | EXTRA_ALLOWED_NONFORM_FIELDS
+    dropped = [k for k in merged if k not in allowed]
+    if dropped:
+        logger.info(
+            "MultiAgent extraction: dropped %d non-form field(s): %s",
+            len(dropped), dropped,
+        )
+    return {k: v for k, v in merged.items() if k in allowed}
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # PUBLIC ENTRY POINT
@@ -913,20 +870,21 @@ async def run_multiagent_extraction(
         ),
     )
 
+    # Order here MUST match the A3_INDEX / A7_INDEX constants inside
+    # _merge_flat_results above.
     results = await asyncio.gather(
         agent_a1_policy(text, pass1_result),
         agent_a2_claimant_hospital(text, pass1_result),
         agent_a3_medical(text, pass1_result),
         agent_a4_billing_accident(text, pass1_result),
         agent_a5_risk_investigation(text, pass1_result),
-        agent_a6_checklist(text, pass1_result),
         agent_a7_email_instructions(email_text, {}) if email_text.strip() else _empty_a7(),
 
         return_exceptions=True,
     )
 
     agent_names = ["A1-Policy", "A2-Claimant", "A3-Medical",
-               "A4-Billing", "A5-Risk", "A6-Checklist", "A7-Email"]  # ← add
+                   "A4-Billing", "A5-Risk", "A7-Email"]
     clean_results = []
     for i, res in enumerate(results):
         if isinstance(res, Exception):
@@ -936,6 +894,7 @@ async def run_multiagent_extraction(
             clean_results.append(res)
 
     merged = _merge_flat_results(*clean_results)
+    merged = _filter_to_form_fields(merged)
 
     merged["pre_extracted_facts"] = pass1_result
 

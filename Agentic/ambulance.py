@@ -16,7 +16,7 @@ from pydantic import BaseModel
 
 from langchain_groq import ChatGroq
 from langchain_core.messages import HumanMessage, SystemMessage
-
+from Agentic.clinical_shared.triage import upsert_authoritative_triage
 # ============================================================
 # TIMEZONE — India Standard Time (UTC+5:30)
 # ============================================================
@@ -54,11 +54,20 @@ voice_dictations_collection = mongo_db["voice_dictations"]
 doctor_voice_notes_collection_forprocessing = mongo_db["doctor_voice_notes"]
 Image_Extracted_Ambulance_collection = mongo_db["Image_Extracted_Ambulance"]
 clinical_actions_collection = mongo_db["clinical_actions"]
+patient_triage_status_collection = mongo_db["patient_triage_status"]
 
-llm = ChatGroq(
-    model="llama-3.3-70b-versatile",
+
+llm_extract = ChatGroq(
+    model="openai/gpt-oss-120b",
     temperature=0.1,
-    max_tokens=2500,
+    max_tokens=4000,
+    groq_api_key=GROQ_API_KEY,
+)
+
+llm_suggest = ChatGroq(
+    model="openai/gpt-oss-120b",
+    temperature=0.1,
+    max_tokens=8000,
     groq_api_key=GROQ_API_KEY,
 )
 
@@ -83,10 +92,14 @@ class EmergencyVoiceRequest(BaseModel):
 # ============================================================
 # HELPERS
 # ============================================================
-
-def parse_llm_json(text: str) -> Dict:
+def parse_llm_json(text: str, response=None) -> Dict:
     if not text:
         return {}
+
+    finish_reason = None
+    if response is not None:
+        finish_reason = (getattr(response, "response_metadata", None) or {}).get("finish_reason")
+
     text = text.strip()
     text = re.sub(r"```json", "", text)
     text = re.sub(r"```", "", text)
@@ -96,16 +109,22 @@ def parse_llm_json(text: str) -> Dict:
     try:
         return json.loads(text)
     except Exception:
+        if finish_reason == "length":
+            logger.error(
+                f"LLM output truncated by max_tokens (finish_reason=length). "
+                f"Raw text length={len(text)}. Increase max_tokens for this call."
+            )
+            return {"_parse_error": True, "_truncated": True, "raw_output": text}
         logger.error(f"Failed to parse LLM JSON output. Raw text: {text[:500]}")
         return {"_parse_error": True, "raw_output": text}
 
 
-async def _invoke_llm(system: str, user: str) -> Dict:
-    response = await llm.ainvoke([
+async def _invoke_llm(llm_instance, system: str, user: str) -> Dict:
+    response = await llm_instance.ainvoke([
         SystemMessage(content=system),
         HumanMessage(content=user),
     ])
-    return parse_llm_json(response.content)
+    return parse_llm_json(response.content, response)
 
 
 # ============================================================
@@ -114,8 +133,14 @@ async def _invoke_llm(system: str, user: str) -> Dict:
 
 async def _fetch_all_clinical_entries(patient_id: str) -> tuple[List[Dict], int, int, int]:
     """
-    Fetch and merge clinical data from all three MongoDB collections,
+    Fetch and merge clinical data from all four MongoDB sources,
     sorted chronologically. Returns (entries, emt_count, doctor_count, image_count).
+    doctor_count includes both doctor_voice_notes AND "not_approved"
+    clinical_actions (Doctor -> EMT notes sent from the Clinical Chat
+    composer, e.g. the auto-generated incident-creation voice note) —
+    these are both doctor-authored notes to EMT and were previously
+    invisible to this endpoint even though they're fully visible in the
+    Clinical Chat tab, causing false "no clinical data" 404s.
     """
     entries: List[Dict] = []
 
@@ -170,12 +195,28 @@ async def _fetch_all_clinical_entries(patient_id: str) -> tuple[List[Dict], int,
             entries.append({**doc, "_source": "image_extracted", "conversation": text, "timestamp": ts})
             image_count += 1
 
+    try:
+        cursor = clinical_actions_collection.find(
+            {"patient_id": patient_id, "action_type": "not_approved"}, {"_id": 0}
+        ).sort("server_received_at", 1)
+        doctor_to_emt_docs = await cursor.to_list(length=None)
+    except Exception as e:
+        logger.error(f"Failed to fetch clinical_actions (doctor-to-EMT notes): {e}")
+        doctor_to_emt_docs = []
+
+    for doc in doctor_to_emt_docs:
+        conv = (doc.get("voice_dictation") or "").strip()
+        ts = doc.get("server_received_at")
+        if conv and ts:
+            entries.append({**doc, "_source": "doctor_to_emt_note", "conversation": conv, "timestamp": ts})
+            doctor_count += 1
+
     if emt_count == 0 and doctor_count == 0:
         raise HTTPException(
             status_code=404,
             detail=(
                 f"No valid clinical data found for patient {patient_id}. "
-                "Both voice_dictations and doctor_voice_notes are empty or missing."
+                "voice_dictations, doctor_voice_notes, and doctor-to-EMT clinical actions are all empty or missing."
             ),
         )
 
@@ -194,16 +235,25 @@ def _build_timeline_text(entries: List[Dict]) -> str:
     parts = ["=== CLINICAL INPUT TIMELINE (chronological, all timestamps IST) ===\n"]
     for idx, entry in enumerate(entries, start=1):
         source = entry.get("_source", "unknown")
-        label = {
-            "voice_dictation": "EMT VOICE DICTATION",
-            "doctor_voice_note": "DOCTOR VOICE NOTE",
-            "image_extracted": "IMAGE-EXTRACTED MONITOR DATA",
-        }.get(source, "NOTE")
+        if source == "image_extracted":
+            # Use the EMT-tagged image type when available (Fall, Burn, RPM
+            # Monitor, etc.) instead of assuming every image is a monitor
+            # screenshot — mislabeling a wound/burn photo's findings as
+            # "MONITOR DATA" here would feed the extraction LLM a false
+            # frame for that entry. Falls back to the old generic label for
+            # any record saved before image tagging existed.
+            type_label = entry.get("image_type_label")
+            label = f"IMAGE-EXTRACTED DATA ({type_label})" if type_label else "IMAGE-EXTRACTED DATA"
+        else:
+            label = {
+                "voice_dictation": "EMT VOICE DICTATION",
+                "doctor_voice_note": "DOCTOR VOICE NOTE",
+                "doctor_to_emt_note": "DOCTOR NOTE TO EMT",
+            }.get(source, "NOTE")
         ts_ist = iso_ist(entry.get("timestamp"))
         text = entry.get("conversation", "").strip()
         parts.append(f"[{label} {idx} | {ts_ist}]\n{text}\n")
     return "\n".join(parts)
-
 
 # ============================================================
 # PRIOR CLINICAL ACTIONS — read directly from the DB record,
@@ -220,28 +270,36 @@ async def _fetch_clinical_actions(patient_id: str) -> List[Dict]:
         logger.warning(f"Could not fetch clinical actions: {e}")
         return []
 
-
 def _summarize_clinical_actions(actions: List[Dict]) -> tuple[List[str], List[str]]:
     """
     Split into (approved, rejected) using only the fields the doctor
-    actually recorded — the free-text voice_dictation they gave when
-    approving/rejecting, or the single-line action if no dictation was
-    given. No inference, no keyword matching.
+    actually recorded. IMPORTANT: action_type == "not_approved" is written
+    by TWO different frontend flows that must not be conflated —
+    (1) the Composer's plain "Voice Note" mode, which stamps EVERY free-text
+    doctor instruction to EMT with action_type "not_approved" and
+    ai_suggestion: null, regardless of content (this is NOT a rejection —
+    it is an arbitrary order, e.g. "start aspirin if not already given",
+    and is already surfaced to the suggestion model via the timeline text
+    as a "DOCTOR NOTE TO EMT" entry); and (2) an actual AI-suggestion
+    rejection, which (if ever wired up) would carry a populated
+    ai_suggestion payload. Treating case (1) as "explicitly rejected" was
+    the root cause of standing doctor orders (e.g. aspirin) being
+    suppressed from every later suggestion. Only entries that carry an
+    ai_suggestion payload represent a genuine reject-of-a-suggestion.
     """
     approved, rejected = [], []
     for a in actions:
         label = (a.get("voice_dictation") or "").strip()
+        ai = a.get("ai_suggestion") or {}
         if not label:
-            ai = a.get("ai_suggestion") or {}
-            label = (
-                (ai.get("triage") or {}).get("rationale")
-                or "Unspecified action"
-            )
+            label = (ai.get("triage") or {}).get("rationale") or "Unspecified action"
         ts = iso_ist(a.get("client_created_at") or a.get("server_received_at"))
         entry = f"[{ts}] {label}"
         if a.get("action_type") == "approved":
             approved.append(entry)
-        elif a.get("action_type") == "not_approved":
+        elif a.get("action_type") == "not_approved" and ai:
+            # Only a genuine rejection of a generated AI suggestion —
+            # never a plain free-text doctor voice note to EMT.
             rejected.append(entry)
     return approved, rejected
 
@@ -283,6 +341,95 @@ def _extract_previously_advised_treatments(actions: List[Dict]) -> List[Dict]:
     return advised
 
 
+def _extract_rejected_treatments(actions: List[Dict]) -> List[Dict]:
+    """
+    Mirror of _extract_previously_advised_treatments above, but for GENUINE
+    suggestion rejections only (action_type == "not_approved" AND an
+    ai_suggestion payload is present — see _summarize_clinical_actions'
+    docstring on why a plain doctor-to-EMT voice note must never be treated
+    as a rejection). Pulls exact drug/procedure names so the next
+    generation call can be told specifically what was rejected, instead of
+    relying on _summarize_clinical_actions' free-text label, which for a
+    rejection with no typed note falls back to the triage rationale and
+    may never actually name the rejected item.
+    """
+    rejected: List[Dict] = []
+    for a in actions:
+        if a.get("action_type") != "not_approved":
+            continue
+        ai = a.get("ai_suggestion") or {}
+        if not ai:
+            continue  # plain doctor voice note to EMT — not a rejection
+        ts = iso_ist(a.get("client_created_at") or a.get("server_received_at"))
+
+        for item in (ai.get("treatment_plan") or {}).get("items", []) or []:
+            name = (item.get("drug_or_treatment") or "").strip()
+            if name:
+                rejected.append({
+                    "kind": "treatment_plan",
+                    "name": name,
+                    "rejected_at": ts,
+                })
+
+        for item in (ai.get("procedures") or {}).get("items", []) or []:
+            name = (item.get("procedure") or "").strip()
+            if name:
+                rejected.append({
+                    "kind": "procedure",
+                    "name": name,
+                    "rejected_at": ts,
+                })
+
+    return rejected
+
+
+# ============================================================
+# NEW — PREVIOUSLY ADMINISTERED  (code-level, no LLM)
+# ------------------------------------------------------------
+# Historical, display-only list of what has already been given to the
+# patient this encounter — sourced directly from Step 1's extraction
+# (facts.interventions_given_this_encounter, populated from BOTH EMT
+# pre-hospital notes and doctor manual voice notes — extract_facts()
+# does not separate them by source, so this section intentionally covers
+# both). This is never fed back into treatment_plan/procedures and is
+# never itself editable as a "suggestion" — it exists purely so the
+# clinical-actions screen shows what's already been done before showing
+# what's being newly recommended.
+# ============================================================
+def _apply_previously_administered(suggestions: Dict, facts: Dict) -> Dict:
+    items_given = facts.get("interventions_given_this_encounter") or []
+    none_confirmed = facts.get("prehospital_treatment_status") == "none_given_confirmed"
+    items = [
+        {
+            "treatment_or_medication": str(x).strip(),
+            "reason": "Documented as already administered in the EMT/doctor notes.",
+        }
+        for x in items_given if str(x).strip()
+    ]
+    # "Known and empty" (EMT explicitly confirmed nothing given) is a
+    # resolved answer, not a gap — it must not re-trigger the clarifying
+    # question. Only genuinely unknown (neither given nor explicitly
+    # confirmed as not-given) should ask EMT.
+    resolved = bool(items) or none_confirmed
+    if none_confirmed and not items:
+        reason = "EMT explicitly confirmed no treatment/medication has been given on scene yet."
+    elif items:
+        reason = None
+    else:
+        reason = "No previously administered treatments/medications documented in the notes."
+    suggestions["previously_administered"] = {
+        "data_available": resolved,
+        "reason_if_unavailable": None if resolved else reason,
+        "emt_clarifying_question": None if resolved else (
+            "Has any treatment or medication (e.g. aspirin, oxygen, IV fluids) "
+            "already been given to the patient on scene?"
+        ),
+        "items": items,
+        "confirmed_none_given": none_confirmed,
+    }
+    return suggestions
+
+
 # ============================================================
 # STEP 1 — EXTRACT  (restate only what is explicitly stated)
 # ============================================================
@@ -317,6 +464,40 @@ EXTRACTION_SYSTEM = (
     "interventions_given_this_encounter, which is for treatments/procedures, "
     "not diagnostic tests. All timestamps you reference must stay in IST as "
     "given in the input.\n\n"
+    "COMPLETED VS IN-PROGRESS/FUTURE ACTIONS — a critical tense "
+    "distinction: only mark something as already given/done/administered "
+    "when the notes use completed-action language (past tense, or an "
+    "explicit confirmation such as 'given', 'administered', 'established', "
+    "'done', 'secured'). Present-progressive or imminent-action language — "
+    "e.g. 'starting aspirin now', 'about to start IV', 'beginning oxygen', "
+    "'going to give X' — describes an action that has NOT yet been "
+    "confirmed complete and must NOT be placed in "
+    "interventions_given_this_encounter; it stays pending/not-yet-given "
+    "until a later entry confirms completion. This matters most when a "
+    "single sentence contains both an explicit negation and a "
+    "present-progressive clause, e.g. 'Aspirin not given yet, IV not "
+    "started yet. Starting both now.' — this entire sentence means NEITHER "
+    "has been given yet; do not let the word 'starting' cause you to treat "
+    "either as completed. If a later entry explicitly confirms completion "
+    "(e.g. 'aspirin given', 'IV established'), use that later entry to "
+    "update the status at that point, not before.\n\n"
+    "REFERRING-FACILITY / PRIOR-FACILITY ADMINISTRATIONS AND HYBRID "
+    "PHRASING: in an inter-facility transfer, any treatment or medication "
+    "explicitly stated as already given by a referring/prior facility "
+    "(e.g. 'given one dose of IV paracetamol at the referring hospital', "
+    "'patient was given one dose of IV paracetamol only, no other "
+    "medications administered') is a CONFIRMED COMPLETED intervention for "
+    "this encounter and MUST be included in interventions_given_this_"
+    "encounter — do not omit it merely because it was administered by a "
+    "different facility/crew rather than the current one. Watch "
+    "specifically for the hybrid pattern 'X only, no other Y administered' "
+    "or 'X given, nothing else given' — this states BOTH that X was given "
+    "AND that nothing else was: you must include X in interventions_given_"
+    "this_encounter AND set prehospital_treatment_status to 'given' in "
+    "this case. Only use 'none_given_confirmed' when the notes state that "
+    "NOTHING AT ALL has been given — never when a specific treatment is "
+    "named as given, even if the same sentence also says no other "
+    "treatment was given.\n\n"
     "INVESTIGATION STATUS — THREE DISTINCT BUCKETS (do not merge these; a "
     "test in the wrong bucket downstream causes either a missed critical "
     "finding or a false claim that something was done): "
@@ -378,7 +559,11 @@ Return ONLY valid JSON in this exact shape:
   ],
   "investigations_conditionally_planned": ["tests mentioned only as a possible/future/conditional action, not yet actually ordered — see INVESTIGATION STATUS rule, e.g. 'ultrasound abdomen if symptoms persist'"],
   "interventions_given_this_encounter": [
-    "only things explicitly stated as already given/done/started THIS encounter — include EVERY type mentioned: oxygen therapy, monitoring (cardiac/multiparameter), NIV/BiPAP, IV fluids/medications, procedures (e.g. 'two large-bore IV cannulas secured', 'cervical collar applied'), blood-product preparedness (e.g. 'blood grouping and cross-match completed', 'massive transfusion protocol activated/on standby'), and any statement that a definitive procedure (surgery, transfusion, decompression) has already been PREPARED FOR or is IN PROGRESS, not just contemplated. Include the stated effect if given, e.g. 'BiPAP initiated, SpO2 improved from 67% to 97%'."
+    "only things explicitly CONFIRMED AS COMPLETED this encounter (see COMPLETED VS IN-PROGRESS/FUTURE ACTIONS rule above — do NOT include an action only described as starting/about to start/being initiated right now with no separate confirmation of completion) — include EVERY type mentioned: oxygen therapy, monitoring (cardiac/multiparameter), NIV/BiPAP, IV fluids/medications, procedures (e.g. 'two large-bore IV cannulas secured', 'cervical collar applied'), blood-product preparedness (e.g. 'blood grouping and cross-match completed', 'massive transfusion protocol activated/on standby'), any definitive procedure (surgery, transfusion, decompression) already PREPARED FOR or IN PROGRESS, and any treatment/medication explicitly stated as already given by a REFERRING/PRIOR FACILITY in an inter-facility transfer (e.g. 'IV paracetamol given at referring hospital') — a prior facility's administration is still a completed intervention for this encounter and must not be omitted just because a different crew/facility gave it. Include the stated effect if given, e.g. 'BiPAP initiated, SpO2 improved from 67% to 97%' (the stated effect itself confirms completion)."
+  ],
+  "prehospital_treatment_status": "string or null — ONLY set this when the notes contain an EXPLICIT statement about whether any treatment/medication has been given on scene so far. Use 'none_given_confirmed' if the notes explicitly say nothing has been administered yet (e.g. 'no aspirin given', 'nothing given on scene', 'we were waiting on your orders'). Use 'given' if interventions_given_this_encounter is non-empty. Leave null if the notes say nothing either way about this — do not guess either value.",
+  "doctor_conditional_orders": [
+    "capture EVERY doctor instruction to EMT that orders a treatment conditionally, of BOTH kinds: (a) conditional on administration status — phrasing like 'give X if not already given', 'start X unless already administered'; (b) conditional on a VITAL-SIGN THRESHOLD — phrasing like 'give O2 if sats drop below 94%', 'start pressors if BP under 90', 'give X if HR exceeds 120'. Both are ORDERS TO GIVE, not rejections and not completed interventions — extract each as {\"treatment_or_action\": \"string, e.g. 'oxygen therapy'\", \"condition_type\": \"administration_status|vital_threshold\", \"threshold_detail\": \"string or null — for vital_threshold only, e.g. 'SpO2 < 94%', restated precisely as the doctor stated the comparison and value\", \"stated_at\": \"IST timestamp string\", \"full_instruction\": \"verbatim doctor instruction\"}. Do NOT also place the same instruction in interventions_given_this_encounter unless the notes separately confirm it was actually administered."
   ],
   "known_medical_history": ["only if explicitly stated — includes conditions (e.g. 'diabetic', 'hypertensive', 'atrial fibrillation') AND named current medications (e.g. 'on Apixaban', 'on Warfarin', 'on Aspirin', 'on insulin'). Capture the specific drug name whenever one is stated rather than only a generic category like 'on blood thinners' — the specific agent matters for downstream eligibility/contraindication checks."],
   "explicitly_stated_negative_findings": ["only findings explicitly stated as normal/stable/absent/ruled-out, restated closely, e.g. 'pelvis stable, no pelvic instability', 'GCS 15, no loss of consciousness', 'pupils equal and reactive, no anisocoria', 'afebrile, no chills', 'no history of trauma'. These are used downstream to prevent contradicting the notes."],
@@ -398,9 +583,9 @@ correct earlier ones (e.g. vitals re-checked, complaint clarified), use the
 latest value, but do not discard information from earlier entries that
 still applies (e.g. an earlier-stated history or treatment given).
 
-{EXTRACTION_OUTPUT_SHAPE}
+    {EXTRACTION_OUTPUT_SHAPE}
 """
-    return await _invoke_llm(EXTRACTION_SYSTEM, prompt)
+    return await _invoke_llm(llm_extract, EXTRACTION_SYSTEM, prompt)
 
 
 # ============================================================
@@ -445,11 +630,26 @@ def _vital_redlines(vitals: Dict) -> List[str]:
 
     gcs = vitals.get("consciousness_or_gcs")
     if isinstance(gcs, str):
-        m = re.search(r"\b(\d{1,2})\b", gcs)
+        gcs_val = None
+        # Prefer the number stated immediately after "GCS" (e.g. "GCS 12",
+        # "GCS of 8") — this is always the total, never a component.
+        m = re.search(r"gcs\D{0,10}?(\d{1,2})\b", gcs, re.IGNORECASE)
         if m:
             gcs_val = int(m.group(1))
-            if 3 <= gcs_val <= 15 and gcs_val < 13:
-                breaches.append(f"GCS {gcs_val} below 13")
+        else:
+            # Component breakdowns (e.g. "E1V2M3=6", "3+4+5=12") state the
+            # TOTAL last, after an "=" — never take the first digit group,
+            # which is a component score (e.g. "3" from "3+4+5=12"), not
+            # the total.
+            eq_matches = re.findall(r"=\s*(\d{1,2})\b", gcs)
+            if eq_matches:
+                gcs_val = int(eq_matches[-1])
+            else:
+                all_matches = re.findall(r"\b(\d{1,2})\b", gcs)
+                if all_matches:
+                    gcs_val = int(all_matches[-1])
+        if gcs_val is not None and 3 <= gcs_val <= 15 and gcs_val < 13:
+            breaches.append(f"GCS {gcs_val} below 13")
 
     return breaches
 
@@ -481,6 +681,50 @@ def _apply_vital_safety_net(suggestions: Dict, facts: Dict) -> Dict:
     triage["safety_net_breaches"] = breaches
     return suggestions
 
+_PDE5_TERMS = ("sildenafil", "tadalafil", "vardenafil", "pde-5", "pde5", "viagra", "cialis", "levitra")
+_NITRO_TERMS = ("nitroglycerin", "nitrate", "gtn", "isosorbide")
+
+
+def _facts_mention_pde5(facts: Dict) -> bool:
+    """Search every free-text-bearing field for an existing PDE5 statement
+    so we don't overwrite a clarifying question the model already asked
+    correctly, or force a redundant question when the notes already state
+    PDE5 use/non-use."""
+    haystack_parts = [
+        str(facts.get("relevant_history") or ""),
+        str(facts.get("latest_status_text") or ""),
+        " ".join(str(x) for x in (facts.get("known_medical_history") or [])),
+        " ".join(str(x) for x in (facts.get("explicitly_stated_negative_findings") or [])),
+    ]
+    haystack = " ".join(haystack_parts).lower()
+    return any(term in haystack for term in _PDE5_TERMS)
+
+
+def _apply_nitro_pde5_safety_net(suggestions: Dict, facts: Dict) -> Dict:
+    treatment_plan = suggestions.get("treatment_plan") or {}
+    items = treatment_plan.get("items") or []
+
+    nitro_recommended = any(
+        any(t in str(item.get("drug_or_treatment") or "").lower() for t in _NITRO_TERMS)
+        for item in items
+    )
+    if not nitro_recommended:
+        return suggestions
+
+    if _facts_mention_pde5(facts):
+        return suggestions  # already documented either way — nothing to force
+
+    existing_q = (treatment_plan.get("emt_clarifying_question") or "")
+    if "pde" in existing_q.lower() or "sildenafil" in existing_q.lower() or "tadalafil" in existing_q.lower():
+        return suggestions  # model already asked correctly
+
+    treatment_plan["emt_clarifying_question"] = (
+        "Has the patient taken sildenafil, tadalafil, or a similar PDE5 "
+        "inhibitor recently? (Nitroglycerin is contraindicated with recent "
+        "PDE5 inhibitor use.)"
+    )
+    suggestions["treatment_plan"] = treatment_plan
+    return suggestions
 
 # ============================================================
 # STEP 2 — SUGGEST  (works only from STEP 1's structured facts)
@@ -506,6 +750,30 @@ SUGGESTION_SYSTEM = (
     "(10) precautions. Do not add differentials-as-complications, "
     "monitoring plans beyond what's asked, timelines, or any other section — "
     "only fields matching this list.\n\n"
+    "CHIEF-COMPLAINT-ONLY / PRE-ASSESSMENT CASES: if the facts consist only "
+    "of a reported complaint (e.g. a dispatch call or bystander report) with "
+    "NO vitals, NO exam findings, and NO clinician assessment yet performed, "
+    "do NOT leave treatment_plan/investigations/procedures empty by default. "
+    "Instead, you MAY populate them with standard, protocol-level first-"
+    "response actions that are appropriate for that specific complaint "
+    "pattern regardless of exam findings — e.g. for chest pain with "
+    "breathing difficulty: obtain full vitals (BP, HR, RR, SpO2, temp), "
+    "attach continuous cardiac/SpO2 monitoring, obtain a 12-lead ECG, "
+    "establish IV access, and consider aspirin 300mg PO if no known "
+    "contraindication once confirmed. Every such item MUST be explicitly "
+    "marked as provisional: set confirmation_status to "
+    "'provisional_pending_assessment' and word the reason to make clear "
+    "this is based on the reported complaint pattern alone, pending actual "
+    "clinical assessment — e.g. 'Standard first-response action for "
+    "reported chest pain + dyspnea; confirm on exam before administering.' "
+    "Never invent a specific weight-based or condition-specific dose that "
+    "requires information not available (e.g. do not dose by renal "
+    "function, weight-based drips, or anything needing a value you don't "
+    "have) — only include actions/doses that are standard regardless of "
+    "exam findings. This provisional tier does NOT apply once any real "
+    "vitals or exam findings exist in the facts — in that case, use those "
+    "findings normally per the rules below instead of provisional "
+    "language.\n\n"
     "CLINICAL IMPRESSION — PATTERN RECOGNITION IS ALLOWED AND EXPECTED: "
     "this is the one place you are explicitly permitted to synthesize a "
     "most-likely working diagnosis from a constellation of symptoms/signs, "
@@ -574,6 +842,40 @@ SUGGESTION_SYSTEM = (
     "internal organ injuries, and so on; only state a capability for a "
     "test that is factually correct for that specific test and that "
     "specific condition.\n\n"
+    "EMT CLARIFYING QUESTIONS — for clinical_impression, triage, "
+    "treatment_plan, investigations, and procedures ONLY: whenever "
+    "data_available is false, or is true but a specific detail relevant to "
+    "that section is missing, ask yourself whether the missing piece is "
+    "something the on-scene EMT crew could plausibly know and report right "
+    "now (e.g. what has already been given, current vitals, exam findings, "
+    "mechanism/timing details, patient response to an intervention) as "
+    "opposed to something that requires imaging, lab results, a hospital-"
+    "level assessment, or reflects the doctor's own prior clinical "
+    "decision. If, and only if, it is EMT-answerable, populate that "
+    "section's emt_clarifying_question with ONE short, plain-language "
+    "question a doctor could send directly to the crew as-is — no jargon, "
+    "no multi-part questions, phrased the way a doctor would actually type "
+    "it to EMT (e.g. 'Has aspirin already been given?', 'What is the "
+    "current oxygen saturation?', 'Is there any known allergy to aspirin?'). "
+    "If the gap is NOT something EMT could answer, leave emt_clarifying_"
+    "question null — never invent a question EMT has no way to answer, and "
+    "never populate this field just because reason_if_unavailable is "
+    "non-null; the two are independent judgements. MANDATORY CHECK BEFORE "
+    "WRITING ANY emt_clarifying_question: re-read the ENTIRE facts object "
+    "you were given — not just this section's inputs — including "
+    "reason_for_encounter, symptom_onset_or_event_timing, vitals, "
+    "primary_survey, interventions_given_this_encounter, "
+    "prehospital_treatment_status, explicitly_stated_negative_findings, "
+    "known_medical_history, and investigations_completed_with_findings. If "
+    "the answer to your candidate question is already stated anywhere in "
+    "that object, you MUST leave emt_clarifying_question null for this "
+    "section instead — do not re-ask it, and do not fold an "
+    "already-answered detail into a compound question alongside a genuinely "
+    "new one (e.g. do not ask 'does it radiate to the arm or jaw' when arm "
+    "radiation is already stated — ask only about jaw radiation, the part "
+    "actually missing). Each section's question must be checked "
+    "independently against the full facts object even though sections are "
+    "otherwise judged independently of each other.\n\n"
     "HARD CONTRADICTION RULE — applies to every section, and is a SEPARATE, "
     "STRICTER check on top of the no-hallucination rule above: before "
     "including ANY item anywhere in the output (complication, procedure, "
@@ -626,12 +928,42 @@ SUGGESTION_SYSTEM = (
     "90-94% alone, with no distress or heart failure described, is NOT by "
     "itself an indication for routine supplemental oxygen; state the "
     "actual basis (hypoxia/distress/heart failure) rather than defaulting "
-    "to 'oxygen' whenever any SpO2 figure is present. Whenever "
-    "nitroglycerin/nitrate therapy appears in treatment_plan, it must have "
+    "to 'oxygen' whenever any SpO2 figure is present. "
+    "THRESHOLD-CONDITIONAL DOCTOR ORDERS MUST BE RE-EVALUATED AGAINST "
+    "CURRENT VITALS, EVERY TIME: for each entry in doctor_conditional_orders "
+    "with condition_type 'vital_threshold', compare its threshold_detail "
+    "against the CURRENT/most recent value of that vital in facts.vitals. "
+    "If the current value already satisfies the stated trigger (e.g. order "
+    "was 'O2 if SpO2 < 94%' and facts.vitals.spo2_percent is now 93%), the "
+    "item MUST be listed as an ACTIVE, unconditional treatment_plan item — "
+    "phrase the reason to state plainly that the doctor's threshold has "
+    "already been met by the current vitals (e.g. 'Doctor ordered oxygen "
+    "if SpO2 drops below 94%; current SpO2 is 93%, so this threshold is "
+    "already met — administer now'), never still as a future 'if X' "
+    "condition. Only keep it phrased as a future conditional ('to give if "
+    "SpO2 drops below 94%') when the current vital has NOT yet crossed the "
+    "stated threshold. Re-check this on every regeneration, since vitals "
+    "may change between calls. "
+    "Whenever "    "nitroglycerin/nitrate therapy appears in treatment_plan, it must have "
     "a matching entry in CONTRAINDICATIONS (see below) that explicitly "
     "checks right ventricular involvement/inferior infarction, "
     "hypotension, recent PDE-5 inhibitor use if stated, and significant "
-    "bradycardia/tachycardia. For an acute coronary syndrome presentation "
+    "bradycardia/tachycardia. If recent PDE-5 inhibitor use (sildenafil, "
+    "tadalafil, vardenafil, or similar) is NOT already documented in the "
+    "facts, treatment_plan's emt_clarifying_question MUST ask EMT to "
+    "confirm whether the patient has taken a PDE-5 inhibitor recently — "
+    "this is mandatory whenever nitroglycerin is recommended, not "
+    "optional. ADDITIONALLY, whenever nitroglycerin is recommended for a "
+    "presentation with ischemic changes in the inferior leads (II, III, "
+    "aVF) and investigations_completed_with_findings does NOT contain a "
+    "right-sided ECG (V4R) result, the nitroglycerin contraindication "
+    "entry must NOT state 'no signs of right ventricular infarction' as a "
+    "clean negative — instead it must state explicitly that right "
+    "ventricular involvement has not been ruled out because a "
+    "right-sided ECG (V4R) has not been obtained, and investigations "
+    "must include 'right-sided ECG (V4R)' as an item to obtain before or "
+    "alongside nitroglycerin administration if not already ordered. For an "
+    "acute coronary syndrome presentation "
     "of ANY kind — ST-elevation OR non-ST-elevation/unstable angina — "
     "explicitly consider each of the following and include whichever are "
     "supported by the facts, not just the single most obvious drug: a "
@@ -642,7 +974,15 @@ SUGGESTION_SYSTEM = (
     "beta-blocker therapy only when hemodynamically appropriate (avoid or "
     "flag as inappropriate if signs of heart failure, bradycardia, "
     "hypotension, or right ventricular infarction are present in the "
-    "facts). THROMBOLYSIS IS NEVER APPROPRIATE FOR NSTEMI/NON-ST-ELEVATION "
+    "facts). PREHOSPITAL SCOPE GUARDRAIL: treatment_plan is a FIELD/EMS "
+    "administration list only — never include a medication whose benefit "
+    "requires sustained/chronic dosing rather than an acute effect during "
+    "transport (e.g. high-intensity statins, other long-term chronic-"
+    "disease medications). Such therapy is a hospital-admission-time "
+    "decision, not a prehospital intervention, and must never appear as a "
+    "treatment_plan item even when guideline-recommended for the condition "
+    "in the inpatient setting — omit it entirely rather than listing it "
+    "as 'to give'. THROMBOLYSIS IS NEVER APPROPRIATE FOR NSTEMI/NON-ST-ELEVATION "
     "ACS OR UNSTABLE ANGINA: if the facts describe ST depression and/or "
     "T-wave inversion (i.e. no ST elevation stated), you must NOT list or "
     "prepare for thrombolytic/fibrinolytic therapy under any framing — "
@@ -668,7 +1008,16 @@ SUGGESTION_SYSTEM = (
     "transfusion protocol is activated/on standby, treat blood-product "
     "resuscitation as the primary active strategy in your wording, not "
     "crystalloid, and say so explicitly rather than defaulting back to "
-    "'continue crystalloids'. For a presentation with colicky flank/loin "
+    "'continue crystalloids'. This blood-product consideration is "
+    "MANDATORY, not optional phrasing, whenever the facts show "
+    "hemorrhagic shock physiology (hypotension + tachycardia with a "
+    "suspected significant bleeding source) — even if cross-match has "
+    "NOT yet been done, include a distinct treatment_plan item for it "
+    "(phrased as a relay instruction per the EMT-Basic scope rule above, "
+    "e.g. 'Relay to incoming ALS/receiving facility: activate blood "
+    "bank, obtain type & crossmatch, prepare for blood-product "
+    "transfusion') rather than omitting blood products because a "
+    "cross-match result isn't available yet. For a presentation with colicky flank/loin "
     "pain radiating toward the groin plus hematuria and/or a prior stone "
     "history (renal colic pattern), do not recommend liberal/aggressive IV "
     "fluid administration — state the goal as maintaining euvolemia only, "
@@ -734,6 +1083,16 @@ SUGGESTION_SYSTEM = (
     "colic pattern, explicitly include ongoing monitoring of pain score and "
     "urine output if the facts state these are being tracked, and consider "
     "urine culture if infection is suspected or the system is obstructed. "
+    "WHENEVER nitroglycerin/nitrate therapy appears in treatment_plan for a "
+    "presentation with ischemic changes in the inferior leads (II, III, "
+    "aVF), and investigations_completed_with_findings does NOT already "
+    "contain a right-sided ECG/V4R result, you MUST include 'Right-sided "
+    "ECG (V4R)' as its own investigations item here, with status 'pending' "
+    "and justification tied to ruling out right ventricular infarction "
+    "before/alongside nitroglycerin administration — this is mandatory "
+    "whenever that combination of drug and ECG pattern occurs, not "
+    "optional, and is required in addition to (not instead of) the "
+    "matching contraindications entry. "
     "For a suspected acute stroke/neurological presentation, explicitly "
     "consider: a validated stroke severity scale (e.g. NIH Stroke Scale) "
     "in addition to GCS, and CT angiography plus large-vessel-occlusion "
@@ -744,8 +1103,16 @@ SUGGESTION_SYSTEM = (
     "by the facts, or procedural/surgical planning — never by inventing a "
     "suspected underlying cause that has no supporting fact, and never by "
     "claiming a test can diagnose a condition it cannot actually "
-    "diagnose.\n\n"
-    "PROCEDURES: hands-on procedures the facts justify (e.g. large-bore IV "
+    "diagnose. CONSISTENCY WITH REFERRALS AND SBAR: this section must be "
+    "judged from the exact same facts as referrals and sbar_summary — if "
+    "you name a specific imaging study or lab test anywhere in a "
+    "referral's reason or in the SBAR recommendation line, that same "
+    "study MUST also appear as its own item here (status pending/"
+    "completed/conditionally_planned as appropriate). Do NOT set "
+    "investigations.data_available to false, or leave items empty, while "
+    "recommending imaging or labs elsewhere in the same output — that is "
+    "a self-contradiction and is never acceptable.\n\n"
+    "PROCEDURES: hands-on procedures the facts justify(e.g. large-bore IV "
     "access, cervical collar, cardiac/multiparameter monitoring, advanced "
     "airway management, needle decompression) — kept separate from drugs. "
     "Do not recommend a procedure for a condition that is only suspected, "
@@ -795,9 +1162,25 @@ SUGGESTION_SYSTEM = (
     "ALS/paramedic or hospital staff, e.g. 'Relay to incoming ALS: prepare "
     "for needle decompression if tension physiology develops.'. The same "
     "scope rule applies to treatment_plan items — anything requiring a "
-    f"skill level above {RESPONDER_SKILL_LEVEL} (e.g. advanced airway "
-    "drugs, certain IV medications) must be phrased as a relay "
-    "instruction, not a direct one.\n\n"
+    f"skill level above {RESPONDER_SKILL_LEVEL} must be phrased as a "
+    "relay instruction, not a direct one. When "
+    f"{RESPONDER_SKILL_LEVEL} is 'EMT-Basic' specifically, treat IV/IO "
+    "cannulation, IV fluid administration (including any crystalloid "
+    "bolus, e.g. normal saline or Ringer's lactate), and any IV/IM "
+    "medication administration (including TXA, opioid/analgesic "
+    "administration, and any other injectable drug) as ABOVE EMT-Basic "
+    "scope by default, unless the facts themselves state a higher-scope "
+    "clinician or an ALS/paramedic unit is already on scene performing "
+    "them — phrase these as a relay instruction, e.g. 'Relay to incoming "
+    "ALS: establish second IV access and give TXA 1g IV over 10 min if "
+    "within the time window' or 'Relay to incoming ALS: administer "
+    "500 mL crystalloid bolus' rather than a direct instruction to the "
+    "EMT-Basic responder. This applies EVERY TIME an IV fluid bolus is "
+    "recommended, with no exception for hemorrhagic-shock cases — do not "
+    "let the urgency of the shock picture cause this item to slip back "
+    "into direct-instruction phrasing the way morphine and decompression "
+    "correctly do not. Advanced airway drugs are always above EMT-Basic "
+    "scope for the same reason.\n\n"
     "SBAR SUMMARY: Situation / Background / Assessment / Recommendation, a "
     "few sentences, built only from facts and conclusions already present "
     "in the other sections you produced above — no new claims. If "
@@ -913,12 +1296,18 @@ SUGGESTION_SYSTEM = (
     "the case). For nitroglycerin/nitrates specifically, the entry must "
     "address right ventricular involvement/inferior infarction, "
     "hypotension, recent PDE-5 inhibitor use if stated, and bradycardia/"
-    "tachycardia. Only write 'no contraindication evidence found in the "
-    "given facts' when you have genuinely checked and found nothing "
+    "tachycardia.     Only write 'no contraindication evidence found in the given facts' "
+    "when you have genuinely checked and found nothing "
     "relevant — do not let this become a default filler answer; for many "
     "trauma patients on an initial presentation there may genuinely be no "
     "documented contraindication yet, and that is a legitimate answer, but "
-    "it must reflect an actual check each time, not a reflex. Never leave "
+    "it must reflect an actual check each time, not a reflex. For any "
+    "PROVISIONAL item (confirmation_status = 'provisional_pending_"
+    "assessment'), do NOT write 'no contraindication found' — instead "
+    "state explicitly that contraindications (allergy, active bleeding, "
+    "current medications, comorbidities) cannot be verified without a "
+    "clinical assessment/history, and that this must be confirmed before "
+    "administration. Never leave "
     "a recommended item without a matching contraindication entry. Two "
     "situations must NEVER be reported as 'no contraindication found': "
     "(1) if the treatment's eligibility genuinely depends on a "
@@ -984,6 +1373,7 @@ Return ONLY valid JSON in this exact shape:
   "clinical_impression": {
     "data_available": true,
     "reason_if_unavailable": "string or null",
+    "emt_clarifying_question": "string or null — see EMT CLARIFYING QUESTIONS rule",
     "impression": "string or null — the single most likely diagnosis (verbatim from diagnostic_conclusions_stated if non-empty, otherwise a synthesized working impression from the symptom/sign/vitals pattern, explicitly labeled as pending confirmation if not already stated by a clinician/study)",
     "supporting_findings": ["the specific extracted facts that support this impression"],
     "differential": ["optional — other plausible diagnoses genuinely close in likelihood, or conditions being actively investigated/ruled out via ordered tests; leave empty if not applicable"]
@@ -992,18 +1382,21 @@ Return ONLY valid JSON in this exact shape:
     "colour": "Red|Yellow|Green|Black|Unknown",
     "rationale": "string or null — tied to specific facts",
     "data_available": true,
-    "reason_if_unavailable": "string or null"
+    "reason_if_unavailable": "string or null",
+    "emt_clarifying_question": "string or null — see EMT CLARIFYING QUESTIONS rule"
   },
   "treatment_plan": {
     "data_available": true,
     "reason_if_unavailable": "string or null",
+    "emt_clarifying_question": "string or null — see EMT CLARIFYING QUESTIONS rule",
     "items": [
-      {"drug_or_treatment": "string", "dose": "string or null", "reason": "string — cite the specific extracted fact(s)", "confirmation_status": "new|continuing|previously_advised_unconfirmed"}
+{"drug_or_treatment": "string", "dose": "string or null", "reason": "string — cite the specific extracted fact(s) or doctor_conditional_orders entry", "confirmation_status": "new|continuing|previously_advised_unconfirmed|provisional_pending_assessment"}
     ]
   },
   "investigations": {
     "data_available": true,
     "reason_if_unavailable": "string or null",
+    "emt_clarifying_question": "string or null — see EMT CLARIFYING QUESTIONS rule",
     "items": [
       {"investigation": "string", "status": "pending|completed|conditionally_planned", "finding_if_completed": "string or null", "justification": "string — cite the specific fact"}
     ]
@@ -1011,8 +1404,9 @@ Return ONLY valid JSON in this exact shape:
   "procedures": {
     "data_available": true,
     "reason_if_unavailable": "string or null",
+    "emt_clarifying_question": "string or null — see EMT CLARIFYING QUESTIONS rule",
     "items": [
-      {"procedure": "string", "timing": "perform_now|prepare_for|already_in_progress", "reason": "string — cite the specific fact", "confirmation_status": "new|continuing|previously_advised_unconfirmed"}
+      {"procedure": "string", "timing": "perform_now|prepare_for|already_in_progress", "reason": "string — cite the specific fact", "confirmation_status": "new|continuing|previously_advised_unconfirmed|provisional_pending_assessment"}
     ]
   },
   "sbar_summary": {
@@ -1060,7 +1454,11 @@ buckets it came from (investigations_already_ordered_or_pending -> "pending",
 investigations_completed_with_findings -> "completed" with
 finding_if_completed filled in, investigations_conditionally_planned ->
 "conditionally_planned") — never mark a completed item as pending or a
-conditional item as already ordered.
+conditional item as already ordered. emt_clarifying_question is independent
+of data_available — it may be populated on a data_available:true section if
+one specific EMT-answerable detail is still missing, and must stay null on a
+data_available:false section if the gap is not something EMT could answer
+(see EMT CLARIFYING QUESTIONS rule above).
 """
 
 async def generate_suggestions(
@@ -1068,9 +1466,20 @@ async def generate_suggestions(
     approved: List[str],
     rejected: List[str],
     previously_advised: List[Dict],
+    rejected_items: List[Dict],
 ) -> Dict:
     approved_block = "\n".join(f"  - {a}" for a in approved) or "  (none)"
     rejected_block = "\n".join(f"  - {r}" for r in rejected) or "  (none)"
+    rejected_items_block = "\n".join(
+        f"  - [{item['kind']}] {item['name']} — rejected at {item['rejected_at']}"
+        for item in rejected_items
+    ) or "  (none)"
+    conditional_orders = facts.get("doctor_conditional_orders") or []
+    conditional_orders_block = "\n".join(
+        f"  - {o.get('treatment_or_action')} — ordered at {o.get('stated_at')} "
+        f"(\"{o.get('full_instruction')}\")"
+        for o in conditional_orders if isinstance(o, dict)
+    ) or "  (none)"
     advised_block = "\n".join(
         f"  - [{item['kind']}] {item['name']}"
         + (f" ({item['dose']})" if item.get('dose') else "")
@@ -1095,6 +1504,32 @@ reassessment instead:
 ACTIONS THE DOCTOR EXPLICITLY REJECTED — never re-suggest these:
 {rejected_block}
 
+SPECIFIC DRUGS/TREATMENTS/PROCEDURES EXPLICITLY REJECTED IN A PRIOR
+SUGGESTION FOR THIS PATIENT (name-level, not just a rationale summary) —
+NEVER re-suggest any of these by name unless a new fact in the current
+notes materially changes the clinical picture that justified the
+rejection (e.g. a new vital-sign breach, a new doctor instruction
+superseding it, or a new finding). If nothing has materially changed,
+omit the item entirely rather than re-listing it — do not silently
+re-suggest a rejected item just because it would otherwise be clinically
+indicated by the same facts that were already present when it was
+rejected:
+{rejected_items_block}
+
+DOCTOR CONDITIONAL ORDERS FOR THIS ENCOUNTER — these are ORDERS TO GIVE,
+NOT rejections, regardless of their "if not already given" / "unless
+already administered" phrasing. Each one MUST appear in treatment_plan or
+procedures with confirmation_status "previously_advised_unconfirmed", a
+reason quoting the doctor's own instruction, AND a populated
+emt_clarifying_question asking EMT to confirm whether it has already been
+administered (unless facts.interventions_given_this_encounter already
+confirms it was, in which case treat it as already-given per the existing
+rule). NEVER classify one of these as rejected, and never silently drop it
+from a later-regenerated suggestion just because it was raised earlier in
+the conversation — it remains a standing order until confirmed given or the
+doctor issues a new instruction superseding it:
+{conditional_orders_block}
+
 SPECIFIC DRUGS/TREATMENTS/PROCEDURES ALREADY ADVISED IN A PRIOR APPROVED
 SUGGESTION FOR THIS PATIENT (name-level, not just a rationale summary):
 {advised_block}
@@ -1109,9 +1544,9 @@ treatment_plan or procedures with confirmation_status set to
 approved suggestion at {{advised_at}} — not yet confirmed as administered in
 the current notes. Confirm whether this was given; if not, give it now."
 
-{SUGGESTION_OUTPUT_SHAPE}
+    {SUGGESTION_OUTPUT_SHAPE}
 """
-    return await _invoke_llm(SUGGESTION_SYSTEM, prompt)
+    return await _invoke_llm(llm_suggest, SUGGESTION_SYSTEM, prompt)
 
 
 # ============================================================
@@ -1130,19 +1565,50 @@ async def process_patient(
     clinical_actions = await _fetch_clinical_actions(patient_id)
     approved, rejected = _summarize_clinical_actions(clinical_actions)
     previously_advised = _extract_previously_advised_treatments(clinical_actions)
+    rejected_items = _extract_rejected_treatments(clinical_actions)
 
     facts = await extract_facts(timeline_text)
     if facts.get("_parse_error"):
-        raise HTTPException(status_code=502, detail="Failed to parse fact-extraction output from the model.")
+        logger.error(f"Fact extraction failed to parse for patient {patient_id}: truncated={facts.get('_truncated')}")
+        facts = {}
 
-    suggestions = await generate_suggestions(facts, approved, rejected, previously_advised)
+    suggestions = await generate_suggestions(facts, approved, rejected, previously_advised, rejected_items)
     if suggestions.get("_parse_error"):
-        raise HTTPException(status_code=502, detail="Failed to parse suggestion output from the model.")
+        logger.error(f"Suggestion generation failed to parse for patient {patient_id}: truncated={suggestions.get('_truncated')}")
+        reason = (
+            "The AI response was cut off before completing (output too long for the current limit)."
+            if suggestions.get("_truncated")
+            else "The AI response could not be parsed."
+        )
+        suggestions = {
+            "sufficient_data": False,
+            "missing_information": [reason],
+            "clinical_impression": {"data_available": False, "reason_if_unavailable": reason, "emt_clarifying_question": None, "impression": None, "supporting_findings": [], "differential": []},
+            "triage": {"colour": "Unknown", "rationale": None, "data_available": False, "reason_if_unavailable": reason, "emt_clarifying_question": None},
+            "treatment_plan": {"data_available": False, "reason_if_unavailable": reason, "emt_clarifying_question": None, "items": []},
+            "investigations": {"data_available": False, "reason_if_unavailable": reason, "emt_clarifying_question": None, "items": []},
+            "procedures": {"data_available": False, "reason_if_unavailable": reason, "emt_clarifying_question": None, "items": []},
+            "sbar_summary": {"data_available": False, "reason_if_unavailable": reason, "text": None},
+            "referrals": {"data_available": False, "reason_if_unavailable": reason, "items": []},
+            "complications": {"data_available": False, "reason_if_unavailable": reason, "items": []},
+            "contraindications": {"data_available": False, "reason_if_unavailable": reason, "items": []},
+            "precautions": {"data_available": False, "reason_if_unavailable": reason, "items": []},
+        }
 
     # Deterministic vital-sign safety net — code-level, no LLM. Can only
     # escalate triage.colour to Red, never downgrade or override anything
     # else the model produced.
     suggestions = _apply_vital_safety_net(suggestions, facts)
+
+    # Deterministic, code-level — surfaces already-given EMT/doctor
+    # treatments as their own display-only section (see definition above).
+    suggestions = _apply_previously_administered(suggestions, facts)
+
+    # Deterministic, code-level — the LLM's own PDE5 instruction is not
+    # reliably followed (observed: nitro suggested with the PDE5 question
+    # silently missing). Never invents or removes the drug itself; only
+    # force-populates the clarifying question if the model failed to.
+    suggestions = _apply_nitro_pde5_safety_net(suggestions, facts)
 
     latest_ts_ist = iso_ist(entries[-1].get("timestamp")) if entries else ""
     elapsed = round(datetime.now().timestamp() * 1000 - start_ms)
@@ -1254,6 +1720,23 @@ async def _notify_driver(patient_id: str) -> None:
         logger.warning(f"Driver notify failed (non-critical): {notify_err}")
 
 
+async def _notify_doctor(patient_id: str, update_type: str) -> None:
+    """
+    Pushes a live WebSocket update to any doctor browser tab with this
+    patient open (PatientProfileEmergency.jsx). The doctor's WS connection
+    is held by the gateway service, not this one, so this crosses the
+    service boundary the same way _notify_driver above already does.
+    """
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            await client.post(
+                "https://doctorassist.ai/api/hms/users/ambulance/notify-doctor-update",
+                json={"patient_id": patient_id, "update_type": update_type},
+            )
+    except Exception as notify_err:
+        logger.warning(f"Doctor notify failed (non-critical): {notify_err}")
+
+
 @router.post("/clinical-action/save")
 async def save_clinical_action(data: ClinicalActionSaveRequest):
     if data.ai_suggestion is None and data.voice_dictation is None:
@@ -1271,6 +1754,41 @@ async def save_clinical_action(data: ClinicalActionSaveRequest):
     try:
         result = await clinical_actions_collection.insert_one(document)
         await _notify_driver(data.patient_id)
+        await _notify_doctor(data.patient_id, "CLINICAL_ACTION_UPDATE")
+
+        # EVIS is the authoritative source of truth for triage colour across
+        # all downstream documents (EIDIS insurance package, EDFS ED summary,
+        # emergency structured note). The moment a doctor approves an AI
+        # suggestion that carries a triage colour, persist it here so every
+        # other pipeline's fetch_authoritative_triage() picks up THIS value
+        # instead of independently recomputing its own from raw vitals —
+        # which is what caused the same patient to show different triage
+        # colours (e.g. Red on the live feed, Green on generated summaries).
+        if data.action_type == "approved" and data.ai_suggestion:
+            triage = data.ai_suggestion.get("triage") or {}
+            triage_colour = triage.get("colour")
+            if triage_colour:
+                try:
+                    await upsert_authoritative_triage(
+                        collection=patient_triage_status_collection,
+                        patient_id=data.patient_id,
+                        triage_colour=triage_colour,
+                        source_system="EVIS",
+                        criticality_score=data.ai_suggestion.get("criticality_score"),
+                        risk_level=data.ai_suggestion.get("risk_level"),
+                        rationale=triage.get("rationale"),
+                        computed_at_ist=now_ist().isoformat(),
+                    )
+                    logger.info(
+                        f"Authoritative triage colour '{triage_colour}' stored for "
+                        f"patient {data.patient_id} following doctor approval."
+                    )
+                except Exception as triage_err:
+                    logger.warning(
+                        f"Failed to persist authoritative triage for "
+                        f"{data.patient_id} (non-critical): {triage_err}"
+                    )
+
         return {"status": "success", "message": "Clinical action saved", "id": str(result.inserted_id)}
     except Exception as e:
         logger.error(f"Failed to save clinical action: {e}")
@@ -1358,6 +1876,7 @@ async def save_doctor_voice_note(note_data: DoctorVoiceNoteRequest):
             "timezone": "IST (Asia/Kolkata)",
         }
         result = await doctor_voice_notes_collection_forprocessing.insert_one(document)
+        await _notify_doctor(note_data.patient_id, "DOCTOR_NOTE_SAVED")
         return {
             "status": "success",
             "message": "Doctor voice note saved successfully",

@@ -1,6 +1,6 @@
-// components/case/AssignmentSection.jsx
 import React, { useState, useEffect, useRef } from 'react'
 import AvailableOfficerDropdown from "./AvailableOfficerDropdown"
+import OfficerMapModal from "./OfficerMapModal"
 
 // ─── Investigation types ───────────────────────────────────────────────────────
 // DB keys are unchanged for MV / HVI / HV.
@@ -14,15 +14,14 @@ const INVESTIGATION_TYPES = [
   { key: "HV",   label: "Past Hospital Visit"  },
   { key: "DIGI", label: "Digi Verification"    },
 ]
-
 const DOCUMENT_OPTIONS = {
 
   // ─── Member Visit (at claimant's home) ───────────────────────────────────
   // Only docs a patient would physically possess at home
   MV: [
     // Identity & policy
-    "Patient ID Proof",
-    "ID Proof of person filling MVF (if different)",
+    "Patient Identity Proof",
+    "Identity Proof of person filling the Member Visit Form (if different)",
     "Policy card / Health card",
     "Policy-related documents",
     "Declaration form",
@@ -31,15 +30,15 @@ const DOCUMENT_OPTIONS = {
     // Discharge & consultation papers patient took home
     "Discharge summary",
     "Previous consultation papers before admission",
-    "First consultation papers (FCP)",
-    "ICP (Initial Consultation Paper)",
-    "Past OP papers",
-    "Past IP papers",
+    "First consultation papers",
+    "Initial Consultation Paper",
+    "Past Outpatient papers",
+    "Past Inpatient papers",
 
     // Investigation reports patient brought home
     "Blood reports",
     "X-ray reports",
-    "MRI reports",
+    "Magnetic Resonance Imaging reports",
     "Other investigation reports",
 
     // Physical evidence
@@ -62,7 +61,7 @@ const DOCUMENT_OPTIONS = {
 
     // Bill verification (done at home visit)
     "Wound certificate",
-    "RTA verification",
+    "Road Traffic Accident verification",
     "Cashless claim details",
     "Bill genuineness verification",
     "Discount verification",
@@ -72,9 +71,9 @@ const DOCUMENT_OPTIONS = {
   // ─── Member Visit — Accident sub-type ────────────────────────────────────
   MV_ACCIDENT: [
     "Driving License",
-    "MLC Copy",
-    "Police MLC",
-    "FIR",
+    "Medico-Legal Case copy",
+    "Police Medico-Legal Case report",
+    "First Information Report",
     "Police intimation letter",
     "Wound certificate",
     "Panchanama",
@@ -86,10 +85,10 @@ const DOCUMENT_OPTIONS = {
     "Social media coverage",
     "Narratives/audio from accident spot persons",
     "First aid hospital prescriptions",
-    "First consultation papers (FCP)",
+    "First consultation papers",
     "Treating doctor certificate to rule out alcohol history",
     "Witness statements",
-    "Bystander ID proof",
+    "Bystander identity proof",
     "All bills",
     "Consent for unavailable first-aid prescriptions",
   ],
@@ -103,7 +102,7 @@ const DOCUMENT_OPTIONS = {
     "Detailed narration of incident",
     "Postmortem report",
     "Chemical analysis report",
-    "FIR",
+    "First Information Report",
     "Witness name and address",
     "Details of person who brought patient to hospital",
     "Psychiatric history",
@@ -125,81 +124,66 @@ const DOCUMENT_OPTIONS = {
     "Specialist diagnosis certificate",
     "Histopathology / biopsy report (if applicable)",
     "Oncologist / cardiologist / neurologist report",
-    "ICU admission summary and records",
+    "Intensive Care Unit admission summary and records",
     "All treatment records for the critical condition",
   ],
 
   // ─── Hospital Visit (investigator physically goes to hospital) ───────────
-  // All clinical records that only exist inside the hospital
+  // All clinical records that only exist inside the hospital.
+  // Order below is the fixed field-visit checklist order (do not
+  // alphabetize / re-sort — this is the sequence the field officer
+  // physically works through at the hospital).
   HVI: [
-    // Admission & identity at hospital
-    "OP Card",
-    "Hospital visit form",
-    "Signed investigation consent form",
-    "Claimant ID proof",
-    "Policy document copy",
-
-    // Consultation & admission records
-    "First consultation papers",
-    "ICP (Initial Consultation Paper)",
-    "IP papers",
-    "Emergency notes",
-    "Casualty notes",
-    "Doctor statement",
-
-    // Clinical charts (only in hospital) ← MOVED FROM MV
     "Initial assessment chart",
-    "Treatment chart",
-    "BP chart",
-    "Diabetic chart",
-    "Temperature chart",
-    "Nurses' records",
-
-    // Surgery & anaesthesia records (only in hospital) ← MOVED FROM MV
-    "Pre-anesthetic checklist",
+    "First consultation paper",
+    "Initial Consultation Paper",
+    "Discharge summary",
+    "Emergency / Casualty notes",
+    "Pre-Anesthetic Checklist",
     "Anesthesia chart",
     "Surgery notes",
     "Post-operative notes",
-
-    // Investigation reports (hospital copies)
     "Blood reports",
-    "X-ray",
-    "MRI",
+    "X-ray reports",
+    "Magnetic Resonance Imaging reports",
+    "Treatment chart",
+    "Temperature chart",
+    "Doctor's notes",
     "Other investigation reports",
-
-    // Referral & transfer
     "Reference notes",
-    "Discharge summary from transferred hospital",
-    "Bills from both hospitals",
-
-    // Past records retrieved from hospital
-    "Past OP papers",
-    "Past IP papers",
     "Treatment records",
-    "Hospital records",
-
-    // Bills collected at hospital
+    "Hospital visit form",
+    "Doctor's statement",
+    "Blood Pressure chart",
+    "Diabetic chart",
+    "Nurses' records",
+    "Bills paid",
+    "Past Outpatient papers",
+    "Past Inpatient papers",
     "Pharmacy bills",
-    "Every bill",
     "Discharge bill",
-    "Lab bill",
 
-    // MLC / legal (at hospital)
-    "MLC",
-    "Police MLC",
-    "FIR",
+    // ── Everything else currently collected at the hospital, not covered
+    // above — appended in original order, abbreviations spelled out ──
+    "Outpatient Card",
+    "Signed investigation consent form",
+    "Claimant identity proof",
+    "Policy document copy",
+    "Inpatient papers (current admission)",
+    "Bills from both hospitals",
+    "Hospital records",
+    "Lab bill",
+    "Medico-Legal Case report",
+    "Police Medico-Legal Case report",
+    "First Information Report",
     "Wound certificate",
     "Treating doctor certificate regarding alcohol history",
     "Death summary",
     "Postmortem report",
     "Chemical analysis report",
-
-    // Physical
     "Hospital geotag photo",
-
-    // Bill verification (done at hospital)
     "Seal verification",
-    "RTA verification",
+    "Road Traffic Accident verification",
     "Cashless claim details",
     "Bill genuineness verification",
     "Discount verification",
@@ -722,6 +706,7 @@ export default function AssignmentSection({
   const [selectedDoctor, setSelectedDoctor] = useState('')
   const [doctorsList, setDoctorsList]       = useState([])
   const [loadingDoctors, setLoadingDoctors] = useState(false)
+  const [showMapModal, setShowMapModal]     = useState(false)
 
   const claimTriggers = formData.claimTriggers || []
 
@@ -876,9 +861,36 @@ const removeCustomDoc = (type, idx) => {
             border: '1px solid var(--border)',
             display: 'flex', flexDirection: 'column', gap: 16,
           }}>
-            <h4 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
-              📋 Investigation Assignments
-            </h4>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h4 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
+                📋 Investigation Assignments
+              </h4>
+              <button
+                type="button"
+                onClick={() => setShowMapModal(true)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '6px 12px', fontSize: 12, fontWeight: 600,
+                  background: 'var(--bg1)', border: '1px solid var(--border)',
+                  borderRadius: 8, cursor: 'pointer', color: 'var(--text)',
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M12 21s-7-6.1-7-11a7 7 0 1 1 14 0c0 4.9-7 11-7 11z"
+                    stroke="currentColor" strokeWidth="2"
+                    strokeLinecap="round" strokeLinejoin="round"
+                  />
+                  <circle cx="12" cy="10" r="2.5" stroke="currentColor" strokeWidth="2" />
+                </svg>
+                Map
+              </button>
+            </div>
+
+            <OfficerMapModal
+              open={showMapModal}
+              onClose={() => setShowMapModal(false)}
+            />
 
             {INVESTIGATION_TYPES.map(({ key, label }) => {
               const pincode    = getPincodeForType(key)

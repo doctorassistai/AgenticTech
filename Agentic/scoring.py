@@ -37,7 +37,7 @@ patient_appointments_collection = mongo_db["patient_appointments"]
 router = APIRouter(prefix="/vitals-intelligence", tags=["Vitals Intelligence"])
 GROQ_API_KEY  = os.getenv("GROQ_API_KEY")
 llm = ChatGroq(
-    model="llama-3.3-70b-versatile",
+    model="openai/gpt-oss-120b",
     temperature=0.1,
     groq_api_key=os.getenv("GROQ_API_KEY"),
     max_tokens=3000,

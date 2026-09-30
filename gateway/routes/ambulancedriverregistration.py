@@ -77,10 +77,156 @@ class DriverConnectionManager:
 
 driver_manager = DriverConnectionManager()
 
+
+class DoctorConnectionManager:
+    """
+    Mirrors DriverConnectionManager, but keyed by patient_id and used by
+    doctor-facing browser tabs (PatientProfileEmergency.jsx) instead of the
+    driver mobile app. No push-token/Expo step — a browser tab has no
+    background-push channel, so a live WebSocket message is all we send.
+    """
+    def __init__(self):
+        self.active_connections: Dict[str, set] = {}
+
+    async def connect(self, patient_id: str, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.setdefault(patient_id, set()).add(websocket)
+        logger.info(f"Doctor tab connected for patient {patient_id} ({len(self.active_connections[patient_id])} active)")
+
+    def disconnect(self, patient_id: str, websocket: WebSocket = None):
+        if patient_id in self.active_connections:
+            if websocket is not None:
+                self.active_connections[patient_id].discard(websocket)
+            else:
+                self.active_connections[patient_id].clear()
+            if not self.active_connections[patient_id]:
+                del self.active_connections[patient_id]
+            logger.info(f"Doctor tab disconnected for patient {patient_id}")
+
+    async def send_to_patient(self, patient_id: str, message: dict):
+        conns = self.active_connections.get(patient_id)
+        if not conns:
+            return
+        dead = []
+        for ws in list(conns):
+            try:
+                await ws.send_json(message)
+            except Exception as e:
+                logger.error(f"Failed to send to doctor tab for patient {patient_id}: {e}")
+                dead.append(ws)
+        for ws in dead:
+            self.disconnect(patient_id, ws)
+
+doctor_manager = DoctorConnectionManager()
+
+
+class DashboardConnectionManager:
+    """
+    Broadcasts to any connected dashboard tab (DoctorEmergencyDashboard.jsx),
+    not scoped to a specific patient — used for events the patient-list view
+    needs to react to (new patient registered, incident completed) without
+    running its own poll timer.
+    """
+    def __init__(self):
+        self.active_connections: set = set()
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.add(websocket)
+        logger.info(f"Dashboard tab connected ({len(self.active_connections)} active)")
+
+    def disconnect(self, websocket: WebSocket = None):
+        self.active_connections.discard(websocket)
+        logger.info(f"Dashboard tab disconnected ({len(self.active_connections)} active)")
+
+    async def broadcast(self, message: dict):
+        dead = []
+        for ws in list(self.active_connections):
+            try:
+                await ws.send_json(message)
+            except Exception as e:
+                logger.error(f"Failed to send to dashboard tab: {e}")
+                dead.append(ws)
+        for ws in dead:
+            self.disconnect(ws)
+
+dashboard_manager = DashboardConnectionManager()
+
+
+async def _notify_dashboard(update_type: str, patient_id: str = None):
+    await dashboard_manager.broadcast({
+        "type": update_type,
+        "patient_id": patient_id,
+    })
+
+
+async def _notify_doctor_for_patient(patient_id: str, update_type: str):
+    """
+    Pushes a live update to any doctor browser tab with this patient open.
+    Called locally below (save_image_extracted, save_doctor_suggestion,
+    complete_incident) and remotely — Agentic's ambulance.py and the users
+    service's patientcontext.py each POST to /notify-doctor-update (see
+    below) since they run in separate containers and can't call
+    doctor_manager directly.
+    """
+    await doctor_manager.send_to_patient(patient_id, {
+        "type": update_type,
+        "patient_id": patient_id,
+    })
+
+
 router = APIRouter(
     prefix="/hms/users/ambulance",
     tags=["ambulance"],
 )
+
+
+class NotifyDoctorUpdateRequest(BaseModel):
+    patient_id: str
+    update_type: str
+
+@router.post("/notify-doctor-update")
+async def notify_doctor_update(data: NotifyDoctorUpdateRequest):
+    try:
+        await _notify_doctor_for_patient(data.patient_id, data.update_type)
+        return {"status": "success"}
+    except Exception as e:
+        logger.error(f"notify_doctor_update error: {e}")
+        return {"status": "failed", "message": str(e)}
+
+
+@router.websocket("/ws/doctor/{patient_id}")
+async def doctor_websocket(websocket: WebSocket, patient_id: str):
+    await doctor_manager.connect(patient_id, websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        doctor_manager.disconnect(patient_id, websocket)
+
+
+@router.websocket("/ws/dashboard")
+async def dashboard_websocket(websocket: WebSocket):
+    await dashboard_manager.connect(websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        dashboard_manager.disconnect(websocket)
+
+
+class NotifyNewPatientRequest(BaseModel):
+    patient_id: str
+    fullName: Optional[str] = ""
+
+@router.post("/notify-new-patient")
+async def notify_new_patient(data: NotifyNewPatientRequest):
+    try:
+        await _notify_dashboard("NEW_PATIENT_REGISTERED", data.patient_id)
+        return {"status": "success"}
+    except Exception as e:
+        logger.error(f"notify_new_patient error: {e}")
+        return {"status": "failed", "message": str(e)}
 
 async def send_push_notification(push_token: str, title: str, body: str, data: dict = None):
     """Send an Expo push notification. Safe no-op if token missing/invalid."""
@@ -1682,6 +1828,24 @@ async def update_ambulance_status(data: AmbulanceActiveUpdate):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# How old a driver's last GPS ping can be before we stop trusting it as
+# "live". Past this, we treat the coordinate as unusable rather than
+# silently feeding a months-old point into distance/nearest-ambulance math.
+LOCATION_STALE_AFTER_MINUTES = 10
+
+def _parse_location_timestamp(raw):
+    """last_location_update is written as an ISO string in most write
+    paths (update-location, assign-vehicle) but may be a native datetime
+    in older records. Normalize both to a naive UTC datetime, or None."""
+    if not raw:
+        return None
+    if isinstance(raw, datetime):
+        return raw
+    try:
+        return datetime.fromisoformat(str(raw))
+    except (ValueError, TypeError):
+        return None
+
 
 @router.get("/active-with-location")
 async def get_active_ambulances_with_location():
@@ -1691,6 +1855,7 @@ async def get_active_ambulances_with_location():
         ).to_list(length=100)
 
         result = []
+        now = datetime.utcnow()
 
         for amb in ambulances:
             vehicle_id = amb.get("vehicleId")
@@ -1702,6 +1867,30 @@ async def get_active_ambulances_with_location():
                 "assignedVehicleId": vehicle_id
             })
 
+            latitude = driver.get("latitude") if driver else None
+            longitude = driver.get("longitude") if driver else None
+            is_online = driver.get("is_online") if driver else False
+
+            location_age_minutes = None
+            is_stale = False
+            if driver:
+                last_update = _parse_location_timestamp(driver.get("last_location_update"))
+                if last_update:
+                    location_age_minutes = (now - last_update).total_seconds() / 60
+                    is_stale = location_age_minutes > LOCATION_STALE_AFTER_MINUTES
+                else:
+                    # No timestamp at all but coordinates exist (e.g. set
+                    # once via assign-vehicle, never updated since) — treat
+                    # as stale rather than assume it's current.
+                    is_stale = latitude is not None or longitude is not None
+
+            if is_stale:
+                # Don't hand out a coordinate we can't vouch for — this is
+                # what was producing the 471km "nearest ambulance" result.
+                latitude = None
+                longitude = None
+                is_online = False
+
             result.append({
                 "vehicleId": vehicle_id,
                 "vehicleNumber": amb.get("vehicleRegNumber"),
@@ -1710,9 +1899,11 @@ async def get_active_ambulances_with_location():
                 # ✅ SAFE ACCESS
                 "driverName": driver.get("fullName") if driver else None,
                 "driverId": driver.get("driverId") if driver else None,
-                "latitude": driver.get("latitude") if driver else None,
-                "longitude": driver.get("longitude") if driver else None,
-                "is_online": driver.get("is_online") if driver else False,
+                "latitude": latitude,
+                "longitude": longitude,
+                "is_online": is_online,
+                "location_stale": is_stale,
+                "location_age_minutes": round(location_age_minutes, 1) if location_age_minutes is not None else None,
             })
 
         return {
@@ -1723,7 +1914,6 @@ async def get_active_ambulances_with_location():
     except Exception as e:
         print("❌ ERROR IN active-with-location:", str(e))  # 🔥 ADD THIS
         raise HTTPException(status_code=500, detail=str(e))
-
 
 @router.websocket("/ws/driver/{driver_id}")
 async def driver_websocket(websocket: WebSocket, driver_id: str):
@@ -1755,6 +1945,72 @@ async def register_push_token(data: RegisterPushTokenRequest):
         logger.error(f"register_push_token error: {e}")
         return {"status": "failed", "message": str(e)}
 
+async def _notify_driver_for_patient(patient_id: str, update_type: str):
+    """
+    Shared driver-notification logic — resolves the driver currently
+    assigned to a patient, then pushes both a live websocket message and
+    an Expo push notification. Used by the /notify-driver-update endpoint
+    (clinical actions) and directly by save_doctor_suggestion /
+    save_image_extracted (image suggestions), so both update paths notify
+    the driver instantly instead of relying on the app's own poll loop.
+    """
+    driver_id = None
+    source = None
+
+    # 1️⃣ PRIMARY: check ambulance_assignments (this is what /ambulance/dispatch-patient
+    #    actually writes to — the flow currently in use)
+    assignment = await database["ambulance_assignments"].find_one(
+        {"patient_id": patient_id, "status": {"$in": ["dispatched", "accepted"]}},
+        sort=[("assigned_at", -1)],
+    )
+    if assignment:
+        driver_id = assignment.get("driver_id")
+        source = "ambulance_assignments"
+
+    # 2️⃣ FALLBACK: legacy /assign-driver flow, writes patients.ambulance_driver
+    if not driver_id:
+        patient = await database["patients"].find_one(
+            {"patient_id": patient_id},
+            {"ambulance_driver.driver_id": 1}
+        )
+        if patient:
+            driver_id = (patient.get("ambulance_driver") or {}).get("driver_id")
+            if driver_id:
+                source = "patients.ambulance_driver"
+
+    logger.info(f"_notify_driver_for_patient: patient={patient_id} resolved driver_id={driver_id} source={source}")
+
+    if not driver_id:
+        return {"status": "success", "notified": None, "reason": "no driver assigned to this patient"}
+
+    await driver_manager.send_to_driver(driver_id, {
+        "type": update_type,
+        "patient_id": patient_id,
+    })
+
+    # Also send an actual OS-level push so this reaches the driver
+    # even if the app is backgrounded or killed (WS alone can't).
+    driver_doc = await ambulancedrivers_collection.find_one(
+        {"driverId": driver_id}, {"push_token": 1}
+    )
+    push_token = (driver_doc or {}).get("push_token")
+
+    title = (
+        "Clinical Action Approved" if update_type == "CLINICAL_ACTION_UPDATE"
+        else "New Image Analysis"
+    )
+    body = "Tap to view the update for your patient."
+
+    await send_expo_push(
+        push_token,
+        title,
+        body,
+        {"type": update_type, "patient_id": patient_id},
+        channel_id="clinical-alerts",
+    )
+
+    return {"status": "success", "notified": driver_id, "source": source}
+
 
 class NotifyDriverUpdateRequest(BaseModel):
     patient_id: str
@@ -1763,62 +2019,7 @@ class NotifyDriverUpdateRequest(BaseModel):
 @router.post("/notify-driver-update")
 async def notify_driver_update(data: NotifyDriverUpdateRequest):
     try:
-        driver_id = None
-        source = None
-
-        # 1️⃣ PRIMARY: check ambulance_assignments (this is what /ambulance/dispatch-patient
-        #    actually writes to — the flow currently in use)
-        assignment = await database["ambulance_assignments"].find_one(
-            {"patient_id": data.patient_id, "status": {"$in": ["dispatched", "accepted"]}},
-            sort=[("assigned_at", -1)],
-        )
-        if assignment:
-            driver_id = assignment.get("driver_id")
-            source = "ambulance_assignments"
-
-        # 2️⃣ FALLBACK: legacy /assign-driver flow, writes patients.ambulance_driver
-        if not driver_id:
-            patient = await database["patients"].find_one(
-                {"patient_id": data.patient_id},
-                {"ambulance_driver.driver_id": 1}
-            )
-            if patient:
-                driver_id = (patient.get("ambulance_driver") or {}).get("driver_id")
-                if driver_id:
-                    source = "patients.ambulance_driver"
-
-        logger.info(f"notify_driver_update: patient={data.patient_id} resolved driver_id={driver_id} source={source}")
-
-        if driver_id:
-            await driver_manager.send_to_driver(driver_id, {
-                "type": data.update_type,
-                "patient_id": data.patient_id,
-            })
-
-            # Also send an actual OS-level push so this reaches the driver
-            # even if the app is backgrounded or killed (WS alone can't).
-            driver_doc = await ambulancedrivers_collection.find_one(
-                {"driverId": driver_id}, {"push_token": 1}
-            )
-            push_token = (driver_doc or {}).get("push_token")
-
-            title = (
-                "Clinical Action Approved" if data.update_type == "CLINICAL_ACTION_UPDATE"
-                else "New Image Analysis"
-            )
-            body = "Tap to view the update for your patient."
-
-            await send_expo_push(
-                push_token,
-                title,
-                body,
-                {"type": data.update_type, "patient_id": data.patient_id},
-                channel_id="clinical-alerts",
-            )
-
-            return {"status": "success", "notified": driver_id, "source": source}
-
-        return {"status": "success", "notified": None, "reason": "no driver assigned to this patient"}
+        return await _notify_driver_for_patient(data.patient_id, data.update_type)
     except Exception as e:
         logger.error(f"notify_driver_update error: {e}")
         return {"status": "failed", "message": str(e)}
@@ -3687,12 +3888,14 @@ async def decline_patient(data: dict):
     try:
         patient_id = data.get("patient_id")
         driver_id = data.get("driver_id")
+        assignment_id = data.get("assignment_id")  # scope the decline to this specific dispatch, not the patient_id forever
         reason = data.get("reason", "Declined by driver")
         
         # Store declined status
         decline_record = {
             "patient_id": patient_id,
             "driver_id": driver_id,
+            "assignment_id": assignment_id,
             "reason": reason,
             "declined_at": datetime.now().isoformat()
         }
@@ -3996,9 +4199,41 @@ async def get_assigned_patients_for_driver(driver_id: str):
                 })
         
         # Add from patients collection (only if not already added)
+        # Build a set of patient_ids this driver has genuinely completed,
+        # so the legacy fallback branch below (which has no assignment_id
+        # to check) can still filter them out correctly.
+        completed_patient_ids_for_driver = set()
+        completed_cursor = completed_incidents_collection.find(
+            {"driver_id": driver_id}, {"patient_id": 1}
+        )
+        async for c in completed_cursor:
+            if c.get("patient_id"):
+                completed_patient_ids_for_driver.add(c["patient_id"])
+
+        # This fallback branch (patients collection) has no real assignment_id
+        # of its own — it fabricates one from patient_id — so per-assignment
+        # decline scoping doesn't apply here. Patient_id-scoped exclusion is
+        # correct for this legacy path specifically: it only hides pseudo-
+        # assignments with no backing ambulance_assignments doc, and any
+        # genuinely new dispatch always creates a real assignment_id via
+        # branch 1 instead, so this can't reintroduce the original bug.
+        declined_patient_ids_for_driver = set()
+        declined_cursor = Ambulance_driver_declined.find(
+            {"driver_id": driver_id}, {"patient_id": 1}
+        )
+        async for d in declined_cursor:
+            if d.get("patient_id"):
+                declined_patient_ids_for_driver.add(d["patient_id"])
+
         for patient in patients_with_driver:
             patient_id = patient.get("patient_id")
-            if patient_id and patient_id not in patient_ids:
+            if (
+                patient_id
+                and patient_id not in patient_ids
+                and patient_id not in completed_patient_ids_for_driver
+                and patient_id not in declined_patient_ids_for_driver
+            ):
+                
                 patient_ids.add(patient_id)
                 
                 ambulance_driver = patient.get("ambulance_driver", {})
@@ -4080,15 +4315,18 @@ async def accept_assigned_patient(data: dict):
 # ✅ COMPLETED INCIDENT COLLECTION
 completed_incidents_collection = database["completed_incidents_collection"]
 
-
 @router.post("/ambulance/complete-incident")
 async def complete_incident(data: dict):
 
     try:
 
+        assignment_id = data.get("assignment_id")
+
         completed_data = {
 
             "patient_id": data.get("patient_id"),
+
+            "assignment_id": assignment_id,
 
             "driver_id": data.get("driver_id"),
 
@@ -4107,7 +4345,53 @@ async def complete_incident(data: dict):
             completed_data
         )
 
-       # ✅ CLEAR DRIVER'S CURRENT ASSIGNMENT (fixes stale BUSY status)
+        # ✅ MARK THE ACTUAL ASSIGNMENT AS COMPLETED so
+        # get_assigned_patients_for_driver stops returning it on its own,
+        # instead of relying on fragile patient_id cross-referencing.
+        assignment_marked = False
+        if assignment_id:
+            try:
+                update_result = await ambulance_assignments_collection.update_one(
+                    {"_id": ObjectId(assignment_id)},
+                    {"$set": {
+                        "status": "completed",
+                        "completed_at": datetime.utcnow().isoformat()
+                    }}
+                )
+                assignment_marked = update_result.matched_count > 0
+                if assignment_marked:
+                    print(f"✅ Marked assignment {assignment_id} as completed")
+                else:
+                    logger.warning(f"assignment_id {assignment_id} did not match any ambulance_assignments doc")
+            except Exception as assign_err:
+                logger.warning(f"Could not mark assignment {assignment_id} completed: {assign_err}")
+
+        # FALLBACK: assignment_id was missing/invalid/didn't match — this
+        # is the actual gap that let completed patients (e.g. Rakesh,
+        # patient_id 674534) keep showing under the driver app's "today's
+        # incidents" while the web dashboard correctly showed Completed.
+        # Fall back to patient_id + driver_id, which is always available.
+        if not assignment_marked:
+            fallback_id = data.get("patient_id")
+            fallback_driver = data.get("driver_id")
+            if fallback_id and fallback_driver:
+                fallback_result = await ambulance_assignments_collection.update_many(
+                    {
+                        "patient_id": fallback_id,
+                        "driver_id": fallback_driver,
+                        "status": {"$in": ["dispatched", "accepted"]}
+                    },
+                    {"$set": {
+                        "status": "completed",
+                        "completed_at": datetime.utcnow().isoformat(),
+                        "completed_via": "patient_id_fallback"
+                    }}
+                )
+                print(f"✅ Fallback: marked {fallback_result.modified_count} assignment(s) completed via patient_id+driver_id")
+            else:
+                logger.warning(f"complete-incident: no assignment_id AND no patient_id/driver_id fallback available for patient {data.get('patient_id')}")
+
+        # ✅ CLEAR DRIVER'S CURRENT ASSIGNMENT (fixes stale BUSY status)
         driver_id = data.get("driver_id")
         patient_id = data.get("patient_id")
         if driver_id:
@@ -4126,6 +4410,16 @@ async def complete_incident(data: dict):
             await Ambulance_driver_accept.delete_many(
                 {"driver_id": driver_id, "patient_id": patient_id}
             )
+
+        if patient_id:
+            try:
+                await _notify_doctor_for_patient(patient_id, "INCIDENT_COMPLETED")
+            except Exception as notify_err:
+                logger.error(f"complete-incident doctor notify failed (non-critical): {notify_err}")
+            try:
+                await _notify_dashboard("INCIDENT_COMPLETED", patient_id)
+            except Exception as notify_err:
+                logger.error(f"complete-incident dashboard notify failed (non-critical): {notify_err}")
 
         return {
 
@@ -4146,6 +4440,205 @@ async def complete_incident(data: dict):
 
             "message": str(e)
         }
+@router.post("/ambulance/debug/rollback-declined-backfill")
+async def rollback_declined_backfill():
+    """
+    Undo backfill_v1: revert any assignment that was incorrectly marked
+    'declined' by that migration back to 'dispatched', since it matched
+    without checking whether the decline actually happened after that
+    specific dispatch was created.
+    """
+    try:
+        result = await ambulance_assignments_collection.update_many(
+            {"declined_via": "backfill_v1"},
+            {"$set": {"status": "dispatched"},
+             "$unset": {"declined_via": "", "declined_at": ""}}
+        )
+        return {
+            "status": "success",
+            "reverted_count": result.modified_count
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+@router.post("/ambulance/debug/backfill-declined-assignments")
+async def backfill_declined_assignments():
+    """
+    ONE-TIME MIGRATION (v2 — time-safe): For every historical
+    Ambulance_driver_declined record with no assignment_id, only mark a
+    matching open assignment as declined if that assignment was CREATED
+    BEFORE the decline happened (assigned_at <= declined_at). This
+    prevents wrongly declining a later, legitimate re-dispatch of the
+    same patient_id that occurred after the old decline.
+    """
+    try:
+        legacy_declines = await Ambulance_driver_declined.find(
+            {"assignment_id": {"$exists": False}}
+        ).to_list(length=None)
+
+        updated_count = 0
+        skipped_count = 0
+
+        for doc in legacy_declines:
+            patient_id = doc.get("patient_id")
+            driver_id = doc.get("driver_id")
+            declined_at = doc.get("declined_at")
+
+            if not patient_id or not driver_id or not declined_at:
+                skipped_count += 1
+                continue
+
+            result = await ambulance_assignments_collection.update_many(
+                {
+                    "patient_id": patient_id,
+                    "driver_id": driver_id,
+                    "status": {"$in": ["dispatched", "accepted"]},
+                    "assigned_at": {"$lte": declined_at}
+                },
+                {"$set": {
+                    "status": "declined",
+                    "declined_at": declined_at,
+                    "declined_via": "backfill_v2"
+                }}
+            )
+            updated_count += result.modified_count
+
+        return {
+            "status": "success",
+            "legacy_declines_scanned": len(legacy_declines),
+            "assignments_marked_declined": updated_count,
+            "skipped_missing_fields": skipped_count
+        }
+
+    except Exception as e:
+        logger.error(f"Backfill declined error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/ambulance/debug/list-assignments/{driver_id}")
+async def debug_list_assignments(driver_id: str):
+    """
+    READ-ONLY. Lists EVERY assignment for a driver regardless of status
+    (dispatched, accepted, completed, declined — all of it), newest first.
+    Use this to see the full picture instead of only the currently-"open"
+    ones — e.g. to find out whether a specific patient's dispatch was ever
+    written to ambulance_assignments_collection at all, and under what
+    status/driver_id/ambulance_id it landed.
+    """
+    try:
+        cursor = ambulance_assignments_collection.find(
+            {"driver_id": driver_id}
+        ).sort("assigned_at", -1)
+        docs = await cursor.to_list(length=None)
+        for d in docs:
+            d["_id"] = str(d["_id"])
+        return {
+            "status": "success",
+            "driver_id": driver_id,
+            "count": len(docs),
+            "assignments": docs
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+ 
+ 
+class SetAssignmentStatusRequest(BaseModel):
+    assignment_id: str
+    status: str  # "declined" | "completed" | "dispatched" | "accepted"
+ 
+@router.post("/ambulance/debug/set-assignment-status")
+async def debug_set_assignment_status(data: SetAssignmentStatusRequest):
+    """
+    Targeted, single-record fix — NOT a broad backfill. Sets exactly one
+    assignment (by its _id) to the given status. Use this to manually
+    retire stuck test rows like Test10 (assignment_id
+    6a1c2c0a0f065808255491de) instead of writing another matching-based
+    migration that could sweep up records it shouldn't.
+    """
+    try:
+        allowed = {"declined", "completed", "dispatched", "accepted"}
+        if data.status not in allowed:
+            raise HTTPException(status_code=400, detail=f"status must be one of {allowed}")
+ 
+        set_fields = {"status": data.status}
+        if data.status == "declined":
+            set_fields["declined_at"] = datetime.utcnow().isoformat()
+            set_fields["declined_via"] = "manual_debug"
+        elif data.status == "completed":
+            set_fields["completed_at"] = datetime.utcnow().isoformat()
+            set_fields["completed_via"] = "manual_debug"
+ 
+        result = await ambulance_assignments_collection.update_one(
+            {"_id": ObjectId(data.assignment_id)},
+            {"$set": set_fields}
+        )
+        if result.matched_count == 0:
+            raise HTTPException(status_code=404, detail="assignment_id not found")
+ 
+        return {
+            "status": "success",
+            "assignment_id": data.assignment_id,
+            "new_status": data.status,
+            "modified": result.modified_count
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+ 
+@router.post("/ambulance/debug/backfill-completed-assignments")
+async def backfill_completed_assignments():
+    """
+    ONE-TIME MIGRATION: For every historical completed_incidents record
+    that predates the assignment_id fix, find the matching
+    ambulance_assignments doc (by patient_id + driver_id, and only if it
+    was assigned before the recorded completion time) and mark it
+    completed too, so old assignments stop leaking through as "active".
+    """
+    try:
+        completed_cursor = completed_incidents_collection.find({})
+        completed_docs = await completed_cursor.to_list(length=None)
+
+        updated_count = 0
+        skipped_count = 0
+
+        for doc in completed_docs:
+            patient_id = doc.get("patient_id")
+            driver_id = doc.get("driver_id")
+            completed_at = doc.get("completed_at")
+
+            if not patient_id or not driver_id or not completed_at:
+                skipped_count += 1
+                continue
+
+            # Loosened: drop the assigned_at<=completed_at guard. Test data
+            # timestamps are frequently out of order (rapid manual testing),
+            # so requiring strict ordering was skipping legitimate matches.
+            # patient_id+driver_id+still-open-status is precise enough for
+            # this one-time historical cleanup.
+            result = await ambulance_assignments_collection.update_many(
+                {
+                    "patient_id": patient_id,
+                    "driver_id": driver_id,
+                    "status": {"$in": ["dispatched", "accepted"]}
+                },
+                {"$set": {
+                    "status": "completed",
+                    "completed_at": completed_at,
+                    "completed_via": "backfill_v2"
+                }}
+            )
+            updated_count += result.modified_count
+
+        return {
+            "status": "success",
+            "total_completed_docs_scanned": len(completed_docs),
+            "assignments_marked_completed": updated_count,
+            "skipped_missing_fields": skipped_count
+        }
+
+    except Exception as e:
+        logger.error(f"Backfill error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.get("/ambulance/get-completed-incident/{patient_id}")
 async def get_completed_incident(patient_id: str):
@@ -4204,7 +4697,7 @@ async def get_completed_incidents_batch(data: BatchIncidentStatusRequest):
             {"patient_id": {"$in": patient_ids}},
             {"_id": 0, "patient_id": 1, "status": 1}
         )
-        docs = await cursor.to_list(length=len(patient_ids))
+        docs = await cursor.to_list(length=None)
 
         status_map = {pid: "active" for pid in patient_ids}
         for doc in docs:
@@ -4983,6 +5476,8 @@ async def save_ambulance_image(
     driver_name: str = Form(""),
     ambulance_id: str = Form(""),
     vehicle_number: str = Form(""),
+    image_type: str = Form("rpm_monitor"),        # ← NEW — EMT-tagged type id
+    image_type_label: str = Form("RPM Monitor"),  # ← NEW — human-readable label
     image: UploadFile = File(...),
 ):
     """
@@ -5025,6 +5520,8 @@ async def save_ambulance_image(
             "date": date_str,
             "time": time_str,
             "timestamp_iso": timestamp_iso,
+            "image_type": image_type,              # ← NEW
+            "image_type_label": image_type_label,  # ← NEW
         }
 
         # Save to database
@@ -5064,6 +5561,11 @@ async def save_ambulance_image(
             result = await Image_photography_Ambulance_collection.insert_one(doc)
             record_id = str(result.inserted_id)
             logger.info(f"Created new image record: {record_id}")
+
+        try:
+            await _notify_doctor_for_patient(patient_id, "EMT_IMAGE_UPLOADED")
+        except Exception as notify_err:
+            logger.error(f"image-save doctor notify failed (non-critical): {notify_err}")
 
         return {
             "status": "success",
@@ -5235,10 +5737,24 @@ async def save_image_extracted(data: ImageExtractedRequest):
             "date": image_timestamp.strftime("%Y-%m-%d"),
             "time": image_timestamp.strftime("%H:%M:%S"),
             "image_timestamp_iso": image_entry.get("timestamp_iso"),
+            "image_type": image_entry.get("image_type"),              # ← NEW
+            "image_type_label": image_entry.get("image_type_label"),  # ← NEW
             "created_from": "ambulance_image"
         }
 
         result = await Image_Extracted_Ambulance_collection.insert_one(extracted_doc)
+
+        # FIX: same missing-notification gap as save_doctor_suggestion above —
+        # extracted-image data was saved silently with no driver notification.
+        try:
+            await _notify_driver_for_patient(patient_id, "IMAGE_ANALYSIS_UPDATE")
+        except Exception as notify_err:
+            logger.error(f"image-extracted notify failed (non-critical): {notify_err}")
+
+        try:
+            await _notify_doctor_for_patient(patient_id, "IMAGE_ANALYSIS_UPDATE")
+        except Exception as notify_err:
+            logger.error(f"image-extracted doctor notify failed (non-critical): {notify_err}")
 
         return {
             "status": "success",
@@ -5312,6 +5828,23 @@ async def save_doctor_suggestion(data: DoctorSuggestionRequest):
             "time": now.strftime("%H:%M:%S"),
         }
         result = await Doctor_Suggestion_collection.insert_one(doc)
+
+        # FIX: this save previously never notified the driver at all — no
+        # websocket push, no Expo push — so a new doctor suggestion only
+        # ever appeared after the app's own 15s poll caught up (or a manual
+        # refresh). Reuses the same driver-resolution logic as
+        # notify_driver_update() so this fires instantly like clinical
+        # actions already do.
+        try:
+            await _notify_driver_for_patient(data.patient_id, "IMAGE_ANALYSIS_UPDATE")
+        except Exception as notify_err:
+            logger.error(f"doctor-suggestion notify failed (non-critical): {notify_err}")
+
+        try:
+            await _notify_doctor_for_patient(data.patient_id, "DOCTOR_SUGGESTION_SAVED")
+        except Exception as notify_err:
+            logger.error(f"doctor-suggestion doctor notify failed (non-critical): {notify_err}")
+
         return {"status": "success", "id": str(result.inserted_id)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

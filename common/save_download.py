@@ -127,8 +127,11 @@ async def proxy_upload(
     appointment_id: Optional[str] = Form(None),
     doc_type: Optional[str] = Form(None), 
     category: Optional[str] = Form(None),          # ✅ ADD
-    subcategory: Optional[str] = Form(None),       # ✅ ADD
+    subcategory: Optional[str] = Form(None),
+    report_category: Optional[str] = Form(None),   # ✅ ADD
+    report_type: Optional[str] = Form(None), # ✅ ADD
     report_date: Optional[str] = Form(None),
+    report_timing: Optional[str] = Form("current"),
     upload_mode: str = Form(...),
     hospital_id: Optional[str] = Form(None),
     file: UploadFile = File(...),
@@ -173,9 +176,10 @@ async def proxy_upload(
                 pass
 
         logger.info(
-            "UPLOAD FINAL | category=%s | subcategory=%s",
+            "UPLOAD FINAL | category=%s | subcategory=%s | report_timing=%s",
             category,
-            subcategory
+            subcategory,
+            report_timing
         )
         # ========================================================================================
 
@@ -255,6 +259,7 @@ async def proxy_upload(
                     "category_key": category,
                     "subcategory_key": subcategory,
                     "report_date": report_date,
+                    "report_timing": report_timing,     
                     "file_url": file_url,
                     "patient_id": patient_id,
                     "appointment_id": latest_appointment_id,
@@ -401,6 +406,30 @@ async def proxy_upload(
                 },
                 upsert=True
             )
+            # ── 2️⃣ Insert category + report metadata (fresh row every time) ──
+            try:
+                db["category_report_collection"].insert_one({
+                    "patient_id": patient_id,
+                    "doctor_id": doctor_id,
+                    "stored_filename": stored_filename,
+                    "original_filename": file.filename,
+                    "appointment_id": latest_appointment_id,
+                    "hospital_id": hospital_id,
+                    "file_url": file_url,
+                    "doc_type": doc_type,
+                    "upload_mode": "document",
+                    "category_key": category,
+                    "subcategory_key": subcategory,
+                    "report_category": report_category,
+                    "report_type": report_type,
+                    "report_date": report_date,
+                    "report_timing": report_timing,
+                    "status": "queued",
+                    "created_at": datetime.utcnow(),
+                })
+            except Exception as e:
+                logger.error(f"Failed to insert category/report metadata: {e}")
+
             task = process_handwritten_document.apply_async(
                 kwargs={
                     "filename": file.filename,
@@ -854,7 +883,7 @@ appropriate for this speciality and document type.
 
     try:
         response = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": user_prompt},
@@ -1227,7 +1256,7 @@ appropriate for this medical speciality and image type.
 
     try:
         response = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             messages=[
                 {"role": "system", "content": IMAGE_SYSTEM_PROMPT},
                 {"role": "user", "content": user_prompt},
@@ -1812,7 +1841,7 @@ async def get_report_types_endpoint(doctor_id: str):
 
 #     def completion(self, prompt: str) -> str:
 #         completion = self.groq_client.chat.completions.create(
-#             model="llama-3.1-8b-instant",
+#             model="openai/gpt-oss-20b",
 #             messages=[{"role": "user", "content": prompt}],
 #             temperature=0.1,
 #             max_tokens=4000,
@@ -2861,7 +2890,7 @@ class ClinicalExtractionAgent:
     
     def completion(self, prompt: str) -> str:
         completion = self.groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.1,
             max_tokens=4000,

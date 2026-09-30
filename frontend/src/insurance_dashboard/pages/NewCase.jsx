@@ -2,9 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import React from 'react'
 import MultiSelectDropdown from "../components/MultiSelectDropdown";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import InsurerSection from "../components/case/InsurerSection"
-import ClaimantSection from "../components/case/ClaimantSection"
-import ClaimSection from "../components/case/ClaimSection"
+import FormTabs from "../components/case/FormTabs"
 import AssignmentSection from "../components/case/AssignmentSection"
 import CaseDocumentUpload from "../components/case/CaseDocumentUpload"
 
@@ -29,9 +27,7 @@ const SECTION_WEIGHTS = {
 }
 
 const SECTIONS = [
-  { id: 'insurer',    label: 'Insurer Details',  color: 'var(--accent)' },
-  { id: 'claimant',  label: 'Claimant Info',     color: 'var(--purple)' },
-  { id: 'claim',     label: 'Claim Details',     color: 'var(--amber)'  },
+  { id: 'formTabs',   label: 'Case Details',      color: 'var(--accent)' },
   { id: 'assignment', label: 'Assignment',        color: 'var(--green)'  },
 ]
 
@@ -54,8 +50,8 @@ const BLANK_FORM = {
   claimantName: '', claimantMobile: '', altContact: '', claimantAge: '',
   relationship: 'Self', idProofType: 'Aadhaar Card', idProofNumber: '',
   claimantAddress: '', city: '', district: '', pinCode: '',
-  claimMode: '', claimSubtype: '', tags: [], claimTriggers: [], description: '',
-  dateOfIncident: '', dateOfIntimation: '', claimedAmount: '', sumInsured: '',
+  claimMode: '', claimSubtype: '', tags: [], claimTriggers: [], triggerContent: '', description: '',
+    dateOfIncident: '', dateOfIntimation: '', claimedAmount: '', sumInsured: '',
   claimPriority: 'Normal',
   investigations: { MV: [], HV: [], HVI: [], DIGI: [], TRIGGER: [] },
   accidentDetails: {
@@ -89,14 +85,6 @@ const BLANK_FORM = {
   discountAmount: '',
   roomType: '',
   tariffType: ''
-},
-criticalDetails: {
-  diagnosis: '',
-  procedure: '',
-  implants: '',
-  surgeryDate: '',
-  treatingDoctor: '',
-  prognosis: ''
 },
 additionalMedicalDetails: {
   diagnosisSummary: '',
@@ -153,6 +141,20 @@ function unflattenExtracted(flat) {
   return result
 }
 
+function flattenExtracted(obj, prefix = "") {
+  const out = {}
+  for (const [k, v] of Object.entries(obj || {})) {
+    if (v === null || v === undefined || v === "") continue
+    const fullKey = prefix ? `${prefix}.${k}` : k
+    if (typeof v === "object" && !Array.isArray(v)) {
+      Object.assign(out, flattenExtracted(v, fullKey))
+    } else {
+      out[fullKey] = v
+    }
+  }
+  return out
+}
+
 export default function NewCase() {
   const navigate      = useNavigate()
   const [searchParams] = useSearchParams()
@@ -179,11 +181,14 @@ export default function NewCase() {
   const claimRef      = useRef(null)
   const assignmentRef = useRef(null)
 
+  const formTabsRef = useRef(null)
+
   const sectionRefs = {
     insurer:    insurerRef,
     claimant:   claimantRef,
     claim:      claimRef,
     assignment: assignmentRef,
+    formTabs:   formTabsRef,
   }
 
   const [caseId, setCaseId]     = useState(isEditMode ? editCaseId : null)
@@ -229,11 +234,33 @@ export default function NewCase() {
             )
             if (!docRes.ok) throw new Error('No case documents found')
             const docData  = await docRes.json()
-            const mergedRaw = docData.merged_extracted_data || {}
+            
+            // Reconstruct the extracted fields from all documents first
+            let combinedFlat = {}
+            if (docData.documents && Array.isArray(docData.documents)) {
+              docData.documents.forEach(doc => {
+                const fields = doc.extracted_flat || flattenExtracted(doc.extracted_fields || {})
+                combinedFlat = { ...combinedFlat, ...fields }
+              })
+            }
+            // Then apply any manual edits that were saved
+            const mergedRaw = { ...combinedFlat, ...(docData.merged_extracted_data || {}) }
             const unflat   = unflattenExtracted(mergedRaw)
+            
+            // Populate suggestions BEFORE deleting DROPDOWN_ONLY fields
+            const suggestions = flattenExtracted(unflat)
+            if (claimData.suggestedTriggers) {
+              suggestions.suggestedTriggers = claimData.suggestedTriggers
+            }
+            setExtractedSuggestions(suggestions)
+
             const DROPDOWN_ONLY = ['insurer', 'claimMode', 'claimSubtype', 'tags']
             DROPDOWN_ONLY.forEach(k => delete unflat[k])
-            const merged   = deepMergeAll(BLANK_FORM, unflat)
+            
+            // claimData might have auto-saved info like claimantName, claimantMobile etc. 
+            // We should use it as a base before merging unflat.
+            const baseForm = deepMergeAll(BLANK_FORM, claimData)
+            const merged   = deepMergeAll(baseForm, unflat)
             merged.claimTriggers = claimData.claimTriggers || []
             const normalized = normalizeDatesForForm(merged)
             normalized.investigations = {
@@ -376,17 +403,29 @@ const [submitAttempted, setSubmitAttempted] = useState(false)
 }, [formData.claimMode, autoTargetDate])
 
   // ── Section progress ────────────────────────────────────────────────────
+  const isFieldFilled = (f) => {
+    if (f === 'investigations') {
+      return Object.values(formData.investigations || {})
+        .some(arr => arr.some(a => a.investigatorId?.trim()))
+    }
+    const v = getValue(formData, f)
+    return v !== '' && v !== null && v !== undefined && !(Array.isArray(v) && v.length === 0)
+  }
+
   const sectionProgress = (sectionId) => {
+    // 'formTabs' combines insurer + claimant + claim (they're now rendered
+    // together inside FormTabs instead of as separate panels).
+    if (sectionId === 'formTabs') {
+      const ids = ['insurer', 'claimant', 'claim']
+      const allRequired = ids.flatMap(id => REQUIRED[id])
+      if (!allRequired.length) return 100
+      const filledCount = allRequired.filter(isFieldFilled).length
+      return Math.round((filledCount / allRequired.length) * 100)
+    }
+
     const required = REQUIRED[sectionId]
-    if (!required.length) return 100
-    const filled = required.filter(f => {
-      if (f === 'investigations') {
-        return Object.values(formData.investigations || {})
-          .some(arr => arr.some(a => a.investigatorId?.trim()))
-      }
-      const v = getValue(formData, f)
-      return v !== '' && v !== null && v !== undefined && !(Array.isArray(v) && v.length === 0)
-    })
+    if (!required || !required.length) return 100
+    const filled = required.filter(isFieldFilled)
     return Math.round((filled.length / required.length) * 100)
   }
 
@@ -464,7 +503,8 @@ const SUBMIT_CHECKS = [
       city: nfd.city || null, district: nfd.district || null, pinCode: nfd.pinCode,
       claimMode: nfd.claimMode, claimSubtype: nfd.claimSubtype, tags: nfd.tags,
       claimTriggers: nfd.claimTriggers || [],
-      description: nfd.description,
+      triggerContent: nfd.triggerContent || null,
+            description: nfd.description,
       dateOfIncident: nfd.dateOfIncident || null, dateOfIntimation: nfd.dateOfIntimation || null,
       claimedAmount: (nfd.claimedAmount !== '' && nfd.claimedAmount !== null && nfd.claimedAmount !== undefined)
   ? Number(nfd.claimedAmount)
@@ -481,7 +521,6 @@ const SUBMIT_CHECKS = [
       deathDetails:    nfd.tags.includes('Death')    ? nfd.deathDetails    : null,
     railwayDetails:  nfd.tags.includes('Railway')          ? nfd.railwayDetails  : null,
     criticalDetails: nfd.tags.includes('Critical Illness') ? nfd.criticalDetails : null,
-      criticalDetails: nfd.tags.includes('Critical Illness') ? nfd.criticalDetails : null,
       investigations: cleanedInvestigations,doctor_assigned: nfd.doctor_assigned || null,
       targetDate: nfd.targetDate || null, assignmentNotes: nfd.assignmentNotes || null,
     }
@@ -558,7 +597,8 @@ const handleSaveChanges = async () => {
         claimSubtype: formData.claimSubtype || null,
         tags: formData.tags || [],
         claimTriggers: formData.claimTriggers || [],
-        description: formData.description || null,
+        triggerContent: formData.triggerContent || null,
+          description: formData.description || null,
         dateOfIncident: normalizeDate(formData.dateOfIncident) || null,
         dateOfIntimation: normalizeDate(formData.dateOfIntimation) || null,
         claimedAmount: formData.claimedAmount ? Number(formData.claimedAmount) : null,
@@ -664,16 +704,6 @@ const handleSubmit = async () => {
 
 
 
-    // Clear staging data if this was a draft
-    if (caseStatus === 'DRAFT' || !caseStatus) {
-      fetch(
-        `${BASE_URL.replace(/\/$/, '')}/insurance/web/case-documents/${targetId}/clear-staging`,
-        {
-          method: 'POST',
-          headers: { 'X-User-Id': 'web-user', 'X-User-Role': 'supervisor' },
-        }
-      ).catch(err => console.warn('clear-staging failed (non-critical):', err))
-    }
 
     alert(caseStatus === 'DRAFT' ? 'Case submitted successfully!' : 'Case updated successfully!')
     navigate('/insurance/dashboard')
@@ -790,27 +820,18 @@ const unfilledFields = getUnfilledFields()
         </div>
       </div>
 
-      <InsurerSection
-        formData={formData} setFormData={setFormData}
-        handleChange={handleChange} sectionRefs={sectionRefs}
-        sectionProgress={sectionProgress} SectionBadge={SectionBadge}
-          extractedSuggestions={extractedSuggestions}  unfilledFields={unfilledFields}// ← ADD THIS
-
-      />
-      <ClaimantSection
-        formData={formData} handleChange={handleChange}
-        fieldErrors={fieldErrors} sectionRefs={sectionRefs}
-        sectionProgress={sectionProgress} SectionBadge={SectionBadge}
-          extractedSuggestions={extractedSuggestions} unfilledFields={unfilledFields} // ← ADD THIS
-
-      />
-      <ClaimSection
-        formData={formData} setFormData={setFormData}
-        handleChange={handleChange} sectionRefs={sectionRefs}
-        sectionProgress={sectionProgress} SectionBadge={SectionBadge}
-        riskLabel={riskLabel} setAutoPriority={setAutoPriority}
-        extractedSuggestions={extractedSuggestions}  unfilledFields={unfilledFields}// ← ADD THIS
-
+      <FormTabs
+        formData={formData}
+        setFormData={setFormData}
+        handleChange={handleChange}
+        fieldErrors={fieldErrors}
+        sectionRefs={sectionRefs}
+        sectionProgress={sectionProgress}
+        SectionBadge={SectionBadge}
+        riskLabel={riskLabel}
+        setAutoPriority={setAutoPriority}
+        extractedSuggestions={extractedSuggestions}
+        unfilledFields={unfilledFields}
       />
       <AssignmentSection
   formData={formData}

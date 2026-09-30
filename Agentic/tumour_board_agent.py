@@ -2366,7 +2366,7 @@ async def generate_tumor_board_endpoint(
 
         # ── STEP 6: Run agentic pipeline ──────────────────────────────
         llm = ChatGroq(
-            model        = "llama-3.3-70b-versatile",
+            model        = "openai/gpt-oss-120b",
             groq_api_key = GROQ_API_KEY,
             temperature  = 0.1,
         )

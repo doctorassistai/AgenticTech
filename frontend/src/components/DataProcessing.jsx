@@ -197,6 +197,24 @@ function renderTreatmentPlan(section, onField, editable) {
   );
 }
 
+// ─── Previously Administered — historical, read-only. Sourced from
+// facts.interventions_given_this_encounter (EMT + doctor manual notes
+// combined). Never editable, never folded into treatment_plan. ─────────────
+function renderPreviouslyAdministered(section) {
+  const list = Array.isArray(section.items) ? section.items : [];
+  if (list.length === 0) return <NotEnoughData label="previously administered treatments" reason={section.reason_if_unavailable} />;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
+      {list.map((x, i) => (
+        <div key={i} style={{ padding: '8px 0', borderBottom: i < list.length - 1 ? '1px solid #f5f5f5' : 'none' }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#000' }}>{x.treatment_or_medication}</div>
+          <div style={{ fontSize: 12, color: '#666', marginTop: 3, lineHeight: 1.5 }}>{x.reason}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── Investigations ─────────────────────────────────────────────────────────
 function renderInvestigations(section, onField, editable) {
   const list = Array.isArray(section.items) ? section.items : [];
@@ -362,6 +380,7 @@ function renderApprovedSuggestionDetail(ai) {
         )}
       </div>
 
+      <DataSection title="Previously Administered" subtitle="already given — EMT / doctor notes" label="previously administered treatments" section={ai.previously_administered} renderContent={(section) => renderPreviouslyAdministered(section)} />
       <DataSection title="Treatment Plan" subtitle="drugs / treatment given" label="a treatment plan" section={ai.treatment_plan} renderContent={(section) => renderTreatmentPlan(section, noop, false)} />
       <DataSection title="Investigations Needed" label="investigations needed" section={ai.investigations} renderContent={(section) => renderInvestigations(section, noop, false)} />
       <DataSection title="Procedures" label="procedures to be done" section={ai.procedures} renderContent={(section) => renderProcedures(section, noop, false)} />
@@ -723,6 +742,14 @@ export default function DataProcessing({ patientData: propPatientData, incidentC
                   ))}
                 </div>
               )}
+
+              <DataSection
+                title="Previously Administered"
+                subtitle="already given — EMT / doctor notes"
+                label="previously administered treatments"
+                section={d.previously_administered}
+                renderContent={(section) => renderPreviouslyAdministered(section)}
+              />
 
               <DataSection
                 title="Treatment Plan"

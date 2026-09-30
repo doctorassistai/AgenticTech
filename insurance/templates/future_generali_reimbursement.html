@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Future Generali - Reimbursement Investigation Report</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 14mm 14mm 18mm 14mm;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: Arial, sans-serif;
+      font-size: 10px;
+      color: #000;
+      background: #fff;
+    }
+
+    .page {
+      width: 182mm;
+      margin: 0 auto;
+      background: #fff;
+    }
+
+    /* ── HEADER ─────────────────────────────────────────────── */
+    .header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 0;
+      padding-bottom: 4px;
+      border-bottom: 3px solid #8B0000;
+    }
+
+    .header-logo {
+      height: 44px;
+      object-fit: contain;
+      flex-shrink: 0;
+    }
+
+    /* ── PAGE FOOTER (repeated on every page) ───────────────── */
+    .page-footer {
+      position: fixed;
+      bottom: 0;
+      left: 14mm;
+      right: 14mm;
+      border-top: 3px solid #8B0000;
+      padding-top: 3px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #fff;
+    }
+
+    .footer-logo {
+      height: 32px;
+      object-fit: contain;
+    }
+
+    /* ── SECTION TITLES ─────────────────────────────────────── */
+    .section-title {
+      font-family: 'Times New Roman', serif;
+      font-size: 12px;
+      font-weight: bold;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin: 12px 0 6px 0;
+      font-variant: small-caps;
+    }
+
+    /* ── ALL TABLES ─────────────────────────────────────────── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      margin-bottom: 0;
+    }
+
+    td {
+      border: 1px solid #aaa;
+      padding: 3px 6px;
+      vertical-align: top;
+      font-size: 10px;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      min-height: 16px;
+    }
+
+    .lbl {
+      width: 42%;
+      background: #fff;
+      font-weight: normal;
+    }
+
+    .val {
+      width: 58%;
+      background: #fff;
+    }
+
+    /* ── FREE-TEXT SECTION BOXES ────────────────────────────── */
+    .free-section {
+      margin-bottom: 10px;
+    }
+
+    .free-section-title {
+      font-size: 10.5px;
+      font-weight: bold;
+      text-decoration: underline;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .free-box {
+      border: none;
+      min-height: 60px;
+      padding: 3px 0;
+      font-size: 10px;
+      line-height: 1.75;
+    }
+
+    .free-box-sm {
+      border: none;
+      min-height: 30px;
+      padding: 3px 0;
+      font-size: 10px;
+      line-height: 1.75;
+    }
+
+    /* ── CONCLUSION SECTION ─────────────────────────────────── */
+    .conclusion-title {
+      font-size: 10.5px;
+      font-weight: bold;
+      text-decoration: underline;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      margin: 10px 0 5px 0;
+    }
+
+    .conclusion-wrapper {
+      font-family: Arial, sans-serif;
+      font-size: 10px;
+      color: #000;
+      padding: 0;
+      line-height: 1.75;
+    }
+
+    .conclusion-wrapper img {
+      max-width: 160mm;
+      height: auto;
+      display: block;
+      margin: 4px 0;
+    }
+
+    /* ── ENCLOSURES ─────────────────────────────────────────── */
+    .enclosures-section {
+      margin-top: 12px;
+    }
+
+    .enclosures-title {
+      font-family: 'Times New Roman', serif;
+      font-size: 12px;
+      font-weight: bold;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      font-variant: small-caps;
+      margin-bottom: 6px;
+    }
+
+    .enclosures-list {
+      list-style: none;
+      padding-left: 4px;
+      font-size: 10px;
+      font-weight: bold;
+      line-height: 1.9;
+    }
+
+    .enclosures-list li::before {
+      content: "➤ ";
+      font-weight: bold;
+    }
+
+    /* ── STAMP / SIGNATURE ──────────────────────────────────── */
+    .stamp-row {
+      margin-top: 16px;
+    }
+
+    .sig-stamp {
+      width: 75px;
+      height: 62px;
+      object-fit: contain;
+    }
+
+    @media print {
+      body  { margin: 0; background: #fff; }
+      .page { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- PAGE FOOTER (fixed — repeats on every page)   -->
+<!-- ══════════════════════════════════════════════ -->
+<div class="page-footer">
+  {% if header_image %}
+    <img src="{{ header_image }}" class="footer-logo" alt="Future Generali" />
+  {% endif %}
+</div>
+
+<div class="page">
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- HEADER                                     -->
+  <!-- ══════════════════════════════════════════ -->
+  <div class="header">
+    {% if header_image %}
+      <img src="{{ header_image }}" class="header-logo" alt="Future Generali" />
+    {% endif %}
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- INSURED DETAILS                            -->
+  <!-- ══════════════════════════════════════════ -->
+  <div class="section-title">Insured Details:</div>
+
+  <table>
+    <tr>
+      <td class="lbl">Insured Name</td>
+      <td class="val">{{ case.policyHolderName or case.claimantName or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Patients Name</td>
+      <td class="val">{{ case.claimantName or facts.patient_name or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Detailed Address of Patient</td>
+      <td class="val">{{ case.claimantAddress or facts.accident_place or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Patients Age</td>
+      <td class="val">{{ case.claimantAge or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Patients Relation with Insured</td>
+      <td class="val">{{ case.relationship or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Occupation</td>
+      <td class="val">{{ facts.patient_occupation or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Insured/Patient Contact Details</td>
+      <td class="val">{{ case.claimantMobile or facts.data_collected_from_phone or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">DOB of Patient</td>
+      <td class="val">{{ facts.patient_dob or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Claim Number</td>
+      <td class="val">{{ case.insurerRef or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Policy Number</td>
+      <td class="val">{{ case.policyNumber or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Policy is in Which Year</td>
+      <td class="val">{{ case.policyDetails.policyYears or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Submitted Documents Involve</td>
+      <td class="val">
+        {{ facts.submitted_documents_type or 'Hospital/Pharmacy/Clinic/Laboratory/Diagnostic center' }}
+      </td>
+    </tr>
+  </table>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- HOSPITAL DETAILS                           -->
+  <!-- ══════════════════════════════════════════ -->
+  <div class="section-title">Hospital Details:</div>
+
+  <table>
+    <tr>
+      <td class="lbl">Hospital Name</td>
+      <td class="val">{{ facts.hospital_name or hospital.name or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Address Of Hospital</td>
+      <td class="val">{{ facts.hospital_address or hospital.address or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Hospital City</td>
+      <td class="val">{{ hospital.city or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Hospital State</td>
+      <td class="val">{{ hospital.state or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Contact Details Of Hospital</td>
+      <td class="val">
+        {{ facts.data_collected_from_phone or hospital.hospitalContactNumber or '' }}
+        {% if hospital.hospitalEmail %}&nbsp;|&nbsp;{{ hospital.hospitalEmail }}{% endif %}
+      </td>
+    </tr>
+    <tr>
+      <td class="lbl">Treating Doctor Name</td>
+      <td class="val">{{ facts.treating_doctor or hospital.doctorName or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Treating Doctor Contact Detail</td>
+      <td class="val">{{ facts.treating_doctor_contact or 'NA' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Treating Doctor</td>
+      <td class="val">{{ facts.treating_doctor_type or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">No Of Beds In Hospital</td>
+      <td class="val">{{ facts.hospital_bed_strength or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Registered Hospital?</td>
+      <td class="val" style="text-align:center; font-weight:bold;">
+        {{ facts.hospital_registered or '' }}
+      </td>
+    </tr>
+    <tr>
+      <td class="lbl">No Of Staff Members<br/><span style="font-weight:normal; font-size:9px; text-transform:none;">(Nurse/Ward Boys/RMO/Account/Billing/Main Doctors)</span></td>
+      <td class="val">{{ facts.hospital_staff_count or '' }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">
+        Nearby good Hospital in comparison with this hospital, on the way from
+        insured's place to current hospital?
+      </td>
+      <td class="val" style="text-align:center;">
+        {{ facts.nearby_hospital_comparison or 'NA' }}
+      </td>
+    </tr>
+    <tr>
+      <td class="lbl">This Hospital is in blacklisted list by other insurers?</td>
+      <td class="val" style="text-align:center; font-weight:bold;">
+        {{ facts.hospital_blacklist_status or 'NA' }}
+      </td>
+    </tr>
+    <tr>
+      <td class="lbl">Your Agency caught some fraud from this hospital in past?</td>
+      <td class="val" style="text-align:center;">
+        {{ facts.past_fraud_details or 'NA' }}
+      </td>
+    </tr>
+  </table>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- TRIGGER EXPLANATION                        -->
+  <!-- ══════════════════════════════════════════ -->
+  <div class="free-section" style="margin-top:10px;">
+    <div class="free-section-title">Explanation on Trigger Points Raised by Us While Assigning the Case</div>
+    <div class="free-box-sm">
+      {% if case.claimTriggers %}
+        {% for t in case.claimTriggers %}
+          {{ t | replace('_', ' ') | title }}{% if not loop.last %}, {% endif %}
+        {% endfor %}
+      {% else %}
+        &nbsp;
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- INSURED VISIT DETAILS                      -->
+  <!-- ══════════════════════════════════════════ -->
+  <div class="free-section">
+    <div class="free-section-title">Insured Visit Details</div>
+    <div class="free-box">
+      {{ facts.insured_visit_details or '' }}
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- NEIGHBOR VISIT DETAILS                     -->
+  <!-- ══════════════════════════════════════════ -->
+  <div class="free-section">
+    <div class="free-section-title">Neighbor Visit Details</div>
+    <div class="free-box">
+      {{ facts.neighbor_visit_details or '' }}
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- HOSPITAL VISIT DETAILS                     -->
+  <!-- ══════════════════════════════════════════ -->
+  <div class="free-section">
+    <div class="free-section-title">Hospital Visit Details</div>
+    <div class="free-box">
+      {{ facts.hospital_visit_brief_findings or '' }}
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- PHARMACY STORE VISIT DETAILS               -->
+  <!-- ══════════════════════════════════════════ -->
+  <div class="free-section">
+    <div class="free-section-title">Pharmacy Store Visit Details</div>
+    <div class="free-box">
+      {{ facts.pharmacy_brief_findings or '' }}
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- LABORATORY VISIT DETAILS                   -->
+  <!-- ══════════════════════════════════════════ -->
+  <div class="free-section">
+    <div class="free-section-title">Laboratory Visit Details</div>
+    <div class="free-box">
+      {{ facts.lab_brief_findings or '' }}
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- CONCLUSION                                 -->
+  <!-- ══════════════════════════════════════════ -->
+  <div class="conclusion-title">Conclusion:</div>
+  <div class="conclusion-wrapper">
+    {% if conclusion_html %}
+      {{ conclusion_html | safe }}
+    {% elif facts.conclusion_recommendation %}
+      {{ facts.conclusion_recommendation }}
+    {% else %}
+      &nbsp;
+    {% endif %}
+  </div>
+
+  <!-- Stamp / Signature -->
+  <div class="stamp-row">
+    {% if show_stamp and stamp_image %}
+      <img src="{{ stamp_image }}" class="sig-stamp" alt="Stamp" />
+    {% endif %}
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- ENCLOSURES                                 -->
+  <!-- ══════════════════════════════════════════ -->
+  <div class="enclosures-section">
+    <div class="enclosures-title">Enclosures:</div>
+    {% if case.enclosures %}
+      {{ case.enclosures }}
+    {% else %}
+      <ul class="enclosures-list">
+        <li>All asked documents for collection, i.e. IPD/IPD Register/Leave record/OPD Register etc.</li>
+        <li>Insured Consent letter signed before meeting with insured.</li>
+        <li>All written proofs/recordings done in any of visit i.e. Insured/Neighbor/Hospital/Pharmacy/Laboratory.</li>
+        <li>Photographs of the Hospital/Pharmacy/Laboratory</li>
+        <li>Two Copies of Invoice raised against this Investigation.</li>
+      </ul>
+    {% endif %}
+  </div>
+
+</div>
+</body>
+</html>

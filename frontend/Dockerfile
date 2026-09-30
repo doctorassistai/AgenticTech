@@ -6,8 +6,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 
 # Install all dependencies (including pdf libs)
-RUN npm install && \
-    npm install jspdf html2canvas lucide-react @react-three/fiber three
+RUN npm ci
 
 # Copy app source
 COPY . .

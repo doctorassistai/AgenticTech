@@ -1,0 +1,14 @@
+.md-login-page { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: linear-gradient(135deg, #e9edf5, #f8f9fc); }
+.md-login-card { width: min(100%, 420px); padding: 36px; background: #fff; border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 18px 50px rgba(17, 24, 39, .1); }
+.md-login-brand { font-size: 22px; font-weight: 700; color: #111827; margin-bottom: 38px; }
+.md-login-brand span { display: block; color: #6b7280; font-size: 12px; font-weight: 500; letter-spacing: .04em; }
+.md-login-eyebrow { color: #4f46e5; font-size: 11px; font-weight: 700; letter-spacing: .12em; }
+.md-login-card h1 { margin: 8px 0 6px; font-size: 25px; line-height: 1.25; }
+.md-login-card p { color: #6b7280; margin-bottom: 26px; }
+.md-login-card form { display: flex; flex-direction: column; }
+.md-login-card label { font-size: 12px; font-weight: 600; margin-bottom: 7px; }
+.md-login-card input { height: 42px; padding: 0 12px; border: 1px solid #c8cfe0; border-radius: 7px; margin-bottom: 18px; font: inherit; }
+.md-login-card input:focus { outline: 2px solid #818cf8; outline-offset: 1px; }
+.md-login-card button { border: 0; border-radius: 7px; background: #111827; color: #fff; height: 44px; font: inherit; font-weight: 600; cursor: pointer; }
+.md-login-card button:disabled { opacity: .6; cursor: wait; }
+.md-login-error { color: #b91c1c; background: #fef2f2; padding: 10px 12px; border-radius: 6px; margin-bottom: 16px; font-size: 13px; }

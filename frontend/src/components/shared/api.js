@@ -70,6 +70,34 @@ export function getCompletedInvestigations(patientId, doctorId) {
 
 
 //
+// ─── Nurse Questionnaire (cross-specialty) ──────────────────────────────
+//
+// Backend endpoints live on the /context router. `speciality` is normalized
+// server-side, so any casing/synonym ("Surgical Oncology", "surgical", …) works.
+
+export function generateNurseQuestionnaire(patientId, speciality, doctorId) {
+  return request(`${CONTEXT_BASE}/nurse-questionnaire/generate`, {
+    method: "POST",
+    body: JSON.stringify({ patient_id: patientId, speciality, doctor_id: doctorId || null }),
+  });
+}
+
+export function getNurseQuestionnaire(patientId, speciality) {
+  const q = new URLSearchParams({ patient_id: patientId, speciality });
+  return request(`${CONTEXT_BASE}/nurse-questionnaire?${q.toString()}`);
+}
+
+export function saveNurseQuestionnaire(patientId, speciality, questions, doctorId) {
+  return request(`${CONTEXT_BASE}/nurse-questionnaire/save`, {
+    method: "POST",
+    body: JSON.stringify({ patient_id: patientId, speciality, doctor_id: doctorId || null, questions }),
+  });
+}
+
+
+
+
+//
 // ─── Anaesthesia Record CRUD ────────────────────────────────────────────
 //
 

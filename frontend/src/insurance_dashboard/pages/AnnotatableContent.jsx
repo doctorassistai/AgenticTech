@@ -4,35 +4,35 @@ import { useAnnotations } from "./AnnotationContext";
 // ─── Color palette for annotations ───────────────────────────────────────────
 export const ANNOTATION_COLORS = {
   yellow: {
-    bg: "#fef9c3",
-    border: "#fde047",
-    text: "#713f12",
-    popoverBg: "#fffde7",
-    markerBg: "#fef08a",
+    bg: "color-mix(in srgb, var(--amber) 18%, var(--bg))",
+    border: "color-mix(in srgb, var(--amber) 45%, var(--bg))",
+    text: "var(--amber)",
+    popoverBg: "color-mix(in srgb, var(--amber) 6%, var(--bg))",
+    markerBg: "color-mix(in srgb, var(--amber) 28%, var(--bg))",
     label: "Yellow",
   },
   blue: {
-    bg: "#dbeafe",
-    border: "#93c5fd",
-    text: "#1e3a8a",
-    popoverBg: "#eff6ff",
-    markerBg: "#bfdbfe",
+    bg: "color-mix(in srgb, var(--blue) 18%, var(--bg))",
+    border: "color-mix(in srgb, var(--blue) 45%, var(--bg))",
+    text: "var(--blue)",
+    popoverBg: "color-mix(in srgb, var(--blue) 6%, var(--bg))",
+    markerBg: "color-mix(in srgb, var(--blue) 28%, var(--bg))",
     label: "Blue",
   },
   green: {
-    bg: "#dcfce7",
-    border: "#86efac",
-    text: "#14532d",
-    popoverBg: "#f0fdf4",
-    markerBg: "#bbf7d0",
+    bg: "color-mix(in srgb, var(--green) 18%, var(--bg))",
+    border: "color-mix(in srgb, var(--green) 45%, var(--bg))",
+    text: "var(--green)",
+    popoverBg: "color-mix(in srgb, var(--green) 6%, var(--bg))",
+    markerBg: "color-mix(in srgb, var(--green) 28%, var(--bg))",
     label: "Green",
   },
   red: {
-    bg: "#fee2e2",
-    border: "#fca5a5",
-    text: "#7f1d1d",
-    popoverBg: "#fff5f5",
-    markerBg: "#fecaca",
+    bg: "color-mix(in srgb, var(--red) 18%, var(--bg))",
+    border: "color-mix(in srgb, var(--red) 45%, var(--bg))",
+    text: "var(--red)",
+    popoverBg: "color-mix(in srgb, var(--red) 6%, var(--bg))",
+    markerBg: "color-mix(in srgb, var(--red) 28%, var(--bg))",
     label: "Red",
   },
 };
@@ -67,8 +67,8 @@ function SelectionPopover({ position, onAdd, onDismiss, selectedText }) {
         top: position.y + 8,
         zIndex: 200,
         width: 288,
-        background: "#ffffff",
-        border: "0.5px solid rgba(0,0,0,0.18)",
+        background: "var(--bg)",
+        border: "0.5px solid var(--border)",
         borderRadius: 8,
         boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
         padding: "10px 12px",
@@ -78,10 +78,10 @@ function SelectionPopover({ position, onAdd, onDismiss, selectedText }) {
       {/* Selected text preview */}
       <div style={{
         fontSize: 10,
-        color: "#888",
+        color: "var(--muted)",
         marginBottom: 6,
         fontStyle: "italic",
-        borderLeft: "2px solid #e2e2e2",
+        borderLeft: "2px solid var(--border)",
         paddingLeft: 6,
         lineHeight: 1.5,
         maxHeight: 36,
@@ -108,14 +108,14 @@ function SelectionPopover({ position, onAdd, onDismiss, selectedText }) {
           width: "100%",
           minHeight: 60,
           resize: "vertical",
-          border: "0.5px solid rgba(0,0,0,0.14)",
+          border: "0.5px solid var(--border)",
           borderRadius: 5,
           padding: "6px 8px",
           fontSize: 11,
           lineHeight: 1.6,
           fontFamily: "inherit",
-          color: "#111",
-          background: "#fafafa",
+          color: "var(--text)",
+          background: "var(--bg3, #fafafa)",
           outline: "none",
           boxSizing: "border-box",
         }}
@@ -123,7 +123,7 @@ function SelectionPopover({ position, onAdd, onDismiss, selectedText }) {
 
       {/* Color picker row */}
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8 }}>
-        <span style={{ fontSize: 10, color: "#888", marginRight: 2 }}>Color</span>
+        <span style={{ fontSize: 10, color: "var(--muted)", marginRight: 2 }}>Color</span>
         {Object.entries(ANNOTATION_COLORS).map(([key, c]) => (
           <button
             key={key}
@@ -146,12 +146,12 @@ function SelectionPopover({ position, onAdd, onDismiss, selectedText }) {
           onClick={onDismiss}
           style={{
             background: "none",
-            border: "0.5px solid rgba(0,0,0,0.12)",
+            border: "0.5px solid var(--border)",
             borderRadius: 4,
             padding: "3px 8px",
             fontSize: 10,
             cursor: "pointer",
-            color: "#666",
+            color: "var(--muted)",
             fontFamily: "inherit",
           }}
         >
@@ -161,13 +161,13 @@ function SelectionPopover({ position, onAdd, onDismiss, selectedText }) {
           onClick={handleAdd}
           disabled={!note.trim()}
           style={{
-            background: note.trim() ? "#111" : "#e5e5e5",
+            background: note.trim() ? "var(--accent)" : "var(--border)",
             border: "none",
             borderRadius: 4,
             padding: "3px 10px",
             fontSize: 10,
             cursor: note.trim() ? "pointer" : "not-allowed",
-            color: note.trim() ? "#fff" : "#999",
+            color: note.trim() ? "#fff" : "var(--muted)",
             fontFamily: "inherit",
             fontWeight: 500,
           }}
@@ -279,25 +279,25 @@ function StickyMarker({ annotation, onEdit, onDelete }) {
                   width: "100%",
                   minHeight: 54,
                   resize: "vertical",
-                  border: "0.5px solid rgba(0,0,0,0.14)",
+                  border: "0.5px solid var(--border)",
                   borderRadius: 4,
                   padding: "5px 7px",
                   fontSize: 11,
                   lineHeight: 1.6,
                   fontFamily: "inherit",
-                  color: "#111",
-                  background: "#fff",
+                  color: "var(--text)",
+                  background: "var(--bg)",
                   boxSizing: "border-box",
                   outline: "none",
                 }}
               />
               <span style={{ display: "flex", gap: 5, marginTop: 6 }}>
                 <button onClick={() => { setEditing(false); setDraft(annotation.note); }}
-                  style={{ flex: 1, background: "none", border: "0.5px solid rgba(0,0,0,0.12)", borderRadius: 4, padding: "3px 0", fontSize: 10, cursor: "pointer", color: "#666", fontFamily: "inherit" }}>
+                  style={{ flex: 1, background: "none", border: "0.5px solid var(--border)", borderRadius: 4, padding: "3px 0", fontSize: 10, cursor: "pointer", color: "var(--muted)", fontFamily: "inherit" }}>
                   Cancel
                 </button>
                 <button onClick={handleSave}
-                  style={{ flex: 1, background: "#111", border: "none", borderRadius: 4, padding: "3px 0", fontSize: 10, cursor: "pointer", color: "#fff", fontFamily: "inherit", fontWeight: 500 }}>
+                  style={{ flex: 1, background: "var(--accent)", border: "none", borderRadius: 4, padding: "3px 0", fontSize: 10, cursor: "pointer", color: "#fff", fontFamily: "inherit", fontWeight: 500 }}>
                   Save
                 </button>
               </span>
@@ -321,14 +321,14 @@ function StickyMarker({ annotation, onEdit, onDelete }) {
                 </span>
                 <button
                   onClick={() => { setEditing(true); setDraft(annotation.note); }}
-                  style={{ background: "none", border: "0.5px solid rgba(0,0,0,0.10)", borderRadius: 4, padding: "2px 7px", fontSize: 9, cursor: "pointer", color: c.text, fontFamily: "inherit" }}
+                  style={{ background: "none", border: "0.5px solid var(--border)", borderRadius: 4, padding: "2px 7px", fontSize: 9, cursor: "pointer", color: c.text, fontFamily: "inherit" }}
                   title="Edit note"
                 >
                   <i className="ti ti-edit" style={{ fontSize: 10 }} aria-hidden="true" /> Edit
                 </button>
                 <button
                   onClick={() => { onDelete(annotation.id); setOpen(false); }}
-                  style={{ background: "none", border: "0.5px solid rgba(200,50,50,0.2)", borderRadius: 4, padding: "2px 7px", fontSize: 9, cursor: "pointer", color: "#b91c1c", fontFamily: "inherit" }}
+                  style={{ background: "none", border: "0.5px solid color-mix(in srgb, var(--red) 25%, transparent)", borderRadius: 4, padding: "2px 7px", fontSize: 9, cursor: "pointer", color: "var(--red)", fontFamily: "inherit" }}
                   title="Delete note"
                 >
                   <i className="ti ti-trash" style={{ fontSize: 10 }} aria-hidden="true" />
@@ -466,7 +466,7 @@ const handleDismiss = useCallback(() => {
       <div
         ref={contentRef}
         className="raw-doc-wrap"
-        style={{ fontSize: 12, lineHeight: 1.75, color: "#555550", userSelect: "text", WebkitUserSelect: "text" }}
+        style={{ fontSize: 12, lineHeight: 1.75, color: "var(--text)", userSelect: "text", WebkitUserSelect: "text" }}
         dangerouslySetInnerHTML={{ __html: html }}
         onMouseUp={handleMouseUp}
       />

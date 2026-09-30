@@ -4,26 +4,20 @@ Celery task for the /web/advanced-upload pipeline.
 Lives inside the INSURANCE image (insurance/celery_worker/advanced_upload_task.py),
 NOT in common/celery_worker/ — because it needs direct access to
 routes.case_documents_router and routes.multiagent_extraction, which only
-exist in the insurance codebase. A dedicated `celery-advanced-upload`
-worker container (built from insurance/Dockerfile, see docker-compose
-changes) runs this.
+exist in the insurance codebase.
+
+CHANGED: case_documents is no longer written or read anywhere in this file.
+insurance_claims_new is now the single source of truth: the "already
+extracted, don't re-parse" cache that used to live in
+case_documents.documents[].extracted_flat now lives directly on the
+matching entry in insurance_claims_new.supportingDocuments[].
 
 The task function itself is sync (required by Celery), and drives an async
-pipeline internally via asyncio.run() — same shape as
-common/celery_worker/mobile_parse_task.py.
-
-Storage upload (getting pdf_url) happens SYNCHRONOUSLY in the FastAPI route
-before this task is enqueued — this task only does:
-  1. dedup check (already-ingested file) + in-progress lock
-  2. LlamaCloud agentic parse
-  3. multi-agent LLM extraction
-  4. Mongo writes (case_documents + insurance_claims_new)
+pipeline internally via asyncio.run() — same shape as before.
 
 IMPORTANT: a fresh AsyncIOMotorClient is created INSIDE the async function
 and closed at the end. Do NOT reuse a Motor client across separate
-asyncio.run() calls / task invocations — each call gets its own event loop,
-and Motor clients bind to the loop they first operate on, so reusing one
-across loops raises "attached to a different loop" errors eventually.
+asyncio.run() calls / task invocations.
 """
 
 from __future__ import annotations
@@ -39,15 +33,12 @@ from motor.motor_asyncio import AsyncIOMotorClient
 
 from .celery_app import celery_app
 
-# Pure / non-DB helpers — safe to import directly, they don't hold any
-# reference to the router's global Mongo collections.
 from routes.case_documents_router import (
     _llamacloud_parse,
     _normalize_extracted_fields,
     _enrich_description,
     _unflatten,
-    _extract_unused_fields,
-    _deep_merge,
+    append_markdown_block_atomic,
 )
 from routes.multiagent_extraction import run_multiagent_extraction
 
@@ -58,41 +49,83 @@ MONGO_URI = os.getenv("MONGO_URI")
 DROPDOWN_ONLY = {"insurer", "claimMode", "claimSubtype", "tags", "claimTrigger"}
 CREDITS_PER_PAGE = int(os.getenv("LLAMA_CREDITS_PER_PAGE", "1"))
 
-# ─────────────────────────────────────────────────────────────────────────
-# DB-coupled helpers — re-implemented here (not imported) so they use THIS
-# task run's own Motor client/collections rather than the router's global
-# ones from a different event loop.
-# ─────────────────────────────────────────────────────────────────────────
+
+def _coerce_text(value) -> str:
+    """
+    emailInstructions / riskDetails.triggers are expected to be plain
+    strings, but the extractor occasionally returns a list instead (e.g.
+    several instruction lines). Normalize here so the .strip() calls below
+    never raise "'list' object has no attribute 'strip'".
+    """
+    if isinstance(value, list):
+        return " ".join(str(v).strip() for v in value if v)
+    return value or ""
+
 async def _fix_null_parents(collection, case_id: str, flat_keys):
     """
-    Dot-notation $set fails with error 28 if the parent field is currently
-    stored as an explicit null (e.g. "criticalDetails": null). Promote any
-    such parents to {} first so the dotted $set can proceed.
+    Atomically promotes any null parent field (for dotted keys in
+    flat_keys) to {} using a pipeline update ($ifNull) instead of a
+    separate read-then-write.
+    Requires MongoDB 4.2+ (pipeline-style updates).
     """
-    existing = await collection.find_one({"caseId": case_id}, {"_id": 0}) or {}
-    parents_to_fix = set()
-    for k in flat_keys:
-        if "." in k:
-            parent = k.split(".", 1)[0]
-            if parent in existing and existing[parent] is None:
-                parents_to_fix.add(parent)
-    if parents_to_fix:
-        await collection.update_one(
-            {"caseId": case_id},
-            {"$set": {p: {} for p in parents_to_fix}},
-        )
+    parents = {k.split(".", 1)[0] for k in flat_keys if "." in k}
+    if not parents:
+        return
+    await collection.update_one(
+        {"caseId": case_id},
+        [{"$set": {p: {"$ifNull": [f"${p}", {}]}} for p in parents}],
+    )
 
-async def _get_accumulated_markdown_local(insurance_claims_col, case_id: str, new_text: str) -> str:
-    claim = await insurance_claims_col.find_one({"caseId": case_id}, {"raw_llama_markdown": 1})
-    existing = (claim or {}).get("raw_llama_markdown", "") or ""
+async def _atomic_set_with_null_parent_fix(collection, case_id: str, set_payload: Dict[str, Any]):
+    """
+    Sets every key in set_payload via a SINGLE aggregation-pipeline update
+    that ALSO promotes any null dotted-parent (e.g. criticalDetails: null,
+    accidentDetails: null) to {} in the very same atomic operation.
 
-    if not new_text.strip():
-        return existing
-    if new_text.strip() in existing:
-        return existing
-    if existing.strip():
-        return existing + "\n\n" + new_text
-    return new_text
+    Doing the null-parent fix and the real field write as two separate
+    update_one calls — even back-to-back with await — leaves a window
+    where a concurrent worker processing a DIFFERENT document for the
+    SAME case can land in between and re-null the parent before this
+    worker's real $set runs.
+
+    IMPORTANT: MongoDB's pipeline $set does not allow specifying both a
+    path and one of its own sub-paths in the same stage — e.g. having both
+    "policyDetails" and "policyDetails.preExistingDisease" as keys raises
+    error 40176 ("conflicting paths"), even though they're semantically
+    compatible. So for any parent that has dotted children in this
+    payload, we do NOT emit a separate bare "parent: {$ifNull...}" key.
+    Instead we group all of that parent's dotted children together and
+    write the WHOLE parent as one $mergeObjects key: merge the (null-safe)
+    existing parent object with an object built from just the children.
+    This gives one key per parent, no path collisions, and still fixes a
+    null parent in the same atomic write as the real update.
+    Requires MongoDB 4.2+ (pipeline-style updates).
+    """
+    if not set_payload:
+        return
+
+    top_level: Dict[str, Any] = {}
+    grouped_children: Dict[str, Dict[str, Any]] = {}
+
+    for key, value in set_payload.items():
+        if "." in key:
+            parent, child = key.split(".", 1)
+            grouped_children.setdefault(parent, {})[child] = value
+        else:
+            top_level[key] = value
+
+    stage: Dict[str, Any] = dict(top_level)
+    for parent, children in grouped_children.items():
+        stage[parent] = {
+            "$mergeObjects": [
+                {"$ifNull": [f"${parent}", {}]},
+                children,
+            ]
+        }
+
+    await collection.update_one({"caseId": case_id}, [{"$set": stage}])
+
+
 
 
 async def _build_claim_set_payload_local(
@@ -121,8 +154,8 @@ async def _build_claim_set_payload_local(
             continue
 
         if flat_key == "emailInstructions":
-            existing_ei = (existing.get("emailInstructions") or "").strip()
-            new_ei = (value or "").strip()
+            existing_ei = _coerce_text(existing.get("emailInstructions")).strip()
+            new_ei = _coerce_text(value).strip()
             if existing_ei and new_ei and new_ei not in existing_ei:
                 payload["emailInstructions"] = f"{existing_ei} | {new_ei}"
             else:
@@ -131,8 +164,8 @@ async def _build_claim_set_payload_local(
 
         if flat_key == "riskDetails.triggers":
             existing_risk = existing.get("riskDetails") or {}
-            existing_trig = (existing_risk.get("triggers") or "").strip()
-            new_trig = (value or "").strip()
+            existing_trig = _coerce_text(existing_risk.get("triggers")).strip()
+            new_trig = _coerce_text(value).strip()
             if existing_trig and new_trig and new_trig not in existing_trig:
                 payload["riskDetails.triggers"] = f"{existing_trig}; {new_trig}"
             else:
@@ -147,14 +180,9 @@ async def _build_claim_set_payload_local(
 
         if current_val in (None, "", [], {}):
             payload[flat_key] = value
-        # else: keep existing value, skip overwrite
 
     return payload
 
-
-# ─────────────────────────────────────────────────────────────────────────
-# Main async pipeline
-# ─────────────────────────────────────────────────────────────────────────
 
 async def _process_advanced_upload(
     task_id: str,
@@ -172,7 +200,6 @@ async def _process_advanced_upload(
 ) -> None:
     motor_client = AsyncIOMotorClient(MONGO_URI)
     db = motor_client["doctorassistai"]
-    case_documents_col        = db["case_documents"]
     insurance_claims_col      = db["insurance_claims_new"]
     llama_stats_col           = db["llama_usage_stats"]
     advanced_upload_tasks_col = db["advanced_upload_tasks"]
@@ -180,18 +207,21 @@ async def _process_advanced_upload(
     now = datetime.now(IST)
 
     try:
-        # ── 1. Dedup check (moved here from the route) ───────────────────
-        claim = await insurance_claims_col.find_one({"caseId": case_id}, {"ingested_files": 1})
+        # ── 1. Dedup check — cache now lives on supportingDocuments[] ────
+        claim = await insurance_claims_col.find_one(
+            {"caseId": case_id},
+            {"ingested_files": 1, "supportingDocuments": 1},
+        )
         ingested = set((claim or {}).get("ingested_files") or [])
 
         if file_name in ingested:
-            case_doc = await case_documents_col.find_one({"case_id": case_id}, {"documents": 1})
-            cached_entry = None
-            if case_doc:
-                for d in case_doc.get("documents", []):
-                    if d.get("file_name") == file_name and d.get("extracted_flat"):
-                        cached_entry = d
-                        break
+            cached_entry = next(
+                (
+                    d for d in (claim or {}).get("supportingDocuments", [])
+                    if d.get("file_name") == file_name and d.get("extracted_flat")
+                ),
+                None,
+            )
 
             if cached_entry:
                 # No re-parse — just re-apply the already-extracted data,
@@ -201,10 +231,21 @@ async def _process_advanced_upload(
                 )
                 flat_set_payload["updatedAt"] = datetime.now(IST)
 
+                await _atomic_set_with_null_parent_fix(insurance_claims_col, case_id, flat_set_payload)
+
+                # Re-append this file's markdown block in case an earlier
+                # concurrent-write race (see append_markdown_block_atomic's
+                # docstring) dropped it from raw_llama_markdown even though
+                # extraction itself succeeded and was cached — this is what
+                # lets a previously-broken case self-heal on next upload.
+                if cached_entry.get("raw_markdown_block"):
+                    await append_markdown_block_atomic(
+                        insurance_claims_col, case_id, cached_entry["doc_id"], file_name, cached_entry["raw_markdown_block"]
+                    )
+
                 await insurance_claims_col.update_one(
                     {"caseId": case_id},
                     {
-                        "$set": flat_set_payload,
                         "$addToSet": {"ingested_files": file_name},
                         "$pull": {"processing_files": file_name},
                     },
@@ -221,13 +262,16 @@ async def _process_advanced_upload(
                                 "pdf_url":       cached_entry.get("pdf_url"),
                                 "storage_path":  cached_entry.get("storage_path"),
                                 "fields_found":  cached_entry.get("fields_found", 0),
+                                "extracted_flat": cached_entry.get("extracted_flat", {}),
+                                "extracted_data": cached_entry.get("extracted_data", {}),
+                                "raw_markdown_block": cached_entry.get("raw_markdown_block"),
+                                "status":        "extracted",
                                 "uploaded_at":   datetime.now(IST).isoformat(),
                             }
                         }
                     },
                 )
 
-                
                 result = {
                     "success": True,
                     "already_processed": True,
@@ -295,79 +339,72 @@ async def _process_advanced_upload(
         {raw_markdown}
         """
 
-        # combined_text (not the case-history-aware full_context) is what
-        # gets passed to extraction here, matching current behavior.
         extracted_flat: Dict[str, Any] = await run_multiagent_extraction(
             combined_text,
             display_label,
             email_text=email_text or "",
         )
+        # Same fix as the router's upload_document — strip the raw pass-1
+        # dump before it gets persisted (and before it's cached onto
+        # supportingDocuments.extracted_flat for dedup re-sync).
         extracted_flat = _normalize_extracted_fields(extracted_flat)
 
         existing_claim_doc = await insurance_claims_col.find_one({"caseId": case_id}, {"description": 1})
         existing_description = (existing_claim_doc or {}).get("description") or ""
-        extracted_flat["description"] = _enrich_description(combined_text, extracted_flat, existing_description)
+        extracted_flat["description"] = await _enrich_description(combined_text, extracted_flat, existing_description)
 
         extracted_nested = _unflatten(extracted_flat)
         fields_found = len([v for v in extracted_flat.values() if v is not None])
-        _extract_unused_fields(extracted_flat)  # parity with original call; not persisted separately
 
-        # ── 5. Build document entry ───────────────────────────────────────
-        new_doc_entry = {
-            "doc_id": doc_id,
-            "file_name": file_name,
-            "file_type": file_content_type,
-            "display_label": display_label,
-            "pdf_url": stored_url,
-            "storage_path": storage_path,
-            "extraction_mode": "advanced",
-            "extracted_data": extracted_nested,
-            "extracted_flat": extracted_flat,
-            "fields_found": fields_found,
-            "voice_notes": [],
-            "uploaded_at": now.isoformat(),
-        }
-
-        # ── 6. Merge into case record (advanced wins) ─────────────────────
-        current = await case_documents_col.find_one({"case_id": case_id}, {"merged_extracted_data": 1})
-        current_merged = (current or {}).get("merged_extracted_data", {})
-        new_merged = _deep_merge(current_merged, extracted_nested)
-
-        await case_documents_col.update_one(
-            {"case_id": case_id},
-            {
-                "$push": {"documents": new_doc_entry},
-                "$set": {"merged_extracted_data": new_merged, "updated_at": datetime.now(IST)},
-                "$inc": {"total_fields_found": fields_found},
-            },
-        )
-
+        # ── 5. Persist claim fields + supportingDocuments entry ───────────
         flat_set_payload = await _build_claim_set_payload_local(
             insurance_claims_col, case_id, extracted_flat, DROPDOWN_ONLY
         )
-        await _fix_null_parents(insurance_claims_col, case_id, extracted_flat.keys())
-        flat_set_payload["raw_llama_markdown"] = await _get_accumulated_markdown_local(
-            insurance_claims_col, case_id, combined_text
-        )
+        # NOTE: raw_llama_markdown is intentionally NOT set inside
+        # flat_set_payload anymore. It is appended atomically via
+        # append_markdown_block_atomic below, in its own dedicated Mongo
+        # pipeline update — see that function's docstring for why bundling
+        # it into this $set caused concurrent uploads for the same case to
+        # silently drop each other's parsed text (the MV.pdf/HV.pdf loss bug).
+        await append_markdown_block_atomic(insurance_claims_col, case_id, doc_id, file_name, combined_text)
+        # Findings generation intentionally SKIPPED here — same reasoning as
+        # claim_detail_upload_task.py. It used to run after every supporting
+        # document, re-analyzing the entire case's accumulated markdown each
+        # time. It now runs exactly once, when the case is submitted, via an
+        # explicit call to /web/regenerate-findings from NewCase.jsx.
+        flat_set_payload["documentFindingsStatus"] = "pending"
         flat_set_payload["updatedAt"] = datetime.now(IST)
+
+        # Set every field AND promote any null dotted-parent in ONE atomic
+        # pipeline update — see _atomic_set_with_null_parent_fix for why
+        # this must be a single operation, not "fix, then set".
+        await _atomic_set_with_null_parent_fix(insurance_claims_col, case_id, flat_set_payload)
 
         await insurance_claims_col.update_one(
             {"caseId": case_id},
             {
-                "$set": flat_set_payload,
                 "$addToSet": {"ingested_files": file_name},
                 "$pull": {"processing_files": file_name},  # release lock on success
             },
         )
+        # Agentic investigation is no longer auto-enqueued per supporting
+        # document. It now runs exactly once, when the case is submitted,
+        # via an explicit call to /web/run-agentic-investigation from
+        # NewCase.jsx (mirrors the regenerate-findings-at-submit change).
 
-        # Record this Supporting Document's pdf_url on the claim itself.
+        # extracted_flat/extracted_data now live directly on the
+        # supportingDocuments entry — this is what future dedup checks
+        # (step 1 above) read from, replacing the old case_documents cache.
         upd = await insurance_claims_col.update_one(
             {"caseId": case_id, "supportingDocuments.doc_id": doc_id},
             {"$set": {
-                "supportingDocuments.$.fields_found": fields_found,
-                "supportingDocuments.$.status": "extracted",
-                "supportingDocuments.$.pdf_url": stored_url,
-                "supportingDocuments.$.storage_path": storage_path,
+                "supportingDocuments.$.fields_found":    fields_found,
+                "supportingDocuments.$.status":          "extracted",
+                "supportingDocuments.$.pdf_url":         stored_url,
+                "supportingDocuments.$.storage_path":    storage_path,
+                "supportingDocuments.$.extracted_flat":  extracted_flat,
+                "supportingDocuments.$.extracted_data":  extracted_nested,
+                "supportingDocuments.$.raw_markdown_block": combined_text,
             }},
         )
         if upd.matched_count == 0:
@@ -381,6 +418,9 @@ async def _process_advanced_upload(
                     "storage_path": storage_path,
                     "fields_found": fields_found,
                     "status": "extracted",
+                    "extracted_flat": extracted_flat,
+                    "extracted_data": extracted_nested,
+                    "raw_markdown_block": combined_text,
                     "uploaded_at": now.isoformat(),
                 }}},
             )
@@ -407,8 +447,6 @@ async def _process_advanced_upload(
 
     except Exception as exc:
         logger.error("advanced_upload.process_document failed for task %s: %s", task_id, exc)
-        # Release the lock on ANY failure so a genuine retry isn't blocked
-        # forever by a stuck processing_files entry.
         await insurance_claims_col.update_one(
             {"caseId": case_id},
             {"$pull": {"processing_files": file_name}},
@@ -459,7 +497,8 @@ def process_advanced_upload(
             supervisor_id=supervisor_id,
         )
     )
-    
+
+
 @celery_app.task(name="llama_credits.reset")
 def reset_llama_credits():
     async def _reset():

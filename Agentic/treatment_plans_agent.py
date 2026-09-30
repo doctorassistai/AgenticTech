@@ -4679,9 +4679,9 @@ async def generate_treatment_plan_endpoint(
         logger.info(f"   - Completed Investigations: {len(treatment_input.completed_investigations)}")
         
         # Step 6: Initialize LLM
-        logger.info(f"🤖 Initializing LLM (llama-3.3-70b-versatile)...")
+        logger.info(f"🤖 Initializing LLM (openai/gpt-oss-120b)...")
         llm = ChatGroq(
-            model="llama-3.3-70b-versatile",
+            model="openai/gpt-oss-120b",
             groq_api_key=os.getenv("GROQ_API_KEY"),
             max_tokens=6000,
             temperature=0.1

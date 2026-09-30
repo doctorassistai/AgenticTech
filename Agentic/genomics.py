@@ -55,13 +55,13 @@ genomics_col = mongo_db["genomics_pipeline"]
 
 # ── LLM instances ──────────────────────────────────────────────────
 llm_fast = ChatGroq(
-    model="llama-3.1-8b-instant",
+    model="openai/gpt-oss-20b",
     temperature=0.1,
     max_tokens=7000,
     groq_api_key=GROQ_API_KEY,
 )
 llm_strong = ChatGroq(
-    model="llama-3.1-8b-instant",
+    model="openai/gpt-oss-20b",
     temperature=0.1,
     max_tokens=7000,
     groq_api_key=GROQ_API_KEY,
@@ -1356,8 +1356,8 @@ async def health():
             "workflow":         "phase_detect -> orchestrate -> execute -> [loop | end]",
         },
         "llm_routing": {
-            "fast_llm":   "llama-3.1-8b-instant for P/T/M/D agents",
-            "strong_llm": "llama-3.3-70b-versatile for " + str(strong_agents_sorted),
+            "fast_llm":   "openai/gpt-oss-20b for P/T/M/D agents",
+            "strong_llm": "openai/gpt-oss-120b for " + str(strong_agents_sorted),
         },
         "agents_available":  len(AGENT_GPEA) + 2,
         "workflow_compiled": genomics_workflow is not None,

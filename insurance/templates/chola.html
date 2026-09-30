@@ -194,8 +194,8 @@
     <tr>
       <td class="num">2</td>
       <td class="lbl">Number of beds</td>
-      <td class="val">{{ hospital.get('beds','') if hospital.get else '' }}</td>
-    </tr>
+      <td class="val">{{ hospital.get('beds') or '' }}</td>
+        </tr>
     <tr>
       <td class="num">3</td>
       <td class="lbl">Name of Hospital</td>
@@ -209,8 +209,8 @@
     <tr>
       <td class="num">5</td>
       <td class="lbl">Duration of stay</td>
-      <td class="val">{{ additional.get('durationOfStay','') if additional.get else '' }}</td>
-    </tr>
+      <td class="val">{{ additional.get('durationOfStay') or '' }}</td>
+        </tr>
     <tr>
       <td class="num">6</td>
       <td class="lbl">Room Category as per hospital records</td>
@@ -219,13 +219,11 @@
     <tr>
       <td class="num">7</td>
       <td class="lbl">Presenting complaints with duration</td>
-      <td class="val">{{ additional.get('chiefComplaints','') if additional.get else '' }}</td>
-    </tr>
+      <td class="val">{{ additional.get('chiefComplaints') or '' }}</td>    </tr>
     <tr>
       <td class="num">8</td>
       <td class="lbl">Past history</td>
-      <td class="val">{{ additional.get('pastMedicalHistory','') if additional.get else '' }}</td>
-    </tr>
+      <td class="val">{{ additional.get('pastMedicalHistory') or '' }}</td>    </tr>
     <tr>
       <td class="num">9</td>
       <td class="lbl">Diagnosis as per case sheet</td>
@@ -258,8 +256,7 @@
         <strong>Observations and feedback from the member visited</strong>
       </td>
       <td class="obs-val" style="min-height:80px; vertical-align:top; padding:6px 8px;">
-        {{ case.onFieldObservations or additional.get('investigatorMemberOpinion','') if additional.get else case.onFieldObservations or '' }}
-        {% if conclusion_html %}
+        {{ case.onFieldObservations or additional.get('investigatorMemberOpinion') or '' }}        {% if conclusion_html %}
           <div style="margin-top:4px; font-size:11px;">{{ conclusion_html | safe }}</div>
         {% endif %}
       </td>

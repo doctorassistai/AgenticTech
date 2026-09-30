@@ -9,6 +9,7 @@ from pathlib import Path
 import hashlib
 import os
 import httpx
+from neo4j import AsyncGraphDatabase
 from groq import Groq
 import json
 from fastapi import APIRouter, HTTPException
@@ -24,9 +25,11 @@ from Agentic.clinical_knowledge_graph import (
     StructuredClinicalGraph,
     push_to_structured_graph,
 )
-from Agentic.oncology_case_view_service import generate_longitudinal_case_view
+from Agentic.clinical_timeline_graph import ClinicalTimelineGraph
+from Agentic.longitudinal_summaryy import generate_longitudinal_summary
 from Agentic.clinical_reasoning_engine import ClinicalReasoningEngine
 from Agentic.build_visit_timeline_task import build_timeline_incremental
+from fastapi import Request
 # ==============================
 # ROUTER
 # ==============================
@@ -54,7 +57,7 @@ hospital_user_c = db["hospital_users"]
 patient_user_collec = db["patient_users"]
 doctor_user_c = db["doctor_users"]
 patient_appointments_collection = db["patient_appointments"]
-
+documentation_feature_counter_collection = db["documentation_feature_counter"]
 processed_documents = db["processed_documents"]
 semantic_chunks = db["semantic_chunks"]
 timeline_events = db["timeline_events"]
@@ -73,7 +76,11 @@ knowledge_graph = EnhancedMedicalKnowledgeGraph(
     password=neo4j_password,
     mongo_db=db
 )
-
+clinical_timeline_graph = ClinicalTimelineGraph(
+    uri=neo4j_uri,
+    user=neo4j_user,
+    password=neo4j_password,
+)
 
 structured_graph = StructuredClinicalGraph(
     uri=neo4j_uri,
@@ -138,6 +145,9 @@ class ExtractedEntity(BaseModel):
     entity_value: Optional[Union[str, float, int]] = None
     confidence: float = 0.9
     evidence_text: str
+    # Traceability
+    source_area: Optional[str] = None
+    source_location: Optional[str] = None
 
 
 # ==============================
@@ -241,7 +251,7 @@ Document:
 """
 
     completion = groq_client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
+        model="openai/gpt-oss-120b",
         temperature=0,
         max_tokens=3000,
         messages=[{"role": "user", "content": prompt}]
@@ -410,7 +420,19 @@ async def process_mongo_document(patient_id, doctor_id, document, file_name=None
     # convert entire Mongo document into text
     document.pop("_id", None)
 
-    text = json.dumps(document, indent=2)
+    cleaned_document = remove_empty_fields(document)
+
+    # Use the same variable name: text
+    text = json.dumps(
+        cleaned_document,
+        ensure_ascii=False,
+        separators=(",", ":")
+    )
+
+    logger.info(
+        f"Optimized document size: {len(text)} characters"
+    )
+    
     logger.info(f"Thomas:{text}")
     file_name = document.get("file_name")
     file_url = document.get("file_url")
@@ -420,8 +442,7 @@ async def process_mongo_document(patient_id, doctor_id, document, file_name=None
 
     entities, llm_date = await extract_entities_llm(text, file_name=base_name)
     entities = await validate_entities_llm(text, entities, file_name=base_name)
-    for e in entities:
-        logger.info(f"TYPE={e.entity_type}, NAME={e.entity_name}, VALUE={e.entity_value}")
+    
     mongo_date = await extract_document_date(document, patient_id)
 
     document_date = mongo_date or llm_date
@@ -429,6 +450,8 @@ async def process_mongo_document(patient_id, doctor_id, document, file_name=None
     appointment_id = await get_appointment_id_for_document(
         patient_id=patient_id,
         document_date=document_date,
+        doctor_id=doctor_id,
+        
     )
     logger.info(f"appointment_id:{appointment_id}")
     logger.info(f"appointment:{document_date}")
@@ -439,6 +462,7 @@ async def process_mongo_document(patient_id, doctor_id, document, file_name=None
     processing_timestamp_iso = processing_timestamp.isoformat()
 
     base_name = document.get("document_name", "doctor plan")
+    logger.info(f"base_name:{base_name}")
     file_name_with_ts = f"{base_name}_{processing_timestamp_iso}"
     metadata = {
         "document_id": document_id,
@@ -455,20 +479,17 @@ async def process_mongo_document(patient_id, doctor_id, document, file_name=None
     await knowledge_graph.create_patient_node(
         patient_id=patient_id,
         demographics=demographics,
-        visit_date=datetime.utcnow().isoformat()
+        visit_date=document_date
     )
 
-    await structured_graph.create_patient_node(
-        patient_id=patient_id,
-        demographics=demographics,
-        visit_date=document_date,
-    )
     
     
     
     appointment_id = await get_appointment_id_for_document(
         patient_id=patient_id,
         document_date=document_date,
+        doctor_id=doctor_id,
+        
     )
 
     if appointment_id:
@@ -491,184 +512,239 @@ async def process_mongo_document(patient_id, doctor_id, document, file_name=None
             f"No appointment found for patient {patient_id}, "
             f"timeline update skipped."
         )
-        await push_entities_to_graph(
-            patient_id,
+    await push_entities_to_graph(
+        patient_id,
+        document_id,
+        entities,
+        metadata,
+        document_date
+    )
+    # ==========================================================
+    # CLINICAL TIMELINE GRAPH
+    # ==========================================================
+
+    try:
+
+        doctor_details = await get_doctor_graph_details(
+            doctor_id=doctor_id
+        )
+
+        clinical_timeline_result = (
+            clinical_timeline_graph.process_document(
+                patient_id=patient_id,
+                doctor_id=doctor_id,
+
+                doctor_name=doctor_details.get(
+                    "name",
+                    ""
+                ),
+
+                doctor_specialty=doctor_details.get(
+                    "specialty",
+                    ""
+                ),
+
+                # IMPORTANT
+                appointment_id=appointment_id,
+
+                document_id=document_id,
+
+                # IMPORTANT:
+                # pass the complete document text
+                document_text=text,
+
+                # IMPORTANT
+                document_date=document_date,
+                document_name=base_name,
+            )
+        )
+
+        logger.info(
+            "Clinical timeline graph updated: {}",
+            clinical_timeline_result
+        )
+
+    except Exception as e:
+
+        logger.exception(
+            "Clinical timeline graph failed for "
+            "document_id={}: {}",
             document_id,
-            entities,
-            metadata,
-            document_date
+            e
         )
-    await push_to_structured_graph(
-        scg=structured_graph,
-        patient_id=patient_id,
-        document_id=document_id,
-        entities=entities,
-        metadata=metadata,
-        document_date=document_date,
-    )
-    # ==========================================================
-    # Generate Synthetic Clinical Reasoning
-    # ==========================================================
+    # await push_to_structured_graph(
+    #     scg=structured_graph,
+    #     patient_id=patient_id,
+    #     document_id=document_id,
+    #     entities=entities,
+    #     metadata=metadata,
+    #     document_date=document_date,
+    # )
+    # # ==========================================================
+    # # Generate Synthetic Clinical Reasoning
+    # # ==========================================================
 
-    # Group entities by type
-    vital_entities = [
-        e for e in entities
-        if e.entity_type.lower() == "vital sign"
-    ]
+    # # Group entities by type
+    # vital_entities = [
+    #     e for e in entities
+    #     if e.entity_type.lower() == "vital sign"
+    # ]
 
-    lab_entities = [
-        e for e in entities
-        if e.entity_type.lower() == "lab result"
-    ]
+    # lab_entities = [
+    #     e for e in entities
+    #     if e.entity_type.lower() == "lab result"
+    # ]
 
-    med_entities = [
-        e for e in entities
-        if e.entity_type.lower() == "medication"
-    ]
+    # med_entities = [
+    #     e for e in entities
+    #     if e.entity_type.lower() == "medication"
+    # ]
 
-    symptom_entities = [
-        e for e in entities
-        if e.entity_type.lower() == "symptom"
-    ]
+    # symptom_entities = [
+    #     e for e in entities
+    #     if e.entity_type.lower() == "symptom"
+    # ]
 
-    condition_entities = [
-        e for e in entities
-        if e.entity_type.lower() == "diagnosis"
-    ]
+    # condition_entities = [
+    #     e for e in entities
+    #     if e.entity_type.lower() == "diagnosis"
+    # ]
 
-    procedure_entities = [
-        e for e in entities
-        if e.entity_type.lower() == "procedure"
-    ]
+    # procedure_entities = [
+    #     e for e in entities
+    #     if e.entity_type.lower() == "procedure"
+    # ]
 
-    # Convert to structured dictionaries
-    vitals_input = [
-        {
-            "type": e.entity_name,
-            "value": e.entity_value,
-            "timestamp": str(document_date)
-        }
-        for e in vital_entities
-    ]
+    # # Convert to structured dictionaries
+    # vitals_input = [
+    #     {
+    #         "type": e.entity_name,
+    #         "value": e.entity_value,
+    #         "timestamp": str(document_date)
+    #     }
+    #     for e in vital_entities
+    # ]
 
-    labs_input = [
-        {
-            "test": e.entity_name,
-            "value": e.entity_value,
-            "timestamp": str(document_date)
-        }
-        for e in lab_entities
-    ]
+    # labs_input = [
+    #     {
+    #         "test": e.entity_name,
+    #         "value": e.entity_value,
+    #         "timestamp": str(document_date)
+    #     }
+    #     for e in lab_entities
+    # ]
 
-    meds_input = [
-        {
-            "name": e.entity_name,
-            "value": e.entity_value,
-            "timestamp": str(document_date)
-        }
-        for e in med_entities
-    ]
+    # meds_input = [
+    #     {
+    #         "name": e.entity_name,
+    #         "value": e.entity_value,
+    #         "timestamp": str(document_date)
+    #     }
+    #     for e in med_entities
+    # ]
 
-    conditions_input = [
-        {
-            "name": e.entity_name,
-            "value": e.entity_value
-        }
-        for e in condition_entities
-    ]
+    # conditions_input = [
+    #     {
+    #         "name": e.entity_name,
+    #         "value": e.entity_value
+    #     }
+    #     for e in condition_entities
+    # ]
 
-    symptoms_input = [
-        {
-            "name": e.entity_name,
-            "value": e.entity_value
-        }
-        for e in symptom_entities
-    ]
+    # symptoms_input = [
+    #     {
+    #         "name": e.entity_name,
+    #         "value": e.entity_value
+    #     }
+    #     for e in symptom_entities
+    # ]
 
-    # Generate vital sign reasoning
-    if vitals_input:
-        logger.info("Generating vital indications...")
+    # # Generate vital sign reasoning
+    # if vitals_input:
+    #     logger.info("Generating vital indications...")
 
-        await reasoning_engine.generate_vital_indications(
-            patient_id=patient_id,
-            vitals=vitals_input,
-            conditions=conditions_input,
-            medications=meds_input,
-            demographics=demographics
-        )
+    #     await reasoning_engine.generate_vital_indications(
+    #         patient_id=patient_id,
+    #         vitals=vitals_input,
+    #         conditions=conditions_input,
+    #         medications=meds_input,
+    #         demographics=demographics
+    #     )
 
-    # Generate lab interpretations
-    if labs_input:
-        logger.info("Generating lab interpretations...")
+    # # Generate lab interpretations
+    # if labs_input:
+    #     logger.info("Generating lab interpretations...")
 
-        await reasoning_engine.generate_lab_interpretations(
-            patient_id=patient_id,
-            labs=labs_input,
-            conditions=conditions_input,
-            medications=meds_input,
-            previous_labs=[]
-        )
+    #     await reasoning_engine.generate_lab_interpretations(
+    #         patient_id=patient_id,
+    #         labs=labs_input,
+    #         conditions=conditions_input,
+    #         medications=meds_input,
+    #         previous_labs=[]
+    #     )
 
-    # Generate medication effectiveness
-    if meds_input:
-        logger.info("Generating medication effectiveness...")
+    # # Generate medication effectiveness
+    # if meds_input:
+    #     logger.info("Generating medication effectiveness...")
 
-        await reasoning_engine.generate_medication_effectiveness(
-            patient_id=patient_id,
-            medications=meds_input,
-            vitals=vitals_input,
-            labs=labs_input,
-            symptoms=symptoms_input,
-            conditions=conditions_input
-        )
+    #     await reasoning_engine.generate_medication_effectiveness(
+    #         patient_id=patient_id,
+    #         medications=meds_input,
+    #         vitals=vitals_input,
+    #         labs=labs_input,
+    #         symptoms=symptoms_input,
+    #         conditions=conditions_input
+    #     )
 
-    # Generate recovery trajectories
-    for proc in procedure_entities:
-        logger.info(f"Generating recovery plan for {proc.entity_name}")
+    # # Generate recovery trajectories
+    # for proc in procedure_entities:
+    #     logger.info(f"Generating recovery plan for {proc.entity_name}")
 
-        await reasoning_engine.generate_procedure_recovery(
-            patient_id=patient_id,
-            procedure={
-                "name": proc.entity_name,
-                "value": proc.entity_value
-            },
-            patient_profile=demographics,
-            vitals=vitals_input,
-            labs=labs_input
-        )
+    #     await reasoning_engine.generate_procedure_recovery(
+    #         patient_id=patient_id,
+    #         procedure={
+    #             "name": proc.entity_name,
+    #             "value": proc.entity_value
+    #         },
+    #         patient_profile=demographics,
+    #         vitals=vitals_input,
+    #         labs=labs_input
+    #     )
 
-    # Generate cross correlations
-    all_entities = [
-        {
-            "type": e.entity_type,
-            "name": e.entity_name,
-            "value": e.entity_value
-        }
-        for e in entities
-    ]
+    # # Generate cross correlations
+    # all_entities = [
+    #     {
+    #         "type": e.entity_type,
+    #         "name": e.entity_name,
+    #         "value": e.entity_value
+    #     }
+    #     for e in entities
+    # ]
 
-    logger.info("Generating cross correlations...")
+    # logger.info("Generating cross correlations...")
 
-    await reasoning_engine.generate_cross_correlations(
-        patient_id=patient_id,
-        all_entities=all_entities
-    )
+    # await reasoning_engine.generate_cross_correlations(
+    #     patient_id=patient_id,
+    #     all_entities=all_entities
+    # )
 
-    logger.info(
-        f"✅ Synthetic reasoning completed for patient {patient_id}"
-    )
+    # logger.info(
+    #     f"✅ Synthetic reasoning completed for patient {patient_id}"
+    # )
 
     # ==========================================================
     # End Synthetic Clinical Reasoning
     # ==========================================================
     # Generate / Update Longitudinal Case View
-    await generate_longitudinal_case_view(
+    source_file_name = file_name or document.get("file_name") or document.get("document_name") or ""
+
+    await generate_longitudinal_summary(
         patient_id=patient_id,
         doctor_id=doctor_id,
         document_text=text,
         document_date=document_date,
-        file_name=file_name,
-        document_id=document_id,   # <-- add this, it's already computed above this line
+        file_name=source_file_name,
+        document_id=document_id,
     )
 
     if isinstance(sections, dict):
@@ -691,7 +767,117 @@ async def process_mongo_document(patient_id, doctor_id, document, file_name=None
         "sections": sections,
         "entities": [e.dict() for e in entities]
     })
+    # ==========================================================
+    # 🔢 DOCUMENTATION FEATURE COUNTER
+    # ==========================================================
 
+    DOCUMENTATION_FEATURE_NAMES = {
+        "clinical_note",
+        "investigation",
+        "treatment_plan",
+        "medication_list",
+    }
+
+    document_name = document.get("document_name")
+
+    if document_name in DOCUMENTATION_FEATURE_NAMES:
+
+        try:
+
+            # --------------------------------------------------
+            # Decrement counter for this doctor + patient
+            # --------------------------------------------------
+            counter_result = await documentation_feature_counter_collection.find_one_and_update(
+                {
+                    "doctor_id": doctor_id,
+                    "patient_id": patient_id,
+                    "feature_count": {"$gt": 0}
+                },
+                {
+                    "$inc": {
+                        "feature_count": -1
+                    },
+                    "$set": {
+                        "updated_at": datetime.utcnow()
+                    }
+                },
+                return_document=True
+            )
+
+            if counter_result:
+
+                remaining_count = counter_result.get(
+                    "feature_count",
+                    0
+                )
+
+                logger.info(
+                    "📊 Documentation counter updated | "
+                    "document=%s | doctor=%s | patient=%s | remaining=%s",
+                    document_name,
+                    doctor_id,
+                    patient_id,
+                    remaining_count
+                )
+
+                # --------------------------------------------------
+                # 🚀 ALL DOCUMENTS COMPLETED
+                # --------------------------------------------------
+                if remaining_count == 0:
+
+                    logger.info(
+                        "✅ All documentation features completed | "
+                        "doctor=%s | patient=%s",
+                        doctor_id,
+                        patient_id
+                    )
+
+                    # --------------------------------------------------
+                    # 🚀 CLOSE ENCOUNTER
+                    # --------------------------------------------------
+                    encounter_result = clinical_timeline_graph.close_encounter(
+                        patient_id=patient_id,
+                        doctor_id=doctor_id,
+                    )
+
+                    if encounter_result:
+
+                        logger.info(
+                            "🔒 Encounter closed successfully | "
+                            "encounter_id=%s | doctor=%s | patient=%s",
+                            encounter_result,
+                            doctor_id,
+                            patient_id
+                        )
+
+                    else:
+
+                        logger.warning(
+                            "⚠️ No OPEN encounter found | "
+                            "doctor=%s | patient=%s",
+                            doctor_id,
+                            patient_id
+                        )
+
+            else:
+
+                logger.warning(
+                    "⚠️ No active feature counter found | "
+                    "doctor=%s | patient=%s | document=%s",
+                    doctor_id,
+                    patient_id,
+                    document_name
+                )
+
+        except Exception as e:
+
+            logger.exception(
+                "❌ Feature counter / encounter close failed | "
+                "doctor=%s | patient=%s | document=%s",
+                doctor_id,
+                patient_id,
+                document_name
+            )
     for c in chunks:
         c["patient_id"] = patient_id
         await semantic_chunks.insert_one(c)
@@ -736,6 +922,22 @@ STEP 2 — RECOVER MISSED ENTITIES (any of the 11 types not already captured).
 STEP 3 — FIX NEGATIONS (positive Diagnosis that should be a negative Finding).
 STEP 4 — LEAVE CORRECT ENTITIES UNTOUCHED.
 
+
+STEP 5 — PRESERVE AND VALIDATE TRACEABILITY.
+
+For EVERY entity:
+
+- Preserve source_area when it is supported by ORIGINAL_TEXT.
+- Preserve source_location when it is supported by ORIGINAL_TEXT.
+- Verify that evidence_text supports the entity.
+- Verify that source_area corresponds to evidence_text.
+- Verify that source_location corresponds to evidence_text.
+- NEVER invent source_area.
+- NEVER invent source_location.
+- If the source area cannot be established from ORIGINAL_TEXT, return null.
+- If the source location cannot be established from ORIGINAL_TEXT, return null.
+- Do not remove valid traceability information from a correct entity.
+
 Return ONLY valid JSON, no commentary, no markdown fences:
 {{
   "entities": [
@@ -744,7 +946,9 @@ Return ONLY valid JSON, no commentary, no markdown fences:
       "entity_name": "<name exactly from text>",
       "entity_value": "<value exactly from text>",
       "confidence": 0.00,
-      "evidence_text": "<verbatim or reconstructed text from document>"
+      "evidence_text": "<verbatim or reconstructed text from document>",
+      "source_area": "<section, field, table, form area, or clinical area>",
+      "source_location": "<specific location inside the area, if available>"
     }}
   ]
 }}
@@ -757,11 +961,11 @@ Return ONLY valid JSON, no commentary, no markdown fences:
 """
 
     try:
-        if _is_chemotherapy_doc(file_name):
+        if _is_chemotherapyy_doc(file_name):
             response = await _call_gpt_entities(validation_prompt)
         else:
             completion = groq_client.chat.completions.create(
-                model="llama-3.1-8b-instant",
+                model="openai/gpt-oss-20b",
                 temperature=0.0,
                 max_tokens=6000,
                 response_format={"type": "json_object"},
@@ -782,9 +986,23 @@ Return ONLY valid JSON, no commentary, no markdown fences:
                 ExtractedEntity(
                     entity_type=str(entity_type),
                     entity_name=str(entity_name),
-                    entity_value=str(e.get("entity_value")) if e.get("entity_value") is not None else None,
+                    entity_value=(
+                        str(e.get("entity_value"))
+                        if e.get("entity_value") is not None
+                        else None
+                    ),
                     confidence=float(e.get("confidence", 0.9)),
                     evidence_text=str(e.get("evidence_text", "")),
+                    source_area=(
+                        str(e.get("source_area"))
+                        if e.get("source_area") is not None
+                        else None
+                    ),
+                    source_location=(
+                        str(e.get("source_location"))
+                        if e.get("source_location") is not None
+                        else None
+                    ),
                 )
             )
 
@@ -1181,8 +1399,51 @@ it MUST appear in the output.
 Prefer over-extraction rather than under-extraction.
 
 Missing clinically relevant information is considered a failure.
+
+=== TRACEABILITY RULES ===
+
+For EVERY extracted entity, identify where the supporting information
+came from in the supplied document.
+
+source_area:
+- Identify the section, field, table, form area, or clinical area
+  containing the evidence.
+- Use the exact area name from the document whenever available.
+
+Examples:
+- "Assessment"
+- "Diagnosis"
+- "Medications"
+- "Laboratory Results"
+- "Vital Signs"
+- "Past Medical History"
+- "Treatment Plan"
+- "Clinical Findings"
+- "Investigation Results"
+
+source_location:
+- Identify the most specific location inside source_area when available.
+
+Examples:
+- "Diagnosis field"
+- "HbA1c row"
+- "Medication table"
+- "Assessment paragraph"
+- "Treatment section"
+- "Investigation result row"
+
+IMPORTANT:
+- source_area MUST be based only on the supplied document.
+- source_location MUST be based only on the supplied document.
+- NEVER invent a section or location.
+- If the area cannot be determined, return null.
+- If the specific location cannot be determined, return null.
+- evidence_text must contain the exact text supporting the entity.
+- source_area/source_location must correspond to evidence_text.
+
 === OUTPUT FORMAT ===
 Return ONLY valid JSON. No commentary, no markdown fences.
+
 
 {{
   "document_date": "YYYY-MM-DD or null",
@@ -1192,7 +1453,9 @@ Return ONLY valid JSON. No commentary, no markdown fences.
       "entity_name": "<name exactly from text>",
       "entity_value": "<value exactly from text>",
       "confidence": 0.00,
-      "evidence_text": "<verbatim or reconstructed text from document>"
+      "evidence_text": "<verbatim or reconstructed text from document>",
+      "source_area": "<section, field, table, form area, or clinical area>",
+      "source_location": "<specific location inside the area, if available>"
     }}
   ]
 }}
@@ -1205,7 +1468,7 @@ Return ONLY valid JSON. No commentary, no markdown fences.
         response = await _call_gpt_entities(prompt)
     else:
         completion = groq_client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="openai/gpt-oss-120b",
             temperature=0.1,
             max_tokens=6000,
             response_format={"type": "json_object"},
@@ -1225,9 +1488,23 @@ Return ONLY valid JSON. No commentary, no markdown fences.
                 ExtractedEntity(
                     entity_type=str(entity_type),
                     entity_name=str(entity_name),
-                    entity_value=str(e.get("entity_value")) if e.get("entity_value") is not None else None,
+                    entity_value=(
+                        str(e.get("entity_value"))
+                        if e.get("entity_value") is not None
+                        else None
+                    ),
                     confidence=float(e.get("confidence", 0.9)),
                     evidence_text=str(e.get("evidence_text", "")),
+                    source_area=(
+                        str(e.get("source_area"))
+                        if e.get("source_area") is not None
+                        else None
+                    ),
+                    source_location=(
+                        str(e.get("source_location"))
+                        if e.get("source_location") is not None
+                        else None
+                    ),
                 )
             )
         return entities, document_date
@@ -1277,6 +1554,8 @@ async def push_entities_to_graph(patient_id, document_id, entities, metadata,doc
             document_type="clinical_document",
             document_date=document_date,
             evidence_text=e.evidence_text,
+            source_area=e.source_area,
+            source_location=e.source_location,
             confidence=e.confidence,
             extraction_date=datetime.utcnow()
         )
@@ -1473,10 +1752,14 @@ async def process_document(patient_id, doctor_id, url):
             "document_id": document_id,
             "patient_id": patient_id,
             "doctor_id": doctor_id,
-            "file_name": file_name,
+
+            # IMPORTANT: use the same field expected by Evidence
+            "document_name": file_name_with_ts,
+            "file_name": file_name_with_ts,
+
             "file_hash": file_hash,
             "processing_date": datetime.utcnow(),
-            "document_date": document_date
+            "document_date": str(document_date) if document_date else None,
         }
 
         demographics = await get_patient_demographics(patient_id)
@@ -2150,8 +2433,19 @@ def _is_chemotherapy_doc(file_name: str) -> bool:
         return False
     name = file_name.lower()
     return (
-        "cghgdja" in name
-        or "xgzjhx" in name
+        "tumor_board_plan" in name
+        or "chemotherapy_workflow" in name
+        or "sudhjsjhszcr" in name
+    )
+
+
+def _is_chemotherapyy_doc(file_name: str) -> bool:
+    if not file_name:
+        return False
+    name = file_name.lower()
+    return (
+        "sudhjsjhszcr" in name
+        or "sudhjsjhszcr" in name
         or "sudhjsjhszcr" in name
     )
 
@@ -2197,23 +2491,27 @@ from typing import Optional
 async def get_appointment_id_for_document(
     patient_id: str,
     document_date,
+    doctor_id: Optional[str] = None,
+    
 ) -> Optional[str]:
-    """
-    Returns the appointment_id that this document belongs to.
 
-    Rules:
-    - Report before first appointment -> first appointment
-    - Report between appointments -> previous appointment
-    - Report after last appointment -> last appointment
-    """
+    # ==========================================================
+    # 1. APPOINTMENT ID ALREADY KNOWN
+    # ==========================================================
+   
 
+    # ==========================================================
+    # 2. GET PATIENT APPOINTMENTS
+    # ==========================================================
     patient_doc = await patient_appointments_collection.find_one(
         {"sys_user_id": patient_id},
         {"appointments": 1, "_id": 0},
     )
 
     if not patient_doc:
-        logger.warning(f"No appointments found for patient {patient_id}")
+        logger.warning(
+            f"No appointments found for patient {patient_id}"
+        )
         return None
 
     appointments = patient_doc.get("appointments", [])
@@ -2221,28 +2519,668 @@ async def get_appointment_id_for_document(
     if not appointments:
         return None
 
-    appointments.sort(
-        key=lambda x: datetime.fromisoformat(x["date"])
-    )
-
+    # ==========================================================
+    # 3. NORMALIZE DOCUMENT DATE
+    # ==========================================================
     report_date = (
         document_date
         if isinstance(document_date, datetime)
         else datetime.fromisoformat(str(document_date))
     )
 
-    # Before first appointment
-    first_date = datetime.fromisoformat(appointments[0]["date"])
+    # ==========================================================
+    # 4. FIRST TRY:
+    #    PATIENT + DOCTOR + EXACT DATE
+    #
+    #    This is important when same patient has appointments
+    #    with different doctors.
+    # ==========================================================
+    if doctor_id:
+
+        matching_appointments = []
+
+        for appointment in appointments:
+
+            if appointment.get("doctor_id") != doctor_id:
+                continue
+
+            appointment_date = datetime.fromisoformat(
+                appointment["date"]
+            )
+
+            if appointment_date.date() == report_date.date():
+                matching_appointments.append(appointment)
+
+        # One exact appointment
+        if len(matching_appointments) == 1:
+            return matching_appointments[0]["appointment_id"]
+
+        # Multiple appointments same doctor + same date
+        if len(matching_appointments) > 1:
+            logger.warning(
+                f"Multiple appointments found for "
+                f"patient={patient_id}, "
+                f"doctor={doctor_id}, "
+                f"date={report_date.date()}"
+            )
+
+            # If scheduled time is available, this should be
+            # resolved using the document/appointment time.
+            return matching_appointments[0]["appointment_id"]
+
+    # ==========================================================
+    # 5. FALLBACK:
+    #    OLD DATE-BASED LOGIC
+    # ==========================================================
+    appointments.sort(
+        key=lambda x: datetime.fromisoformat(x["date"])
+    )
+
+    first_date = datetime.fromisoformat(
+        appointments[0]["date"]
+    )
+
     if report_date <= first_date:
         return appointments[0]["appointment_id"]
 
-    # Between appointments
     for i in range(len(appointments) - 1):
-        current_date = datetime.fromisoformat(appointments[i]["date"])
-        next_date = datetime.fromisoformat(appointments[i + 1]["date"])
+
+        current_date = datetime.fromisoformat(
+            appointments[i]["date"]
+        )
+
+        next_date = datetime.fromisoformat(
+            appointments[i + 1]["date"]
+        )
 
         if current_date <= report_date < next_date:
             return appointments[i]["appointment_id"]
 
-    # After last appointment
     return appointments[-1]["appointment_id"]
+
+
+
+
+@router.get("/clinical-timeline/{patient_id}")
+async def get_clinical_timeline(patient_id: str):
+    """
+    Get the complete clinical timeline for a patient.
+
+    Returns one timeline entry per encounter/visit.
+    """
+
+    try:
+
+        logger.info(
+            "Fetching clinical timeline for patient={}",
+            patient_id
+        )
+
+        result = (
+            clinical_timeline_graph
+            .get_patient_clinical_timeline(
+                patient_id=patient_id
+            )
+        )
+
+        return {
+            "status": "success",
+            "patient_id": patient_id,
+            "timeline": result
+        }
+
+    except Exception as e:
+
+        logger.exception(
+            "Failed to fetch clinical timeline "
+            "for patient={}: {}",
+            patient_id,
+            e
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to retrieve clinical timeline"
+        )
+        
+async def get_doctor_graph_details(
+    doctor_id: str
+) -> Dict[str, str]:
+
+    doctor = await doctor_user_c.find_one(
+        {
+            "sys_user_id": doctor_id
+        },
+        {
+            "_id": 0,
+            "name": 1,
+            "specialization": 1
+        }
+    )
+
+    if not doctor:
+        return {
+            "name": "",
+            "specialty": ""
+        }
+
+    return {
+        "name": doctor.get("name", "") or "",
+        "specialty": doctor.get("specialization", "") or ""
+    }
+    
+class CloseEncounterRequest(BaseModel):
+    patient_id: str
+    doctor_id: str
+
+
+@router.post("/encounter/close")
+async def close_encounter(request: CloseEncounterRequest):
+    """
+    Close the currently OPEN encounter for this patient + doctor.
+
+    Frontend sends only patient_id and doctor_id.
+    Backend finds the latest OPEN encounter belonging
+    to that patient and doctor.
+    """
+
+    try:
+        if not request.patient_id:
+            raise HTTPException(
+                status_code=400,
+                detail="patient_id is required",
+            )
+
+        if not request.doctor_id:
+            raise HTTPException(
+                status_code=400,
+                detail="doctor_id is required",
+            )
+
+        encounter_id = clinical_timeline_graph.close_encounter(
+            patient_id=request.patient_id,
+            doctor_id=request.doctor_id,
+        )
+
+        if not encounter_id:
+            raise HTTPException(
+                status_code=404,
+                detail=(
+                    "No OPEN encounter found for "
+                    f"patient_id={request.patient_id}, "
+                    f"doctor_id={request.doctor_id}"
+                ),
+            )
+
+        return {
+            "success": True,
+            "patient_id": request.patient_id,
+            "doctor_id": request.doctor_id,
+            "encounter_id": encounter_id,
+            "status": "CLOSED",
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as exc:
+        logger.exception(
+            "Failed to close encounter: patient=%s doctor=%s",
+            request.patient_id,
+            request.doctor_id,
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to close encounter: {str(exc)}",
+        )
+        
+        
+
+def remove_empty_fields(value):
+    """
+    Recursively remove empty fields from arbitrary JSON/Mongo data.
+
+    Removes:
+      None
+      ""
+      whitespace-only strings
+      []
+      {}
+
+    Preserves:
+      0
+      0.0
+      False
+      "0"
+      "false"
+      "No"
+      "None"
+      "negative"
+    """
+
+    if isinstance(value, dict):
+        cleaned = {}
+
+        for key, item in value.items():
+            item = remove_empty_fields(item)
+
+            if item is None:
+                continue
+
+            if isinstance(item, str) and not item.strip():
+                continue
+
+            if isinstance(item, (dict, list)) and not item:
+                continue
+
+            cleaned[key] = item
+
+        return cleaned
+
+    if isinstance(value, list):
+        cleaned = []
+
+        for item in value:
+            item = remove_empty_fields(item)
+
+            if item is None:
+                continue
+
+            if isinstance(item, str) and not item.strip():
+                continue
+
+            if isinstance(item, (dict, list)) and not item:
+                continue
+
+            cleaned.append(item)
+
+        return cleaned
+
+    if isinstance(value, str):
+        value = value.strip()
+
+        if not value:
+            return None
+
+        return value
+
+    return value
+
+
+
+
+
+# ============================================================
+# NEO4J DRIVER
+# ============================================================
+
+neo4j_driver = AsyncGraphDatabase.driver(
+    neo4j_uri,
+    auth=(neo4j_user, neo4j_password),
+)
+
+
+# ============================================================
+# GET LATEST CLINICAL STATE
+# ============================================================
+
+@router.get("/patient/{patient_id}/latest-clinical-state")
+async def get_latest_clinical_state(
+    patient_id: str,
+    doctor_id: str,
+):
+    """
+    Get the latest clinical event/encounter for a patient + doctor.
+
+    Returns:
+        - latest event
+        - encounter details
+        - latest summary for each summary type
+        - latest synthesis for each synthesis type
+        - patient profile
+        - doctors associated with the event
+    """
+
+    cypher = """
+    // ==========================================================
+    // STEP 1: Get latest event for patient + doctor
+    // ==========================================================
+
+    MATCH (p:Patient {patient_id: $patient_id})
+        -[:HAS_ENCOUNTER]->(e:Encounter)
+
+    WHERE e.patient_id = $patient_id
+    AND e.doctor_id = $doctor_id
+
+    WITH e.event_id AS event_id
+
+    ORDER BY coalesce(
+        e.closed_at,
+        e.opened_at,
+        e.created_at
+    ) DESC
+
+    LIMIT 1
+
+
+    // ==========================================================
+    // STEP 2: Get latest summaries for each type
+    // ==========================================================
+
+    MATCH (ce:ClinicalEvent {event_id: event_id})
+        -[:HAS_ENCOUNTER]->(enc:Encounter)
+        -[:HAS_SUMMARY]->(s:ClinicalSummary)
+
+    WHERE s.summary_type IS NOT NULL
+    AND s.summary_type <> ''
+    AND s.summary IS NOT NULL
+    AND s.summary <> ''
+
+    WITH
+        event_id,
+        s.summary_type AS summary_type,
+        s.summary AS summary,
+        s.is_baseline AS is_baseline,
+        s.summary_date AS summary_date,
+        enc.encounter_id AS encounter_id,
+        enc.doctor_id AS doctor_id,
+        enc.encounter_date AS encounter_date,
+        coalesce(
+            enc.closed_at,
+            enc.opened_at,
+            enc.created_at
+        ) AS sort_date
+
+    ORDER BY sort_date DESC
+
+    WITH
+        event_id,
+        summary_type,
+        COLLECT({
+            summary: summary,
+            is_baseline: is_baseline,
+            summary_date: summary_date,
+            encounter_id: encounter_id,
+            doctor_id: doctor_id,
+            encounter_date: encounter_date
+        }) AS summaries_by_type
+
+    WITH
+        event_id,
+        COLLECT({
+            type: summary_type,
+            latest_summary: summaries_by_type[0]
+        }) AS latest_summaries
+
+
+    // ==========================================================
+    // STEP 3: Get latest clinical synthesis
+    // ==========================================================
+
+    OPTIONAL MATCH (p:Patient {patient_id: $patient_id})
+        -[:HAS_SYNTHESIS]->(cs:ClinicalSynthesis)
+
+    WHERE cs.event_id = event_id
+    AND cs.summary_type IS NOT NULL
+    AND cs.summary_type <> ''
+    AND cs.reasoning IS NOT NULL
+    AND cs.reasoning <> ''
+
+    WITH
+        event_id,
+        latest_summaries,
+        cs
+
+    ORDER BY cs.updated_at DESC
+
+    WITH
+        event_id,
+        latest_summaries,
+        cs.summary_type AS synthesis_type,
+        COLLECT({
+            reasoning: cs.reasoning,
+            encounter_count: cs.encounter_count,
+            last_encounter_id: cs.last_encounter_id
+        }) AS synthesis_versions
+
+    WITH
+        event_id,
+        latest_summaries,
+        COLLECT({
+            type: synthesis_type,
+            latest_synthesis: synthesis_versions[0]
+        }) AS latest_synthesis
+
+
+    // ==========================================================
+    // STEP 4: Patient profile
+    // ==========================================================
+
+    OPTIONAL MATCH (p:Patient {patient_id: $patient_id})
+        -[:HAS_PROFILE_ITEM]->(pi:PatientProfileItem)
+
+    WHERE pi.patient_id = $patient_id
+    AND pi.category IS NOT NULL
+    AND pi.category <> ''
+    AND pi.value IS NOT NULL
+    AND pi.value <> ''
+
+    WITH
+        event_id,
+        latest_summaries,
+        latest_synthesis,
+        pi.category AS category,
+        pi.value AS value,
+        pi.status AS status,
+        pi.detail AS detail,
+        pi.first_noted_at AS first_noted_at
+
+    ORDER BY category ASC, first_noted_at DESC
+
+    WITH
+        event_id,
+        latest_summaries,
+        latest_synthesis,
+        category,
+        COLLECT(DISTINCT {
+            value: value,
+            status: status,
+            detail: detail,
+            first_noted_at: first_noted_at
+        }) AS profile_items
+
+    WITH
+        event_id,
+        latest_summaries,
+        latest_synthesis,
+        COLLECT({
+            category: category,
+            items: profile_items
+        }) AS patient_profile
+
+
+    // ==========================================================
+    // STEP 5: Get event + latest encounter
+    // ==========================================================
+
+    OPTIONAL MATCH (ce:ClinicalEvent {event_id: event_id})
+        -[:HAS_ENCOUNTER]->(enc:Encounter)
+        -[:HAS_SUMMARY]->(s:ClinicalSummary)
+
+    WHERE s.summary_type IS NOT NULL
+    AND s.summary_type <> ''
+    AND s.summary IS NOT NULL
+    AND s.summary <> ''
+
+    WITH
+        event_id,
+        latest_summaries,
+        latest_synthesis,
+        patient_profile,
+        ce,
+        enc
+
+    ORDER BY coalesce(
+        enc.closed_at,
+        enc.opened_at,
+        enc.created_at
+    ) DESC
+
+    LIMIT 1
+
+
+    // ==========================================================
+    // STEP 6: Get doctors
+    // ==========================================================
+
+    OPTIONAL MATCH (ce)-[:HAS_DOCTOR]->(d:Doctor)
+
+    WITH
+        event_id,
+        patient_profile,
+        latest_summaries,
+        latest_synthesis,
+        ce,
+        enc,
+        d
+
+    ORDER BY d.name ASC
+
+    WITH
+        event_id,
+        ce.conditions AS conditions,
+        ce.created_at AS event_created_at,
+
+        enc.encounter_id AS encounter_id,
+        enc.encounter_number AS encounter_number,
+        enc.status AS encounter_status,
+        enc.encounter_date AS encounter_date,
+        enc.opened_at AS encounter_opened_at,
+        enc.closed_at AS encounter_closed_at,
+        enc.appointment_id AS appointment_id,
+        enc.doctor_id AS encounter_doctor_id,
+
+        latest_summaries,
+        latest_synthesis,
+        patient_profile,
+
+        COLLECT(DISTINCT {
+            doctor_id: d.doctor_id,
+            doctor_name: d.name,
+            doctor_specialty: d.specialty
+        }) AS event_doctors
+
+
+    // ==========================================================
+    // STEP 7: Return result
+    // ==========================================================
+
+    RETURN {
+        patient_id: $patient_id,
+
+        event_id: event_id,
+
+        conditions: conditions,
+
+        event_created_at: event_created_at,
+
+        doctor_id: encounter_doctor_id,
+
+        doctor_name:
+            CASE
+                WHEN size(event_doctors) > 0
+                THEN event_doctors[0].doctor_name
+                ELSE null
+            END,
+
+        doctor_specialty:
+            CASE
+                WHEN size(event_doctors) > 0
+                THEN event_doctors[0].doctor_specialty
+                ELSE null
+            END,
+
+        encounter_id: encounter_id,
+        encounter_number: encounter_number,
+        encounter_status: encounter_status,
+        encounter_date: encounter_date,
+        encounter_opened_at: encounter_opened_at,
+        encounter_closed_at: encounter_closed_at,
+        appointment_id: appointment_id,
+
+        summaries: latest_summaries,
+
+        synthesis: latest_synthesis,
+
+        profile: patient_profile
+
+    } AS result
+    """
+
+
+    # ============================================================
+    # EXECUTE QUERY
+    # ============================================================
+
+    try:
+
+        async with neo4j_driver.session() as session:
+
+            result = await session.run(
+                cypher,
+                patient_id=patient_id,
+                doctor_id=doctor_id,
+            )
+
+            record = await result.single()
+
+
+        # ========================================================
+        # NO DATA
+        # ========================================================
+
+        if not record:
+
+            return {
+                "status": "success",
+                "found": False,
+                "patient_id": patient_id,
+                "doctor_id": doctor_id,
+                "data": None,
+            }
+
+
+        # ========================================================
+        # RETURN DATA
+        # ========================================================
+
+        data = record["result"]
+
+        return {
+            "status": "success",
+            "found": True,
+            "patient_id": patient_id,
+            "doctor_id": doctor_id,
+            "event_id": data.get("event_id"),
+            "encounter_id": data.get("encounter_id"),
+            "data": data,
+        }
+
+
+    except Exception as e:
+
+        logger.exception(
+            "Failed to retrieve latest clinical state | "
+            f"patient={patient_id} | doctor={doctor_id}"
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "status": "error",
+                "message": "Failed to retrieve latest clinical state",
+                "reason": str(e),
+            },
+        )
+

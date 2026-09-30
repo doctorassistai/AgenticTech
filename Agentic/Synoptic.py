@@ -122,7 +122,7 @@ SYNOPTIC_SYNTHESIS_MAX_TOKENS = int(
 )
 
 llm_synoptic = ChatGroq(
-    model="llama-3.3-70b-versatile",
+    model="openai/gpt-oss-120b",
     temperature=0.1,
     groq_api_key=GROQ_API_KEY,
     max_tokens=GROQ_MAX_TOKENS,

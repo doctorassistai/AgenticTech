@@ -36,7 +36,7 @@ class ClinicalReasoningEngine:
     
     # ==================== LLM PROMPTS ====================
     
-    def _call_llm(self, prompt: str, model: str = "llama-3.3-70b-versatile", 
+    def _call_llm(self, prompt: str, model: str = "openai/gpt-oss-120b", 
                   max_tokens: int = 4000, temperature: float = 0.1) -> str:
         """Synchronous LLM call (matches your existing pattern)."""
         if not groq_client:

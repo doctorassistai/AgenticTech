@@ -189,12 +189,12 @@ TPA_INSURER_TEMPLATE_MAP = {
         },
     },
         ("raksha health insurance tpa pvt ltd", "united india insurance"): {
-        "template":               "united_india_raksha_above_1.html",   # amount >= 1 lakh
+        "template":               "united_india_raksha_below_1.html",   # amount < 1 lakh
         "header_image":           "templates/assets/raksha_logo.png",
         "stamp_image":            "templates/assets/stamp_image.jpg",
         "claim_amount_threshold": 100000,
         "threshold_template": {
-            "template":     "uiic_raksha_above_1lakh.html",         # same — no below-1L template yet for Raksha
+            "template":     "uiic_raksha_above_1lakh.html",         # amount >= 1 lakh
             "header_image": "templates/assets/raksha_logo.png",
             "stamp_image":  "templates/assets/stamp_image.jpg",
         },
@@ -202,7 +202,7 @@ TPA_INSURER_TEMPLATE_MAP = {
 }
 
 RAKSHA_DEFAULT = {
-    "template":     "common_raksha.html",
+    "template":     "raksha_common.html",
     "header_image": "templates/assets/raksha_logo.png",
     "stamp_image":  "templates/assets/stamp_image.jpg",
 }
@@ -234,8 +234,18 @@ INSURER_CLAIMMODE_TEMPLATE_MAP = {
         "header_image": "templates/assets/future_generali.png",
         "stamp_image":  "templates/assets/stamp_image.jpg",
     },
+    ("future generali india insurance", "reimbursement"): {
+        "template":     "future_generali_reimbursement.html",
+        "header_image": "templates/assets/future_generali.png",
+        "stamp_image":  "templates/assets/stamp_image.jpg",
+    },
     ("aditya birla health insurance", "cashless"): {
         "template":     "aditya_birla_cashless.html",
+        "header_image": "templates/assets/optimus_header.jpg",
+        "stamp_image":  "templates/assets/stamp_image.jpg",
+    },
+    ("aditya birla health insurance", "reimbursement"): {
+        "template":     "aditya_birla_reimbursement.html",
         "header_image": "templates/assets/optimus_header.jpg",
         "stamp_image":  "templates/assets/stamp_image.jpg",
     },
@@ -244,8 +254,17 @@ INSURER_CLAIMMODE_TEMPLATE_MAP = {
         "header_image": "templates/assets/optimus_header.jpg",
         "stamp_image":  "templates/assets/stamp_image.jpg",
     },
+    ("bajaj allianz general insurance", "reimbursement"): {
+        "template":     "bajaj_reimbursement.html",
+        "header_image": "templates/assets/optimus_header.jpg",
+        "stamp_image":  "templates/assets/stamp_image.jpg",
+    },
+    ("cholamandalam ms general insurance", "reimbursement"): {
+        "template":     "chola_reimbursement.html",
+        "header_image": "templates/assets/chola_logo.png",
+        "stamp_image":  "templates/assets/stamp_image.jpg",
+    },
 }
-
 # ─────────────────────────────────────────────────────────────────────────────
 # DEFAULT
 # ─────────────────────────────────────────────────────────────────────────────
@@ -309,6 +328,11 @@ def _render_html(case_data: dict, config: dict) -> str:
     accident      = case_data.get("accidentDetails", {})          or {}
     facts         = case_data.get("pre_extracted_facts", {})      or {}
 
+    # Extractors sometimes store diagnosis as a list -> avoid "['...']" in the PDF
+    facts = dict(facts)
+    for _k in ("final_diagnosis", "provisional_diagnosis"):
+        if isinstance(facts.get(_k), (list, tuple)):
+            facts[_k] = ", ".join(str(x) for x in facts[_k] if x)
     conclusion_raw          = case_data.get("conclusion") or ""
     conclusion_html         = format_conclusion_html(conclusion_raw)
     hospital_findings_html  = get_section_html(conclusion_raw, 1)

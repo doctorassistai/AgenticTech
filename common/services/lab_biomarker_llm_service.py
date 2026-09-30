@@ -18,7 +18,7 @@ def run_lab_biomarker_llm(text: str, document_type: str) -> Dict[str, Any]:
         prompt = get_enhanced_medical_prompt(document_type, text)
         logger.info(f"Using prompt for document type {prompt}")
         completion = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.1,
             max_tokens=4000,

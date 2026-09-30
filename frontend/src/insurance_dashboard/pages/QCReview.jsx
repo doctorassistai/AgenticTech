@@ -165,29 +165,41 @@ function DocRow({ doc, invType, flagged, onToggleFlag, onPreview }) {
   const c = INV_META[invType] || INV_META.MV;
 
   return (
-    <div style={{
-      border: `1px solid ${flagged ? "#FCA5A5" : "#E5E7EB"}`,
-      borderRadius: 8, overflow: "hidden", marginBottom: 6,
-      background: flagged ? "#FFF5F5" : "#fff",
-      transition: "border-color 0.2s, background 0.2s",
-    }}>
+          <div style={{
+        border: `1px solid ${flagged ? "#FCA5A5" : doc.not_applicable ? "#FDE68A" : "#E5E7EB"}`,
+        borderRadius: 8, overflow: "hidden", marginBottom: 6,
+        background: flagged ? "#FFF5F5" : doc.not_applicable ? "#FFFBEB" : "#fff",
+        transition: "border-color 0.2s, background 0.2s",
+      }}>
       <div style={{
         display: "flex", alignItems: "center", padding: "9px 12px",
         gap: 10, cursor: doc.submitted ? "pointer" : "default",
       }} onClick={() => doc.submitted && setOpen(v => !v)}>
 
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-          stroke={doc.submitted ? c.color : "#D1D5DB"} strokeWidth="2" strokeLinecap="round">
-          <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
-          <polyline points="14,2 14,8 20,8" />
-        </svg>
+        {doc.not_applicable ? (
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+            stroke="#B45309" strokeWidth="2" strokeLinecap="round">
+            <circle cx="12" cy="12" r="9" />
+            <line x1="6" y1="18" x2="18" y2="6" />
+          </svg>
+        ) : (
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+            stroke={doc.submitted ? c.color : "#D1D5DB"} strokeWidth="2" strokeLinecap="round">
+            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+            <polyline points="14,2 14,8 20,8" />
+          </svg>
+        )}
 
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: doc.submitted ? "#374151" : "#9CA3AF" }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: doc.not_applicable ? "#B45309" : doc.submitted ? "#374151" : "#9CA3AF" }}>
             {doc.label}
           </div>
-          <div style={{ fontSize: 10, color: "#9CA3AF", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {doc.submitted ? (doc.file_name || "Document received") : "Not yet submitted"}
+          <div style={{ fontSize: 10, color: doc.not_applicable ? "#B45309" : "#9CA3AF", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {doc.not_applicable
+              ? `Marked not applicable${doc.skip_reason ? ` — ${doc.skip_reason}` : ""}`
+              : doc.submitted
+                ? (doc.file_name || "Document received")
+                : "Not yet submitted"}
           </div>
         </div>
 
@@ -339,7 +351,7 @@ function InvSection({ invType, inv, flaggedDocs, onToggleFlag, onPreview }) {
               doc={doc}
               invType={invType}
               flagged={!!flaggedDocs[`${invType}::${doc.key}`]}
-              onToggleFlag={() => onToggleFlag(invType, doc.key)}
+              onToggleFlag={() => onToggleFlag(invType, doc.key, inv.investigatorId)}
               onPreview={onPreview}
             />
           ))}
@@ -816,16 +828,13 @@ function ContentEditorModal({ doc, onSave, onClose, loading }) {
 // ── PDF Preview panel ─────────────────────────────────────────────────────────
 
 function PdfPreviewPanel({ doc, onClose, onEditContent }) {
-  const [tab, setTab] = useState("raw"); // "raw" | "sections"
   if (!doc) return null;
 
-  const TAB_STYLE = (active) => ({
-    padding: "6px 14px", borderRadius: 7, border: "none",
-    background: active ? "#2563EB" : "transparent",
-    color: active ? "#fff" : "#6B7280",
-    fontSize: 11, fontWeight: 700, cursor: "pointer",
-    transition: "all 0.15s",
-  });
+  // Force a sane fit-to-width zoom level instead of the browser's default
+  // (which is often heavily zoomed in on some PDF viewers).
+  const pdfSrc = doc.file_url
+    ? `${doc.file_url}#toolbar=1&navpanes=0&view=FitH`
+    : doc.file_url;
 
   return (
     <div style={{
@@ -836,7 +845,7 @@ function PdfPreviewPanel({ doc, onClose, onEditContent }) {
     }} onClick={onClose}>
       <div style={{
         background: "#fff", borderRadius: 14,
-        width: "min(1100px, 96vw)", height: "90vh",
+        width: "min(1000px, 96vw)", height: "92vh",
         display: "flex", flexDirection: "column",
         boxShadow: "0 24px 64px rgba(0,0,0,0.25)", overflow: "hidden",
       }} onClick={e => e.stopPropagation()}>
@@ -851,11 +860,6 @@ function PdfPreviewPanel({ doc, onClose, onEditContent }) {
             <div style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>{doc.label}</div>
             <div style={{ fontSize: 11, color: "#9CA3AF" }}>
               {doc.file_name || doc.document_id}
-              {doc.document_id && (
-                <span style={{ fontFamily: "monospace", marginLeft: 8, opacity: 0.7 }}>
-                  · {doc.document_id}
-                </span>
-              )}
             </div>
           </div>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -878,211 +882,12 @@ function PdfPreviewPanel({ doc, onClose, onEditContent }) {
           </div>
         </div>
 
-        {/* Split: PDF left, data right */}
-        <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
-
-          {/* PDF iframe */}
-          <iframe
-            src={doc.file_url}
-            title="Document preview"
-            style={{ flex: 3, border: "none", minHeight: 0 }}
-          />
-
-          {/* Right panel */}
-          <div style={{
-            flex: 2, borderLeft: "1px solid #E5E7EB",
-            display: "flex", flexDirection: "column", minHeight: 0,
-          }}>
-
-            {/* Tab bar + Edit button */}
-            <div style={{
-              display: "flex", alignItems: "center", justifyContent: "space-between",
-              padding: "10px 14px", borderBottom: "1px solid #E5E7EB",
-              background: "#F9FAFB", flexShrink: 0, gap: 8,
-            }}>
-              <div style={{
-                display: "flex", gap: 4,
-                background: "#F3F4F6", padding: 3, borderRadius: 9,
-              }}>
-                <button style={TAB_STYLE(tab === "raw")} onClick={() => setTab("raw")}>
-                  Raw Text
-                </button>
-                <button style={TAB_STYLE(tab === "sections")} onClick={() => setTab("sections")}>
-                  Sections
-                  {doc.sections?.sections?.length > 0 && (
-                    <span style={{
-                      marginLeft: 5, background: "rgba(255,255,255,0.3)",
-                      borderRadius: 99, padding: "0 5px", fontSize: 10,
-                    }}>
-                      {doc.sections.sections.length}
-                    </span>
-                  )}
-                </button>
-              </div>
-
-              {doc.document_id && (
-                <button onClick={() => onEditContent(doc)} style={{
-                  display: "flex", alignItems: "center", gap: 5,
-                  padding: "6px 12px", borderRadius: 7,
-                  border: "1px solid #BFDBFE", background: "#EFF6FF",
-                  color: "#2563EB", fontSize: 11, fontWeight: 700, cursor: "pointer",
-                }}>
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                    <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
-                    <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                  </svg>
-                  Edit Content
-                </button>
-              )}
-            </div>
-
-            {/* Tab content */}
-            <div style={{ flex: 1, overflowY: "auto", padding: 14 }}>
-
-              {/* RAW TEXT */}
-              {tab === "raw" && (
-                doc.raw_markdown ? (
-                  <pre style={{
-                    fontSize: 11, lineHeight: 1.7, color: "#374151",
-                    whiteSpace: "pre-wrap", wordBreak: "break-word",
-                    fontFamily: "'DM Mono', monospace",
-                    background: "#F9FAFB", borderRadius: 8,
-                    padding: 12, border: "1px solid #E5E7EB", margin: 0,
-                  }}>
-                    {doc.raw_markdown}
-                  </pre>
-                ) : (
-                  <div style={{
-                    display: "flex", flexDirection: "column",
-                    alignItems: "center", justifyContent: "center",
-                    height: "100%", gap: 8, color: "#9CA3AF",
-                  }}>
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="1.5">
-                      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
-                      <polyline points="14,2 14,8 20,8"/>
-                    </svg>
-                    <div style={{ fontSize: 12, fontStyle: "italic" }}>No raw text available</div>
-                    {doc.document_id && (
-                      <button onClick={() => onEditContent(doc)} style={{
-                        marginTop: 4, padding: "6px 14px", borderRadius: 7,
-                        border: "1px solid #BFDBFE", background: "#EFF6FF",
-                        color: "#2563EB", fontSize: 11, fontWeight: 600, cursor: "pointer",
-                      }}>
-                        Add raw text
-                      </button>
-                    )}
-                  </div>
-                )
-              )}
-
-              {/* SECTIONS */}
-              {tab === "sections" && (
-                doc.sections ? (
-                  <>
-                    {/* Tables */}
-                    {doc.sections.tables?.length > 0 && (
-                      <div style={{ marginBottom: 16 }}>
-                        <div style={{
-                          fontSize: 10, fontWeight: 700, color: "#9CA3AF",
-                          textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8,
-                          display: "flex", alignItems: "center", gap: 6,
-                        }}>
-                          <span style={{
-                            background: "#FEF3C7", color: "#92400E",
-                            padding: "2px 6px", borderRadius: 4, fontSize: 9,
-                          }}>TABLE</span>
-                          {doc.sections.tables.length} table(s)
-                        </div>
-                        {doc.sections.tables.map((t, i) => (
-                          <div key={i} style={{
-                            background: "#FFFBEB", border: "1px solid #FDE68A",
-                            borderRadius: 8, padding: "10px 12px", marginBottom: 8,
-                            fontSize: 11, color: "#92400E",
-                            fontFamily: "'DM Mono', monospace",
-                            whiteSpace: "pre-wrap", wordBreak: "break-word",
-                          }}>
-                            {typeof t === "string" ? t : JSON.stringify(t, null, 2)}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Sections list */}
-                    {doc.sections.sections?.length > 0 ? (
-                      <div>
-                        <div style={{
-                          fontSize: 10, fontWeight: 700, color: "#9CA3AF",
-                          textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8,
-                        }}>
-                          {doc.sections.sections.length} section(s)
-                        </div>
-                        {doc.sections.sections.map((s, i) => (
-                          <div key={i} style={{
-                            marginBottom: 10, borderRadius: 8, overflow: "hidden",
-                            border: "1px solid #E5E7EB",
-                          }}>
-                            <div style={{
-                              background: "#EFF6FF", padding: "7px 12px",
-                              fontSize: 11, fontWeight: 700, color: "#1D4ED8",
-                              borderBottom: "1px solid #BFDBFE",
-                              display: "flex", alignItems: "center", gap: 6,
-                            }}>
-                              <span style={{
-                                background: "#DBEAFE", color: "#1D4ED8",
-                                borderRadius: 4, padding: "1px 5px",
-                                fontSize: 9, fontWeight: 800,
-                              }}>§{i + 1}</span>
-                              {s.heading}
-                            </div>
-                            <pre style={{
-                              margin: 0, padding: "9px 12px",
-                              fontSize: 11, lineHeight: 1.6, color: "#374151",
-                              whiteSpace: "pre-wrap", wordBreak: "break-word",
-                              fontFamily: "'DM Mono', monospace",
-                              background: "#fff",
-                            }}>
-                              {s.content}
-                            </pre>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div style={{
-                        display: "flex", flexDirection: "column",
-                        alignItems: "center", justifyContent: "center",
-                        padding: "24px 0", gap: 8, color: "#9CA3AF",
-                      }}>
-                        <div style={{ fontSize: 12, fontStyle: "italic" }}>No sections parsed</div>
-                        {doc.document_id && (
-                          <button onClick={() => onEditContent(doc)} style={{
-                            padding: "6px 14px", borderRadius: 7,
-                            border: "1px solid #BFDBFE", background: "#EFF6FF",
-                            color: "#2563EB", fontSize: 11, fontWeight: 600, cursor: "pointer",
-                          }}>Add sections</button>
-                        )}
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div style={{
-                    display: "flex", flexDirection: "column",
-                    alignItems: "center", justifyContent: "center",
-                    height: "100%", gap: 8, color: "#9CA3AF",
-                  }}>
-                    <div style={{ fontSize: 12, fontStyle: "italic" }}>No sections data available</div>
-                    {doc.document_id && (
-                      <button onClick={() => onEditContent(doc)} style={{
-                        padding: "6px 14px", borderRadius: 7,
-                        border: "1px solid #BFDBFE", background: "#EFF6FF",
-                        color: "#2563EB", fontSize: 11, fontWeight: 600, cursor: "pointer",
-                      }}>Add sections</button>
-                    )}
-                  </div>
-                )
-              )}
-            </div>
-          </div>
-        </div>
+        {/* PDF viewer, full width */}
+        <iframe
+          src={pdfSrc}
+          title="Document preview"
+          style={{ flex: 1, border: "none", minHeight: 0, width: "100%" }}
+        />
       </div>
     </div>
   );
@@ -1189,7 +994,7 @@ function VerifyModal({ doctors, onVerify, onClose, loading }) {
 
 function ReinvModal({ flaggedDocs, onSubmit, onClose, loading }) {
   const [remarks, setRemarks] = useState("");
-  const flaggedList = Object.entries(flaggedDocs).filter(([, v]) => v);
+  const flaggedList = Object.entries(flaggedDocs);
 
   return (
     <div style={{
@@ -1273,8 +1078,6 @@ export default function QCReview() {
 
   const [flaggedDocs, setFlaggedDocs]             = useState({});
   const [previewDoc, setPreviewDoc]               = useState(null);
-const [editingContent, setEditingContent] = useState(null);
-const [saveContentLoading, setSaveContentLoading] = useState(false);
   const [showVerify, setShowVerify]               = useState(false);
   const [showReinv, setShowReinv]                 = useState(false);
   const [actionLoading, setActionLoading]         = useState(false);
@@ -1325,70 +1128,59 @@ const [saveContentLoading, setSaveContentLoading] = useState(false);
     searchTimer.current = setTimeout(() => loadClaims(v), 350);
   };
 
-  // ── Save entities ────────────────────────────────────────────────────────
-const handleSaveContent = async (documentId, payload) => {
-  setSaveContentLoading(true);
-  try {
-    const res = await apiFetch(`/qc/documents/${documentId}/content`, {
-      method: "PATCH",
-      body: JSON.stringify(payload),
-    });
-    showToast(res.message || "Content saved successfully");
-    setEditingContent(null);
-    // Update previewDoc in place so panel reflects new content immediately
-    setPreviewDoc(prev => prev ? {
-      ...prev,
-      raw_markdown: payload.raw_markdown ?? prev.raw_markdown,
-      sections: payload.sections ?? prev.sections,
-    } : null);
-    loadDetail(selectedId);
-  } catch (e) {
-    showToast(`Save failed: ${e.message}`, "error");
-  } finally {
-    setSaveContentLoading(false);
-  }
-};
-
   // ── Flag toggle ──────────────────────────────────────────────────────────
-  const toggleFlag = (invType, docKey) => {
+  // flaggedDocs maps "invType::docKey" -> { investigatorId } while flagged,
+  // and is absent (not just falsy) once un-flagged. Keeping investigatorId
+  // here means the reinvestigate request can target the exact investigator
+  // entry on the backend instead of resetting every investigator under
+  // that inv_type.
+  const toggleFlag = (invType, docKey, investigatorId) => {
     const k = `${invType}::${docKey}`;
-    setFlaggedDocs(prev => ({ ...prev, [k]: !prev[k] }));
+    setFlaggedDocs(prev => {
+      const next = { ...prev };
+      if (next[k]) {
+        delete next[k];
+      } else {
+        next[k] = { investigatorId: investigatorId || "" };
+      }
+      return next;
+    });
   };
 
-  const flaggedCount = Object.values(flaggedDocs).filter(Boolean).length;
+  const flaggedCount = Object.keys(flaggedDocs).length;
 
   // ── Verify ───────────────────────────────────────────────────────────────
-// In QCReview, fix handleVerify signature and payload:
-const handleVerify = async (doctorId, doctorName, remarks) => {
-  setActionLoading(true);
-  try {
-    const data = await apiFetch(`/qc/claims/${selectedId}/verify`, {
-      method: "POST",
-      body: JSON.stringify({
-        doctor_id:   doctorId,
-        doctor_name: doctorName,
-        remarks:     remarks || "",
-      }),
-    });
-    setShowVerify(false);
-    showToast(data.message || "Claim verified");
-    loadClaims(search);
-    loadDetail(selectedId);
-    
-  } catch (e) {
-    showToast(`Verification failed: ${e.message}`, "error");
-  } finally {
-    setActionLoading(false);
-  }
-};
+  const handleVerify = async (doctorId, doctorName, remarks) => {
+    setActionLoading(true);
+    try {
+      const data = await apiFetch(`/qc/claims/${selectedId}/verify`, {
+        method: "POST",
+        body: JSON.stringify({
+          doctor_id:   doctorId,
+          doctor_name: doctorName,
+          remarks:     remarks || "",
+        }),
+      });
+      setShowVerify(false);
+      showToast(data.message || "Claim verified");
+      loadClaims(search);
+      loadDetail(selectedId);
+    } catch (e) {
+      showToast(`Verification failed: ${e.message}`, "error");
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   // ── Reinvestigate ────────────────────────────────────────────────────────
   const handleReinv = async (remarks) => {
     setActionLoading(true);
     try {
       const flaggedList = Object.entries(flaggedDocs)
-        .filter(([, v]) => v)
-        .map(([k]) => { const [invType, docKey] = k.split("::"); return { invType, docKey }; });
+        .map(([k, meta]) => {
+          const [invType, docKey] = k.split("::");
+          return { invType, docKey, investigatorId: meta?.investigatorId || "" };
+        });
       const data = await apiFetch(`/qc/claims/${selectedId}/reinvestigate`, {
         method: "POST",
         body: JSON.stringify({ flaggedDocs: flaggedList, remarks }),
@@ -1593,15 +1385,13 @@ const handleVerify = async (doctorId, doctorName, remarks) => {
                 <div style={{ flex: 1 }} />
                 <button
                   onClick={() => setShowVerify(true)}
-                  disabled={!allDocsIn}
-                  title={!allDocsIn ? "All documents must be submitted before verifying" : ""}
                   style={{
                     display: "flex", alignItems: "center", gap: 8,
                     padding: "12px 24px", borderRadius: 10, border: "none",
-                    background: allDocsIn ? "#16A34A" : "#E5E7EB",
-                    color: allDocsIn ? "#fff" : "#9CA3AF",
+                    background: "#16A34A",
+                    color: "#fff",
                     fontSize: 14, fontWeight: 700,
-                    cursor: allDocsIn ? "pointer" : "not-allowed",
+                    cursor: "pointer",
                     transition: "all 0.2s",
                   }}
                 >
@@ -1619,21 +1409,11 @@ const handleVerify = async (doctorId, doctorName, remarks) => {
       {/* ── Modals ── */}
 
       {previewDoc && (
-  <PdfPreviewPanel
-    doc={previewDoc}
-    onClose={() => setPreviewDoc(null)}
-    onEditContent={(doc) => setEditingContent(doc)}
-  />
-)}
-
-{editingContent && (
-  <ContentEditorModal
-    doc={editingContent}
-    onSave={handleSaveContent}
-    onClose={() => setEditingContent(null)}
-    loading={saveContentLoading}
-  />
-)}
+        <PdfPreviewPanel
+          doc={previewDoc}
+          onClose={() => setPreviewDoc(null)}
+        />
+      )}
 
       {showVerify && (
         <VerifyModal

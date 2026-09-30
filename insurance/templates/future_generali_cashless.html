@@ -23,6 +23,8 @@
       width: 182mm;
       margin: 0 auto;
       background: #fff;
+      padding-bottom: 22mm; /* reserves room so flowing content never
+                                reaches the fixed footer's draw position */
     }
 
     /* ── HEADER ─────────────────────────────────────────────── */
@@ -457,8 +459,7 @@
   <!-- TRIGGER REPLIES, CONCLUSION                -->
   <!-- ══════════════════════════════════════════ -->
 
-  <!-- Hospital Verification -->
-  <div class="free-section" style="margin-top:10px;">
+   <div class="free-section" style="margin-top:10px;">
     <div class="free-section-title">Hospital Verification</div>
     <div class="free-box">
       Investigated by Optimus Medical Services Pvt Limited
@@ -472,6 +473,9 @@
       {% if facts.hospital_bed_strength %}<br>Beds: {{ facts.hospital_bed_strength }}{% endif %}
       {% if facts.ip_register_collected %}<br>IP Register collected: {{ facts.ip_register_collected }}{% endif %}
       {% if facts.inhouse_lab_present %}<br>In-house lab: {{ facts.inhouse_lab_present }}{% endif %}
+      {% if hospital_findings_html %}
+        <div style="margin-top:6px;">{{ hospital_findings_html | safe }}</div>
+      {% endif %}
     </div>
   </div>
 
@@ -486,6 +490,9 @@
       {% if facts.accident_place %}<br>Accident place: {{ facts.accident_place }}{% endif %}
       {% if facts.accident_narration %}<br>Narration: {{ facts.accident_narration }}{% endif %}
       {% if facts.mlc_registered %}<br>MLC: {{ facts.mlc_registered }}{% if facts.mlc_number %} No: {{ facts.mlc_number }}{% endif %}{% endif %}
+      {% if member_findings_html %}
+        <div style="margin-top:6px;">{{ member_findings_html | safe }}</div>
+      {% endif %}
     </div>
   </div>
 
@@ -496,11 +503,12 @@
       {{ facts.discrepancies_verbatim or facts.contradictions_found or '' }}
     </div>
   </div>
-
   <!-- Conclusion -->
   <div class="conclusion-title">Conclusion:</div>
   <div class="conclusion-wrapper">
-    {% if conclusion_html %}
+    {% if overall_findings_html %}
+      {{ overall_findings_html | safe }}
+    {% elif conclusion_html %}
       {{ conclusion_html | safe }}
     {% elif facts.final_verdict_verbatim %}
       {{ facts.final_verdict_verbatim }}

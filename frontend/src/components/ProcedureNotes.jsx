@@ -3,6 +3,10 @@ import ChemotherapyWorkflow from "./ChemotherapyWorkflow";
 import SurgicalOncologyWorkflow from "./surgical-oncology/SurgicalOncologyWorkflow";
 import RadiationTherapyWorkflow from "./RadiationTherapyWorkflow";
 import NerveBlockForm from "./NerveBlockForm";
+import RheumatologyPatientMonitoringForm from "./RheumatologyPatientMonitoringForm";
+import NeuropsychiatryProcedure from "./neuropsychiatry-module/NeuropsychiatryProcedure";
+import NephrologyProcedure from "./nephrology-module/NephrologyProcedure";
+import PulmonologyProcedure from "./pulmonology-module/PulmonologyProcedure";
 
 // TEMP — meeting demo only. Remove this line (and the initialData prop below) afterward.
 const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || "https://doctorassist.ai/api/";
@@ -54,8 +58,13 @@ const fixedProcedures = [
   { name: "Chemotherapy" },
   { name: "Surgery" },
   { name: "Radiation Therapy" },
+  { name: "Pulmonology Procedures" },
     { name: "Nerve Block" },   // ← add this
+      { name: "Nephrology Procedures" },
+  { name: "Neuropsychiatry Procedures",
+    
 
+   },
 ];
 /* ─── Auto-resize hook ───────────────────────────────────────────────────── */
 const useAutoResize = (value) => {
@@ -600,8 +609,19 @@ const ProcedureNotes = ({ doctorId, patientId, doctorSpeciality, patientName }) 
   const treatmentRef = useAutoResize(treatmentProcedureTab);
   const tumorRef = useAutoResize(tumorBoard);
   const alertsRef = useAutoResize(alerts);
+
+  /* ─── Derived ─────────────────────────────────────────────────────────── */
+  const normalizedSpecialty = (doctorSpecialty || "").toLowerCase().trim();
+  const isOncologyDoctor = oncologySpecialties.some((s) => normalizedSpecialty.includes(s.toLowerCase()));
+  // Rheumatology-only procedure option — see Module 17 (Patient Monitoring Agent).
+  // Uses the doctor's actual fetched specialty (fetchDoctorHospital), same
+  // source isOncologyDoctor already uses, not the doctorSpeciality prop,
+  // so this stays correct even if the prop is stale/unset.
+  const isRheumatologist = normalizedSpecialty === "rheumatology";
+
   const allProcedures = [
     ...fixedProcedures,
+    ...(isRheumatologist ? [{ name: "Rheumatology Patient Monitoring" }] : []),
     ...procedureOptions.filter(
       (p) =>
         !fixedProcedures.some(
@@ -609,9 +629,6 @@ const ProcedureNotes = ({ doctorId, patientId, doctorSpeciality, patientName }) 
         )
     ),
   ];
-  /* ─── Derived ─────────────────────────────────────────────────────────── */
-  const normalizedSpecialty = (doctorSpecialty || "").toLowerCase().trim();
-  const isOncologyDoctor = oncologySpecialties.some((s) => normalizedSpecialty.includes(s.toLowerCase()));
 
   const tabConfig = [
     { key: "summary", label: "Patient Summary" },
@@ -1129,6 +1146,18 @@ const ProcedureNotes = ({ doctorId, patientId, doctorSpeciality, patientName }) 
     doctorId={doctorId}
     patientName={patientName}
   />
+) : activeProcedure && activeProcedure.toLowerCase().includes("rheumatology patient monitoring") ? (
+  <RheumatologyPatientMonitoringForm
+    patientId={patientId}
+    doctorId={doctorId}
+    patientName={patientName}
+  />
+) : activeProcedure && (activeProcedure.toLowerCase().includes("neuropsychiatry") || activeProcedure.toLowerCase().includes("ect") || activeProcedure.toLowerCase().includes("tms") || activeProcedure.toLowerCase().includes("tdcs") || activeProcedure.toLowerCase().includes("mst") || activeProcedure.toLowerCase().includes("dbs") || activeProcedure.toLowerCase().includes("vns") || activeProcedure.toLowerCase().includes("ketamine") || activeProcedure.toLowerCase().includes("amytal") || activeProcedure.toLowerCase().includes("eeg") || activeProcedure.toLowerCase().includes("lumbar") || activeProcedure.toLowerCase().includes("polysomnography") || activeProcedure.toLowerCase().includes("neuropsych")) ? (
+        <NeuropsychiatryProcedure patientId={patientId} doctorId={doctorId} />
+) : activeProcedure && activeProcedure.toLowerCase().includes("nephrology") ? (
+        <NephrologyProcedure patientId={patientId} doctorId={doctorId} />
+) : activeProcedure && activeProcedure.toLowerCase().includes("pulmonology") ? (
+        <PulmonologyProcedure patientId={patientId} doctorId={doctorId} />
 ) : (
   <React.Fragment>
           <div style={{ ...card, padding: "16px 20px" }}>

@@ -27,6 +27,7 @@ import DICOMViewer from "./DICOMViewer";
 import StructuredNotePanel from "./structurenoteview";
 import RadiotherapyProtocolSelector from "./RadiotherapyProtocolSelector";
 import TumorBoardCommonElement from "./TumorBoardCommonElement";
+import RadiationOncologyIntelligence from "./RadiationOncologyIntelligence";
 // ─── BRAND TOKENS (matching Doctorassist.AI / TumorBoard) ──────────
 const FONT = '"Open Sans", sans-serif';
 const FW_LIGHT = 300;
@@ -757,7 +758,7 @@ const RadiotherapyRecord = ({ doctorId, patientId, doctorSpeciality, doctorName 
     return (
       <Box sx={{ mb: 3, border: `1px solid ${C.border}` }}>
         <SectionHeader title="RT Tracking" note="Organ At Risk (OAR) Exposure Evaluation" />
-        
+
         {/* Dynamic OARs list */}
         <FieldRow label="Organs at Risk (OARs)">
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
@@ -1112,6 +1113,7 @@ const RadiotherapyRecord = ({ doctorId, patientId, doctorSpeciality, doctorName 
           doctorId: doctorId || "unknown",
           patientId: patientId || "unknown",
           hospitalId: "unknown",
+          tabId: tabId,
           formData: { [tabId]: formData[tabId] },
           isComplete: isDischarge
         })
@@ -1751,6 +1753,7 @@ const RadiotherapyRecord = ({ doctorId, patientId, doctorSpeciality, doctorName 
       <Typography sx={{ fontSize: 11, fontWeight: FW_MEDIUM, letterSpacing: "0.08em", textTransform: "uppercase", color: C.textMuted, mb: 2, px: 1 }}>Radiotherapy Record</Typography>
 
       {[
+        { id: "rt-intelligence", label: "RT Intelligence Report" },
         { id: "clinical-summary", label: "AI Clinical Summary" },
         { id: "common", label: "Common Data Elements" },
         { id: "procedure", label: "Procedure Details" },
@@ -3158,6 +3161,12 @@ const RadiotherapyRecord = ({ doctorId, patientId, doctorSpeciality, doctorName 
             ))}
           </Box>
         )}
+        {activeTab === "rt-intelligence" && (
+          <RadiationOncologyIntelligence
+            patientId={patientId}
+            doctorId={doctorId}
+          />
+        )}
         {activeTab === "clinical-summary" && (
           <Box>
             <ClinicalSummaryTab
@@ -3307,4 +3316,3 @@ const RadiotherapyRecord = ({ doctorId, patientId, doctorSpeciality, doctorName 
 };
 
 export default RadiotherapyRecord;
-

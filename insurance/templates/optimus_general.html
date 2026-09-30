@@ -35,45 +35,17 @@
       background: #5a9e2f;
       width: 100%;
     }
-
     /* ── HEADER ── */
     .header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
       padding: 8px 14mm 8px 14mm;
       border-bottom: 1px solid #ddd;
     }
 
-    .header-left {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .header-optimus {
-      font-size: 12px;
-      font-weight: bold;
-      color: #3a7a28;
-    }
-
     .header-letchek-logo {
-      width: 70px;
-      height: 55px;
+      width: 100%;
+      height: auto;
+      display: block;
       object-fit: contain;
-    }
-
-    .header-address {
-      font-size: 7.5px;
-      color: #333;
-      line-height: 1.6;
-      border-left: 1px solid #ccc;
-      padding-left: 10px;
-    }
-
-    .header-address a {
-      color: #1a6e3c;
-      text-decoration: none;
     }
 
     /* ── CONTENT AREA ── */
@@ -241,20 +213,9 @@
 
   <!-- GREEN STRIPE -->
   <div class="green-stripe"></div>
-
   <!-- HEADER -->
   <div class="header">
-    <div class="header-left">
-      <span class="header-optimus">Optimus Medical Services Pvt.Ltd.</span>
-      <img src="{{ header_image }}" class="header-letchek-logo" alt="Letchek Logo">
-    </div>
-    <div class="header-address">
-      #99, Second Floor, DD Milestone,<br>
-      Kadavanthra, Kochi, Kerala - 682 020<br>
-      Tel.: 755 990 4333, 0484-4069017<br>
-      E-mail: mail@letchek.in<br>
-      <a href="http://www.letchek.in">www.letchek.in</a>
-    </div>
+    <img src="{{ header_image }}" class="header-letchek-logo" alt="Letchek Logo">
   </div>
 
   <div class="content">
@@ -448,12 +409,10 @@
       <tr class="sec-hdr"><td colspan="2">ACCIDENT RELATED CLAIMS</td></tr>
       <tr>
         <td class="lbl">Exact Date and time of Accident/Injury</td>
-        <td class="val val-min">{{ accident.get('dateTime','NIL') if accident.get else og.get('accidentDateTime','NIL') or 'NIL' }}</td>
-      </tr>
+        <td class="val val-min">{{ accident.get('dateTime') or og.get('accidentDateTime') or 'NIL' }}</td>      </tr>
       <tr>
         <td class="lbl">Detailed narration of how the incident/injury Happened</td>
-        <td class="val val-min">{{ accident.get('narration','NIL') if accident.get else og.get('accidentNarration','NIL') or 'NIL' }}</td>
-      </tr>
+        <td class="val val-min">{{ accident.get('narration') or og.get('accidentNarration') or 'NIL' }}</td>      </tr>
       <tr>
         <td class="lbl">Is the insured holding any PA Policy with us or with any other insurer?</td>
         <td class="val val-min">{{ og.get('paPolicyDetails','NIL') or 'NIL' }}</td>

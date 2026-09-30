@@ -250,25 +250,23 @@
     </tr>
     <tr>
       <td class="lbl">Number of beds:</td>
-      <td class="val" colspan="3">{{ hospital.get('beds','') if hospital.get else '' }}</td>
-    </tr>
+      <td class="val" colspan="3">{{ hospital.get('beds') or '' }}</td>    </tr>
     <tr>
       <td class="lbl">Ailment :</td>
       <td class="val" colspan="3" style="min-height:30px;">{{ critical.diagnosis or '' }}</td>
     </tr>
     <tr>
       <td class="lbl">Duration of Ailment:</td>
-      <td class="val" colspan="3">{{ additional.get('durationOfAilment','') if additional.get else '' }}</td>
-    </tr>
+      <td class="val" colspan="3">{{ additional.get('durationOfAilment') or '' }}</td>    </tr>
     <tr>
       <td class="lbl" colspan="4">Past Medical history/Personal habits and Duration/First consultation:</td>
     </tr>
     <tr>
-      <td class="val" colspan="4" style="min-height:32px;">{{ additional.get('pastMedicalHistory','') if additional.get else '' }}</td>
+      <td class="val" colspan="4" style="min-height:32px;">{{ additional.get('pastMedicalHistory') or '' }}</td>
     </tr>
     <tr>
       <td class="lbl">Procedure Done : (Surgical /Conservative):</td>
-      <td class="val" colspan="3">{{ critical.procedure or additional.get('courseInHospital','') if additional.get else critical.procedure or '' }}</td>
+      <td class="val" colspan="3">{{ critical.procedure or additional.get('courseInHospital') or '' }}</td>
     </tr>
     <tr>
       <td class="lbl">Room Type &amp; Room Rent:</td>
@@ -306,7 +304,7 @@
     <tr><td class="cl-num">15</td><td class="cl-text">Was treating doctor's MCI registration number verified?</td><td class="cl-yes">{{ hvc.get('q15_yes','') }}</td><td class="cl-no">{{ hvc.get('q15_no','') }}</td></tr>
   </table>
 
-  <div class="outcome-label">Findings:</div>
+  <div class="outcome-label">Outcome of Hospital Verification:</div>
   <div class="findings-plain">
     <div class="conclusion-wrapper">{{ hospital_findings_html | safe }}</div>
   </div>
@@ -424,15 +422,15 @@
     </tr>
     <tr>
       <td class="lbl" style="width:35%;">Presenting complaints</td>
-      <td class="val" colspan="3">{{ additional.get('chiefComplaints','') if additional.get else '' }}</td>
+      <td class="val" colspan="3">{{ additional.get('chiefComplaints') or '' }}</td>
     </tr>
     <tr>
       <td class="lbl">Duration of Complaints</td>
-      <td class="val" colspan="3">{{ additional.get('durationOfAilment','') if additional.get else '' }}</td>
+      <td class="val" colspan="3">{{ additional.get('durationOfAilment') or '' }}</td>
     </tr>
     <tr>
       <td class="lbl">Past Medical History/Personal Habits and duration</td>
-      <td class="val" colspan="3">{{ additional.get('pastMedicalHistory','') if additional.get else '' }}</td>
+      <td class="val" colspan="3">{{ additional.get('pastMedicalHistory') or '' }}</td>
     </tr>
     <tr>
       <td class="lbl" colspan="2">Patient Past Medical records Verified (Yes/No) and its remarks</td>
@@ -483,6 +481,9 @@
 
   <!-- Conclusion -->
   <div class="sec-heading" style="margin-top:14px;">Conclusion</div>
+  <div style="font-size:11px; margin-bottom:6px;">
+    <strong>Overall findings during Verification:</strong> Investigated by {{ case.vendorName or 'Optimus Medical Services Pvt Limited' }}
+  </div>
   <div class="outcome-label">Findings:</div>
   <div class="findings-plain">
     <div class="conclusion-wrapper">{{ overall_findings_html | safe }}</div>
@@ -592,11 +593,11 @@
     </tr>
     <tr>
       <td class="lbl">Final Report Done By:</td>
-      <td class="val">{{ case.reportMadeBy or 'DR ANJANA R MOHAN' }}</td>
+      <td class="val">{{ case.reportMadeBy or '' }}</td>
     </tr>
     <tr>
       <td class="lbl">Post QC Done By:</td>
-      <td class="val">{{ (case.get('submissionDetails') or {}).get('postQcBy') or case.reportMadeBy or 'DR ANJANA R MOHAN' }}</td>
+      <td class="val">{{ (case.get('submissionDetails') or {}).get('postQcBy') or '' }}</td>
     </tr>
   </table>
 

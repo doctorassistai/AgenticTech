@@ -70,7 +70,7 @@ Rules:
 - Do NOT add text outside JSON
 """
 
-    def __init__(self, groq_api_key: str, model: str = "llama-3.1-8b-instant"):
+    def __init__(self, groq_api_key: str, model: str = "openai/gpt-oss-20b"):
         self.client = Groq(api_key=groq_api_key)
         self.model = model
 

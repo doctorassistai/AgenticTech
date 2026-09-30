@@ -25,41 +25,46 @@
       background: #fff;
     }
 
-    /* ── HEADER ── */
+    /* ── HEADER (matches PDF: logo centered on top, text stacked below) ── */
     .header {
       display: flex;
+      flex-direction: column;
       align-items: center;
-      justify-content: space-between;
       margin-bottom: 14px;
       padding-bottom: 10px;
       border-bottom: 1.5px solid #000;
+      text-align: center;
     }
 
     .header-logo {
-      width: 130px;
-      height: 85px;
+      width: 70px;
+      height: auto;
       object-fit: contain;
-      flex-shrink: 0;
+      margin-bottom: 6px;
     }
 
     .header-title-block {
-      flex: 1;
-      text-align: center;
-      padding: 0 10px;
+      width: 100%;
     }
 
     .header-title {
       font-size: 13px;
       font-weight: bold;
       text-decoration: underline;
-      line-height: 1.8;
-      text-transform: uppercase;
+      line-height: 1.6;
+      text-transform: none;
+    }
+
+    .header-subtitle {
+      font-size: 15px;
+      font-weight: bold;
+      margin-top: 8px;
     }
 
     .header-sub {
       font-size: 12px;
       font-weight: bold;
-      margin-top: 4px;
+      margin-top: 8px;
     }
 
     /* ── PAGE LABEL ── */
@@ -152,8 +157,8 @@
     }
 
     .footer-logo-small {
-      width: 55px;
-      height: 36px;
+      width: 40px;
+      height: auto;
       object-fit: contain;
     }
 
@@ -214,6 +219,14 @@
       line-height: 1.5;
     }
 
+    /* ── Any other remarks box (matches PDF bordered box on page 3) ── */
+    .other-remarks-box {
+      border: 1px solid #000;
+      padding: 10px;
+      min-height: 110px;
+      margin-top: 12px;
+    }
+
     @media print {
       body  { margin: 0; background: #fff; }
       .page { width: 100%; }
@@ -223,13 +236,13 @@
 <body>
 <div class="page">
 
-  <!-- HEADER -->
+  <!-- HEADER: logo centered on top, title stacked below, all centered — matches PDF page 1 -->
   <div class="header">
     <img src="{{ header_image }}" class="header-logo" alt="Medi Assist Logo">
     <div class="header-title-block">
       <div class="header-title">Medi Assist Insurance TPA Pvt. Ltd.</div>
-      <div class="header-title" style="font-size:12px; margin-top:4px;">Investigation format</div>
-      <div class="header-sub">For &nbsp; DHFL General Insurance Ltd.</div>
+      <div class="header-subtitle">Investigation format</div>
+      <div class="header-sub">For &nbsp;DHFL General Insurance Ltd.</div>
     </div>
   </div>
 
@@ -269,7 +282,7 @@
       <td class="val">{{ og.get('dateAssigned','') or dhfl.get('dateOfInvestigation','') or '' }}</td>
     </tr>
     <tr>
-      <td class="lbl">Hospital Visited &nbsp;&nbsp; - &nbsp; Yes / No</td>
+      <td class="lbl">Hospital Visited &nbsp;&nbsp;- &nbsp;Yes / No</td>
       <td class="val">{{ dhfl.get('hospitalVisited','Yes') or 'Yes' }}</td>
     </tr>
     <tr>
@@ -290,20 +303,16 @@
     </tr>
     <tr>
       <td class="lbl">HOSPITAL_STATE</td>
-      <td class="val">{{ hospital.get('state','') if hospital.get else dhfl.get('hospitalState','') or '' }}</td>
-    </tr>
+      <td class="val">{{ hospital.get('state') or dhfl.get('hospitalState') or '' }}</td>    </tr>
     <tr>
       <td class="lbl">HOSPITAL_PINCODE</td>
-      <td class="val">{{ hospital.get('pincode','') if hospital.get else dhfl.get('hospitalPincode','') or '' }}</td>
-    </tr>
+      <td class="val">{{ hospital.get('pincode') or dhfl.get('hospitalPincode') or '' }}</td>    </tr>
     <tr>
       <td class="lbl">HOSPITAL_ROHINI_ID</td>
-      <td class="val">{{ hospital.get('rohiniId','') if hospital.get else dhfl.get('hospitalRohiniId','') or '' }}</td>
-    </tr>
+      <td class="val">{{ hospital.get('rohiniId') or dhfl.get('hospitalRohiniId') or '' }}</td>    </tr>
     <tr>
       <td class="lbl">TPA Hospital Code</td>
-      <td class="val">{{ hospital.get('tpaHospitalCode','') if hospital.get else dhfl.get('tpaHospitalCode','') or '' }}</td>
-    </tr>
+      <td class="val">{{ hospital.get('tpaHospitalCode') or dhfl.get('tpaHospitalCode') or '' }}</td>    </tr>
     <tr>
       <td class="lbl">DATE_OF_ADMISSION &nbsp;(DD-MMM-YYYY HH:MM)</td>
       <td class="val">{{ hospital.admissionDate or '' }}</td>
@@ -317,19 +326,17 @@
       <td class="val">{{ critical.diagnosis or dhfl.get('finalDiagnosis','') or '' }}</td>
     </tr>
     <tr>
-      <td class="lbl">NETWORK_HOSPITAL_FLAG &nbsp;&nbsp; - &nbsp; Yes / No</td>
-      <td class="val">{{ hospital.get('ppnStatus','') if hospital.get else dhfl.get('networkHospitalFlag','') or '' }}</td>
-    </tr>
+      <td class="lbl">NETWORK_HOSPITAL_FLAG &nbsp;&nbsp;- &nbsp;Yes / No</td>
+      <td class="val">{{ hospital.get('ppnStatus') or dhfl.get('networkHospitalFlag') or '' }}</td>    </tr>
     <tr>
       <td class="lbl">TOTAL_CLAIMED_AMOUNT</td>
-      <td class="val">{{ case.claimedAmount or billing.get('totalAmount','') if billing.get else dhfl.get('totalClaimedAmount','') or '' }}</td>
-    </tr>
+      <td class="val">{{ case.claimedAmount or billing.get('totalAmount') or dhfl.get('totalClaimedAmount') or '' }}</td>    </tr>
     <tr>
       <td class="lbl">Name of treating Doctor</td>
       <td class="val">{{ hospital.doctorName or '' }}</td>
     </tr>
     <tr>
-      <td class="lbl">Is patient admitted &nbsp;&nbsp; - &nbsp; Yes / No</td>
+      <td class="lbl">Is patient admitted &nbsp;&nbsp;- &nbsp;Yes / No</td>
       <td class="val">{{ dhfl.get('isPatientAdmitted','Yes') or 'Yes' }}</td>
     </tr>
     <tr>
@@ -341,11 +348,11 @@
       <td class="val">{{ dhfl.get('informationVerifiedWith','') or og.get('informationVerifiedWith','') or '' }}</td>
     </tr>
     <tr>
-      <td class="lbl">Hospital Existence &nbsp;&nbsp; - &nbsp; Yes / No &nbsp;(In case of reimbursement claim)</td>
+      <td class="lbl">Hospital Existence &nbsp;&nbsp;- &nbsp;Yes / No (In case of reimbursement claim)</td>
       <td class="val">{{ dhfl.get('hospitalExistence','') or og.get('hospitalExistence','') or '' }}</td>
     </tr>
     <tr>
-      <td class="lbl">Is Hospital registered &nbsp;&nbsp; - &nbsp; Yes / No</td>
+      <td class="lbl">Is Hospital registered &nbsp;&nbsp;- &nbsp;Yes / No</td>
       <td class="val">{{ dhfl.get('isHospitalRegistered','') or (hospital.get('registrationNumber','Yes') if hospital.get else '') or '' }}</td>
     </tr>
     <tr>
@@ -389,43 +396,43 @@
       <td class="val">{{ dhfl.get('icpDifferReason','') or '' }}</td>
     </tr>
     <tr>
-      <td class="lbl">All medical history of the patient is documented &nbsp; - &nbsp; Yes / No</td>
+      <td class="lbl">All medical history of the patient is documented &nbsp;- &nbsp;Yes / No</td>
       <td class="val">{{ dhfl.get('medicalHistoryDocumented','') or '' }}</td>
     </tr>
     <tr>
-      <td class="lbl">Patient's clinical information is documented &nbsp;&nbsp; - &nbsp; Yes / No</td>
+      <td class="lbl">Patient's clinical information is documented &nbsp;&nbsp;- &nbsp;Yes / No</td>
       <td class="val">{{ dhfl.get('clinicalInfoDocumented','') or '' }}</td>
     </tr>
     <tr>
-      <td class="lbl">Is there any previous Hospitalisation claim of same patient from same hospital &nbsp;&nbsp; - &nbsp; Yes / No</td>
+      <td class="lbl">Is there any previous Hospitalisation claim of same patient from same hospital &nbsp;&nbsp;- &nbsp;Yes / No</td>
       <td class="val">{{ dhfl.get('previousHospitalisationClaim','') or og.get('previousHistory','') or '' }}</td>
     </tr>
     <tr>
-      <td class="lbl">Past history Details documented &nbsp;&nbsp; - &nbsp; Yes / No</td>
+      <td class="lbl">Past history Details documented &nbsp;&nbsp;- &nbsp;Yes / No</td>
       <td class="val">{{ dhfl.get('pastHistoryDocumented','') or '' }}</td>
     </tr>
     <tr>
-      <td class="lbl">Alcohol use/substance abuse history is documented &nbsp;&nbsp; - &nbsp; Yes / No</td>
+      <td class="lbl">Alcohol use/substance abuse history is documented &nbsp;&nbsp;- &nbsp;Yes / No</td>
       <td class="val">{{ dhfl.get('alcoholHistoryDocumented','') or '' }}</td>
     </tr>
     <tr>
-      <td class="lbl">Ailment is not related to any alcohol use or substance abuse &nbsp;&nbsp; - &nbsp; Yes / No</td>
+      <td class="lbl">Ailment is not related to any alcohol use or substance abuse &nbsp;&nbsp;- &nbsp;Yes / No</td>
       <td class="val">{{ dhfl.get('ailmentNotAlcoholRelated','') or og.get('alcoholismFactor','') or '' }}</td>
     </tr>
     <tr>
-      <td class="lbl">Complete medication list on chart and Nursing chart &nbsp;&nbsp; - &nbsp; Yes / No</td>
+      <td class="lbl">Complete medication list on chart and Nursing chart &nbsp;&nbsp;- &nbsp;Yes / No</td>
       <td class="val">{{ dhfl.get('medicationListComplete','') or og.get('medicineMatchBills','') or '' }}</td>
     </tr>
     <tr>
-      <td class="lbl">Findings and follow ups are documented &nbsp;&nbsp; - &nbsp; Yes / No</td>
+      <td class="lbl">Findings and follow ups are documented &nbsp;&nbsp;- &nbsp;Yes / No</td>
       <td class="val">{{ dhfl.get('findingsDocumented','') or '' }}</td>
     </tr>
     <tr>
-      <td class="lbl">Detailed progress notes reflecting evaluation of each visit, reason for visit is documented &nbsp;&nbsp; - &nbsp; Yes / No</td>
+      <td class="lbl">Detailed progress notes reflecting evaluation of each visit, reason for visit is documented &nbsp;&nbsp;- &nbsp;Yes / No</td>
       <td class="val">{{ dhfl.get('progressNotesDocumented','') or '' }}</td>
     </tr>
     <tr>
-      <td class="lbl">Is MLC/FIR available &nbsp;&nbsp; - &nbsp; Yes / No</td>
+      <td class="lbl">Is MLC/FIR available &nbsp;&nbsp;- &nbsp;Yes / No</td>
       <td class="val">{{ dhfl.get('mlcFirAvailable','') or '' }}</td>
     </tr>
     <tr>
@@ -437,7 +444,7 @@
       <td class="val">{{ dhfl.get('firMlcDetails','') or '' }}</td>
     </tr>
     <tr>
-      <td class="lbl">Is tariff checked &nbsp;&nbsp; - &nbsp; Yes / No</td>
+      <td class="lbl">Is tariff checked &nbsp;&nbsp;- &nbsp;Yes / No</td>
       <td class="val">{{ dhfl.get('tariffChecked','') or og.get('roomRentTariff','') or '' }}</td>
     </tr>
     <tr>
@@ -445,7 +452,7 @@
       <td class="val">{{ dhfl.get('tariffDifferReason','') or '' }}</td>
     </tr>
     <tr>
-      <td class="lbl">Claim details verified with patient relatives / Hospital Staff &nbsp;&nbsp; - &nbsp; Yes / No</td>
+      <td class="lbl">Claim details verified with patient relatives / Hospital Staff &nbsp;&nbsp;- &nbsp;Yes / No</td>
       <td class="val">{{ dhfl.get('claimVerifiedWithRelatives','') or '' }}</td>
     </tr>
     <tr>
@@ -453,7 +460,7 @@
       <td class="val">{{ dhfl.get('relativesHospitalStaffDetails','') or '' }}</td>
     </tr>
     <tr>
-      <td class="lbl">Any other visits (Police station, pharmacy, neighbours, diagnostic center etc.) conducted &nbsp;&nbsp; - &nbsp; Yes / No</td>
+      <td class="lbl">Any other visits(Police station, pharmacy, neighbours, diagnostic center etc.) conducted &nbsp;&nbsp;- &nbsp;Yes / No</td>
       <td class="val">{{ dhfl.get('otherVisitsConducted','') or '' }}</td>
     </tr>
     <tr>
@@ -485,16 +492,12 @@
   </table>
 
   <!-- ═══════════════════════════════════════════════════ -->
-  <!-- ANY OTHER REMARKS (big box, page 3 of PDF)         -->
+  <!-- ANY OTHER REMARKS (bordered box, page 3 of PDF)    -->
   <!-- ═══════════════════════════════════════════════════ -->
-  <table style="margin-top: 12px;">
-    <tr>
-      <td class="bold-lbl" style="min-height: 80px; vertical-align: top;">
-        Any other remarks -<br><br>
-        {{ dhfl.get('anyOtherRemarks','') or '' }}
-      </td>
-    </tr>
-  </table>
+  <div class="other-remarks-box">
+    <strong>Any other remarks -</strong><br><br>
+    {{ dhfl.get('anyOtherRemarks','') or '' }}
+  </div>
 
   <!-- ═══════════════════════════════════════════════════ -->
   <!-- INVESTIGATOR SIGN OFF (page 3 of PDF)              -->

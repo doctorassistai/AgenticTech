@@ -1,0 +1,15 @@
+.operations-assignment { display: grid; gap: 18px; width: 100%; }
+.operations-intro { color: var(--muted); margin-bottom: 18px; }
+/* Fields flow to fill the available width — more columns on wide screens instead
+   of leaving the right side empty, collapsing to one column on narrow ones. */
+.operations-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; align-items: end; }
+.operations-form label { display: flex; flex-direction: column; gap: 6px; font-size: 12px; font-weight: 600; }
+.operations-form input,
+.operations-form select,
+.operations-form textarea { min-height: 40px; border: 1px solid var(--border2); border-radius: 6px; padding: 8px 10px; font: inherit; background: #fff; width: 100%; box-sizing: border-box; }
+.operations-form textarea { min-height: 72px; resize: vertical; }
+.operations-form button { justify-self: start; grid-column: 1 / -1; }
+.operations-error, .operations-success { margin-top: 14px; padding: 10px 12px; border-radius: 6px; }
+.operations-error { color: #b91c1c; background: #fef2f2; }
+.operations-success { color: #166534; background: #f0fdf4; }
+@media (max-width: 640px) { .operations-form { grid-template-columns: 1fr; } }

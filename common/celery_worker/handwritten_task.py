@@ -21,9 +21,10 @@ from common.llm.build_visit_timeline_task import build_timeline_incremental
 from pdf2image import convert_from_bytes
 from pymongo import MongoClient
 from motor.motor_asyncio import AsyncIOMotorClient
-from common.llm.oncology_case_view_service import generate_longitudinal_case_view
-
-
+from common.llm.longitudinal_summaryy import generate_longitudinal_summary
+from common.services.rheumatology_lab_autocapture import auto_capture_rheumatology_labs
+from common.llm.clinical_timeline_graph import ClinicalTimelineGraph
+from common.llm.clinical_report_data import process_clinical_report
 
 # ------------------- CONFIG -------------------
 MONGO_URI = os.getenv("MONGO_URI")
@@ -65,6 +66,9 @@ class ExtractedEntity(BaseModel):
     entity_value: Optional[Union[str, float, int]] = None
     confidence: float = 0.9
     evidence_text: str
+    # Traceability
+    source_area: Optional[str] = None
+    source_location: Optional[str] = None
 
 
 class Evidence(BaseModel):
@@ -75,6 +79,10 @@ class Evidence(BaseModel):
     document_date: Optional[str] = None
     evidence_text: str
     page_number: Optional[int] = None
+     # Traceability
+    source_area: Optional[str] = None
+    source_location: Optional[str] = None
+
     confidence: float
     extraction_date: datetime
 
@@ -88,8 +96,10 @@ _worker_loop_thread: Optional[threading.Thread] = None
 async_client: Optional[AsyncIOMotorClient] = None
 db = None
 patient_user_collection = None
-knowledge_graph: Optional[EnhancedMedicalKnowledgeGraph] = None
+doctor_user_c = None
 
+knowledge_graph: Optional[EnhancedMedicalKnowledgeGraph] = None
+clinical_timeline_graph: Optional[ClinicalTimelineGraph] = None
 
 def _start_worker_loop():
     """Runs forever in a background thread, hosting the persistent event loop."""
@@ -117,7 +127,7 @@ async def _init_async_clients():
     Creates Motor client + EnhancedMedicalKnowledgeGraph (and therefore the
     Neo4j async driver) INSIDE the persistent loop, exactly once.
     """
-    global async_client, db, patient_user_collection, knowledge_graph
+    global async_client, db, patient_user_collection, knowledge_graph,doctor_user_c
 
     if knowledge_graph is not None:
         return  # already initialized
@@ -125,6 +135,8 @@ async def _init_async_clients():
     async_client = AsyncIOMotorClient(MONGO_URI)
     db = async_client[MONGO_DB]
     patient_user_collection = db["patient_users"]
+    doctor_user_c = db["doctor_users"]
+
 
     knowledge_graph = EnhancedMedicalKnowledgeGraph(
         uri=neo4j_uri,
@@ -148,8 +160,20 @@ def run_coroutine_on_worker_loop(coro):
 @worker_process_init.connect
 def _on_worker_process_init(**kwargs):
     """Celery calls this once per forked worker process — start our loop here."""
+    global clinical_timeline_graph
+
     _ensure_worker_loop_running()
     run_coroutine_on_worker_loop(_init_async_clients())
+
+    # ClinicalTimelineGraph uses a SYNC neo4j driver — must be created
+    # AFTER fork, once per worker process. No async loop needed.
+    if clinical_timeline_graph is None:
+        clinical_timeline_graph = ClinicalTimelineGraph(
+            uri=neo4j_uri,
+            user=neo4j_user,
+            password=neo4j_password,
+        )
+        logger.info("✅ ClinicalTimelineGraph initialized for this worker process")
 
 
 @worker_process_shutdown.connect
@@ -161,6 +185,12 @@ def _on_worker_process_shutdown(**kwargs):
             run_coroutine_on_worker_loop(knowledge_graph.close())
     except Exception as e:
         logger.warning(f"Error closing knowledge_graph driver on shutdown: {e}")
+
+    try:
+        if clinical_timeline_graph is not None:
+            clinical_timeline_graph.close()
+    except Exception as e:
+        logger.warning(f"Error closing clinical_timeline_graph driver on shutdown: {e}")
 
     if _worker_loop is not None:
         _worker_loop.call_soon_threadsafe(_worker_loop.stop)
@@ -485,6 +515,8 @@ reword any content; only reorganize/segment it.
     (checked/unchecked/blank) as transcribed, but do not convert an unchecked or blank box into a
     clinical statement ("no X") unless RAW_TRANSCRIPTION explicitly states a negative finding in words.
 
+
+
 === OUTPUT FORMAT ===
 Return ONLY valid JSON, no commentary, no markdown fences:
 {
@@ -692,14 +724,85 @@ async def run_full_async_pipeline(
             report_content=entry_content,
             file_name=file_name,
         )
-        await generate_longitudinal_case_view(
+        await generate_longitudinal_summary(
             patient_id=patient_id,
             doctor_id=doctor_id,
             document_text=entry_content,
-            document_date=entry_date,
+            document_date=(
+                        entry_date if entry_date != "Unknown" else primary_document_date
+                    ),
             file_name=file_name,
             document_id=document_id
         )
+        # ------------------------------------------------------
+        # CLINICAL TIMELINE GRAPH — uses filename as document_name
+        # ------------------------------------------------------
+        try:
+            doctor_details = await get_doctor_graph_details(doctor_id=doctor_id)
+
+            loop = asyncio.get_event_loop()
+            clinical_timeline_result = await loop.run_in_executor(
+                None,
+                partial(
+                    clinical_timeline_graph.process_document,
+                    patient_id=patient_id,
+                    doctor_id=doctor_id,
+                    doctor_name=doctor_details.get("name", ""),
+                    doctor_specialty=doctor_details.get("specialty", ""),
+                    appointment_id=appointment_id,
+                    document_id=document_id,
+                    document_text=entry_content,
+                    document_date=(
+                        entry_date if entry_date != "Unknown" else primary_document_date
+                    ),
+                    document_name=filename,
+                )
+            )
+
+            logger.info(
+                "Clinical timeline graph updated: {}",
+                clinical_timeline_result
+            )
+
+        except Exception as e:
+            logger.exception(
+                "Clinical timeline graph failed for document_id={} date={}: {}",
+                document_id,
+                entry_date,
+                e,
+            )
+
+        # ------------------------------------------------------
+        # CLINICAL REPORT DATA
+        # Lab Trend / Radiology / Pathology
+        # ------------------------------------------------------
+        try:
+            clinical_report_result = await process_clinical_report(
+                patient_id=patient_id,
+                doctor_id=doctor_id,
+                appointment_id=appointment_id,
+                document_id=document_id,
+                filename=filename,
+                document_date=(
+                    entry_date
+                    if entry_date != "Unknown"
+                    else primary_document_date
+                ),
+                document_text=entry_content,
+            )
+
+            logger.info(
+                "Clinical report data processed: {}",
+                clinical_report_result,
+            )
+
+        except Exception as e:
+            logger.exception(
+                "Clinical report data processing failed for document_id={} date={}: {}",
+                document_id,
+                entry_date,
+                e,
+            )
         for e in validated_entities:
             all_entities_with_date.append((e, entry_date))
 
@@ -714,6 +817,7 @@ def process_handwritten_document(
     category_key: str = None,
     subcategory_key: str = None,
     report_date: str = None,
+    report_timing: str = "current",
     file_url: str = None,
     patient_id: str = None,
     appointment_id: str = None,
@@ -803,6 +907,7 @@ def process_handwritten_document(
                 "file_url": file_url,
                 "file_name": file_name,
                 "og_file_name": filename,
+                "report_timing": report_timing, 
                 "metadata": metadata,
                 "structure": structure or {},
                 "raw_markdown": full_markdown,
@@ -828,6 +933,10 @@ def process_handwritten_document(
                     "entity_type": e.entity_type,
                     "entity_name": e.entity_name,
                     "evidence_text": e.evidence_text,
+
+                    "source_area": e.source_area,
+                    "source_location": e.source_location,
+
                     "confidence": e.confidence,
                     "document_date": e_date
                 })
@@ -839,6 +948,17 @@ def process_handwritten_document(
             os.remove(temp_file_path)
 
         update_processing_progress_sync(patient_id, doctor_id)
+
+        try:
+            auto_capture_rheumatology_labs(
+                patient_id=patient_id,
+                doctor_id=doctor_id,
+                document_id=document_id,
+                entities_with_date=entities_with_date,
+                fallback_date=report_date,
+            )
+        except Exception as rheum_e:
+            logger.error(f"Rheumatology auto-capture call failed (non-fatal) | doc={document_id} | {rheum_e}", exc_info=True)
 
         return {
             "status": "success",
@@ -885,7 +1005,33 @@ async def get_patient_demographics(patient_id: str):
 
     return {"age": age, "sex": gender}
 
+async def get_doctor_graph_details(
+    doctor_id: str
+) -> Dict[str, str]:
 
+    doctor = await doctor_user_c.find_one(
+        {
+            "sys_user_id": doctor_id
+        },
+        {
+            "_id": 0,
+            "name": 1,
+            "specialization": 1
+        }
+    )
+
+    if not doctor:
+        return {
+            "name": "",
+            "specialty": ""
+        }
+
+    return {
+        "name": doctor.get("name", "") or "",
+        "specialty": doctor.get("specialization", "") or ""
+    }
+    
+    
 async def extract_entities_llm(text: str):
     prompt = f"""
 You are a clinical-grade medical information extraction engine.
@@ -1080,7 +1226,47 @@ NON-CLINICAL CONTENT rules above).
    or empty form label.
 4. Confirm no Diagnosis entity contradicts a negation in the text.
 5. Confirm no duplicate entities exist for the same fact.
+=== SOURCE TRACEABILITY ===
 
+For EVERY extracted entity, identify where the supporting information
+came from in the supplied document.
+
+source_area:
+- The clinical section, field, table, or area containing the evidence.
+- Use the exact heading/area from the document when one is visible
+  or identifiable from the transcription.
+
+Examples:
+- "Diagnosis"
+- "Assessment"
+- "Medications"
+- "Laboratory Results"
+- "Vital Signs"
+- "Clinical Findings"
+- "Treatment Plan"
+- "Investigation"
+- "Past Medical History"
+
+source_location:
+- The most specific location inside source_area that can be identified.
+
+Examples:
+- "Diagnosis field"
+- "Assessment paragraph"
+- "Medication row"
+- "HbA1c row"
+- "Vital signs section"
+- "Treatment instruction"
+- "Investigation result"
+
+STRICT RULES:
+- source_area MUST be based only on the supplied text.
+- source_location MUST be based only on the supplied text.
+- NEVER invent an area or location.
+- If the area cannot be determined, return null.
+- If the specific location cannot be determined, return null.
+- source_area and source_location MUST correspond to evidence_text.
+- evidence_text must contain the supporting text for the entity.
 === OUTPUT FORMAT ===
 Return ONLY valid JSON. No commentary, no markdown fences.
 
@@ -1091,7 +1277,9 @@ Return ONLY valid JSON. No commentary, no markdown fences.
       "entity_name": "<name exactly from text>",
       "entity_value": "<value exactly from text>",
       "confidence": 0.00,
-      "evidence_text": "<verbatim or reconstructed text from document>"
+      "evidence_text": "<verbatim or reconstructed text from document>",
+      "source_area": "<clinical section/area or null>",
+      "source_location": "<specific location within that area or null>"
     }}
   ]
 }}
@@ -1105,7 +1293,7 @@ Return ONLY valid JSON. No commentary, no markdown fences.
         None,
         partial(
             groq_client.chat.completions.create,
-            model="llama-3.3-70b-versatile",
+            model="openai/gpt-oss-120b",
             temperature=0.1,
             max_tokens=5000,
             response_format={"type": "json_object"},
@@ -1126,9 +1314,25 @@ Return ONLY valid JSON. No commentary, no markdown fences.
                 ExtractedEntity(
                     entity_type=str(entity_type),
                     entity_name=str(entity_name),
-                    entity_value=str(e.get("entity_value")) if e.get("entity_value") is not None else None,
+                    entity_value=(
+                        str(e.get("entity_value"))
+                        if e.get("entity_value") is not None
+                        else None
+                    ),
                     confidence=float(e.get("confidence", 0.9)),
                     evidence_text=str(e.get("evidence_text", "")),
+
+                    source_area=(
+                        str(e.get("source_area"))
+                        if e.get("source_area") is not None
+                        else None
+                    ),
+
+                    source_location=(
+                        str(e.get("source_location"))
+                        if e.get("source_location") is not None
+                        else None
+                    ),
                 )
             )
         return entities, None
@@ -1198,6 +1402,21 @@ Example:
 STEP 4 — LEAVE CORRECT ENTITIES UNTOUCHED:
 Do not alter, reword, or "improve" any entity that is already accurate and well-supported.
 
+STEP 5 — PRESERVE AND VALIDATE TRACEABILITY:
+
+For EVERY entity:
+
+- Preserve source_area when it is supported by ORIGINAL_TEXT.
+- Preserve source_location when it is supported by ORIGINAL_TEXT.
+- Verify that evidence_text supports the entity.
+- Verify that source_area corresponds to evidence_text.
+- Verify that source_location corresponds to evidence_text.
+- NEVER invent source_area.
+- NEVER invent source_location.
+- If source_area cannot be established from ORIGINAL_TEXT, return null.
+- If source_location cannot be established from ORIGINAL_TEXT, return null.
+- Do not remove valid traceability information from a correct entity.
+
 === FINAL SELF-CHECK (perform silently) ===
 - Does every entity in your final list have a literal anchor in ORIGINAL_TEXT? If not, remove it.
 - Does every clinical fact in ORIGINAL_TEXT have a corresponding entity in your final list? If not, add it.
@@ -1212,7 +1431,9 @@ Return ONLY valid JSON in this format, no commentary, no markdown fences:
       "entity_name": "<name exactly from text>",
       "entity_value": "<value exactly from text>",
       "confidence": 0.00,
-      "evidence_text": "<verbatim or reconstructed text from document>"
+      "evidence_text": "<verbatim or reconstructed text from document>",
+      "source_area": "<clinical section/area or null>",
+      "source_location": "<specific location within that area or null>"
     }}
   ]
 }}
@@ -1230,7 +1451,7 @@ Return ONLY valid JSON in this format, no commentary, no markdown fences:
             None,
             partial(
                 groq_client.chat.completions.create,
-                model="llama-3.3-70b-versatile",
+                model="openai/gpt-oss-120b",
                 temperature=0.0,
                 max_tokens=5000,
                 response_format={"type": "json_object"},
@@ -1250,9 +1471,25 @@ Return ONLY valid JSON in this format, no commentary, no markdown fences:
                 ExtractedEntity(
                     entity_type=str(entity_type),
                     entity_name=str(entity_name),
-                    entity_value=str(e.get("entity_value")) if e.get("entity_value") is not None else None,
+                    entity_value=(
+                        str(e.get("entity_value"))
+                        if e.get("entity_value") is not None
+                        else None
+                    ),
                     confidence=float(e.get("confidence", 0.9)),
                     evidence_text=str(e.get("evidence_text", "")),
+
+                    source_area=(
+                        str(e.get("source_area"))
+                        if e.get("source_area") is not None
+                        else None
+                    ),
+
+                    source_location=(
+                        str(e.get("source_location"))
+                        if e.get("source_location") is not None
+                        else None
+                    ),
                 )
             )
 
@@ -1276,6 +1513,10 @@ async def push_entities_to_graph(patient_id, document_id, entities, metadata, do
             document_type="clinical_document",
             document_date=document_date,
             evidence_text=e.evidence_text,
+
+            source_area=e.source_area,
+            source_location=e.source_location,
+
             confidence=e.confidence,
             extraction_date=datetime.utcnow()
         )

@@ -44,15 +44,15 @@ function AnnotationRow({ ann, onEdit, onDelete }) {
             }}
             style={{
               width: "100%", minHeight: 50, resize: "vertical",
-              border: "0.5px solid rgba(0,0,0,0.14)", borderRadius: 4,
+              border: "0.5px solid var(--border)", borderRadius: 4,
               padding: "5px 7px", fontSize: 11, lineHeight: 1.6,
-              fontFamily: "inherit", color: "#111", background: "#fff",
+              fontFamily: "inherit", color: "var(--text)", background: "var(--bg)",
               boxSizing: "border-box", outline: "none",
             }}
           />
           <div style={{ display: "flex", gap: 5, marginTop: 5 }}>
             <button onClick={() => { setEditing(false); setDraft(ann.note); }}
-              style={{ flex: 1, background: "none", border: "0.5px solid rgba(0,0,0,0.12)", borderRadius: 4, padding: "3px 0", fontSize: 10, cursor: "pointer", color: "#555", fontFamily: "inherit" }}>
+              style={{ flex: 1, background: "none", border: "0.5px solid var(--border)", borderRadius: 4, padding: "3px 0", fontSize: 10, cursor: "pointer", color: "var(--muted)", fontFamily: "inherit" }}>
               Cancel
             </button>
             <button onClick={handleSave}
@@ -76,7 +76,7 @@ function AnnotationRow({ ann, onEdit, onDelete }) {
                 onClick={() => { setEditing(true); setDraft(ann.note); }}
                 title="Edit"
                 style={{
-                  background: "rgba(255,255,255,0.8)", border: `0.5px solid ${c.border}`,
+                  background: "color-mix(in srgb, var(--bg) 80%, transparent)", border: `0.5px solid ${c.border}`,
                   borderRadius: 4, width: 22, height: 22,
                   display: "flex", alignItems: "center", justifyContent: "center",
                   cursor: "pointer", color: c.text,
@@ -88,10 +88,10 @@ function AnnotationRow({ ann, onEdit, onDelete }) {
                 onClick={() => onDelete(ann.id)}
                 title="Delete"
                 style={{
-                  background: "rgba(255,255,255,0.8)", border: "0.5px solid #fca5a5",
+                  background: "color-mix(in srgb, var(--bg) 80%, transparent)", border: "0.5px solid color-mix(in srgb, var(--red) 40%, var(--bg))",
                   borderRadius: 4, width: 22, height: 22,
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  cursor: "pointer", color: "#b91c1c",
+                  cursor: "pointer", color: "var(--red)",
                 }}
               >
                 <i className="ti ti-trash" style={{ fontSize: 10 }} />
@@ -109,17 +109,22 @@ export default function AnnotationsSidebar() {
   const [open, setOpen] = useState(true);
 
   const T = {
-    bg: "#ffffff", bgAlt: "#f9f9f8",
-    border: "rgba(0,0,0,0.10)", text: "#111111",
-    textSec: "#555550", textMuted: "#999994",
+    bg: "var(--bg)", bgAlt: "var(--bg3, #f9f9f8)",
+    border: "var(--border)", text: "var(--text)",
+    textSec: "color-mix(in srgb, var(--text) 85%, var(--muted))", textMuted: "var(--muted)",
   };
 
+  // This no longer renders as an independent right-hand panel — RawDocument
+  // now stacks it directly under IssuesPanel inside one shared bordered
+  // column. A hardcoded 240px/36px width here (plus its own borderLeft)
+  // used to fight with that parent's width, leaving a misaligned colored
+  // block that didn't span the container. Fill the parent instead; the
+  // open/close toggle now just shows/hides the note list, not the width.
   return (
     <div style={{
-      width: open ? 240 : 36, flexShrink: 0,
-      borderLeft: `0.5px solid ${T.border}`,
+      width: "100%", flexShrink: 0,
       background: T.bgAlt, display: "flex", flexDirection: "column",
-      transition: "width 0.2s", overflow: "hidden", minHeight: 300,
+      overflow: "hidden",
     }}>
       <div style={{
         display: "flex", alignItems: "center", gap: 6,
@@ -139,7 +144,7 @@ export default function AnnotationsSidebar() {
               Reviewer notes
             </span>
             {annotations.length > 0 && (
-              <span style={{ fontSize: 9, fontWeight: 700, background: "#111", color: "#fff", borderRadius: 99, padding: "1px 6px", marginLeft: 2 }}>
+              <span style={{ fontSize: 9, fontWeight: 700, background: "var(--accent)", color: "#fff", borderRadius: 99, padding: "1px 6px", marginLeft: 2 }}>
                 {annotations.length}
               </span>
             )}

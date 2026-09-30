@@ -137,13 +137,18 @@ const labelStyle = {
 };
 
 const headerStyle = {
-    fontSize: "16px",
-    color: C.charcoal,
-    borderBottom: `1px solid ${C.fog}`,
-    paddingBottom: "8px",
+    fontSize: "14.5px",
+    color: C.white,
+    background: C.black,
+    padding: "13px 20px",
+    marginLeft: "-20px",
+    marginRight: "-20px",
     marginBottom: "16px",
     marginTop: "24px",
-    ...os({ fontWeight: 600 })
+    letterSpacing: "0.02em",
+    textTransform: "uppercase",
+    ...os({ fontWeight: 500 }),
+    borderBottom: "none"
 };
 
 const buttonStyle = {
@@ -304,8 +309,222 @@ const HistoryTable = ({ historyData }) => {
     );
 };
 
-const LAB_CATEGORIES = ["Haematology", "Renal", "Liver", "Metabolic", "Cardiac", "Virology"];
+const RadiotherapyRegimenSummaryCard = ({ data, loading, error, onDownloadPDF }) => {
+    const [expanded, setExpanded] = useState(true);
 
+    if (loading) {
+        return (
+            <div style={{ marginBottom: "24px", padding: "20px", border: `1px solid ${C.fog}`, background: C.ghost, textAlign: "center" }}>
+                <span style={{ fontSize: "12.5px", color: C.smoke, ...os(), fontStyle: "italic" }}>
+                    Loading radiotherapy plan...
+                </span>
+            </div>
+        );
+    }
+    if (error) {
+        return (
+            <div style={{ marginBottom: "24px", padding: "20px", border: `1px solid ${C.fog}`, background: C.ghost }}>
+                <span style={{ fontSize: "12.5px", color: C.smoke, ...os(), fontStyle: "italic" }}>
+                    {error}
+                </span>
+            </div>
+        );
+    }
+    if (!data) return null;
+
+    const patient = data.patient || {};
+    const intent = data.intent || {};
+    const treatment = data.treatment || {};
+    const imaging = data.imaging || {};
+
+    const rowStyle = { borderBottom: `1px solid ${C.fog}` };
+    const labelCellStyle = { width: "30%", minWidth: 170, padding: "9px 14px", fontSize: "12.5px", background: C.ghost, color: C.smoke, fontWeight: 500, verticalAlign: "top", borderRight: `1px solid ${C.fog}` };
+    const valueCellStyle = { padding: "9px 14px", fontSize: "12.5px", color: C.charcoal, verticalAlign: "top" };
+
+    const InfoRow = ({ label, value }) => {
+        if (value === null || value === undefined || value === "") return null;
+        return (
+            <tr style={rowStyle}>
+                <td style={labelCellStyle}>{label}</td>
+                <td style={valueCellStyle}>{value}</td>
+            </tr>
+        );
+    };
+
+    return (
+        <div style={{ marginBottom: "24px", border: `1px solid ${C.fog}`, borderRadius: "4px", overflow: "hidden" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: C.black, color: C.white, padding: "13px 20px", flexWrap: "wrap", gap: "8px" }}>
+                <div>
+                    <div style={{ fontSize: "10px", letterSpacing: "0.15em", color: "rgba(255,255,255,0.6)", textTransform: "uppercase", ...os() }}>
+                        Radiotherapy Regimen Summary
+                    </div>
+                    <div style={{ fontSize: "13px", fontWeight: 500, color: C.white, ...os({ fontWeight: 500 }) }}>
+                        {treatment.treatmentSite || patient.diagnosis || "—"}
+                        {intent.treatmentIntent ? ` · ${String(intent.treatmentIntent).charAt(0).toUpperCase() + String(intent.treatmentIntent).slice(1)} Intent` : ""}
+                    </div>
+                </div>
+                <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                    <button
+                        type="button"
+                        onClick={onDownloadPDF}
+                        style={{ ...buttonStyle, border: `1px solid ${C.white}`, background: "transparent", color: C.white, fontSize: "11.5px", padding: "6px 14px" }}
+                    >
+                        Download / Print PDF
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setExpanded(e => !e)}
+                        style={{ background: "transparent", border: "none", color: C.white, fontSize: "11px", cursor: "pointer", ...os() }}
+                    >
+                        {expanded ? "▲ Collapse" : "▼ Expand"}
+                    </button>
+                </div>
+            </div>
+
+            {expanded && (
+                <div style={{ background: C.white }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                        <tbody>
+                            <tr>
+                                <td colSpan={2} style={{ padding: "6px 14px", background: C.ghost, fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.12em", color: C.ash, borderBottom: `1px solid ${C.fog}`, borderTop: `1px solid ${C.fog}` }}>
+                                    Protocol Overview
+                                </td>
+                            </tr>
+                            <InfoRow label="Treatment Intent" value={intent.treatmentIntent} />
+                            <InfoRow label="Treatment Setting" value={intent.treatmentSetting} />
+                            <InfoRow label="Treatment Site" value={treatment.treatmentSite} />
+                            <InfoRow label="Total Dose" value={treatment.totalDose ? `${treatment.totalDose} Gy` : null} />
+                            <InfoRow label="Dose per Fraction" value={treatment.dosePerFraction ? `${treatment.dosePerFraction} Gy` : null} />
+                            <InfoRow label="Number of Fractions" value={treatment.numFractions} />
+                            <InfoRow label="Treatment Duration" value={treatment.treatmentDuration ? `${treatment.treatmentDuration} weeks` : null} />
+                            <InfoRow label="Treatment Machine" value={treatment.treatmentMachine} />
+                            <InfoRow label="Planning System" value={treatment.planningSystem} />
+                            <InfoRow label="Rationale" value={intent.rationaleForTreatment} />
+                        </tbody>
+                    </table>
+
+                    {intent.targetVolumes?.length > 0 && (
+                        <div style={{ padding: "16px" }}>
+                            <div style={{ fontSize: "11px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.1em", color: C.ash, marginBottom: "8px" }}>
+                                Target Volumes
+                            </div>
+                            <div style={{ overflowX: "auto", border: `1px solid ${C.fog}`, borderRadius: "4px" }}>
+                                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                                    <thead>
+                                        <tr style={{ background: C.ghost }}>
+                                            {["Volume Name", "Type", "Volume (cc)", "Prescribed Dose"].map(h => (
+                                                <th key={h} style={{ padding: "8px 12px", textAlign: "left", fontSize: "10.5px", color: C.smoke, fontWeight: 600, textTransform: "uppercase", borderBottom: `1px solid ${C.fog}` }}>{h}</th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {intent.targetVolumes.map((v, i) => (
+                                            <tr key={i} style={{ borderBottom: i === intent.targetVolumes.length - 1 ? "none" : `1px solid ${C.fog}` }}>
+                                                <td style={{ padding: "8px 12px", fontSize: "12.5px", color: C.charcoal }}>{v.volumeName || "—"}</td>
+                                                <td style={{ padding: "8px 12px", fontSize: "12.5px", color: C.charcoal, textTransform: "uppercase" }}>{v.type || "—"}</td>
+                                                <td style={{ padding: "8px 12px", fontSize: "12.5px", color: C.charcoal }}>{v.volumeCc || "—"}</td>
+                                                <td style={{ padding: "8px 12px", fontSize: "12.5px", color: C.charcoal }}>{v.prescribedDose || "—"}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+
+                    {intent.organsAtRisk?.length > 0 && (
+                        <div style={{ padding: "0 16px 16px" }}>
+                            <div style={{ fontSize: "11px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.1em", color: C.ash, marginBottom: "8px" }}>
+                                Organs at Risk
+                            </div>
+                            <div style={{ overflowX: "auto", border: `1px solid ${C.fog}`, borderRadius: "4px" }}>
+                                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                                    <thead>
+                                        <tr style={{ background: C.ghost }}>
+                                            {["Organ", "Max Dose (Gy)", "Mean Dose (Gy)"].map(h => (
+                                                <th key={h} style={{ padding: "8px 12px", textAlign: "left", fontSize: "10.5px", color: C.smoke, fontWeight: 600, textTransform: "uppercase", borderBottom: `1px solid ${C.fog}` }}>{h}</th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {intent.organsAtRisk.map((o, i) => (
+                                            <tr key={i} style={{ borderBottom: i === intent.organsAtRisk.length - 1 ? "none" : `1px solid ${C.fog}` }}>
+                                                <td style={{ padding: "8px 12px", fontSize: "12.5px", color: C.charcoal }}>{o.organName || "—"}</td>
+                                                <td style={{ padding: "8px 12px", fontSize: "12.5px", color: C.charcoal }}>{o.maxDoseGy || "—"}</td>
+                                                <td style={{ padding: "8px 12px", fontSize: "12.5px", color: C.charcoal }}>{o.meanDoseGy || "—"}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+
+                    {treatment.beamParameters?.length > 0 && (
+                        <div style={{ padding: "0 16px 16px" }}>
+                            <div style={{ fontSize: "11px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.1em", color: C.ash, marginBottom: "8px" }}>
+                                Beam Parameters
+                            </div>
+                            <div style={{ overflowX: "auto", border: `1px solid ${C.fog}`, borderRadius: "4px" }}>
+                                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                                    <thead>
+                                        <tr style={{ background: C.ghost }}>
+                                            {["Field", "Energy", "Gantry Angle", "Field Size", "MU/Fraction"].map(h => (
+                                                <th key={h} style={{ padding: "8px 12px", textAlign: "left", fontSize: "10.5px", color: C.smoke, fontWeight: 600, textTransform: "uppercase", borderBottom: `1px solid ${C.fog}` }}>{h}</th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {treatment.beamParameters.map((b, i) => (
+                                            <tr key={i} style={{ borderBottom: i === treatment.beamParameters.length - 1 ? "none" : `1px solid ${C.fog}` }}>
+                                                <td style={{ padding: "8px 12px", fontSize: "12.5px", color: C.charcoal }}>{b.fieldName || "—"}</td>
+                                                <td style={{ padding: "8px 12px", fontSize: "12.5px", color: C.charcoal }}>{b.energyMv || "—"}</td>
+                                                <td style={{ padding: "8px 12px", fontSize: "12.5px", color: C.charcoal }}>{b.gantryAngle || "—"}</td>
+                                                <td style={{ padding: "8px 12px", fontSize: "12.5px", color: C.charcoal }}>{b.fieldSizeCm || "—"}</td>
+                                                <td style={{ padding: "8px 12px", fontSize: "12.5px", color: C.charcoal }}>{b.muPerFraction || "—"}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+
+                    {imaging.imagingShifts?.length > 0 && (
+                        <div style={{ padding: "0 16px 16px" }}>
+                            <div style={{ fontSize: "11px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.1em", color: C.ash, marginBottom: "8px" }}>
+                                Image Guidance Shifts
+                            </div>
+                            <div style={{ overflowX: "auto", border: `1px solid ${C.fog}`, borderRadius: "4px" }}>
+                                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                                    <thead>
+                                        <tr style={{ background: C.ghost }}>
+                                            {["Date", "Session", "Shift (X, Y, Z mm)", "Residual Error"].map(h => (
+                                                <th key={h} style={{ padding: "8px 12px", textAlign: "left", fontSize: "10.5px", color: C.smoke, fontWeight: 600, textTransform: "uppercase", borderBottom: `1px solid ${C.fog}` }}>{h}</th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {imaging.imagingShifts.map((s, i) => (
+                                            <tr key={i} style={{ borderBottom: i === imaging.imagingShifts.length - 1 ? "none" : `1px solid ${C.fog}` }}>
+                                                <td style={{ padding: "8px 12px", fontSize: "12.5px", color: C.charcoal }}>{s.date || "—"}</td>
+                                                <td style={{ padding: "8px 12px", fontSize: "12.5px", color: C.charcoal }}>{s.session || "—"}</td>
+                                                <td style={{ padding: "8px 12px", fontSize: "12.5px", color: C.charcoal }}>{s.shiftXMm || "0"}, {s.shiftYMm || "0"}, {s.shiftZMm || "0"}</td>
+                                                <td style={{ padding: "8px 12px", fontSize: "12.5px", color: C.charcoal }}>{s.residualErrorAfterShift || "—"}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+};
+
+const LAB_CATEGORIES = ["Haematology", "Renal", "Liver", "Metabolic", "Cardiac", "Virology"];
 const STANDARD_LAB_FIELDS = [
     { key: "hb", label: "Haemoglobin (Hb)", unit: "g/dL", range: "12–18", category: "Haematology" },
     { key: "pcv", label: "PCV / Haematocrit", unit: "%", range: "36–52", category: "Haematology" },
@@ -357,14 +576,25 @@ export default function RadiationTherapyWorkflow({ patientId: propPatientId, doc
     const hospitalId = propHospitalId || searchParams.get('hospitalId') || searchParams.get('hospital_id');
     const [activeTab, setActiveTab] = useState(defaultTab || "patient");
     const [formData, setFormData] = useState({
-        patient: { previousTreatments: [{}], allergies: [{}] },
-        intent: { targetVolumes: [{}], organsAtRisk: [{}] },
-        treatment: { beamParameters: [{}] },
-        setup: { immobilizationDevices: [{}] },
-        summary: { toxicities: [{ toxicity: "", grade: "" }] },
-        staff: { staffMembers: [{ name: "", role: "", licenseNumber: "", contact: "" }] },
+        patient: { previousTreatments: [], allergies: [] },
+        intent: { targetVolumes: [], organsAtRisk: [] },
+        treatment: { beamParameters: [] },
+        setup: { immobilizationDevices: [] },
+        summary: { toxicities: [] },
+        staff: { staffMembers: [] },
         sessions: { treatmentSessions: [{ date: "", time: "", machine: "", deliveredDoseGy: "", treatmentTimeMin: "", notes: "", _isNew: true }] }
     });
+    const [newTreatment, setNewTreatment] = useState({ treatmentType: "", date: "", outcome: "" });
+    const [newAllergy, setNewAllergy] = useState({ allergen: "", severity: "" });
+    const [newTargetVolume, setNewTargetVolume] = useState({ volumeName: "", type: "", volumeCc: "", prescribedDose: "" });
+    const [newOrganAtRisk, setNewOrganAtRisk] = useState({ organName: "", maxDoseGy: "", meanDoseGy: "" });
+    const [newImmobilizationDevice, setNewImmobilizationDevice] = useState({ deviceType: "", locationdescription: "" });
+    const [newBeamParameter, setNewBeamParameter] = useState({
+        fieldName: "", energyMv: "", gantryAngle: "", collimatorAngle: "",
+        fieldSizeCm: "", ssdCm: "", wedgeAngle: "", muPerFraction: ""
+    });
+    const [newToxicity, setNewToxicity] = useState({ toxicity: "", grade: "" });
+    const [newStaffMember, setNewStaffMember] = useState({ name: "", role: "", licenseNumber: "", contact: "" });
     const [chemoFlags, setChemoFlags] = useState(null);
     const [labDetailsModal, setLabDetailsModal] = useState(null);
     const [labUploadLoading, setLabUploadLoading] = useState(false);
@@ -389,6 +619,11 @@ export default function RadiationTherapyWorkflow({ patientId: propPatientId, doc
     const [uploadingInvId, setUploadingInvId] = useState(null);
     const [patientRegDetails, setPatientRegDetails] = useState(null);
     const [isGeneratingDiagnosis, setIsGeneratingDiagnosis] = useState(false);
+
+    // ── Radiotherapy Regimen Summary (mirrors Chemotherapy Regimen Summary) ──
+    const [radiotherapyRegimenData, setRadiotherapyRegimenData] = useState(null);
+    const [radiotherapyRegimenLoading, setRadiotherapyRegimenLoading] = useState(false);
+    const [radiotherapyRegimenError, setRadiotherapyRegimenError] = useState(null);
 
     const handleInvestigationUpload = async (e, inv) => {
         const file = e.target.files?.[0];
@@ -441,6 +676,33 @@ export default function RadiationTherapyWorkflow({ patientId: propPatientId, doc
             setIsGeneratingDiagnosis(false);
         }
     };
+
+    useEffect(() => {
+        const fetchRadiotherapyRegimen = async () => {
+            if (!patientId || !doctorId) return;
+            setRadiotherapyRegimenLoading(true);
+            setRadiotherapyRegimenError(null);
+            try {
+                const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || "https://doctorassist.ai/api/";
+                const res = await fetch(
+                    `${API_BASE_URL}hms/users/data/context/radiotherapy-records/${patientId}/${doctorId}`
+                );
+                const json = await res.json();
+                if (json.status === "success" && json.data) {
+                    setRadiotherapyRegimenData(json.data);
+                } else {
+                    setRadiotherapyRegimenData(null);
+                    setRadiotherapyRegimenError(json.message || "No radiotherapy plan data found for this patient.");
+                }
+            } catch (err) {
+                console.error("Failed to fetch radiotherapy regimen:", err);
+                setRadiotherapyRegimenError("Network error while fetching radiotherapy plan data.");
+            } finally {
+                setRadiotherapyRegimenLoading(false);
+            }
+        };
+        fetchRadiotherapyRegimen();
+    }, [patientId, doctorId]);
 
     // Voice Dictation State
     const [isRecording, setIsRecording] = useState(false);
@@ -950,6 +1212,175 @@ export default function RadiationTherapyWorkflow({ patientId: propPatientId, doc
         printWindow.document.close();
     };
 
+    const handleDownloadRadiotherapyRegimenPDF = () => {
+        if (!radiotherapyRegimenData) return;
+        const printWindow = window.open('', '_blank', 'width=850,height=1000');
+        if (!printWindow) return;
+
+        const data = radiotherapyRegimenData;
+        const patientInfo = data.patient || {};
+        const intent = data.intent || {};
+        const treatment = data.treatment || {};
+        const imaging = data.imaging || {};
+
+        const patientName = patientInfo.patientName || formData.patient?.patientName || "Unknown Patient";
+        const patientIdDisplay = patientInfo.patientId || formData.patient?.patientId || patientId || "";
+        const docName = fetchedDoctorName || "Doctor";
+        const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+
+        const targetVolumeRows = (intent.targetVolumes || []).map(v => `
+            <tr>
+                <td>${v.volumeName || "—"}</td>
+                <td>${(v.type || "—").toUpperCase()}</td>
+                <td>${v.volumeCc || "—"}</td>
+                <td>${v.prescribedDose || "—"}</td>
+            </tr>
+        `).join("");
+
+        const oarRows = (intent.organsAtRisk || []).map(o => `
+            <tr>
+                <td>${o.organName || "—"}</td>
+                <td>${o.maxDoseGy || "—"}</td>
+                <td>${o.meanDoseGy || "—"}</td>
+            </tr>
+        `).join("");
+
+        const beamRows = (treatment.beamParameters || []).map(b => `
+            <tr>
+                <td>${b.fieldName || "—"}</td>
+                <td>${b.energyMv || "—"}</td>
+                <td>${b.gantryAngle || "—"}</td>
+                <td>${b.fieldSizeCm || "—"}</td>
+                <td>${b.muPerFraction || "—"}</td>
+            </tr>
+        `).join("");
+
+        const imagingRows = (imaging.imagingShifts || []).map(s => `
+            <tr>
+                <td>${s.date || "—"}</td>
+                <td>${s.session || "—"}</td>
+                <td>${s.shiftXMm || "0"}, ${s.shiftYMm || "0"}, ${s.shiftZMm || "0"}</td>
+                <td>${s.residualErrorAfterShift || "—"}</td>
+            </tr>
+        `).join("");
+
+        const html = `
+            <html>
+                <head>
+                    <title>Radiotherapy Treatment Plan - ${patientName}</title>
+                    <meta charset="utf-8" />
+                    <style>
+                        * { box-sizing: border-box; }
+                        body { font-family: 'Segoe UI', Arial, sans-serif; padding: 48px; color: #1a1a1a; line-height: 1.5; }
+                        .header { text-align: center; border-bottom: 3px solid #000; padding-bottom: 18px; margin-bottom: 28px; }
+                        .header h1 { margin: 0; font-size: 22px; letter-spacing: 1px; text-transform: uppercase; }
+                        .header .sub { font-size: 12px; color: #666; margin-top: 4px; letter-spacing: 0.5px; }
+                        .meta-bar { display: flex; justify-content: space-between; background: #f7f7f7; border: 1px solid #ddd; padding: 14px 18px; margin-bottom: 24px; font-size: 12.5px; }
+                        .meta-bar div { line-height: 1.7; }
+                        .meta-bar b { color: #000; }
+                        .section-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; background: #000; color: #fff; padding: 7px 14px; margin: 26px 0 0 0; }
+                        table { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
+                        th { background: #f0f0f0; padding: 9px 12px; text-align: left; border: 1px solid #ccc; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; }
+                        td { padding: 9px 12px; border: 1px solid #ddd; font-size: 12.5px; }
+                        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid #ddd; border-top: none; }
+                        .info-row { display: contents; }
+                        .info-label { background: #fafafa; padding: 9px 14px; font-size: 11px; font-weight: 600; color: #555; border-top: 1px solid #ddd; border-right: 1px solid #ddd; text-transform: uppercase; letter-spacing: 0.3px; }
+                        .info-value { padding: 9px 14px; font-size: 12.5px; border-top: 1px solid #ddd; }
+                        .footer { margin-top: 50px; display: flex; justify-content: space-between; align-items: flex-end; font-size: 11.5px; color: #555; }
+                        .signature { border-top: 1px solid #333; padding-top: 6px; width: 220px; text-align: center; }
+                        .disclaimer { margin-top: 30px; font-size: 10.5px; color: #888; border-top: 1px dashed #ccc; padding-top: 10px; }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <h1>Radiotherapy Treatment Plan</h1>
+                        <div class="sub">Prepared by Dr. ${docName}</div>
+                    </div>
+
+                    <div class="meta-bar">
+                        <div>
+                            <div><b>Patient Name:</b> ${patientName}</div>
+                            <div><b>Patient ID:</b> ${patientIdDisplay}</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div><b>Date Prepared:</b> ${today}</div>
+                            <div><b>Treatment Intent:</b> ${intent.treatmentIntent || "—"}</div>
+                            <div><b>Treatment Site:</b> ${treatment.treatmentSite || "—"}</div>
+                        </div>
+                    </div>
+
+                    <div class="section-title">Treatment Overview</div>
+                    <div class="info-grid">
+                        <div class="info-row">
+                            <div class="info-label">Treatment Type</div><div class="info-value">${treatment.treatmentType || "—"}</div>
+                            <div class="info-label">Treatment Setting</div><div class="info-value">${intent.treatmentSetting || "—"}</div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">Total Dose</div><div class="info-value">${treatment.totalDose ? `${treatment.totalDose} Gy` : "—"}</div>
+                            <div class="info-label">Dose / Fraction</div><div class="info-value">${treatment.dosePerFraction ? `${treatment.dosePerFraction} Gy` : "—"}</div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">Number of Fractions</div><div class="info-value">${treatment.numFractions || "—"}</div>
+                            <div class="info-label">Treatment Duration</div><div class="info-value">${treatment.treatmentDuration ? `${treatment.treatmentDuration} weeks` : "—"}</div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">Treatment Machine</div><div class="info-value">${treatment.treatmentMachine || "—"}</div>
+                            <div class="info-label">Planning System</div><div class="info-value">${treatment.planningSystem || "—"}</div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">Rationale</div><div class="info-value" style="grid-column: span 3;">${intent.rationaleForTreatment || "—"}</div>
+                        </div>
+                    </div>
+
+                    <div class="section-title">Target Volumes</div>
+                    <table>
+                        <thead><tr><th>Volume Name</th><th>Type</th><th>Volume (cc)</th><th>Prescribed Dose</th></tr></thead>
+                        <tbody>${targetVolumeRows || `<tr><td colspan="4" style="text-align:center;color:#999;">No target volumes recorded</td></tr>`}</tbody>
+                    </table>
+
+                    <div class="section-title">Organs at Risk</div>
+                    <table>
+                        <thead><tr><th>Organ</th><th>Max Dose (Gy)</th><th>Mean Dose (Gy)</th></tr></thead>
+                        <tbody>${oarRows || `<tr><td colspan="3" style="text-align:center;color:#999;">No organs at risk recorded</td></tr>`}</tbody>
+                    </table>
+
+                    <div class="section-title">Beam Parameters</div>
+                    <table>
+                        <thead><tr><th>Field</th><th>Energy</th><th>Gantry Angle</th><th>Field Size</th><th>MU/Fraction</th></tr></thead>
+                        <tbody>${beamRows || `<tr><td colspan="5" style="text-align:center;color:#999;">No beam parameters recorded</td></tr>`}</tbody>
+                    </table>
+
+                    <div class="section-title">Image Guidance Shifts</div>
+                    <table>
+                        <thead><tr><th>Date</th><th>Session</th><th>Shift (X, Y, Z mm)</th><th>Residual Error</th></tr></thead>
+                        <tbody>${imagingRows || `<tr><td colspan="4" style="text-align:center;color:#999;">No image guidance records</td></tr>`}</tbody>
+                    </table>
+
+                    <div class="footer">
+                        <div>
+                            Generated via DoctorAssist.AI EMR<br/>
+                            This document is intended for patient reference and clinical continuity.
+                        </div>
+                        <div class="signature">Dr. ${docName}<br/>Attending Physician</div>
+                    </div>
+
+                    <div class="disclaimer">
+                        This treatment plan is subject to change based on clinical response, imaging findings, and physician discretion at each visit. Please bring this document to every radiotherapy session.
+                    </div>
+
+                    <script>
+                        window.onload = () => {
+                            window.print();
+                        };
+                    </script>
+                </body>
+            </html>
+        `;
+
+        printWindow.document.write(html);
+        printWindow.document.close();
+    };
+
     React.useEffect(() => {
         const fetchExistingRecord = async () => {
             if (!patientId || !doctorId) return false;
@@ -1208,75 +1639,81 @@ export default function RadiationTherapyWorkflow({ patientId: propPatientId, doc
     const handleTabSave = async (tabId) => {
         try {
             const cleanedData = getCleanedFormData();
-            const payloadData = { ...cleanedData };
-            delete payloadData.history; // Prevent backend from overwriting new history
-
+            
+            // ✅ Get ONLY the current tab's data
+            const tabSpecificData = cleanedData[tabId] || {};
+            
+            // ✅ Send ONLY the current tab wrapped in an object
+            const tabPayload = { [tabId]: tabSpecificData };
+            
             const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || "https://doctorassist.ai/api/";
             const res = await fetch(`${API_BASE_URL}hms/users/data/context/save-radiotherapy-record`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    doctorId: doctorId || "unknown",
-                    patientId: patientId || "unknown",
-                    hospitalId: hospitalId || "unknown",
-                    formData: payloadData,
-                    isComplete: false
-                })
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                doctorId: doctorId || "unknown",
+                patientId: patientId || "unknown",
+                hospitalId: hospitalId || "unknown",
+                tabId: tabId,
+                formData: tabPayload,  // ✅ Send ONLY the current tab
+                isComplete: false
+            })
             });
+            
             if (res.ok) {
-                alert("Tab data saved successfully!");
-                // Fetch updated history to show it immediately
-                try {
-                    const hospital_id_param = hospitalId || "unknown";
-                    const fetchRes = await fetch(`${API_BASE_URL}hms/users/data/context/get-radiotherapy-record?patientId=${patientId}&doctorId=${doctorId}&hospitalId=${hospital_id_param}`);
-                    if (fetchRes.ok) {
-                        const json = await fetchRes.json();
-                        if (json.data && json.data.history) {
-                            cleanedData.history = json.data.history;
-                        }
-                    }
-                } catch (e) {
-                    console.error("Failed to fetch updated history", e);
+            alert("Tab data saved successfully!");
+            // Fetch updated history to show it immediately
+            try {
+                const hospital_id_param = hospitalId || "unknown";
+                const fetchRes = await fetch(`${API_BASE_URL}hms/users/data/context/get-radiotherapy-record?patientId=${patientId}&doctorId=${doctorId}&hospitalId=${hospital_id_param}`);
+                if (fetchRes.ok) {
+                const json = await fetchRes.json();
+                if (json.data && json.data.history) {
+                    cleanedData.history = json.data.history;
                 }
-                setFormData(prev => ({ ...cleanedData, history: cleanedData.history || prev.history }));
+                }
+            } catch (e) {
+                console.error("Failed to fetch updated history", e);
+            }
+            setFormData(prev => ({ ...cleanedData, history: cleanedData.history || prev.history }));
             } else {
-                alert("Failed to save tab data.");
+            alert("Failed to save tab data.");
             }
         } catch (err) {
             console.error("Save error:", err);
             alert("Error saving tab data.");
         }
-    };
+        };
 
     const handleSaveRecord = async () => {
         try {
             const cleanedData = getCleanedFormData();
             const payloadData = { ...cleanedData };
-            delete payloadData.history; // Prevent backend from overwriting new history
+            delete payloadData.history;
 
             const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || "https://doctorassist.ai/api/";
             const res = await fetch(`${API_BASE_URL}hms/users/data/context/save-radiotherapy-record`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    doctorId: doctorId || "unknown",
-                    patientId: patientId || "unknown",
-                    hospitalId: hospitalId || "unknown",
-                    formData: payloadData,
-                    isComplete: true
-                })
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                doctorId: doctorId || "unknown",
+                patientId: patientId || "unknown",
+                hospitalId: hospitalId || "unknown",
+                formData: payloadData,  // ✅ Keep as ALL tabs for final save
+                isComplete: true
+            })
             });
             if (res.ok) {
-                alert("Radiotherapy complete record saved successfully!");
-                setFormData({});
+            alert("Radiotherapy complete record saved successfully!");
+            setFormData({});
             } else {
-                alert("Failed to save complete radiotherapy record.");
+            alert("Failed to save complete radiotherapy record.");
             }
         } catch (err) {
             console.error("Save error:", err);
             alert("Error saving complete record.");
         }
-    };
+        };
 
     const allTabs = [
         { id: "patient", label: "Patient Info" },
@@ -1476,6 +1913,14 @@ export default function RadiationTherapyWorkflow({ patientId: propPatientId, doc
 
     return (
         <div style={{ ...card, marginTop: 16 }}>
+            {/* Radiotherapy Regimen Summary — mirrors Chemotherapy Regimen Summary */}
+            <RadiotherapyRegimenSummaryCard
+                data={radiotherapyRegimenData}
+                loading={radiotherapyRegimenLoading}
+                error={radiotherapyRegimenError}
+                onDownloadPDF={handleDownloadRadiotherapyRegimenPDF}
+            />
+
             {/* Dictation Box — only shown when embedded in procedure details */}
             {(showFormTabs && !hideVoiceDictation) && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px', padding: '16px', border: `1px solid ${C.fog}`, borderRadius: '4px', background: C.ghost }}>
@@ -1692,63 +2137,151 @@ export default function RadiationTherapyWorkflow({ patientId: propPatientId, doc
                                         </button>
                                     </div>
                                     <textarea style={{ ...inputStyle, minHeight: "100px" }} placeholder="Enter diagnosis details" value={formData.patient?.[`diagnosis`] || ""} onChange={e => handleUpdate("patient", "diagnosis", e.target.value)}></textarea>
-
                                 </div>
+
                                 <div style={{ gridColumn: "1 / -1" }}>
                                     <label style={labelStyle}>Previous Treatments</label>
-                                    <div>
-                                        {(formData.patient?.previousTreatments || []).map((item, index) => (
-                                            <div key={index}>
-                                                <button type="button" style={buttonStyle} onClick={() => handleArrayRemove("patient", "previousTreatments", index)}>Remove</button>
-                                                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "16px", marginBottom: "16px" }}>
-                                                    <div style={{}}>
-                                                        <input type="text" style={inputStyle} placeholder="Treatment type" value={item.treatmentType || ""} onChange={e => handleArrayUpdate("patient", "previousTreatments", index, "treatmentType", e.target.value)} />
+                                    {((formData.patient?.previousTreatments || []).filter(item => item && (item.treatmentType || item.date || item.outcome)).length > 0) && (
+                                        <div style={{ overflowX: "auto", marginBottom: "12px", border: `1px solid ${C.fog}`, borderRadius: "4px" }}>
+                                            <table style={{ width: "100%", borderCollapse: "collapse", background: C.white }}>
+                                                <thead>
+                                                    <tr style={{ background: C.ghost, borderBottom: `1px solid ${C.fog}` }}>
+                                                        <th style={{ padding: "10px 14px", textAlign: "left", fontSize: "11px", color: C.smoke, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", width: "65px" }}>Sl. No.</th>
+                                                        <th style={{ padding: "10px 14px", textAlign: "left", fontSize: "11px", color: C.smoke, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>Treatment Type</th>
+                                                        <th style={{ padding: "10px 14px", textAlign: "left", fontSize: "11px", color: C.smoke, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", width: "160px" }}>Date</th>
+                                                        <th style={{ padding: "10px 14px", textAlign: "left", fontSize: "11px", color: C.smoke, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>Outcome</th>
+                                                        <th style={{ padding: "10px 14px", textAlign: "center", fontSize: "11px", color: C.smoke, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", width: "80px" }}>Action</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {(formData.patient?.previousTreatments || []).filter(item => item && (item.treatmentType || item.date || item.outcome)).map((item, index) => (
+                                                        <tr key={index} style={{ borderBottom: `1px solid ${C.fog}` }}>
+                                                            <td style={{ padding: "10px 14px", fontSize: "13px", color: C.ash, fontWeight: 600 }}>{index + 1}</td>
+                                                            <td style={{ padding: "10px 14px", fontSize: "13px", color: C.charcoal, fontWeight: 500 }}>{item.treatmentType || "—"}</td>
+                                                            <td style={{ padding: "10px 14px", fontSize: "13px", color: C.smoke }}>{item.date || "—"}</td>
+                                                            <td style={{ padding: "10px 14px", fontSize: "13px", color: C.charcoal }}>{item.outcome || "—"}</td>
+                                                            <td style={{ padding: "10px 14px", textAlign: "center" }}>
+                                                                <button
+                                                                    type="button"
+                                                                    style={{ ...primaryButtonStyle, padding: "4px 10px", fontSize: "12px", margin: "0 auto", justifyContent: "center" }}
+                                                                    onClick={() => handleArrayRemove("patient", "previousTreatments", index)}
+                                                                >
+                                                                    Remove
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
 
-                                                    </div>
-                                                    <div style={{}}>
-                                                        <input type="date" style={inputStyle} placeholder="Date" value={item.date || ""} onChange={e => handleArrayUpdate("patient", "previousTreatments", index, "date", e.target.value)} />
-
-                                                    </div>
-                                                    <div style={{}}>
-                                                        <input type="text" style={inputStyle} placeholder="Outcome" value={item.outcome || ""} onChange={e => handleArrayUpdate("patient", "previousTreatments", index, "outcome", e.target.value)} />
-
-                                                    </div>
-
-                                                </div>
-
-                                            </div>
-                                        ))}
-
+                                    {/* Add Input Bar */}
+                                    <div style={{ display: "grid", gridTemplateColumns: "1fr 180px 1fr auto", gap: "12px", alignItems: "center", background: C.ghost, padding: "12px", borderRadius: "4px", border: `1px solid ${C.fog}` }}>
+                                        <input
+                                            type="text"
+                                            style={inputStyle}
+                                            placeholder="Treatment type (e.g. Chemotherapy, Surgery)"
+                                            value={newTreatment.treatmentType}
+                                            onChange={e => setNewTreatment(prev => ({ ...prev, treatmentType: e.target.value }))}
+                                        />
+                                        <input
+                                            type="date"
+                                            style={inputStyle}
+                                            value={newTreatment.date}
+                                            onChange={e => setNewTreatment(prev => ({ ...prev, date: e.target.value }))}
+                                        />
+                                        <input
+                                            type="text"
+                                            style={inputStyle}
+                                            placeholder="Outcome details"
+                                            value={newTreatment.outcome}
+                                            onChange={e => setNewTreatment(prev => ({ ...prev, outcome: e.target.value }))}
+                                        />
+                                        <button
+                                            type="button"
+                                            style={{ ...primaryButtonStyle, whiteSpace: "nowrap" }}
+                                            onClick={() => {
+                                                if (newTreatment.treatmentType?.trim() || newTreatment.date || newTreatment.outcome?.trim()) {
+                                                    handleArrayAdd("patient", "previousTreatments", { ...newTreatment });
+                                                    setNewTreatment({ treatmentType: "", date: "", outcome: "" });
+                                                }
+                                            }}
+                                        >
+                                            + Add Previous Treatment
+                                        </button>
                                     </div>
-                                    <button type="button" style={buttonStyle} onClick={() => handleArrayAdd("patient", "previousTreatments", { "treatmentType": "", "date": "", "outcome": "" })}>Add Previous Treatment</button>
-
                                 </div>
-                                <div style={{ gridColumn: "1 / -1" }}>
+
+                                <div style={{ gridColumn: "1 / -1", marginTop: "8px" }}>
                                     <label style={labelStyle}>Allergies</label>
-                                    <div>
-                                        {(formData.patient?.allergies || []).map((item, index) => (
-                                            <div key={index}>
-                                                <button type="button" style={buttonStyle} onClick={() => handleArrayRemove("patient", "allergies", index)}>Remove</button>
-                                                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "16px", marginBottom: "16px" }}>
-                                                    <div style={{}}>
-                                                        <input type="text" style={inputStyle} placeholder="Allergen" value={item.allergen || ""} onChange={e => handleArrayUpdate("patient", "allergies", index, "allergen", e.target.value)} />
 
-                                                    </div>
-                                                    <div style={{}}>
-                                                        <select style={inputStyle} value={item.severity || ""} onChange={e => handleArrayUpdate("patient", "allergies", index, "severity", e.target.value)}>
-                                                            <option value="">Severity</option><option value="mild">Mild</option><option value="moderate">Moderate</option><option value="severe">Severe</option>
-                                                        </select>
+                                    {/* Data Table */}
+                                    {((formData.patient?.allergies || []).filter(item => item && (item.allergen || item.severity)).length > 0) && (
+                                        <div style={{ overflowX: "auto", marginBottom: "12px", border: `1px solid ${C.fog}`, borderRadius: "4px" }}>
+                                            <table style={{ width: "100%", borderCollapse: "collapse", background: C.white }}>
+                                                <thead>
+                                                    <tr style={{ background: C.ghost, borderBottom: `1px solid ${C.fog}` }}>
+                                                        <th style={{ padding: "10px 14px", textAlign: "left", fontSize: "11px", color: C.smoke, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", width: "65px" }}>Sl. No.</th>
+                                                        <th style={{ padding: "10px 14px", textAlign: "left", fontSize: "11px", color: C.smoke, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>Allergen</th>
+                                                        <th style={{ padding: "10px 14px", textAlign: "left", fontSize: "11px", color: C.smoke, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", width: "180px" }}>Severity</th>
+                                                        <th style={{ padding: "10px 14px", textAlign: "center", fontSize: "11px", color: C.smoke, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", width: "80px" }}>Action</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {(formData.patient?.allergies || []).filter(item => item && (item.allergen || item.severity)).map((item, index) => (
+                                                        <tr key={index} style={{ borderBottom: `1px solid ${C.fog}` }}>
+                                                            <td style={{ padding: "10px 14px", fontSize: "13px", color: C.ash, fontWeight: 600 }}>{index + 1}</td>
+                                                            <td style={{ padding: "10px 14px", fontSize: "13px", color: C.charcoal, fontWeight: 500 }}>{item.allergen || "—"}</td>
+                                                            <td style={{ padding: "10px 14px", fontSize: "13px", color: C.smoke, textTransform: "capitalize" }}>{item.severity || "—"}</td>
+                                                            <td style={{ padding: "10px 14px", textAlign: "center" }}>
+                                                                <button
+                                                                    type="button"
+                                                                    style={{ ...primaryButtonStyle, padding: "4px 10px", fontSize: "12px", margin: "0 auto", justifyContent: "center" }}
+                                                                    onClick={() => handleArrayRemove("patient", "allergies", index)}
+                                                                >
+                                                                    Remove
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
 
-                                                    </div>
-
-                                                </div>
-
-                                            </div>
-                                        ))}
-
+                                    {/* Add Input Bar */}
+                                    <div style={{ display: "grid", gridTemplateColumns: "1fr 200px auto", gap: "12px", alignItems: "center", background: C.ghost, padding: "12px", borderRadius: "4px", border: `1px solid ${C.fog}` }}>
+                                        <input
+                                            type="text"
+                                            style={inputStyle}
+                                            placeholder="Allergen (e.g. Penicillin, Contrast Dye, Latex)"
+                                            value={newAllergy.allergen}
+                                            onChange={e => setNewAllergy(prev => ({ ...prev, allergen: e.target.value }))}
+                                        />
+                                        <select
+                                            style={inputStyle}
+                                            value={newAllergy.severity}
+                                            onChange={e => setNewAllergy(prev => ({ ...prev, severity: e.target.value }))}
+                                        >
+                                            <option value="">Select Severity</option>
+                                            <option value="mild">Mild</option>
+                                            <option value="moderate">Moderate</option>
+                                            <option value="severe">Severe</option>
+                                        </select>
+                                        <button
+                                            type="button"
+                                            style={{ ...primaryButtonStyle, whiteSpace: "nowrap" }}
+                                            onClick={() => {
+                                                if (newAllergy.allergen?.trim() || newAllergy.severity) {
+                                                    handleArrayAdd("patient", "allergies", { ...newAllergy });
+                                                    setNewAllergy({ allergen: "", severity: "" });
+                                                }
+                                            }}
+                                        >
+                                            + Add Allergy
+                                        </button>
                                     </div>
-                                    <button type="button" style={buttonStyle} onClick={() => handleArrayAdd("patient", "allergies", { "allergen": "", "severity": "" })}>Add Allergy</button>
-
                                 </div>
 
                             </div>
@@ -1896,67 +2429,169 @@ export default function RadiationTherapyWorkflow({ patientId: propPatientId, doc
                             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "16px", marginBottom: "16px" }}>
                                 <div style={{ gridColumn: "1 / -1" }}>
                                     <label style={labelStyle}>Target Volumes</label>
-                                    <div>
-                                        {(formData.intent?.targetVolumes || []).map((item, index) => (
-                                            <div key={index}>
-                                                <button type="button" style={buttonStyle} onClick={() => handleArrayRemove("intent", "targetVolumes", index)}>Remove</button>
-                                                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "16px", marginBottom: "16px" }}>
-                                                    <div style={{}}>
-                                                        <input type="text" style={inputStyle} placeholder="Volume name" value={item.volumeName || ""} onChange={e => handleArrayUpdate("intent", "targetVolumes", index, "volumeName", e.target.value)} />
 
-                                                    </div>
-                                                    <div style={{}}>
-                                                        <select style={inputStyle} value={item.type || ""} onChange={e => handleArrayUpdate("intent", "targetVolumes", index, "type", e.target.value)}>
-                                                            <option value="">Type</option><option value="gtv">GTV</option><option value="ctv">CTV</option><option value="ptv">PTV</option><option value="itv">ITV</option>
-                                                        </select>
+                                    {/* Data Table */}
+                                    {((formData.intent?.targetVolumes || []).filter(item => item && (item.volumeName || item.type || item.volumeCc || item.prescribedDose)).length > 0) && (
+                                        <div style={{ overflowX: "auto", marginBottom: "12px", border: `1px solid ${C.fog}`, borderRadius: "4px" }}>
+                                            <table style={{ width: "100%", borderCollapse: "collapse", background: C.white }}>
+                                                <thead>
+                                                    <tr style={{ background: C.ghost, borderBottom: `1px solid ${C.fog}` }}>
+                                                        <th style={{ padding: "10px 14px", textAlign: "left", fontSize: "11px", color: C.smoke, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", width: "65px" }}>Sl. No.</th>
+                                                        <th style={{ padding: "10px 14px", textAlign: "left", fontSize: "11px", color: C.smoke, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>Volume Name</th>
+                                                        <th style={{ padding: "10px 14px", textAlign: "left", fontSize: "11px", color: C.smoke, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", width: "120px" }}>Type</th>
+                                                        <th style={{ padding: "10px 14px", textAlign: "left", fontSize: "11px", color: C.smoke, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", width: "140px" }}>Volume (cc)</th>
+                                                        <th style={{ padding: "10px 14px", textAlign: "left", fontSize: "11px", color: C.smoke, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", width: "160px" }}>Prescribed Dose</th>
+                                                        <th style={{ padding: "10px 14px", textAlign: "center", fontSize: "11px", color: C.smoke, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", width: "80px" }}>Action</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {(formData.intent?.targetVolumes || []).filter(item => item && (item.volumeName || item.type || item.volumeCc || item.prescribedDose)).map((item, index) => (
+                                                        <tr key={index} style={{ borderBottom: `1px solid ${C.fog}` }}>
+                                                            <td style={{ padding: "10px 14px", fontSize: "13px", color: C.ash, fontWeight: 600 }}>{index + 1}</td>
+                                                            <td style={{ padding: "10px 14px", fontSize: "13px", color: C.charcoal, fontWeight: 500 }}>{item.volumeName || "—"}</td>
+                                                            <td style={{ padding: "10px 14px", fontSize: "13px", color: C.smoke, textTransform: "uppercase", fontWeight: 500 }}>{item.type || "—"}</td>
+                                                            <td style={{ padding: "10px 14px", fontSize: "13px", color: C.charcoal }}>{item.volumeCc || "—"}</td>
+                                                            <td style={{ padding: "10px 14px", fontSize: "13px", color: C.charcoal }}>{item.prescribedDose || "—"}</td>
+                                                            <td style={{ padding: "10px 14px", textAlign: "center" }}>
+                                                                <button
+                                                                    type="button"
+                                                                    style={{ ...primaryButtonStyle, padding: "4px 10px", fontSize: "12px", margin: "0 auto", justifyContent: "center" }}
+                                                                    onClick={() => handleArrayRemove("intent", "targetVolumes", index)}
+                                                                >
+                                                                    Remove
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
 
-                                                    </div>
-                                                    <div style={{}}>
-                                                        <input type="text" style={inputStyle} placeholder="Volume (cc)" value={item.volumeCc || ""} onChange={e => handleArrayUpdate("intent", "targetVolumes", index, "volumeCc", e.target.value)} />
-
-                                                    </div>
-                                                    <div style={{}}>
-                                                        <input type="text" style={inputStyle} placeholder="Prescribed Dose" value={item.prescribedDose || ""} onChange={e => handleArrayUpdate("intent", "targetVolumes", index, "prescribedDose", e.target.value)} />
-
-                                                    </div>
-
-                                                </div>
-
-                                            </div>
-                                        ))}
-
+                                    {/* Add Input Bar */}
+                                    <div style={{ display: "grid", gridTemplateColumns: "1fr 140px 140px 160px auto", gap: "12px", alignItems: "center", background: C.ghost, padding: "12px", borderRadius: "4px", border: `1px solid ${C.fog}` }}>
+                                        <input
+                                            type="text"
+                                            style={inputStyle}
+                                            placeholder="Volume name (e.g. PTV_Primary)"
+                                            value={newTargetVolume.volumeName}
+                                            onChange={e => setNewTargetVolume(prev => ({ ...prev, volumeName: e.target.value }))}
+                                        />
+                                        <select
+                                            style={inputStyle}
+                                            value={newTargetVolume.type}
+                                            onChange={e => setNewTargetVolume(prev => ({ ...prev, type: e.target.value }))}
+                                        >
+                                            <option value="">Select Type</option>
+                                            <option value="gtv">GTV</option>
+                                            <option value="ctv">CTV</option>
+                                            <option value="ptv">PTV</option>
+                                            <option value="itv">ITV</option>
+                                        </select>
+                                        <input
+                                            type="text"
+                                            style={inputStyle}
+                                            placeholder="Volume (cc)"
+                                            value={newTargetVolume.volumeCc}
+                                            onChange={e => setNewTargetVolume(prev => ({ ...prev, volumeCc: e.target.value }))}
+                                        />
+                                        <input
+                                            type="text"
+                                            style={inputStyle}
+                                            placeholder="Prescribed Dose"
+                                            value={newTargetVolume.prescribedDose}
+                                            onChange={e => setNewTargetVolume(prev => ({ ...prev, prescribedDose: e.target.value }))}
+                                        />
+                                        <button
+                                            type="button"
+                                            style={{ ...primaryButtonStyle, whiteSpace: "nowrap" }}
+                                            onClick={() => {
+                                                if (newTargetVolume.volumeName?.trim() || newTargetVolume.type || newTargetVolume.volumeCc?.trim() || newTargetVolume.prescribedDose?.trim()) {
+                                                    handleArrayAdd("intent", "targetVolumes", { ...newTargetVolume });
+                                                    setNewTargetVolume({ volumeName: "", type: "", volumeCc: "", prescribedDose: "" });
+                                                }
+                                            }}
+                                        >
+                                            + Add Target Volume
+                                        </button>
                                     </div>
-                                    <button type="button" style={buttonStyle} onClick={() => handleArrayAdd("intent", "targetVolumes", { "volumeName": "", "type": "", "volumeCc": "", "prescribedDose": "" })}>Add Target Volume</button>
-
                                 </div>
-                                <div style={{ gridColumn: "1 / -1" }}>
+
+                                <div style={{ gridColumn: "1 / -1", marginTop: "8px" }}>
                                     <label style={labelStyle}>Organs at Risk</label>
-                                    <div>
-                                        {(formData.intent?.organsAtRisk || []).map((item, index) => (
-                                            <div key={index}>
-                                                <button type="button" style={buttonStyle} onClick={() => handleArrayRemove("intent", "organsAtRisk", index)}>Remove</button>
-                                                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "16px", marginBottom: "16px" }}>
-                                                    <div style={{}}>
-                                                        <input type="text" style={inputStyle} placeholder="Organ name" value={item.organName || ""} onChange={e => handleArrayUpdate("intent", "organsAtRisk", index, "organName", e.target.value)} />
 
-                                                    </div>
-                                                    <div style={{}}>
-                                                        <input type="text" style={inputStyle} placeholder="Max Dose (Gy)" value={item.maxDoseGy || ""} onChange={e => handleArrayUpdate("intent", "organsAtRisk", index, "maxDoseGy", e.target.value)} />
+                                    {/* Data Table */}
+                                    {((formData.intent?.organsAtRisk || []).filter(item => item && (item.organName || item.maxDoseGy || item.meanDoseGy)).length > 0) && (
+                                        <div style={{ overflowX: "auto", marginBottom: "12px", border: `1px solid ${C.fog}`, borderRadius: "4px" }}>
+                                            <table style={{ width: "100%", borderCollapse: "collapse", background: C.white }}>
+                                                <thead>
+                                                    <tr style={{ background: C.ghost, borderBottom: `1px solid ${C.fog}` }}>
+                                                        <th style={{ padding: "10px 14px", textAlign: "left", fontSize: "11px", color: C.smoke, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", width: "65px" }}>Sl. No.</th>
+                                                        <th style={{ padding: "10px 14px", textAlign: "left", fontSize: "11px", color: C.smoke, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>Organ Name</th>
+                                                        <th style={{ padding: "10px 14px", textAlign: "left", fontSize: "11px", color: C.smoke, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", width: "180px" }}>Max Dose (Gy)</th>
+                                                        <th style={{ padding: "10px 14px", textAlign: "left", fontSize: "11px", color: C.smoke, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", width: "180px" }}>Mean Dose (Gy)</th>
+                                                        <th style={{ padding: "10px 14px", textAlign: "center", fontSize: "11px", color: C.smoke, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", width: "80px" }}>Action</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {(formData.intent?.organsAtRisk || []).filter(item => item && (item.organName || item.maxDoseGy || item.meanDoseGy)).map((item, index) => (
+                                                        <tr key={index} style={{ borderBottom: `1px solid ${C.fog}` }}>
+                                                            <td style={{ padding: "10px 14px", fontSize: "13px", color: C.ash, fontWeight: 600 }}>{index + 1}</td>
+                                                            <td style={{ padding: "10px 14px", fontSize: "13px", color: C.charcoal, fontWeight: 500 }}>{item.organName || "—"}</td>
+                                                            <td style={{ padding: "10px 14px", fontSize: "13px", color: C.smoke }}>{item.maxDoseGy || "—"}</td>
+                                                            <td style={{ padding: "10px 14px", fontSize: "13px", color: C.smoke }}>{item.meanDoseGy || "—"}</td>
+                                                            <td style={{ padding: "10px 14px", textAlign: "center" }}>
+                                                                <button
+                                                                    type="button"
+                                                                    style={{ ...primaryButtonStyle, padding: "4px 10px", fontSize: "12px", margin: "0 auto", justifyContent: "center" }}
+                                                                    onClick={() => handleArrayRemove("intent", "organsAtRisk", index)}
+                                                                >
+                                                                    Remove
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
 
-                                                    </div>
-                                                    <div style={{}}>
-                                                        <input type="text" style={inputStyle} placeholder="Mean Dose (Gy)" value={item.meanDoseGy || ""} onChange={e => handleArrayUpdate("intent", "organsAtRisk", index, "meanDoseGy", e.target.value)} />
-
-                                                    </div>
-
-                                                </div>
-
-                                            </div>
-                                        ))}
-
+                                    {/* Add Input Bar */}
+                                    <div style={{ display: "grid", gridTemplateColumns: "1fr 180px 180px auto", gap: "12px", alignItems: "center", background: C.ghost, padding: "12px", borderRadius: "4px", border: `1px solid ${C.fog}` }}>
+                                        <input
+                                            type="text"
+                                            style={inputStyle}
+                                            placeholder="Organ name (e.g. Spinal Cord, Brainstem)"
+                                            value={newOrganAtRisk.organName}
+                                            onChange={e => setNewOrganAtRisk(prev => ({ ...prev, organName: e.target.value }))}
+                                        />
+                                        <input
+                                            type="text"
+                                            style={inputStyle}
+                                            placeholder="Max Dose (Gy)"
+                                            value={newOrganAtRisk.maxDoseGy}
+                                            onChange={e => setNewOrganAtRisk(prev => ({ ...prev, maxDoseGy: e.target.value }))}
+                                        />
+                                        <input
+                                            type="text"
+                                            style={inputStyle}
+                                            placeholder="Mean Dose (Gy)"
+                                            value={newOrganAtRisk.meanDoseGy}
+                                            onChange={e => setNewOrganAtRisk(prev => ({ ...prev, meanDoseGy: e.target.value }))}
+                                        />
+                                        <button
+                                            type="button"
+                                            style={{ ...primaryButtonStyle, whiteSpace: "nowrap" }}
+                                            onClick={() => {
+                                                if (newOrganAtRisk.organName?.trim() || newOrganAtRisk.maxDoseGy?.trim() || newOrganAtRisk.meanDoseGy?.trim()) {
+                                                    handleArrayAdd("intent", "organsAtRisk", { ...newOrganAtRisk });
+                                                    setNewOrganAtRisk({ organName: "", maxDoseGy: "", meanDoseGy: "" });
+                                                }
+                                            }}
+                                        >
+                                            + Add Organ at Risk
+                                        </button>
                                     </div>
-                                    <button type="button" style={buttonStyle} onClick={() => handleArrayAdd("intent", "organsAtRisk", { "organName": "", "maxDoseGy": "", "meanDoseGy": "" })}>Add Organ at Risk</button>
-
                                 </div>
 
                             </div>
@@ -1992,6 +2627,27 @@ export default function RadiationTherapyWorkflow({ patientId: propPatientId, doc
                     <div className="tab-pane-content">
                         <HistoryTable historyData={formData.history?.setup} />
                         <div>
+                            <h5 style={headerStyle}>Pre-Procedure Checklist</h5>
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "16px", marginBottom: "16px" }}>
+                                <div style={{}}>
+                                    <label style={labelStyle}>Are jewelleries removed?</label>
+                                    <select style={inputStyle} value={formData.setup?.[`jewelleriesRemoved`] || ""} onChange={e => handleUpdate("setup", "jewelleriesRemoved", e.target.value)}>
+                                        <option value="">Select option</option>
+                                        <option value="yes">Yes</option>
+                                        <option value="no">No</option>
+                                    </select>
+                                </div>
+                                <div style={{}}>
+                                    <label style={labelStyle}>Are any instruments from previous surgeries inside the patient?</label>
+                                    <select style={inputStyle} value={formData.setup?.[`instrumentsInside`] || ""} onChange={e => handleUpdate("setup", "instrumentsInside", e.target.value)}>
+                                        <option value="">Select option</option>
+                                        <option value="yes">Yes</option>
+                                        <option value="no">No</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
                             <h5 style={headerStyle}>Mould Room Procedures</h5>
                             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "16px", marginBottom: "16px" }}>
                                 <div style={{}}>
@@ -2006,28 +2662,70 @@ export default function RadiationTherapyWorkflow({ patientId: propPatientId, doc
                                 </div>
                                 <div style={{ gridColumn: "1 / -1" }}>
                                     <label style={labelStyle}>Immobilization Devices</label>
-                                    <div>
-                                        {(formData.setup?.immobilizationDevices || []).map((item, index) => (
-                                            <div key={index}>
-                                                <button type="button" style={buttonStyle} onClick={() => handleArrayRemove("setup", "immobilizationDevices", index)}>Remove</button>
-                                                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "16px", marginBottom: "16px" }}>
-                                                    <div style={{}}>
-                                                        <input type="text" style={inputStyle} placeholder="Device type" value={item.deviceType || ""} onChange={e => handleArrayUpdate("setup", "immobilizationDevices", index, "deviceType", e.target.value)} />
 
-                                                    </div>
-                                                    <div style={{}}>
-                                                        <input type="text" style={inputStyle} placeholder="Location/Description" value={item.locationdescription || ""} onChange={e => handleArrayUpdate("setup", "immobilizationDevices", index, "locationdescription", e.target.value)} />
+                                    {/* Data Table */}
+                                    {((formData.setup?.immobilizationDevices || []).filter(item => item && (item.deviceType || item.locationdescription)).length > 0) && (
+                                        <div style={{ overflowX: "auto", marginBottom: "12px", border: `1px solid ${C.fog}`, borderRadius: "4px" }}>
+                                            <table style={{ width: "100%", borderCollapse: "collapse", background: C.white }}>
+                                                <thead>
+                                                    <tr style={{ background: C.ghost, borderBottom: `1px solid ${C.fog}` }}>
+                                                        <th style={{ padding: "10px 14px", textAlign: "left", fontSize: "11px", color: C.smoke, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", width: "65px" }}>Sl. No.</th>
+                                                        <th style={{ padding: "10px 14px", textAlign: "left", fontSize: "11px", color: C.smoke, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", width: "240px" }}>Device Type</th>
+                                                        <th style={{ padding: "10px 14px", textAlign: "left", fontSize: "11px", color: C.smoke, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>Location / Description</th>
+                                                        <th style={{ padding: "10px 14px", textAlign: "center", fontSize: "11px", color: C.smoke, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", width: "80px" }}>Action</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {(formData.setup?.immobilizationDevices || []).filter(item => item && (item.deviceType || item.locationdescription)).map((item, index) => (
+                                                        <tr key={index} style={{ borderBottom: `1px solid ${C.fog}` }}>
+                                                            <td style={{ padding: "10px 14px", fontSize: "13px", color: C.ash, fontWeight: 600 }}>{index + 1}</td>
+                                                            <td style={{ padding: "10px 14px", fontSize: "13px", color: C.charcoal, fontWeight: 500 }}>{item.deviceType || "—"}</td>
+                                                            <td style={{ padding: "10px 14px", fontSize: "13px", color: C.smoke }}>{item.locationdescription || "—"}</td>
+                                                            <td style={{ padding: "10px 14px", textAlign: "center" }}>
+                                                                <button
+                                                                    type="button"
+                                                                    style={{ ...primaryButtonStyle, padding: "4px 10px", fontSize: "12px", margin: "0 auto", justifyContent: "center" }}
+                                                                    onClick={() => handleArrayRemove("setup", "immobilizationDevices", index)}
+                                                                >
+                                                                    Remove
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
 
-                                                    </div>
-
-                                                </div>
-
-                                            </div>
-                                        ))}
-
+                                    {/* Add Input Bar */}
+                                    <div style={{ display: "grid", gridTemplateColumns: "240px 1fr auto", gap: "12px", alignItems: "center", background: C.ghost, padding: "12px", borderRadius: "4px", border: `1px solid ${C.fog}` }}>
+                                        <input
+                                            type="text"
+                                            style={inputStyle}
+                                            placeholder="Device type (e.g. Thermoplastic Mask)"
+                                            value={newImmobilizationDevice.deviceType}
+                                            onChange={e => setNewImmobilizationDevice(prev => ({ ...prev, deviceType: e.target.value }))}
+                                        />
+                                        <input
+                                            type="text"
+                                            style={inputStyle}
+                                            placeholder="Location / Description (e.g. Head & Neck 5-point)"
+                                            value={newImmobilizationDevice.locationdescription}
+                                            onChange={e => setNewImmobilizationDevice(prev => ({ ...prev, locationdescription: e.target.value }))}
+                                        />
+                                        <button
+                                            type="button"
+                                            style={{ ...primaryButtonStyle, whiteSpace: "nowrap" }}
+                                            onClick={() => {
+                                                if (newImmobilizationDevice.deviceType?.trim() || newImmobilizationDevice.locationdescription?.trim()) {
+                                                    handleArrayAdd("setup", "immobilizationDevices", { ...newImmobilizationDevice });
+                                                    setNewImmobilizationDevice({ deviceType: "", locationdescription: "" });
+                                                }
+                                            }}
+                                        >
+                                            + Add Device
+                                        </button>
                                     </div>
-                                    <button type="button" style={buttonStyle} onClick={() => handleArrayAdd("setup", "immobilizationDevices", { "deviceType": "", "locationdescription": "" })}>Add Immobilization Device</button>
-
                                 </div>
                                 <div style={{ gridColumn: "1 / -1" }}>
                                     <label style={labelStyle}>Mould Room Notes</label>
@@ -2174,52 +2872,131 @@ export default function RadiationTherapyWorkflow({ patientId: propPatientId, doc
                             <h5 style={headerStyle}>Beam Parameters (if not from TPS Plan)</h5>
                             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "16px", marginBottom: "16px" }}>
                                 <div style={{ gridColumn: "1 / -1" }}>
-                                    <div>
-                                        {(formData.treatment?.beamParameters || []).map((item, index) => (
-                                            <div key={index}>
-                                                <button type="button" style={buttonStyle} onClick={() => handleArrayRemove("treatment", "beamParameters", index)}>Remove</button>
-                                                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "16px", marginBottom: "16px" }}>
-                                                    <div style={{}}>
-                                                        <input type="text" style={inputStyle} placeholder="Field name" value={item.fieldName || ""} onChange={e => handleArrayUpdate("treatment", "beamParameters", index, "fieldName", e.target.value)} />
 
-                                                    </div>
-                                                    <div style={{}}>
-                                                        <input type="text" style={inputStyle} placeholder="Energy (MV)" value={item.energyMv || ""} onChange={e => handleArrayUpdate("treatment", "beamParameters", index, "energyMv", e.target.value)} />
+                                    {/* Data Table */}
+                                    {((formData.treatment?.beamParameters || []).filter(item => item && (item.fieldName || item.energyMv || item.gantryAngle || item.collimatorAngle || item.fieldSizeCm || item.ssdCm || item.wedgeAngle || item.muPerFraction)).length > 0) && (
+                                        <div style={{ overflowX: "auto", marginBottom: "12px", border: `1px solid ${C.fog}`, borderRadius: "4px" }}>
+                                            <table style={{ width: "100%", borderCollapse: "collapse", background: C.white }}>
+                                                <thead>
+                                                    <tr style={{ background: C.ghost, borderBottom: `1px solid ${C.fog}` }}>
+                                                        <th style={{ padding: "10px 14px", textAlign: "left", fontSize: "11px", color: C.smoke, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", width: "65px" }}>Sl. No.</th>
+                                                        <th style={{ padding: "10px 14px", textAlign: "left", fontSize: "11px", color: C.smoke, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>Field Name</th>
+                                                        <th style={{ padding: "10px 14px", textAlign: "left", fontSize: "11px", color: C.smoke, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>Energy (MV)</th>
+                                                        <th style={{ padding: "10px 14px", textAlign: "left", fontSize: "11px", color: C.smoke, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>Gantry Angle</th>
+                                                        <th style={{ padding: "10px 14px", textAlign: "left", fontSize: "11px", color: C.smoke, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>Collimator Angle</th>
+                                                        <th style={{ padding: "10px 14px", textAlign: "left", fontSize: "11px", color: C.smoke, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>Field Size (cm)</th>
+                                                        <th style={{ padding: "10px 14px", textAlign: "left", fontSize: "11px", color: C.smoke, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>SSD (cm)</th>
+                                                        <th style={{ padding: "10px 14px", textAlign: "left", fontSize: "11px", color: C.smoke, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>Wedge Angle</th>
+                                                        <th style={{ padding: "10px 14px", textAlign: "left", fontSize: "11px", color: C.smoke, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>MU / Fraction</th>
+                                                        <th style={{ padding: "10px 14px", textAlign: "center", fontSize: "11px", color: C.smoke, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", width: "80px" }}>Action</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {(formData.treatment?.beamParameters || []).filter(item => item && (item.fieldName || item.energyMv || item.gantryAngle || item.collimatorAngle || item.fieldSizeCm || item.ssdCm || item.wedgeAngle || item.muPerFraction)).map((item, index) => (
+                                                        <tr key={index} style={{ borderBottom: `1px solid ${C.fog}` }}>
+                                                            <td style={{ padding: "10px 14px", fontSize: "13px", color: C.ash, fontWeight: 600 }}>{index + 1}</td>
+                                                            <td style={{ padding: "10px 14px", fontSize: "13px", color: C.charcoal, fontWeight: 500 }}>{item.fieldName || "—"}</td>
+                                                            <td style={{ padding: "10px 14px", fontSize: "13px", color: C.smoke }}>{item.energyMv || "—"}</td>
+                                                            <td style={{ padding: "10px 14px", fontSize: "13px", color: C.smoke }}>{item.gantryAngle || "—"}</td>
+                                                            <td style={{ padding: "10px 14px", fontSize: "13px", color: C.smoke }}>{item.collimatorAngle || "—"}</td>
+                                                            <td style={{ padding: "10px 14px", fontSize: "13px", color: C.smoke }}>{item.fieldSizeCm || "—"}</td>
+                                                            <td style={{ padding: "10px 14px", fontSize: "13px", color: C.smoke }}>{item.ssdCm || "—"}</td>
+                                                            <td style={{ padding: "10px 14px", fontSize: "13px", color: C.smoke }}>{item.wedgeAngle || "—"}</td>
+                                                            <td style={{ padding: "10px 14px", fontSize: "13px", color: C.smoke }}>{item.muPerFraction || "—"}</td>
+                                                            <td style={{ padding: "10px 14px", textAlign: "center" }}>
+                                                                <button
+                                                                    type="button"
+                                                                    style={{ ...primaryButtonStyle, padding: "4px 10px", fontSize: "12px", margin: "0 auto", justifyContent: "center" }}
+                                                                    onClick={() => handleArrayRemove("treatment", "beamParameters", index)}
+                                                                >
+                                                                    Remove
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
 
-                                                    </div>
-                                                    <div style={{}}>
-                                                        <input type="text" style={inputStyle} placeholder="Gantry angle" value={item.gantryAngle || ""} onChange={e => handleArrayUpdate("treatment", "beamParameters", index, "gantryAngle", e.target.value)} />
-
-                                                    </div>
-                                                    <div style={{}}>
-                                                        <input type="text" style={inputStyle} placeholder="Collimator angle" value={item.collimatorAngle || ""} onChange={e => handleArrayUpdate("treatment", "beamParameters", index, "collimatorAngle", e.target.value)} />
-
-                                                    </div>
-                                                    <div style={{}}>
-                                                        <input type="text" style={inputStyle} placeholder="Field size (cm)" value={item.fieldSizeCm || ""} onChange={e => handleArrayUpdate("treatment", "beamParameters", index, "fieldSizeCm", e.target.value)} />
-
-                                                    </div>
-                                                    <div style={{}}>
-                                                        <input type="text" style={inputStyle} placeholder="SSD (cm)" value={item.ssdCm || ""} onChange={e => handleArrayUpdate("treatment", "beamParameters", index, "ssdCm", e.target.value)} />
-
-                                                    </div>
-                                                    <div style={{}}>
-                                                        <input type="text" style={inputStyle} placeholder="Wedge angle" value={item.wedgeAngle || ""} onChange={e => handleArrayUpdate("treatment", "beamParameters", index, "wedgeAngle", e.target.value)} />
-
-                                                    </div>
-                                                    <div style={{}}>
-                                                        <input type="text" style={inputStyle} placeholder="MU per fraction" value={item.muPerFraction || ""} onChange={e => handleArrayUpdate("treatment", "beamParameters", index, "muPerFraction", e.target.value)} />
-
-                                                    </div>
-
-                                                </div>
-
-                                            </div>
-                                        ))}
-
+                                    {/* Add Input Bar */}
+                                    <div style={{ background: C.ghost, padding: "14px", borderRadius: "4px", border: `1px solid ${C.fog}` }}>
+                                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "10px", marginBottom: "12px" }}>
+                                            <input
+                                                type="text"
+                                                style={inputStyle}
+                                                placeholder="Field name"
+                                                value={newBeamParameter.fieldName}
+                                                onChange={e => setNewBeamParameter(prev => ({ ...prev, fieldName: e.target.value }))}
+                                            />
+                                            <input
+                                                type="text"
+                                                style={inputStyle}
+                                                placeholder="Energy (MV)"
+                                                value={newBeamParameter.energyMv}
+                                                onChange={e => setNewBeamParameter(prev => ({ ...prev, energyMv: e.target.value }))}
+                                            />
+                                            <input
+                                                type="text"
+                                                style={inputStyle}
+                                                placeholder="Gantry angle"
+                                                value={newBeamParameter.gantryAngle}
+                                                onChange={e => setNewBeamParameter(prev => ({ ...prev, gantryAngle: e.target.value }))}
+                                            />
+                                            <input
+                                                type="text"
+                                                style={inputStyle}
+                                                placeholder="Collimator angle"
+                                                value={newBeamParameter.collimatorAngle}
+                                                onChange={e => setNewBeamParameter(prev => ({ ...prev, collimatorAngle: e.target.value }))}
+                                            />
+                                            <input
+                                                type="text"
+                                                style={inputStyle}
+                                                placeholder="Field size (cm)"
+                                                value={newBeamParameter.fieldSizeCm}
+                                                onChange={e => setNewBeamParameter(prev => ({ ...prev, fieldSizeCm: e.target.value }))}
+                                            />
+                                            <input
+                                                type="text"
+                                                style={inputStyle}
+                                                placeholder="SSD (cm)"
+                                                value={newBeamParameter.ssdCm}
+                                                onChange={e => setNewBeamParameter(prev => ({ ...prev, ssdCm: e.target.value }))}
+                                            />
+                                            <input
+                                                type="text"
+                                                style={inputStyle}
+                                                placeholder="Wedge angle"
+                                                value={newBeamParameter.wedgeAngle}
+                                                onChange={e => setNewBeamParameter(prev => ({ ...prev, wedgeAngle: e.target.value }))}
+                                            />
+                                            <input
+                                                type="text"
+                                                style={inputStyle}
+                                                placeholder="MU per fraction"
+                                                value={newBeamParameter.muPerFraction}
+                                                onChange={e => setNewBeamParameter(prev => ({ ...prev, muPerFraction: e.target.value }))}
+                                            />
+                                        </div>
+                                        <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                                            <button
+                                                type="button"
+                                                style={{ ...primaryButtonStyle, whiteSpace: "nowrap" }}
+                                                onClick={() => {
+                                                    if (Object.values(newBeamParameter).some(v => v?.trim())) {
+                                                        handleArrayAdd("treatment", "beamParameters", { ...newBeamParameter });
+                                                        setNewBeamParameter({
+                                                            fieldName: "", energyMv: "", gantryAngle: "", collimatorAngle: "",
+                                                            fieldSizeCm: "", ssdCm: "", wedgeAngle: "", muPerFraction: ""
+                                                        });
+                                                    }
+                                                }}
+                                            >
+                                                + Add Beam Parameter
+                                            </button>
+                                        </div>
                                     </div>
-                                    <button type="button" style={buttonStyle} onClick={() => handleArrayAdd("treatment", "beamParameters", { "fieldName": "", "energyMv": "", "gantryAngle": "", "collimatorAngle": "", "fieldSizeCm": "", "ssdCm": "", "wedgeAngle": "", "muPerFraction": "" })}>Add Beam Parameter</button>
-
                                 </div>
 
                             </div>
@@ -3050,30 +3827,74 @@ export default function RadiationTherapyWorkflow({ patientId: propPatientId, doc
                                 </div>
                                 <div style={{ gridColumn: "1 / -1" }}>
                                     <label style={labelStyle}>Toxicities at End of Treatment</label>
-                                    <div>
-                                        {(formData.summary?.toxicities || []).map((item, index) => (
-                                            <div key={index}>
-                                                <button type="button" style={buttonStyle} onClick={() => handleArrayRemove("summary", "toxicities", index)}>Remove</button>
-                                                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "16px", marginBottom: "16px" }}>
-                                                    <div style={{}}>
-                                                        <input type="text" style={inputStyle} placeholder="Toxicity" value={item.toxicity || ""} onChange={e => handleArrayUpdate("summary", "toxicities", index, "toxicity", e.target.value)} />
+                                    
+                                    {/* Data Table */}
+                                    {((formData.summary?.toxicities || []).filter(item => item && (item.toxicity || item.grade)).length > 0) && (
+                                        <div style={{ overflowX: "auto", marginBottom: "12px", border: `1px solid ${C.fog}`, borderRadius: "4px" }}>
+                                            <table style={{ width: "100%", borderCollapse: "collapse", background: C.white }}>
+                                                <thead>
+                                                    <tr style={{ background: C.ghost, borderBottom: `1px solid ${C.fog}` }}>
+                                                        <th style={{ padding: "10px 14px", textAlign: "left", fontSize: "11px", color: C.smoke, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", width: "65px" }}>Sl. No.</th>
+                                                        <th style={{ padding: "10px 14px", textAlign: "left", fontSize: "11px", color: C.smoke, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>Toxicity</th>
+                                                        <th style={{ padding: "10px 14px", textAlign: "left", fontSize: "11px", color: C.smoke, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", width: "160px" }}>Grade</th>
+                                                        <th style={{ padding: "10px 14px", textAlign: "center", fontSize: "11px", color: C.smoke, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", width: "80px" }}>Action</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {(formData.summary?.toxicities || []).filter(item => item && (item.toxicity || item.grade)).map((item, index) => (
+                                                        <tr key={index} style={{ borderBottom: `1px solid ${C.fog}` }}>
+                                                            <td style={{ padding: "10px 14px", fontSize: "13px", color: C.ash, fontWeight: 600 }}>{index + 1}</td>
+                                                            <td style={{ padding: "10px 14px", fontSize: "13px", color: C.charcoal, fontWeight: 500 }}>{item.toxicity || "—"}</td>
+                                                            <td style={{ padding: "10px 14px", fontSize: "13px", color: C.smoke }}>{item.grade ? `Grade ${item.grade}` : "—"}</td>
+                                                            <td style={{ padding: "10px 14px", textAlign: "center" }}>
+                                                                <button
+                                                                    type="button"
+                                                                    style={{ ...primaryButtonStyle, padding: "4px 10px", fontSize: "12px", margin: "0 auto", justifyContent: "center" }}
+                                                                    onClick={() => handleArrayRemove("summary", "toxicities", index)}
+                                                                >
+                                                                    Remove
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
 
-                                                    </div>
-                                                    <div style={{}}>
-                                                        <select style={inputStyle} value={item.grade || ""} onChange={e => handleArrayUpdate("summary", "toxicities", index, "grade", e.target.value)}>
-                                                            <option value="">Grade</option><option value="1">Grade 1</option><option value="2">Grade 2</option><option value="3">Grade 3</option><option value="4">Grade 4</option>
-                                                        </select>
-
-                                                    </div>
-
-                                                </div>
-
-                                            </div>
-                                        ))}
-
+                                    {/* Add Input Bar */}
+                                    <div style={{ display: "grid", gridTemplateColumns: "1fr 180px auto", gap: "12px", alignItems: "center", background: C.ghost, padding: "12px", borderRadius: "4px", border: `1px solid ${C.fog}` }}>
+                                        <input
+                                            type="text"
+                                            style={inputStyle}
+                                            placeholder="Toxicity (e.g. Radiation dermatitis, Fatigue)"
+                                            value={newToxicity.toxicity}
+                                            onChange={e => setNewToxicity(prev => ({ ...prev, toxicity: e.target.value }))}
+                                        />
+                                        <select
+                                            style={inputStyle}
+                                            value={newToxicity.grade}
+                                            onChange={e => setNewToxicity(prev => ({ ...prev, grade: e.target.value }))}
+                                        >
+                                            <option value="">Select Grade</option>
+                                            <option value="1">Grade 1</option>
+                                            <option value="2">Grade 2</option>
+                                            <option value="3">Grade 3</option>
+                                            <option value="4">Grade 4</option>
+                                        </select>
+                                        <button
+                                            type="button"
+                                            style={{ ...primaryButtonStyle, whiteSpace: "nowrap" }}
+                                            onClick={() => {
+                                                if (newToxicity.toxicity?.trim() || newToxicity.grade?.trim()) {
+                                                    handleArrayAdd("summary", "toxicities", { ...newToxicity });
+                                                    setNewToxicity({ toxicity: "", grade: "" });
+                                                }
+                                            }}
+                                        >
+                                            + Add Toxicity
+                                        </button>
                                     </div>
-                                    <button type="button" style={buttonStyle} onClick={() => handleArrayAdd("summary", "toxicities", { "toxicity": "", "grade": "" })}>Add Toxicity</button>
-
                                 </div>
                                 <div style={{ gridColumn: "1 / -1" }}>
                                     <label style={labelStyle}>End of Treatment Summary</label>
@@ -3092,41 +3913,104 @@ export default function RadiationTherapyWorkflow({ patientId: propPatientId, doc
                         <HistoryTable historyData={formData.history?.staff} />
                         <div>
                             <h5 style={headerStyle}>Treatment Team</h5>
-                            <div>
-                                {(formData.staff?.staffMembers || []).map((item, index) => (
-                                    <div key={index}>
-                                        <button type="button" style={buttonStyle} onClick={() => handleArrayRemove("staff", "staffMembers", index)}>Remove</button>
-                                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "16px", marginBottom: "16px" }}>
-                                            <div style={{}}>
-                                                <label style={labelStyle}>Name</label>
-                                                <input type="text" style={inputStyle} placeholder="Staff name" value={item.name || ""} onChange={e => handleArrayUpdate("staff", "staffMembers", index, "name", e.target.value)} />
+                            
+                            {/* Data Table */}
+                            {((formData.staff?.staffMembers || []).filter(item => item && (item.name || item.role || item.licenseNumber || item.contact)).length > 0) && (
+                                <div style={{ overflowX: "auto", marginBottom: "12px", border: `1px solid ${C.fog}`, borderRadius: "4px" }}>
+                                    <table style={{ width: "100%", borderCollapse: "collapse", background: C.white }}>
+                                        <thead>
+                                            <tr style={{ background: C.ghost, borderBottom: `1px solid ${C.fog}` }}>
+                                                <th style={{ padding: "10px 14px", textAlign: "left", fontSize: "11px", color: C.smoke, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", width: "65px" }}>Sl. No.</th>
+                                                <th style={{ padding: "10px 14px", textAlign: "left", fontSize: "11px", color: C.smoke, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>Name</th>
+                                                <th style={{ padding: "10px 14px", textAlign: "left", fontSize: "11px", color: C.smoke, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>Role</th>
+                                                <th style={{ padding: "10px 14px", textAlign: "left", fontSize: "11px", color: C.smoke, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>License Number</th>
+                                                <th style={{ padding: "10px 14px", textAlign: "left", fontSize: "11px", color: C.smoke, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>Contact</th>
+                                                <th style={{ padding: "10px 14px", textAlign: "center", fontSize: "11px", color: C.smoke, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", width: "80px" }}>Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {(formData.staff?.staffMembers || []).filter(item => item && (item.name || item.role || item.licenseNumber || item.contact)).map((item, index) => {
+                                                const roleLabels = {
+                                                    "radiation-oncologist": "Radiation Oncologist",
+                                                    "physicist": "Medical Physicist",
+                                                    "dosimetrist": "Dosimetrist",
+                                                    "therapist": "Radiation Therapist",
+                                                    "nurse": "Oncology Nurse"
+                                                };
+                                                const displayRole = roleLabels[item.role] || item.role || "—";
 
-                                            </div>
-                                            <div style={{}}>
-                                                <label style={labelStyle}>Role</label>
-                                                <select style={inputStyle} value={item.role || ""} onChange={e => handleArrayUpdate("staff", "staffMembers", index, "role", e.target.value)}>
-                                                    <option value="">Select role</option><option value="radiation-oncologist">Radiation Oncologist</option><option value="physicist">Medical Physicist</option><option value="dosimetrist">Dosimetrist</option><option value="therapist">Radiation Therapist</option><option value="nurse">Oncology Nurse</option>
-                                                </select>
+                                                return (
+                                                    <tr key={index} style={{ borderBottom: `1px solid ${C.fog}` }}>
+                                                        <td style={{ padding: "10px 14px", fontSize: "13px", color: C.ash, fontWeight: 600 }}>{index + 1}</td>
+                                                        <td style={{ padding: "10px 14px", fontSize: "13px", color: C.charcoal, fontWeight: 500 }}>{item.name || "—"}</td>
+                                                        <td style={{ padding: "10px 14px", fontSize: "13px", color: C.smoke }}>{displayRole}</td>
+                                                        <td style={{ padding: "10px 14px", fontSize: "13px", color: C.smoke }}>{item.licenseNumber || "—"}</td>
+                                                        <td style={{ padding: "10px 14px", fontSize: "13px", color: C.smoke }}>{item.contact || "—"}</td>
+                                                        <td style={{ padding: "10px 14px", textAlign: "center" }}>
+                                                            <button
+                                                                type="button"
+                                                                style={{ ...primaryButtonStyle, padding: "4px 10px", fontSize: "12px", margin: "0 auto", justifyContent: "center" }}
+                                                                onClick={() => handleArrayRemove("staff", "staffMembers", index)}
+                                                            >
+                                                                Remove
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
 
-                                            </div>
-                                            <div style={{}}>
-                                                <label style={labelStyle}>License Number</label>
-                                                <input type="text" style={inputStyle} placeholder="License number" value={item.licenseNumber || ""} onChange={e => handleArrayUpdate("staff", "staffMembers", index, "licenseNumber", e.target.value)} />
-
-                                            </div>
-                                            <div style={{}}>
-                                                <label style={labelStyle}>Contact</label>
-                                                <input type="text" style={inputStyle} placeholder="Contact information" value={item.contact || ""} onChange={e => handleArrayUpdate("staff", "staffMembers", index, "contact", e.target.value)} />
-
-                                            </div>
-
-                                        </div>
-
-                                    </div>
-                                ))}
-
+                            {/* Add Input Bar */}
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr auto", gap: "12px", alignItems: "center", background: C.ghost, padding: "12px", borderRadius: "4px", border: `1px solid ${C.fog}`, marginBottom: "16px" }}>
+                                <input
+                                    type="text"
+                                    style={inputStyle}
+                                    placeholder="Staff name"
+                                    value={newStaffMember.name}
+                                    onChange={e => setNewStaffMember(prev => ({ ...prev, name: e.target.value }))}
+                                />
+                                <select
+                                    style={inputStyle}
+                                    value={newStaffMember.role}
+                                    onChange={e => setNewStaffMember(prev => ({ ...prev, role: e.target.value }))}
+                                >
+                                    <option value="">Select role</option>
+                                    <option value="radiation-oncologist">Radiation Oncologist</option>
+                                    <option value="physicist">Medical Physicist</option>
+                                    <option value="dosimetrist">Dosimetrist</option>
+                                    <option value="therapist">Radiation Therapist</option>
+                                    <option value="nurse">Oncology Nurse</option>
+                                </select>
+                                <input
+                                    type="text"
+                                    style={inputStyle}
+                                    placeholder="License number"
+                                    value={newStaffMember.licenseNumber}
+                                    onChange={e => setNewStaffMember(prev => ({ ...prev, licenseNumber: e.target.value }))}
+                                />
+                                <input
+                                    type="text"
+                                    style={inputStyle}
+                                    placeholder="Contact information"
+                                    value={newStaffMember.contact}
+                                    onChange={e => setNewStaffMember(prev => ({ ...prev, contact: e.target.value }))}
+                                />
+                                <button
+                                    type="button"
+                                    style={{ ...primaryButtonStyle, whiteSpace: "nowrap" }}
+                                    onClick={() => {
+                                        if (newStaffMember.name?.trim() || newStaffMember.role?.trim() || newStaffMember.licenseNumber?.trim() || newStaffMember.contact?.trim()) {
+                                            handleArrayAdd("staff", "staffMembers", { ...newStaffMember });
+                                            setNewStaffMember({ name: "", role: "", licenseNumber: "", contact: "" });
+                                        }
+                                    }}
+                                >
+                                    + Add Staff Member
+                                </button>
                             </div>
-                            <button type="button" style={buttonStyle} onClick={() => handleArrayAdd("staff", "staffMembers", { "name": "", "role": "", "licenseNumber": "", "contact": "" })}>Add Staff Member</button>
 
                         </div>
 

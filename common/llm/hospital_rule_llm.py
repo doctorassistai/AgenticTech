@@ -38,8 +38,8 @@ groq_client = Groq(
     api_key=os.getenv("GROQ_API_KEY")
 )
 
-MODEL_FAST = "llama-3.1-8b-instant"
-MODEL_SMART = "llama-3.3-70b-versatile"
+MODEL_FAST = "openai/gpt-oss-20b"
+MODEL_SMART = "openai/gpt-oss-120b"
 SMART_MODEL_THRESHOLD = 8
 MAX_PARAMS_PER_CALL = 15
 

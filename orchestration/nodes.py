@@ -48,6 +48,7 @@ from datetime import datetime, timezone
 from dotenv import load_dotenv
 import os
 import inspect
+from .token_tracking import call_llm_with_tracking 
 
 
 load_dotenv()
@@ -347,7 +348,7 @@ Speciality: {speciality}
         # LLM CALL (Same Pattern as KDRI)
         # ---------------------------------------------------
         completion = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             temperature=0.1,
             max_tokens=1200,
             response_format={"type": "json_object"},
@@ -614,7 +615,7 @@ async def get_screening_features_by_doctor(doctor_id: str):
 #         # LLM CALL
 #         # ---------------------------------------------------
 #         completion = groq_client.chat.completions.create(
-#             model="llama-3.1-8b-instant",
+#             model="openai/gpt-oss-20b",
 #             temperature=0.1,
 #             max_tokens=2500,
 #             response_format={"type": "json_object"},
@@ -834,7 +835,7 @@ async def get_screening_features_by_doctor(doctor_id: str):
 #         # LLM CALL
 #         # -----------------------------
 #         completion = groq_client.chat.completions.create(
-#             model="llama-3.1-8b-instant",
+#             model="openai/gpt-oss-20b",
 #             temperature=0.1,
 #             max_tokens=3000,
 #             response_format={"type": "json_object"},
@@ -975,7 +976,7 @@ async def get_screening_features_by_doctor(doctor_id: str):
 #         # LLM CALL
 #         # ------------------------------------------------------------------
 #         completion = groq_client.chat.completions.create(
-#             model="llama-3.1-8b-instant",
+#             model="openai/gpt-oss-20b",
 #             temperature=0.03,
 #             max_tokens=1500,
 #             response_format={"type": "json_object"},
@@ -4138,7 +4139,7 @@ FINAL OUTPUT FORMAT (STRICT)
 """
 
         completion = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             temperature=0.12,   # 🔑 Lower = more deterministic, less generic
             max_tokens=3000,
             response_format={"type": "json_object"},
@@ -4365,7 +4366,7 @@ FINAL OUTPUT FORMAT (STRICT)
 """
 
         completion = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             temperature=0.02,  # 🔑 very low to ensure stability
             max_tokens=1500,
             response_format={"type": "json_object"},
@@ -4504,7 +4505,7 @@ STRICT OUTPUT FORMAT (JSON ONLY)
 
 
     completion = groq_client.chat.completions.create(
-        model="llama-3.1-8b-instant",
+        model="openai/gpt-oss-20b",
         temperature=0.0,
         max_tokens=500,
         response_format={"type": "json_object"},
@@ -5734,7 +5735,7 @@ async def toggle_patient_profile_feature(payload: PatientFeatureToggleRequest):
 #         # 4️⃣ LLM EXECUTION
 #         # ---------------------------------------------------------------------
 #         completion = groq_client.chat.completions.create(
-#             model="llama-3.1-8b-instant",
+#             model="openai/gpt-oss-20b",
 #             messages=[{"role": "user", "content": prompt}],
 #             temperature=0.2,
 #             response_format={"type": "json_object"},
@@ -6171,7 +6172,7 @@ async def toggle_patient_profile_feature(payload: PatientFeatureToggleRequest):
 #         # 5️⃣ LLM EXECUTION
 #         # ------------------------------------------------------------------
 #         completion = groq_client.chat.completions.create(
-#             model="llama-3.1-8b-instant",
+#             model="openai/gpt-oss-20b",
 #             messages=[{"role": "user", "content": prompt}],
 #             temperature=0.2,
 #             response_format={"type": "json_object"},
@@ -7086,7 +7087,7 @@ BEGIN FEATURE ANALYSIS - ONLY DOCUMENTED DATA.
         logger.info("Executing LLM with prompt length: %d", len(prompt))
         
         completion = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.1,  # Reduced from 0.2 for more deterministic output
             response_format={"type": "json_object"},
@@ -7181,7 +7182,7 @@ async def save_doctor_screening_questions(data: dict):
 
         # Call the LLM to process the mixed question paragraph
         completion = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.1,  # Lower temperature for more consistent results
             response_format={"type": "json_object"},
@@ -7310,6 +7311,65 @@ def is_empty_output_json(output_json):
 
 
 #################################################################################################################################################################################################
+
+
+# =====================================================================
+# TOKEN USAGE — fire-and-forget POSTs to the standalone token endpoints
+# =====================================================================
+
+LOG_TOKENS_URL = "https://doctorassist.ai/api/hms/users/data/context/log-tokens"
+
+
+async def _post_token_log(url: str, payload: dict):
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            await client.post(url, json=payload)
+    except Exception as e:
+        logger.warning(f"⚠️ Fire-and-forget token log POST to {url} failed (non-blocking): {e}")
+
+
+def fire_and_forget_token_log(doctor_id: str, feature: str, model: str, input_tokens: int, output_tokens: int):
+    """
+    Fires a single combined POST to /log-tokens (input + output tokens together,
+    one call/entry) without blocking or awaiting the result.
+    """
+    if not doctor_id:
+        logger.warning("fire_and_forget_token_log: no doctor_id — skipping token log")
+        return
+
+    payload = {
+        "doctor_id": doctor_id,
+        "feature": feature,
+        "model": model,
+        "input_tokens": input_tokens,
+        "output_tokens": output_tokens,
+    }
+
+    try:
+        loop = asyncio.get_running_loop()
+        loop.create_task(_post_token_log(LOG_TOKENS_URL, payload))
+    except RuntimeError:
+        threading.Thread(target=lambda: asyncio.run(_post_token_log(LOG_TOKENS_URL, payload)), daemon=True).start()
+
+
+def _extract_token_usage_from_usage_obj(usage) -> tuple:
+    """Best-effort (input_tokens, output_tokens) extraction from whatever call_llm_with_tracking returns."""
+    if not usage:
+        return 0, 0
+    try:
+        if isinstance(usage, dict):
+            in_tok = usage.get("input_tokens", usage.get("prompt_tokens", 0))
+            out_tok = usage.get("output_tokens", usage.get("completion_tokens", 0))
+            return int(in_tok or 0), int(out_tok or 0)
+        in_tok = getattr(usage, "input_tokens", None)
+        if in_tok is None:
+            in_tok = getattr(usage, "prompt_tokens", 0)
+        out_tok = getattr(usage, "output_tokens", None)
+        if out_tok is None:
+            out_tok = getattr(usage, "completion_tokens", 0)
+        return int(in_tok or 0), int(out_tok or 0)
+    except Exception:
+        return 0, 0
 
 
 @router.post("/generate_documentation_with_suggestions")
@@ -10488,20 +10548,31 @@ BEGIN TREATMENT SUMMARY GENERATION.
 
 
         # ---------------------------------------------------------
-        # 4️⃣ LLM EXECUTION
+        # 4️⃣ LLM EXECUTION (WITH TOKEN TRACKING)
         # ---------------------------------------------------------
-        completion = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+        llm_output_text, _usage = await call_llm_with_tracking(
+            groq_client=groq_client,
+            doctor_id=doctor_id,
+            feature=f"documentation_{feature_id}",
             messages=[{"role": "user", "content": prompt}],
+            model="openai/gpt-oss-20b",
             temperature=0.3,
-            frequency_penalty=0,
-            presence_penalty=0,
+            max_tokens=8000,
             response_format={"type": "json_object"},
-            max_tokens=4500
+            extra={"patient_id": patient_id, "feature_id": feature_id},
         )
 
+        _in_tok, _out_tok = _extract_token_usage_from_usage_obj(_usage)
+        fire_and_forget_token_log(
+            doctor_id=doctor_id,
+            feature=f"documentation_{feature_id}",
+            model="openai/gpt-oss-20b",
+            input_tokens=_in_tok,
+            output_tokens=_out_tok,
+        )
+        logger.info(f"📤 Fired token usage log: input={_in_tok} output={_out_tok} doctor={doctor_id} feature=documentation_{feature_id}")
 
-        llm_output = json.loads(completion.choices[0].message.content)
+        llm_output = json.loads(llm_output_text)
         logger.info("LLM Output: %s", llm_output)
         
         def validate_medication_schema(output):
@@ -10537,7 +10608,10 @@ BEGIN TREATMENT SUMMARY GENERATION.
     except HTTPException:
         raise
     except Exception as e:
-        logger.exception("Clinical feature processing failed")
+        logger.exception(
+            "Clinical feature processing failed | feature_id=%s | patient_id=%s | body=%s",
+            feature_id, patient_id, getattr(e, "body", None) or getattr(e, "response", None),
+        )
         raise HTTPException(
             status_code=500,
             detail=f"Clinical feature processing error: {str(e)}"
@@ -10972,7 +11046,7 @@ For EACH phase:
         # 4️⃣ LLM EXECUTION (GROQ)
         # ---------------------------------------------------------
         completion = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.3,
             response_format={"type": "json_object"},
@@ -11690,7 +11764,7 @@ NOW GENERATE THE DOCTOR-FACING ORDER FORM.
 
 
         completion = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.,
             response_format={"type": "json_object"},
@@ -12533,7 +12607,7 @@ async def fetch_all_appointments_for_patient(patient_id: str):
 #         # 6️⃣ LLM EXECUTION
 #         # ---------------------------------------------------------
 #         completion = groq_client.chat.completions.create(
-#             model="llama-3.1-8b-instant",
+#             model="openai/gpt-oss-20b",
 #             messages=[{"role": "user", "content": prompt}],
 #             temperature=0.1,
 #             response_format={"type": "json_object"},
@@ -13216,7 +13290,7 @@ async def fetch_all_appointments_for_patient(patient_id: str):
 #         # 6️⃣ LLM EXECUTION
 #         # ---------------------------------------------------------
 #         completion = groq_client.chat.completions.create(
-#             model="llama-3.1-8b-instant",
+#             model="openai/gpt-oss-20b",
 #             messages=[{"role": "user", "content": prompt}],
 #             temperature=0.1,
 #             response_format={"type": "json_object"},
@@ -14021,7 +14095,7 @@ DATA:
         # 6️⃣ LLM EXECUTION
         # ---------------------------------------------------------
         completion = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.1,
             response_format={"type": "json_object"},
@@ -14874,12 +14948,12 @@ BEGIN PROGRESSION-BASED PROGNOSIS ANALYSIS AND RETURN VALID JSON.
         logger.info("6. SENDING TO LLM FOR PROGNOSIS ANALYSIS")
         logger.info("=" * 80)
         
-        logger.info("Calling Groq API with model: llama-3.1-8b-instant")
+        logger.info("Calling Groq API with model: openai/gpt-oss-20b")
         logger.info("Request parameters: temperature=0.3, max_tokens=3500")
         
         try:
             completion = groq_client.chat.completions.create(
-                model="llama-3.1-8b-instant",
+                model="openai/gpt-oss-20b",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.3,
                 response_format={"type": "json_object"},
@@ -15739,7 +15813,7 @@ Return JSON only.
     # =====================================================
 
     completion = groq_client.chat.completions.create(
-    model="llama-3.1-8b-instant",
+    model="openai/gpt-oss-20b",
     messages=[{"role": "user", "content": prompt}],
     temperature=0,
     top_p=0,
@@ -16117,7 +16191,7 @@ Return JSON object only.
         # LLM CALL
         # ---------------------------------------------------
         completion = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             temperature=0.1,
             max_tokens=2000,
             response_format={"type": "json_object"},
@@ -16614,7 +16688,7 @@ OUTPUT STRICT JSON ONLY.
 """
 
     completion = groq_client.chat.completions.create(
-        model="llama-3.1-8b-instant",
+        model="openai/gpt-oss-20b",
         messages=[{"role": "user", "content": prompt}],
         temperature=0,
         top_p=0,
@@ -16938,7 +17012,7 @@ async def prescription_investigation_master(request: Request):
 
         try:
             medication_completion = groq_client.chat.completions.create(
-                model="llama-3.1-8b-instant",
+                model="openai/gpt-oss-20b",
                 messages=[{"role": "user", "content": medication_prompt}],
                 temperature=0,
                 top_p=0,
@@ -16995,7 +17069,7 @@ async def prescription_investigation_master(request: Request):
 
         try:
             investigation_completion = groq_client.chat.completions.create(
-                model="llama-3.1-8b-instant",
+                model="openai/gpt-oss-20b",
                 messages=[{"role": "user", "content": investigation_prompt}],
                 temperature=0,
                 top_p=0,
@@ -18695,7 +18769,7 @@ Return ONLY:
 """
 
         safety_completion = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             messages=[{"role": "user", "content": safety_prompt}],
             temperature=0,
             response_format={"type": "json_object"},
@@ -19945,7 +20019,7 @@ async def generate_treatment_plan(request: Request):
         # 6️⃣ LLM EXECUTION
         # ---------------------------------------------------------
         completion = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.1,
             frequency_penalty=0,
@@ -20151,7 +20225,7 @@ detail nested inside it, and nothing that wasn't said.
         # ---------------------------------------------------------
 
         completion = groq_client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="openai/gpt-oss-120b",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.1,
             response_format={"type": "json_object"},
@@ -20394,7 +20468,7 @@ async def patient_triage(request: Request):
     """
 
             completion = groq_client.chat.completions.create(
-                model="llama-3.1-8b-instant",
+                model="openai/gpt-oss-20b",
                 temperature=0.1,
                 max_tokens=1200,
                 response_format={"type": "json_object"},
@@ -20472,7 +20546,7 @@ Your task is to select the best 3 doctors from the list below for this patient.
 """
 
                     doc_completion = groq_client.chat.completions.create(
-                        model="llama-3.1-8b-instant",
+                        model="openai/gpt-oss-20b",
                         temperature=0.1,
                         max_tokens=1000,
                         response_format={"type": "json_object"},
@@ -20590,7 +20664,7 @@ Generate between 5 and 10 concise, clinically relevant follow-up questions.
 """
 
         completion = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             temperature=0.2,
             max_tokens=1200,
             response_format={"type": "json_object"},
@@ -20832,7 +20906,7 @@ def _get_patient_context(patient_id: str) -> dict:
 
 def _call_llm(prompt: str) -> dict:
     completion = groq_client.chat.completions.create(
-        model="llama-3.1-8b-instant",
+        model="openai/gpt-oss-20b",
         messages=[{"role": "user", "content": prompt}],
         temperature=0.1,
         response_format={"type": "json_object"},
@@ -21154,7 +21228,7 @@ Do not invent or infer anything not present below.
 Return ONLY the summarized narrative, no preamble, no markdown."""
 
                 batch_completion = groq_client.chat.completions.create(
-                    model="llama-3.3-70b-versatile",
+                    model="openai/gpt-oss-120b",
                     messages=[{"role": "user", "content": batch_prompt}],
                     temperature=0.2,
                     max_tokens=300
@@ -21238,7 +21312,7 @@ Return ONLY the spoken presentation text. No preamble, no headers, no markdown, 
 """
 
         completion = groq_client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="openai/gpt-oss-120b",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.2,
             max_tokens=800

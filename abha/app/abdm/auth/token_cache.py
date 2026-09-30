@@ -32,3 +32,24 @@ def set_public_key(public_key: str):
     global _public_key, _public_key_expiry
     _public_key = public_key
     _public_key_expiry = time.time() + PUBLIC_KEY_TTL
+
+
+
+
+
+
+
+
+def clear_token():
+    """Drop the cached gateway token so the next call re-issues one."""
+    global _token, _token_expiry
+    _token = None
+    _token_expiry = 0
+
+
+def clear_public_key():
+    """Drop the cached ABDM public key. Call this alongside clear_token() on a 401 —
+    a stale key means ABDM cannot decrypt our loginId/otpValue."""
+    global _public_key, _public_key_expiry
+    _public_key = None
+    _public_key_expiry = 0

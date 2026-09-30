@@ -142,6 +142,106 @@ export const STANDARD_RAD_FIELDS = [
 
 export const LAB_CATEGORIES = ["Haematology", "Renal", "Liver", "Metabolic", "Cardiac", "Thyroid", "Inflammatory", "Respiratory", "Virology", "Oncology / Tumor Markers", "Pathology / Cytology"];
 
+// ─── Neuropsychiatry field set ──────────────────────────────────────────
+//
+// This component is shared with oncology, so everything below is ADD-ONLY:
+// nothing above it changed, and `fieldSetFor` hands every other department the
+// exact same STANDARD_* / LAB_CATEGORIES objects it used before, by identity.
+// That is what makes "oncology is unaffected" checkable by reading the diff.
+
+export const NEURO_DEPARTMENT = "neuropsychiatry";
+
+// The tab's own subheads (BaselineDataTab.jsx section 3.5), in the tab's order.
+// A field whose `category` is missing from this list renders NOWHERE — the grid
+// is built by iterating categories, not fields — so the two must stay in step.
+export const NEURO_LAB_CATEGORIES = [
+  "Metabolic / Haematology",
+  "Endocrine / Nutrition",
+  "Therapeutic Drug Levels",
+  "Dementia / Organic Workup",
+];
+
+/**
+ * Neuropsychiatry's orderable tests, lifted from BaselineDataTab.jsx's section
+ * 3.5 — same labels, same units, same clinical hints.
+ *
+ * `key` IS THE TAB'S formData KEY on purpose. The Baseline tab maps this
+ * component's "Pre-fill value" box straight back into formData by key, which is
+ * how a saved panel still reads back through BASELINE_TABLE_SPEC.
+ *
+ * NOTE: oncology's STANDARD_LAB_FIELDS also uses `hb`, `wbc`, `platelets` and
+ * `creatinine`. That is harmless because the two arrays are SWAPPED, never
+ * merged — do not turn fieldSetFor into a spread or a concat, or four fields
+ * would collide and the neuro units (/µL) would fight oncology's (×10³/µL).
+ *
+ * The three Dementia / Organic Workup rows carry `order_*` keys that match no
+ * form field, deliberately: they are orderable, but their results are free text
+ * ("Aβ42 420, total tau 610, p-tau 78") and will not fit a 110-px value box, so
+ * the tab keeps textareas for the findings and these rows only place the order.
+ */
+export const NEURO_LAB_FIELDS = [
+  // Metabolic / Haematology
+  { key: "hb", label: "Haemoglobin", unit: "g/dL", range: "", category: "Metabolic / Haematology" },
+  { key: "wbc", label: "WBC", unit: "/µL", range: "", category: "Metabolic / Haematology" },
+  { key: "anc", label: "Absolute Neutrophil Count", unit: "/µL", range: "clozapine monitoring", category: "Metabolic / Haematology" },
+  { key: "platelets", label: "Platelets", unit: "/µL", range: "", category: "Metabolic / Haematology" },
+  { key: "sodium", label: "Sodium", unit: "mmol/L", range: "SIADH / carbamazepine", category: "Metabolic / Haematology" },
+  { key: "potassium", label: "Potassium", unit: "mmol/L", range: "", category: "Metabolic / Haematology" },
+  { key: "creatinine", label: "Creatinine", unit: "mg/dL", range: "lithium", category: "Metabolic / Haematology" },
+  { key: "hba1c", label: "HbA1c", unit: "%", range: "", category: "Metabolic / Haematology" },
+  { key: "lipids", label: "Total Cholesterol", unit: "mg/dL", range: "", category: "Metabolic / Haematology" },
+  { key: "prolactin", label: "Prolactin", unit: "ng/mL", range: "antipsychotic-induced", category: "Metabolic / Haematology" },
+
+  // Endocrine / Nutrition
+  { key: "tsh", label: "TSH", unit: "mIU/L", range: "", category: "Endocrine / Nutrition" },
+  { key: "t4", label: "Free T4", unit: "ng/dL", range: "", category: "Endocrine / Nutrition" },
+  { key: "b12", label: "Vitamin B12", unit: "pg/mL", range: "", category: "Endocrine / Nutrition" },
+  { key: "folate", label: "Folate", unit: "ng/mL", range: "", category: "Endocrine / Nutrition" },
+  { key: "vitD", label: "Vitamin D", unit: "ng/mL", range: "", category: "Endocrine / Nutrition" },
+
+  // Therapeutic Drug Levels
+  { key: "lithiumLevel", label: "Lithium Level", unit: "mmol/L", range: "0.6–1.0 maintenance", category: "Therapeutic Drug Levels" },
+  { key: "valproateLevel", label: "Valproate Level", unit: "µg/mL", range: "", category: "Therapeutic Drug Levels" },
+  { key: "carbamazepineLevel", label: "Carbamazepine Level", unit: "µg/mL", range: "", category: "Therapeutic Drug Levels" },
+  { key: "clozapineLevel", label: "Clozapine Level", unit: "ng/mL", range: "", category: "Therapeutic Drug Levels" },
+
+  // Dementia / Organic Workup — order-only, results live in the tab's textareas
+  { key: "order_csf", label: "CSF Biomarkers (Aβ42, tau, p-tau)", unit: "", range: "", category: "Dementia / Organic Workup" },
+  { key: "order_autoimmune", label: "Autoimmune Encephalitis Panel (NMDAR/LGI1/CASPR2)", unit: "", range: "", category: "Dementia / Organic Workup" },
+  { key: "order_toxicology", label: "Urine Drug Screen / Toxicology", unit: "", range: "", category: "Dementia / Organic Workup" },
+];
+
+// One frozen entry per department. `rad: null` hides the radiology half
+// altogether; `showRange` opts a department into rendering the reference-range
+// text next to a standard row — oncology's 46 fields already carry a `range`
+// that has never been displayed, so turning it on globally would visibly change
+// 36 of their rows.
+const ONCOLOGY_SET = {
+  lab: STANDARD_LAB_FIELDS,
+  categories: LAB_CATEGORIES,
+  rad: STANDARD_RAD_FIELDS,
+  labTitle: "Pre-Induction Investigations",
+  showRange: false,
+};
+
+const NEURO_SET = {
+  lab: NEURO_LAB_FIELDS,
+  categories: NEURO_LAB_CATEGORIES,
+  rad: STANDARD_RAD_FIELDS,
+  labTitle: "Baseline Laboratory Investigations",
+  showRange: true,
+};
+
+/**
+ * Resolve a department to its field set. Returns the SAME OBJECT every call for
+ * a given department — no allocation, no new array identities — so the
+ * bookingData effect below cannot start re-firing for callers that were working
+ * before this existed. Any unknown department gets oncology's set, which is the
+ * behaviour every department had prior to this change.
+ */
+export const fieldSetFor = (department) =>
+  department === NEURO_DEPARTMENT ? NEURO_SET : ONCOLOGY_SET;
+
 const parseUTC = (dateStr) => {
   if (!dateStr) return new Date(NaN);
   let str = String(dateStr);
@@ -379,10 +479,24 @@ export const LabInvestigations = ({
   currentProcedure = "",
   bookingData = EMPTY_OBJ,
   orderContext = null,
+  // Optional {fieldKey: value} map used to pre-tick tests and seed their value
+  // boxes from a record that already holds results. Seeded ONCE (see the
+  // bookingData effect) so typing in a box cannot reset it. Defaults to null,
+  // so callers that predate it behave exactly as before.
+  prefill = null,
+  // Optional override for the AI Suggest button. Takes { candidates } — this
+  // panel's own test list — and resolves to the same shape the oncology endpoint
+  // returns. A department whose tests the shared suggester does not know (its
+  // candidates are hardcoded in that prompt) passes its own suggester here.
+  // Defaults to null → the oncology call, unchanged, for every existing caller.
+  onSuggest = null,
   onChange
 }) => {
+  // Identity-stable: same object every render for a given department.
+  const set = fieldSetFor(department);
+
   const [labOrderFields, setLabOrderFields] = useState(
-    STANDARD_LAB_FIELDS.map(f => ({ ...f, selected: false, surgeryValue: "" }))
+    () => set.lab.map(f => ({ ...f, selected: false, surgeryValue: "" }))
   );
   const [customLabFields, setCustomLabFields] = useState([]);
   const [labOrderStatus, setLabOrderStatus] = useState("none");
@@ -392,7 +506,7 @@ export const LabInvestigations = ({
   const [radClinicalIndication, setRadClinicalIndication] = useState("");
   const [radOrderStatus, setRadOrderStatus] = useState("none");
   const [radOrderFields, setRadOrderFields] = useState(
-    STANDARD_RAD_FIELDS.map(f => ({ ...f, selected: false }))
+    () => (set.rad ?? []).map(f => ({ ...f, selected: false }))
   );
   const [customRadFields, setCustomRadFields] = useState([]);
   const [newRadField, setNewRadField] = useState({ label: "" });
@@ -491,26 +605,44 @@ export const LabInvestigations = ({
       if (!radClinicalIndication) setRadClinicalIndication(suggestions.radClinicalIndication);
     }
 
-    setLabOrderFields(STANDARD_LAB_FIELDS.map(f => {
+    setLabOrderFields(set.lab.map(f => {
       let isSelected = false;
+      let seededValue = "";
       if (bookingViralMarkers.includes("HIV") && f.key === "hiv") isSelected = true;
       if (bookingViralMarkers.includes("HBsAg") && f.key === "hbsag") isSelected = true;
       if (bookingViralMarkers.includes("HCV") && f.key === "hcv") isSelected = true;
 
       if (suggestedLabTests.includes(f.label)) isSelected = true;
 
+      // A result already on record means the test was ordered: tick it and show
+      // the value, so opening a saved panel does not present empty boxes.
+      const pv = prefill?.[f.key];
+      if (pv !== undefined && pv !== null && pv !== "") {
+        isSelected = true;
+        seededValue = String(pv);
+      }
+
       return {
         ...f,
         selected: isSelected,
-        surgeryValue: ""
+        surgeryValue: seededValue
       };
     }));
 
-    setRadOrderFields(STANDARD_RAD_FIELDS.map(f => ({
+    setRadOrderFields((set.rad ?? []).map(f => ({
       ...f,
       selected: suggestedRadTests.includes(f.label)
     })));
-  }, [bookingData]);
+    // `department` is here because both lists are re-seeded from the resolved
+    // field set above — without it a department switch would be overwritten by
+    // whatever this effect last wrote. It is a stable string prop, so for every
+    // caller that existed before this change the dependency never fires.
+    //
+    // `prefill` is deliberately ABSENT: it is a seed, not a binding. The Baseline
+    // tab rebuilds it from formData, so listing it here would reset the very box
+    // being typed into on every keystroke.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookingData, department]);
 
   // Bubble up state whenever investigation details change
   useEffect(() => {
@@ -558,8 +690,21 @@ export const LabInvestigations = ({
         doctor_id: doctorId || null,
         hospital_id: hospitalId || null
       };
-      const res = await generateInvestigationSuggestion(payload);
-      const suggestions = res.data;
+      // Departments whose tests the shared suggester does not know supply their
+      // own via onSuggest, and get back the same shape — so nothing below this
+      // line differs between the two paths. It receives this panel's live test
+      // list, which is what lets its reply be checked against real labels rather
+      // than guessed at.
+      const suggestions = onSuggest
+        ? await onSuggest({
+          candidates: labOrderFields.map(({ key, label, unit, category }) => ({
+            key,
+            label,
+            unit,
+            category
+          }))
+        })
+        : (await generateInvestigationSuggestion(payload)).data;
       if (suggestions) {
         setInvestigationSuggestion(suggestions);
         if (suggestions.labClinicalIndication) {
@@ -602,7 +747,7 @@ export const LabInvestigations = ({
     if (inv.document_id != null) acc[inv.document_id] = inv;
     return acc;
   }, {});
-  
+
   const historyMapById = investigationsHistory.reduce((acc, inv) => {
     if (inv.id !== undefined) acc[inv.id] = inv;
     return acc;
@@ -621,8 +766,8 @@ export const LabInvestigations = ({
 
   return (
     <Box>
-      {/* ── Pre-Induction Investigations ── */}
-      <SectionBox title="Pre-Induction Investigations">
+      {/* ── Laboratory Investigations (title per department) ── */}
+      <SectionBox title={set.labTitle}>
         <Box sx={{ mb: 3 }}>
           <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
             <Typography sx={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", color: C.textMuted, fontFamily: FONT }}>Clinical Indication</Typography>
@@ -645,7 +790,7 @@ export const LabInvestigations = ({
             sx={inputSx}
           />
         </Box>
-        {LAB_CATEGORIES.map(cat => {
+        {set.categories.map(cat => {
           const fields = labOrderFields.filter(f => f.category === cat);
           return (
             <Box key={cat} sx={{ mb: 2 }}>
@@ -657,7 +802,7 @@ export const LabInvestigations = ({
                       onChange={e => setLabOrderFields(prev => prev.map(x => x.key === f.key ? { ...x, selected: e.target.checked } : x))}
                       sx={{ color: C.border, "&.Mui-checked": { color: C.black }, p: 0.3 }} />
                     <Typography sx={{ fontSize: 12, fontFamily: FONT, flex: 1, color: f.selected ? C.textPrimary : C.textMuted }}>
-                      {f.label}{f.unit ? ` (${f.unit})` : ""}
+                      {f.label}{f.unit ? ` (${f.unit})` : ""}{set.showRange && f.range ? ` · ${f.range}` : ""}
                     </Typography>
                     {f.selected && (
                       <TextField
@@ -756,104 +901,111 @@ export const LabInvestigations = ({
       </SectionBox>
 
       {/* ── Radiology Investigation ── */}
-      <SectionBox title="Radiology Investigation">
-        <Box sx={{ mb: 3 }}>
-          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
-            <Typography sx={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", color: C.textMuted, fontFamily: FONT }}>Clinical Indication</Typography>
-          </Box>
-          <TextField
-            fullWidth
-            multiline
-            rows={2}
-            placeholder="LLM suggested indications for radiology..."
-            value={radClinicalIndication}
-            onChange={(e) => setRadClinicalIndication(e.target.value)}
-            sx={inputSx}
-          />
-        </Box>
-        <Typography sx={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", color: C.textMuted, fontFamily: FONT, mb: 1 }}>Radiology Selection</Typography>
-        <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 1, mb: 2 }}>
-          {radOrderFields.map(f => (
-            <Box key={f.key} sx={{ display: "flex", alignItems: "center", gap: 1, border: `1px solid ${f.selected ? C.black : C.border}`, px: 1, py: 0.5, background: f.selected ? "#fafafa" : C.white, transition: "all 0.15s" }}>
-              <Checkbox size="small" checked={f.selected}
-                onChange={e => setRadOrderFields(prev => prev.map(x => x.key === f.key ? { ...x, selected: e.target.checked } : x))}
-                sx={{ color: C.border, "&.Mui-checked": { color: C.black }, p: 0.3 }} />
-              <Typography sx={{ fontSize: 12, fontFamily: FONT, flex: 1, color: f.selected ? C.textPrimary : C.textMuted }}>
-                {f.label}
-              </Typography>
+      {/* Hidden outright when the department's field set has no radiology list
+          (`rad: null`). Neuropsychiatry records imaging and neurophysiology
+          elsewhere, so an empty picker here would be a dead control. The block
+          below is intentionally left at its original indentation so this stays a
+          four-line diff rather than a hundred-line reflow. */}
+      {set.rad && (
+        <SectionBox title="Radiology Investigation">
+          <Box sx={{ mb: 3 }}>
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
+              <Typography sx={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", color: C.textMuted, fontFamily: FONT }}>Clinical Indication</Typography>
             </Box>
-          ))}
-        </Box>
+            <TextField
+              fullWidth
+              multiline
+              rows={2}
+              placeholder="LLM suggested indications for radiology..."
+              value={radClinicalIndication}
+              onChange={(e) => setRadClinicalIndication(e.target.value)}
+              sx={inputSx}
+            />
+          </Box>
+          <Typography sx={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", color: C.textMuted, fontFamily: FONT, mb: 1 }}>Radiology Selection</Typography>
+          <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 1, mb: 2 }}>
+            {radOrderFields.map(f => (
+              <Box key={f.key} sx={{ display: "flex", alignItems: "center", gap: 1, border: `1px solid ${f.selected ? C.black : C.border}`, px: 1, py: 0.5, background: f.selected ? "#fafafa" : C.white, transition: "all 0.15s" }}>
+                <Checkbox size="small" checked={f.selected}
+                  onChange={e => setRadOrderFields(prev => prev.map(x => x.key === f.key ? { ...x, selected: e.target.checked } : x))}
+                  sx={{ color: C.border, "&.Mui-checked": { color: C.black }, p: 0.3 }} />
+                <Typography sx={{ fontSize: 12, fontFamily: FONT, flex: 1, color: f.selected ? C.textPrimary : C.textMuted }}>
+                  {f.label}
+                </Typography>
+              </Box>
+            ))}
+          </Box>
 
-        {customRadFields.length > 0 && (
-          <Box sx={{ mb: 2 }}>
-            <Typography sx={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", color: C.textMuted, fontFamily: FONT, mb: 1 }}>Custom Fields</Typography>
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-              {customRadFields.map((f, i) => (
-                <Box key={f.key} sx={{ display: "flex", alignItems: "center", gap: 1, border: `1px solid ${C.black}`, px: 1, py: 0.5, background: "#fafafa" }}>
-                  <Typography sx={{ fontSize: 12, fontFamily: FONT, flex: 1 }}>
-                    {f.label}
-                  </Typography>
-                  <IconButton size="small" onClick={() => setCustomRadFields(prev => prev.filter(x => x.key !== f.key))}>
-                    <CloseRounded sx={{ fontSize: 14 }} />
-                  </IconButton>
-                </Box>
-              ))}
+          {customRadFields.length > 0 && (
+            <Box sx={{ mb: 2 }}>
+              <Typography sx={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", color: C.textMuted, fontFamily: FONT, mb: 1 }}>Custom Fields</Typography>
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                {customRadFields.map((f, i) => (
+                  <Box key={f.key} sx={{ display: "flex", alignItems: "center", gap: 1, border: `1px solid ${C.black}`, px: 1, py: 0.5, background: "#fafafa" }}>
+                    <Typography sx={{ fontSize: 12, fontFamily: FONT, flex: 1 }}>
+                      {f.label}
+                    </Typography>
+                    <IconButton size="small" onClick={() => setCustomRadFields(prev => prev.filter(x => x.key !== f.key))}>
+                      <CloseRounded sx={{ fontSize: 14 }} />
+                    </IconButton>
+                  </Box>
+                ))}
+              </Box>
+            </Box>
+          )}
+
+          <Box sx={{ border: `1px dashed ${C.border}`, p: 1.5, mt: 1 }}>
+            <Typography sx={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", color: C.textMuted, fontFamily: FONT, mb: 1 }}>Add Custom Radiology</Typography>
+            <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", alignItems: "flex-end" }}>
+              <TextField label="Investigation Name *" size="small" value={newRadField.label}
+                onChange={e => setNewRadField({ label: e.target.value })}
+                sx={{ ...inputSx, minWidth: 200 }} />
+              <Button sx={outlineBtnSx} disabled={!newRadField.label.trim()}
+                onClick={() => {
+                  const uid = Math.random().toString(36).slice(2, 10);
+                  setCustomRadFields(prev => [...prev, {
+                    key: `custom_rad_${uid}`, label: newRadField.label.trim()
+                  }]);
+                  setNewRadField({ label: "" });
+                }}>
+                Add Field
+              </Button>
             </Box>
           </Box>
-        )}
 
-        <Box sx={{ border: `1px dashed ${C.border}`, p: 1.5, mt: 1 }}>
-          <Typography sx={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", color: C.textMuted, fontFamily: FONT, mb: 1 }}>Add Custom Radiology</Typography>
-          <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", alignItems: "flex-end" }}>
-            <TextField label="Investigation Name *" size="small" value={newRadField.label}
-              onChange={e => setNewRadField({ label: e.target.value })}
-              sx={{ ...inputSx, minWidth: 200 }} />
-            <Button sx={outlineBtnSx} disabled={!newRadField.label.trim()}
-              onClick={() => {
-                const uid = Math.random().toString(36).slice(2, 10);
-                setCustomRadFields(prev => [...prev, {
-                  key: `custom_rad_${uid}`, label: newRadField.label.trim()
-                }]);
-                setNewRadField({ label: "" });
-              }}>
-              Add Field
+          <Box sx={{ mt: 2, display: "flex", alignItems: "center", gap: 2 }}>
+            <Button sx={saveBtnSx} onClick={() => {
+              const payload = {
+                patient_id: patientId,
+                doctor_id: doctorId,
+                investigation_type: "radiology",
+                investigation: "radiology",
+                clinical_indication: radClinicalIndication,
+                order_context: orderContext || {
+                  type: "procedure",
+                  label: currentProcedure,
+                  booking_id: currentBookingId || "",
+                },
+                parameters: [
+                  ...radOrderFields.filter(f => f.selected).map(f => f.label),
+                  ...customRadFields.map(f => f.label)
+                ]
+              };
+              createInvestigation(payload)
+                .then(res => {
+                  if (res && res.status === "success") {
+                    setRadOrderStatus("sent");
+                    fetchInvestigations();
+                  }
+                })
+                .catch(err => console.error("Failed to send radiology order:", err));
+            }}>
+              Send Order
             </Button>
+            {radOrderStatus === "sent" && <Typography sx={{ fontSize: 12, color: "#389e0d", fontFamily: FONT }}>✅ Order Sent Successfully</Typography>}
           </Box>
-        </Box>
-
-        <Box sx={{ mt: 2, display: "flex", alignItems: "center", gap: 2 }}>
-          <Button sx={saveBtnSx} onClick={() => {
-            const payload = {
-              patient_id: patientId,
-              doctor_id: doctorId,
-              investigation_type: "radiology",
-              investigation: "radiology",
-              clinical_indication: radClinicalIndication,
-              order_context: orderContext || {
-                type: "procedure",
-                label: currentProcedure,
-                booking_id: currentBookingId || "",
-              },
-              parameters: [
-                ...radOrderFields.filter(f => f.selected).map(f => f.label),
-                ...customRadFields.map(f => f.label)
-              ]
-            };
-            createInvestigation(payload)
-              .then(res => {
-                if (res && res.status === "success") {
-                  setRadOrderStatus("sent");
-                  fetchInvestigations();
-                }
-              })
-              .catch(err => console.error("Failed to send radiology order:", err));
-          }}>
-            Send Order
-          </Button>
-          {radOrderStatus === "sent" && <Typography sx={{ fontSize: 12, color: "#389e0d", fontFamily: FONT }}>✅ Order Sent Successfully</Typography>}
-        </Box>
-      </SectionBox>
+        </SectionBox>
+      )}
 
       {/* ── Investigations Overview ── */}
       <SectionBox title="Investigations Overview">

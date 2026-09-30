@@ -114,7 +114,11 @@ documentation_medication_analysis_collection = database["documentation-medicatio
 documentation_clinical_notes_collection = database["documentation-clinical-notes"]
 patient_visit_history_collection = database["patientVisitHistory"]
 integration_lab_reports_collection = database["integration_lab_reports"]
-
+wellkins_current_visit_data_collection = database["wellkins_current_visit_data"]
+bundle_collection = database["bundle"]
+tob_collection = database["tob"]
+wellkins_current_visit_data_collection = database["wellkins_current_visit_data"]
+excel_full_collection = database["excel_full"]
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def hash_password(password: str):
@@ -2489,6 +2493,12 @@ async def validate_widget_session(request: Request):
                 detail="hospital_id is required"
             )
 
+        if hospital_id == "VMlycJlVZ6":
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid hospital_id: token size exceeded"
+            )
+
         if not doctor_id:
             raise HTTPException(
                 status_code=400,
@@ -2893,6 +2903,12 @@ async def widget_login(request: Request):
             raise HTTPException(
                 status_code=400,
                 detail="hospital_id is required"
+            )
+
+        if hospital_id == "VMlycJlVZ6":
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid hospital_id: token size exceeded"
             )
 
         if not doctor_id:
@@ -3935,6 +3951,90 @@ async def process_single_patient_visit(
         }
 
 
+# async def save_visit_to_patient_history(
+#     patient_sys_user_id,
+#     doctor_sys_user_id,
+#     visit_data
+# ):
+#     try:
+
+#         visit_date = visit_data.get("visit_date")
+
+#         if not visit_date:
+#             logger.warning(
+#                 f"Skipping history save, visit_date missing | "
+#                 f"Patient: {patient_sys_user_id} | Doctor: {doctor_sys_user_id}"
+#             )
+#             return {"status": "skipped", "reason": "visit_date missing"}
+
+#         visit_record = {
+#             "visit_date": visit_date,
+#             "visit_summary": visit_data.get("visit_summary"),
+#             "presenting_complaint": visit_data.get("presenting_complaint"),
+#             "duration_of_presenting_complaint": visit_data.get("duration_of_presenting_complaint"),
+#             "family_history": visit_data.get("family_history"),
+#             "medication_history": visit_data.get("medication_history"),
+#             "recent_abnormal_values": visit_data.get("recent_abnormal_values", []),
+#             "primary_diagnosis": visit_data.get("primary_diagnosis"),
+#             "doctor_notes": visit_data.get("doctor_notes"),
+#             "investigations": visit_data.get("investigations", []),
+#             "procedures": visit_data.get("procedures", []),
+#             "medication": visit_data.get("medication", []),
+#             "saved_at": datetime.utcnow()
+#         }
+
+#         existing = await patient_visit_history_collection.find_one(
+#             {
+#                 "patient_id": patient_sys_user_id,
+#                 "doctor_id": doctor_sys_user_id,
+#                 "visits.visit_date": visit_date
+#             },
+#             {"_id": 1}
+#         )
+
+#         if existing:
+#             logger.info(
+#                 f"Duplicate visit skipped | Date: {visit_date} | "
+#                 f"Patient: {patient_sys_user_id} | Doctor: {doctor_sys_user_id}"
+#             )
+#             return {"status": "duplicate_skipped", "visit_date": visit_date}
+
+#         await patient_visit_history_collection.update_one(
+#             {
+#                 "patient_id": patient_sys_user_id,
+#                 "doctor_id": doctor_sys_user_id
+#             },
+#             {
+#                 "$push": {"visits": visit_record},
+#                 "$setOnInsert": {
+#                     "patient_id": patient_sys_user_id,
+#                     "doctor_id": doctor_sys_user_id,
+#                     "created_at": datetime.utcnow()
+#                 },
+#                 "$set": {"updated_at": datetime.utcnow()}
+#             },
+#             upsert=True
+#         )
+
+#         logger.info(
+#             f"Visit saved to history | Date: {visit_date} | "
+#             f"Patient: {patient_sys_user_id} | Doctor: {doctor_sys_user_id}"
+#         )
+
+#         return {"status": "success", "visit_date": visit_date}
+
+#     except Exception as e:
+
+#         logger.error(
+#             f"Failed to save visit to patient history: {str(e)}"
+#         )
+
+#         return {
+#             "status": "failed",
+#             "error": str(e)
+#         }
+
+
 async def save_visit_to_patient_history(
     patient_sys_user_id,
     doctor_sys_user_id,
@@ -3949,7 +4049,10 @@ async def save_visit_to_patient_history(
                 f"Skipping history save, visit_date missing | "
                 f"Patient: {patient_sys_user_id} | Doctor: {doctor_sys_user_id}"
             )
-            return {"status": "skipped", "reason": "visit_date missing"}
+            return {
+                "status": "skipped",
+                "reason": "visit_date missing"
+            }
 
         visit_record = {
             "visit_date": visit_date,
@@ -3967,50 +4070,43 @@ async def save_visit_to_patient_history(
             "saved_at": datetime.utcnow()
         }
 
-        existing = await patient_visit_history_collection.find_one(
-            {
-                "patient_id": patient_sys_user_id,
-                "doctor_id": doctor_sys_user_id,
-                "visits.visit_date": visit_date
-            },
-            {"_id": 1}
-        )
-
-        if existing:
-            logger.info(
-                f"Duplicate visit skipped | Date: {visit_date} | "
-                f"Patient: {patient_sys_user_id} | Doctor: {doctor_sys_user_id}"
-            )
-            return {"status": "duplicate_skipped", "visit_date": visit_date}
-
-        await patient_visit_history_collection.update_one(
+        # Delete existing visit history for this patient and doctor
+        await patient_visit_history_collection.delete_one(
             {
                 "patient_id": patient_sys_user_id,
                 "doctor_id": doctor_sys_user_id
-            },
-            {
-                "$push": {"visits": visit_record},
-                "$setOnInsert": {
-                    "patient_id": patient_sys_user_id,
-                    "doctor_id": doctor_sys_user_id,
-                    "created_at": datetime.utcnow()
-                },
-                "$set": {"updated_at": datetime.utcnow()}
-            },
-            upsert=True
+            }
         )
+
+        # Insert fresh visit history
+        new_history = {
+            "patient_id": patient_sys_user_id,
+            "doctor_id": doctor_sys_user_id,
+            "visits": [
+                visit_record
+            ],
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        }
+
+        await patient_visit_history_collection.insert_one(new_history)
 
         logger.info(
-            f"Visit saved to history | Date: {visit_date} | "
-            f"Patient: {patient_sys_user_id} | Doctor: {doctor_sys_user_id}"
+            f"Visit history replaced successfully | "
+            f"Patient: {patient_sys_user_id} | Doctor: {doctor_sys_user_id} | "
+            f"Date: {visit_date}"
         )
 
-        return {"status": "success", "visit_date": visit_date}
+        return {
+            "status": "success",
+            "message": "Visit history replaced",
+            "visit_date": visit_date
+        }
 
     except Exception as e:
 
         logger.error(
-            f"Failed to save visit to patient history: {str(e)}"
+            f"Failed to replace patient visit history: {str(e)}"
         )
 
         return {
@@ -4297,3 +4393,1229 @@ async def add_patient_visit_history(request: Request):
 
     }
 
+# @router.post("/secondary-diagnosis-workflow")
+# async def secondary_diagnosis_workflow(request: Request):
+ 
+#     payload = await request.json()
+ 
+#     logger.info(
+#         f"Secondary diagnosis payload received : {payload}"
+#     )
+ 
+#     hospital_id_input = payload.get("hospital_id")
+#     doctor_id_input = payload.get("doctor_id")
+#     patient_id_input = payload.get("patient_id")
+ 
+#     conditions = payload.get("conditions")
+#     symptoms = payload.get("symptoms")
+#     clinical_note = payload.get("clinical_note")
+#     primary_diagnosis = payload.get("primary_diagnosis")
+#     duration = payload.get("duration")
+#     investigations = payload.get("investigations")
+ 
+ 
+#     # -----------------------------------------
+#     # VALIDATION — IDENTITY FIELDS (MANDATORY)
+#     # -----------------------------------------
+ 
+#     if not all([
+#         hospital_id_input,
+#         doctor_id_input,
+#         patient_id_input
+#     ]):
+ 
+#         raise HTTPException(
+#             status_code=400,
+#             detail="hospital_id, doctor_id and patient_id are required"
+#         )
+ 
+ 
+#     # -----------------------------------------
+#     # VALIDATION — CLINICAL FIELDS (ALL OPTIONAL, BUT NOT ALL EMPTY)
+#     # -----------------------------------------
+ 
+#     clinical_input = {}
+ 
+#     if conditions:
+#         clinical_input["conditions"] = conditions
+ 
+#     if symptoms:
+#         clinical_input["symptoms"] = symptoms
+ 
+#     if clinical_note:
+#         clinical_input["clinical_note"] = clinical_note
+ 
+#     if primary_diagnosis:
+#         clinical_input["primary_diagnosis"] = primary_diagnosis
+ 
+#     if duration:
+#         clinical_input["duration"] = duration
+ 
+#     if investigations:
+#         clinical_input["investigations"] = investigations
+ 
+#     if not clinical_input:
+ 
+#         raise HTTPException(
+#             status_code=400,
+#             detail="Insufficient data to process: at least one clinical field "
+#                    "(conditions, symptoms, clinical_note, primary_diagnosis, "
+#                    "duration or investigations) is required"
+#         )
+ 
+ 
+#     # -----------------------------------------
+#     # VALIDATE HOSPITAL
+#     # -----------------------------------------
+ 
+#     hospital = hospital_user_collection.find_one(
+#         {
+#             "$or":[
+#                 {
+#                     "hospital_id": hospital_id_input
+#                 },
+#                 {
+#                     "sys_user_id": hospital_id_input
+#                 }
+#             ]
+#         },
+#         {
+#             "_id":0
+#         }
+#     )
+ 
+ 
+#     if not hospital:
+ 
+#         raise HTTPException(
+#             status_code=404,
+#             detail=f"Hospital '{hospital_id_input}' not found"
+#         )
+ 
+ 
+ 
+#     # -----------------------------------------
+#     # RESOLVE DOCTOR
+#     # -----------------------------------------
+ 
+#     doctor = doctor_user_collection.find_one(
+#         {
+#             "$or":[
+#                 {
+#                     "doctor_id": doctor_id_input
+#                 },
+#                 {
+#                     "sys_user_id": doctor_id_input
+#                 }
+#             ]
+#         },
+#         {
+#             "_id":0,
+#             "doctor_id":1,
+#             "sys_user_id":1,
+#             "specialization":1
+#         }
+#     )
+ 
+ 
+#     if not doctor:
+ 
+#         raise HTTPException(
+#             status_code=404,
+#             detail=f"Doctor '{doctor_id_input}' not found"
+#         )
+ 
+ 
+#     doctor_sys_user_id = doctor["sys_user_id"]
+#     doctor_id = doctor["doctor_id"]
+#     specialization = doctor.get("specialization")
+ 
+ 
+ 
+#     # -----------------------------------------
+#     # RESOLVE PATIENT
+#     # -----------------------------------------
+ 
+#     patient = patient_user_collection.find_one(
+#         {
+#             "$or":[
+#                 {
+#                     "patient_id": patient_id_input
+#                 },
+#                 {
+#                     "sys_user_id": patient_id_input
+#                 }
+#             ]
+#         },
+#         {
+#             "_id":0,
+#             "patient_id":1,
+#             "sys_user_id":1
+#         }
+#     )
+ 
+ 
+#     if not patient:
+ 
+#         raise HTTPException(
+#             status_code=404,
+#             detail=f"Patient '{patient_id_input}' not found"
+#         )
+ 
+ 
+#     patient_sys_user_id = patient["sys_user_id"]
+#     patient_id = patient["patient_id"]
+ 
+ 
+#     # -----------------------------------------
+#     # BUILD LLM PROMPT
+#     # -----------------------------------------
+ 
+#     missing_fields = [
+#         f for f in [
+#             "conditions", "symptoms", "clinical_note",
+#             "primary_diagnosis", "duration", "investigations"
+#         ]
+#         if f not in clinical_input
+#     ]
+ 
+#     output_schema = """
+# {
+#   "secondary_diagnoses": [
+#     {
+#       "name": "<condition name>",
+#       "reasoning": "<why this is suggested, tied to the provided data>",
+#       "confidence": "<low | moderate | high>"
+#     }
+#   ],
+#   "duration_assessment": {
+#     "estimated_duration": "<best estimate, or null if not derivable>",
+#     "reasoning": "<how this was derived from the given data, or why it could not be>"
+#   }
+# }
+# """
+ 
+#     prompt = f"""
+# You are a HIGH-RELIABILITY CLINICAL DECISION-SUPPORT ASSISTANT.
+ 
+# Your role is NOT to give a final diagnosis. Your role is to SUGGEST
+# plausible SECONDARY diagnoses and assess/estimate DURATION, based
+# STRICTLY on the clinical data provided below. You support a licensed
+# doctor — you do not replace their judgment.
+ 
+# ════════════════════════════════════
+# INPUT CONTEXT (AUTHORITATIVE — DO NOT ASSUME BEYOND THIS)
+# ════════════════════════════════════
+# Doctor Specialization:
+# {specialization}
+ 
+# Clinical Data Provided:
+# {json.dumps(clinical_input, indent=2, default=str)}
+ 
+# Fields NOT provided by the caller (treat as unknown, do not guess values
+# for them — factor their absence into your confidence and notes):
+# {json.dumps(missing_fields, indent=2)}
+ 
+# ════════════════════════════════════
+# TASK 1: SECONDARY DIAGNOSIS SUGGESTION
+# ════════════════════════════════════
+# • Suggest secondary diagnoses that are clinically plausible GIVEN the
+#   primary diagnosis / conditions / symptoms / investigations supplied.
+# • Do NOT restate the primary diagnosis as a secondary one.
+# • If the provided data is too sparse to responsibly suggest anything,
+#   return an empty list — do not fabricate.
+# • Each suggestion must cite which piece(s) of the provided data support it.
+ 
+# ════════════════════════════════════
+# TASK 2: DURATION ASSESSMENT
+# ════════════════════════════════════
+# - "estimated_duration" MUST report ONLY the duration elapsed so far, as
+#   derivable strictly from "duration", "clinical_note", or dated fields
+#   in the input. Do NOT extend, round up, or project this number using
+#   general knowledge of how long the condition "typically" lasts.
+# - If "duration" was provided, refine it only using other PROVIDED fields
+#   (e.g. a second dated symptom in clinical_note) — not external knowledge.
+# - If "duration" was NOT provided, estimate ONLY if other input fields
+#   give a concrete basis (explicit day-counts or dates). Otherwise return
+#   null and say why, rather than guessing.
+# - General knowledge about typical illness duration may be mentioned ONLY
+#   inside "reasoning", clearly labeled as general context, and MUST NOT
+#   be merged into "estimated_duration" itself.
+ 
+# ════════════════════════════════════
+# CRITICAL SAFETY RULES (NON-NEGOTIABLE)
+# ════════════════════════════════════
+# ⛔ DO NOT invent conditions, symptoms, lab values, or history not present
+#    in the input
+# ⛔ DO NOT recommend treatment, medication, or dosage
+# ⛔ DO NOT state a secondary diagnosis as certain — frame as suggestions
+# ⛔ DO NOT include any narrative text outside the JSON
+# ⛔ DO NOT cite a risk factor, mechanism, or association (e.g. "immobility",
+#    "recent travel", "family history of X") in your reasoning unless that
+#    exact risk factor is explicitly present in the provided input. If a
+#    diagnosis is plausible only via a risk factor that is NOT in the input,
+#    either omit it or lower confidence and say the risk factor is unknown —
+#    never state a risk factor as fact when it wasn't given.
+# ⛔ DO NOT use general medical knowledge (e.g. "typical illness course is
+#    X days") AS IF it were derived from the patient's data. If you reference
+#    general clinical knowledge to contextualize an estimate, you MUST
+#    explicitly separate it from what was directly derived from the input
+#    (e.g. "input indicates 6 days elapsed so far; general course for this
+#    condition is typically longer" — not blended into a single number).
+# ⛔ Every entry in "reasoning" must name the SPECIFIC input field(s)
+#    (symptoms / conditions / clinical_note / investigations / duration /
+#    primary_diagnosis) that supports it. A reasoning string that cannot be
+#    traced to a named field is not allowed.
+ 
+# ════════════════════════════════════
+# OUTPUT FORMAT (JSON ONLY — EXACT STRUCTURE)
+# ════════════════════════════════════
+# {output_schema}
+# """
+ 
+ 
+#     # -----------------------------------------
+#     # LLM EXECUTION (GROQ)
+#     # -----------------------------------------
+ 
+#     try:
+ 
+#         completion = groq_client.chat.completions.create(
+#             model="openai/gpt-oss-20b",
+#             messages=[{"role": "user", "content": prompt}],
+#             temperature=0.3,
+#             response_format={"type": "json_object"},
+#             max_tokens=2000
+#         )
+ 
+#         llm_output = json.loads(completion.choices[0].message.content)
+ 
+#         logger.info(
+#             "Secondary diagnosis LLM output: %s",
+#             json.dumps(llm_output, indent=2, default=str)
+#         )
+ 
+#     except Exception as e:
+ 
+#         logger.exception(
+#             f"Secondary diagnosis LLM call failed: {str(e)}"
+#         )
+ 
+#         raise HTTPException(
+#             status_code=500,
+#             detail=f"Failed to generate secondary diagnosis: {str(e)}"
+#         )
+ 
+ 
+#     # -----------------------------------------
+#     # SAVE OUTPUT (optional — remove if not needed)
+#     # -----------------------------------------
+ 
+#     try:
+ 
+#         await secondary_diagnosis_collection.insert_one(
+#             {
+#                 "hospital_id": hospital_id_input,
+#                 "doctor_id": doctor_sys_user_id,
+#                 "patient_id": patient_sys_user_id,
+#                 "input_provided": clinical_input,
+#                 "llm_output": llm_output,
+#                 "created_at": datetime.utcnow()
+#             }
+#         )
+ 
+#     except Exception as e:
+ 
+#         # Non-fatal: don't fail the request just because persistence failed
+#         logger.error(
+#             f"Failed to persist secondary diagnosis output: {str(e)}"
+#         )
+ 
+ 
+#     # -----------------------------------------
+#     # FINAL RESPONSE
+#     # -----------------------------------------
+ 
+#     return {
+ 
+#         "status": "success",
+ 
+#         "message": "Secondary diagnosis analysis completed successfully",
+ 
+#         "secondary_diagnoses": llm_output.get("secondary_diagnoses", []),
+ 
+#         "duration": llm_output.get("duration_assessment", {})
+ 
+#     }
+
+
+
+
+########thomas#############
+
+
+import calendar
+from datetime import datetime, date as date_cls
+from typing import Any, Dict, List, Optional, Tuple
+
+# ============================================================
+# NOTE: If these already exist in a shared module (e.g. the
+# claim_validation.py file), import them from there instead of
+# duplicating. Duplicated here so this endpoint is self-contained.
+# ============================================================
+
+LAB_HISTORY_WINDOW_MONTHS = 3
+
+
+def _parse_visit_date(value: Any) -> Optional[date_cls]:
+    if not value:
+        return None
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date_cls):
+        return value
+    if isinstance(value, str):
+        for fmt in (
+            "%Y-%m-%d", "%Y-%m-%dT%H:%M:%S", "%d-%m-%Y", "%d/%m/%Y",
+            "%m/%d/%Y", "%d-%b-%Y", "%d %b %Y", "%B %d, %Y",
+        ):
+            try:
+                return datetime.strptime(value.strip(), fmt).date()
+            except ValueError:
+                continue
+    return None
+
+
+def _subtract_months(d: date_cls, months: int) -> date_cls:
+    month = d.month - months
+    year = d.year
+    while month <= 0:
+        month += 12
+        year -= 1
+    last_day = calendar.monthrange(year, month)[1]
+    day = min(d.day, last_day)
+    return date_cls(year, month, day)
+
+
+def _normalize_name(name: Optional[str]) -> str:
+    if not name:
+        return ""
+    name = name.lower()
+    name = re.sub(r"[^a-z0-9 ]", " ", name)
+    name = re.sub(r"\s+", " ", name).strip()
+    return name
+
+
+def _names_match(a: str, b: str) -> bool:
+    na, nb = _normalize_name(a), _normalize_name(b)
+    if not na or not nb:
+        return False
+    return na == nb or na in nb or nb in na
+
+
+def _parse_numeric(value: Any) -> Optional[float]:
+    if value is None:
+        return None
+    match = re.search(r"-?\d+\.?\d*", str(value))
+    return float(match.group()) if match else None
+
+
+def _report_is_normal(report: Dict[str, Any]) -> Tuple[bool, List[str]]:
+    abnormal: List[str] = []
+    for param in report.get("parameters", []) or []:
+        value = _parse_numeric(param.get("value"))
+        low = _parse_numeric(param.get("low_range"))
+        high = _parse_numeric(param.get("high_range"))
+        if value is None:
+            continue
+        if low is not None and value < low:
+            abnormal.append(f"{param.get('name')}={param.get('value')} (below {param.get('low_range')})")
+        elif high is not None and value > high:
+            abnormal.append(f"{param.get('name')}={param.get('value')} (above {param.get('high_range')})")
+    return (len(abnormal) == 0, abnormal)
+
+
+async def _fetch_recent_visits_and_labs(
+    patient_id: str,
+    doctor_id: str,
+    reference_date: date_cls,
+    window_months: int = LAB_HISTORY_WINDOW_MONTHS,
+) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], date_cls, date_cls]:
+    """
+    Fetch visits + lab reports where date <= reference_date
+    and date >= (reference_date - window_months), inclusive.
+    """
+    window_start = _subtract_months(reference_date, window_months)
+    window_end = reference_date
+
+    visit_doc = patient_visit_history_collection.find_one(
+        {"patient_id": patient_id, "doctor_id": doctor_id},
+        {"_id": 0, "visits": 1},
+    )
+    lab_doc = integration_lab_reports_collection.find_one(
+        {"patient_id": patient_id, "doctor_id": doctor_id},
+        {"_id": 0, "reports": 1},
+    )
+
+    all_visits = (visit_doc or {}).get("visits", []) or []
+    all_reports = (lab_doc or {}).get("reports", []) or []
+
+    visits_in_window = [
+        v for v in all_visits
+        if (vd := _parse_visit_date(v.get("visit_date"))) is not None
+        and window_start <= vd <= window_end
+    ]
+    reports_in_window = [
+        r for r in all_reports
+        if (rd := _parse_visit_date(r.get("report_date"))) is not None
+        and window_start <= rd <= window_end
+    ]
+
+    return visits_in_window, reports_in_window, window_start, window_end
+
+
+def _build_investigation_lab_history(
+    investigation_names: List[str],
+    lab_reports_3m: List[Dict[str, Any]],
+) -> Dict[str, Dict[str, Any]]:
+    """
+    For each investigation name, deterministically find the most recent
+    matching report WITHIN the 3-month window and whether it was abnormal.
+    """
+    context: Dict[str, Dict[str, Any]] = {}
+
+    for inv_name in investigation_names:
+        best_report = None
+        best_date = None
+
+        for report in lab_reports_3m:
+            if not _names_match(inv_name, report.get("report_name", "")):
+                continue
+            report_date = _parse_visit_date(report.get("report_date"))
+            if report_date is None:
+                continue
+            if best_date is None or report_date > best_date:
+                best_date, best_report = report_date, report
+
+        if best_report is None:
+            context[inv_name] = {
+                "ordered_within_3_months": False,
+                "previous_report_date": "",
+                "previous_report_normal": None,
+                "abnormal_parameters": [],
+            }
+            continue
+
+        is_normal, abnormal_params = _report_is_normal(best_report)
+        context[inv_name] = {
+            "ordered_within_3_months": True,
+            "previous_report_date": str(best_date),
+            "previous_report_normal": is_normal,
+            "abnormal_parameters": abnormal_params,
+        }
+
+    return context
+
+
+def _apply_billing_rule(clinically_required: bool, ctx: Dict[str, Any]) -> Tuple[str, str]:
+    """
+    Deterministically apply the billing rule described:
+    - Not clinically required -> Non Billable Test Insurance
+    - Clinically required + not ordered in last 3 months -> Billable Test under Insurance
+    - Clinically required + ordered in last 3 months + abnormal report -> Billable Test Insurance
+    - Clinically required + ordered in last 3 months + normal report -> Non Billable Test Insurance
+    Returns (claim_remarks, status)
+    """
+    if not clinically_required:
+        return "Non Billable Test Insurance", "Rejected"
+
+    if not ctx.get("ordered_within_3_months"):
+        return "Billable Test under Insurance", "Approved"
+
+    if ctx.get("previous_report_normal") is False:
+        return "Billable Test Insurance", "Approved"
+
+    # previous_report_normal True (or unknown/None but ordered) -> non-billable
+    return "Non Billable Test Insurance", "Rejected"
+
+
+async def _run_investigation_validation(
+    primary_diagnosis: str,
+    secondary_diagnoses: List[Dict[str, Any]],
+    investigations: List[str],
+    patient_id: str,
+    doctor_id: str,
+) -> Dict[str, Any]:
+    """
+    Validates each ordered investigation for insurance billing purposes:
+    1. LLM checks clinical necessity against primary + secondary diagnoses
+    2. Deterministic 3-month lab/visit history rule decides final billing
+    3. Produces a 5-6 sentence natural-language summary
+    """
+    if not investigations:
+        return {"investigation_validation": [], "investigation_summary": ""}
+
+    # Use today as the reference point for the 3-month lookback,
+    # since this endpoint isn't tied to a specific stored "latest visit".
+    reference_date = date_cls.today()
+
+    visits_3m, lab_reports_3m, window_start, window_end = await _fetch_recent_visits_and_labs(
+        patient_id, doctor_id, reference_date
+    )
+
+    lab_history_context = _build_investigation_lab_history(investigations, lab_reports_3m)
+
+    system = (
+        "You are an expert Medical Insurance Claim Validation Assistant. "
+        "You determine whether each ordered investigation is CLINICALLY "
+        "REQUIRED given the primary diagnosis and secondary diagnoses "
+        "provided. You do not make the final billing decision — that is "
+        "computed separately — you only judge clinical necessity and "
+        "explain your reasoning. Never invent findings not present in "
+        "the input. Always respond with valid JSON only."
+    )
+
+    prompt = f"""
+══════════════════════════════════════════════════════════
+PRIMARY DIAGNOSIS
+══════════════════════════════════════════════════════════
+{primary_diagnosis}
+
+══════════════════════════════════════════════════════════
+SECONDARY DIAGNOSES
+══════════════════════════════════════════════════════════
+{json.dumps(secondary_diagnoses, indent=2, default=str)}
+
+══════════════════════════════════════════════════════════
+INVESTIGATIONS ORDERED
+══════════════════════════════════════════════════════════
+{json.dumps(investigations, indent=2, default=str)}
+
+══════════════════════════════════════════════════════════
+TASK
+══════════════════════════════════════════════════════════
+For EACH investigation listed above, determine whether it is clinically
+required/supported by the primary diagnosis and/or any of the secondary
+diagnoses. Base this ONLY on standard clinical correlation between the
+investigation and the stated diagnoses — do not use any lab history.
+
+Return ONLY valid JSON:
+{{
+  "investigations": [
+    {{
+      "test_name": "",
+      "clinically_required": true,
+      "correlated_with": "primary/secondary/none",
+      "reasoning": ""
+    }}
+  ]
+}}
+"""
+
+    try:
+        completion = groq_client.chat.completions.create(
+            model="openai/gpt-oss-20b",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.2,
+            response_format={"type": "json_object"},
+            max_tokens=2000,
+        )
+        necessity_result = json.loads(completion.choices[0].message.content)
+        necessity_list = necessity_result.get("investigations", [])
+    except Exception as e:
+        logger.exception(f"Investigation necessity LLM call failed: {str(e)}")
+        necessity_list = [
+            {
+                "test_name": inv,
+                "clinically_required": False,
+                "correlated_with": "none",
+                "reasoning": "Automated necessity check failed — manual review required.",
+            }
+            for inv in investigations
+        ]
+
+    # Merge LLM necessity judgment with deterministic 3-month billing rule
+    final_validation: List[Dict[str, Any]] = []
+    for inv_name in investigations:
+        necessity_entry = next(
+            (n for n in necessity_list if _names_match(n.get("test_name", ""), inv_name)),
+            {"clinically_required": False, "correlated_with": "none", "reasoning": ""},
+        )
+        ctx = lab_history_context.get(inv_name, {
+            "ordered_within_3_months": False,
+            "previous_report_date": "",
+            "previous_report_normal": None,
+            "abnormal_parameters": [],
+        })
+
+        clinically_required = bool(necessity_entry.get("clinically_required", False))
+        claim_remarks, status = _apply_billing_rule(clinically_required, ctx)
+
+        final_validation.append({
+            "test_name": inv_name,
+            "clinically_required": clinically_required,
+            "correlated_with": necessity_entry.get("correlated_with", "none"),
+            "necessity_reasoning": necessity_entry.get("reasoning", ""),
+            "ordered_within_3_months": ctx["ordered_within_3_months"],
+            "previous_report_date": ctx["previous_report_date"],
+            "previous_report_normal": ctx["previous_report_normal"],
+            "abnormal_parameters": ctx["abnormal_parameters"],
+            "claim_remarks": claim_remarks,
+            "status": status,
+        })
+
+    # ---- Generate 5-6 sentence natural language summary ----
+    summary_prompt = f"""
+You are summarizing an insurance investigation validation result for a
+doctor. Given the structured validation results below, write a concise
+summary of 5 to 6 sentences covering: how many investigations were
+ordered, how many were found clinically required vs not, how many were
+billable vs non-billable, and briefly why (e.g. repeat testing without
+new abnormal findings, or fresh/justified testing). Do not invent any
+facts beyond what is given. Return ONLY valid JSON.
+
+VALIDATION RESULTS:
+{json.dumps(final_validation, indent=2, default=str)}
+
+Return ONLY valid JSON:
+{{
+  "summary": "<5 to 6 sentence paragraph>"
+}}
+"""
+    try:
+        summary_completion = groq_client.chat.completions.create(
+            model="openai/gpt-oss-20b",
+            messages=[{"role": "user", "content": summary_prompt}],
+            temperature=0.2,
+            response_format={"type": "json_object"},
+            max_tokens=600,
+        )
+        summary_result = json.loads(summary_completion.choices[0].message.content)
+        summary_text = summary_result.get("summary", "")
+    except Exception as e:
+        logger.exception(f"Investigation summary LLM call failed: {str(e)}")
+        billable_count = sum(1 for v in final_validation if "Billable Test" in v["claim_remarks"] and v["claim_remarks"] != "Non Billable Test Insurance")
+        summary_text = (
+            f"{len(final_validation)} investigation(s) were reviewed against the "
+            f"primary and secondary diagnoses. {billable_count} were marked billable "
+            f"and {len(final_validation) - billable_count} were marked non-billable. "
+            "A detailed automated summary could not be generated — please review "
+            "the structured results above manually."
+        )
+
+    return {
+        "investigation_validation": final_validation,
+        "investigation_summary": summary_text,
+        "lab_history_window": {"start": str(window_start), "end": str(window_end)},
+    }
+
+
+async def fetch_patient_visit_history(patient_id: str, doctor_id: str) -> List[Dict[str, Any]]:
+    doc = await patient_visit_history_collection.find_one(
+        {"patient_id": patient_id, "doctor_id": doctor_id},
+        {"_id": 0, "visits": 1},
+    )
+    if not doc or not doc.get("visits"):
+        return []
+    visits = doc["visits"]
+    visits_sorted = sorted(visits, key=_sort_key, reverse=True)
+    return visits_sorted
+ 
+ 
+from datetime import datetime
+from fastapi import Request, HTTPException
+
+
+@router.post("/secondary-diagnosis-workflow")
+async def secondary_diagnosis_workflow(request: Request):
+
+    try:
+
+        payload = await request.json()
+
+        logger.info(
+            f"Secondary diagnosis payload received: {payload}"
+        )
+
+
+        hospital_id = payload.get("hospital_id")
+        patient_id = payload.get("patient_id")
+
+
+        if not hospital_id or not patient_id:
+            raise HTTPException(
+                status_code=400,
+                detail="hospital_id and patient_id are required"
+            )
+
+
+        # ---------------------------------
+        # Validate Hospital (PyMongo)
+        # ---------------------------------
+
+        hospital = hospital_user_collection.find_one(
+            {
+                "$or": [
+                    {
+                        "hospital_id": hospital_id
+                    },
+                    {
+                        "sys_user_id": hospital_id
+                    }
+                ]
+            },
+            {
+                "_id": 0
+            }
+        )
+
+
+        if not hospital:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Hospital {hospital_id} not found"
+            )
+
+
+        # ---------------------------------
+        # Validate Patient (PyMongo)
+        # ---------------------------------
+
+        patient = patient_user_collection.find_one(
+            {
+                "$or": [
+                    {
+                        "hms_id": patient_id
+                    },
+                    {
+                        "sys_user_id": patient_id
+                    }
+                ]
+            },
+            {
+                "_id": 0,
+                "hms_id": 1,
+                "sys_user_id": 1
+            }
+        )
+
+
+        if not patient:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Patient {patient_id} not found"
+            )
+
+
+        patient_sys_id = patient.get("sys_user_id")
+
+
+        current_time = datetime.utcnow()
+
+
+        # ---------------------------------
+        # Prepare latest patient record
+        # ---------------------------------
+
+        patient_record = {
+
+            "patient_id": patient_sys_id,
+
+            "hospital_id": hospital_id,
+
+            "conditions": payload.get("conditions"),
+
+            "symptoms": payload.get("symptoms"),
+
+            "clinical_note": payload.get("clinical_note"),
+
+            "primary_diagnosis": payload.get("primary_diagnosis"),
+
+            "icd_code": payload.get("icd_code"),
+
+            "duration": payload.get("duration"),
+
+            "investigations": payload.get("investigations"),
+
+            "updated_at": current_time
+        }
+
+
+
+        # ---------------------------------
+        # AsyncMotor collection
+        # Latest record only
+        # ---------------------------------
+
+        await wellkins_current_visit_data_collection.update_one(
+
+            {
+                "patient_id": patient_sys_id,
+                "hospital_id": hospital_id
+            },
+
+            {
+                "$set": patient_record,
+
+                "$setOnInsert": {
+                    "created_at": current_time
+                }
+            },
+
+            upsert=True
+        )
+
+
+
+        logger.info(
+            f"Secondary diagnosis data updated | Patient: {patient_sys_id}"
+        )
+
+
+        return {
+
+            "status": "success",
+
+            "message": "Patient secondary diagnosis data updated successfully",
+
+            "patient_id": patient_sys_id,
+
+            "hospital_id": hospital_id,
+
+            "updated_at": current_time
+
+        }
+
+
+    except HTTPException:
+        raise
+
+
+    except Exception as e:
+
+        logger.error(
+            f"Secondary diagnosis workflow failed: {str(e)}"
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
+
+
+
+import re
+from io import BytesIO
+
+import pandas as pd
+from fastapi import APIRouter, UploadFile, File, HTTPException
+
+
+import re
+from io import BytesIO
+
+import pandas as pd
+from fastapi import APIRouter, UploadFile, File, HTTPException
+
+
+@router.post("/upload-bundle")
+async def upload_bundle(
+    file: UploadFile = File(...)
+):
+    try:
+        # =========================================================
+        # 1. VALIDATE FILE
+        # =========================================================
+
+        if not file.filename:
+            raise HTTPException(
+                status_code=400,
+                detail="File is required"
+            )
+
+        if not file.filename.lower().endswith((".xlsx", ".xls")):
+            raise HTTPException(
+                status_code=400,
+                detail="Only Excel files are allowed"
+            )
+
+        # =========================================================
+        # 2. READ EXCEL
+        # =========================================================
+
+        contents = await file.read()
+
+        try:
+            file_ext = file.filename.lower().split(".")[-1]
+
+            engine = "xlrd" if file_ext == "xls" else "openpyxl"
+
+            df = pd.read_excel(
+                BytesIO(contents),
+                sheet_name="ProviderclaimDetailedReport",
+                header=0,
+                engine=engine
+            )
+
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail="Sheet 'ProviderclaimDetailedReport' not found"
+            )
+
+        # =========================================================
+        # 3. CLEAN COLUMN NAMES
+        # =========================================================
+
+        df.columns = [
+            str(column).strip()
+            for column in df.columns
+        ]
+
+        # =========================================================
+        # HELPER: CLEAN ROW FOR MONGODB
+        # =========================================================
+
+        def clean_record(record):
+            cleaned = {}
+
+            for key, value in record.items():
+
+                clean_key = str(key).strip()
+
+                if value is None:
+                    cleaned[clean_key] = None
+
+                elif isinstance(value, pd.Timestamp):
+                    cleaned[clean_key] = value.to_pydatetime()
+
+                elif hasattr(value, "item"):
+                    try:
+                        cleaned[clean_key] = value.item()
+                    except Exception:
+                        cleaned[clean_key] = value
+
+                elif pd.isna(value):
+                    cleaned[clean_key] = None
+
+                else:
+                    cleaned[clean_key] = value
+
+            return cleaned
+
+        # =========================================================
+        # PART 1: BUNDLE
+        #
+        # ONLY CHECK DENIAL REASON
+        # =========================================================
+
+        if "DENIAL REASON" not in df.columns:
+            raise HTTPException(
+                status_code=400,
+                detail="DENIAL REASON column not found in Excel"
+            )
+
+        target_denial_reason = (
+            "Payment is included in the allowance for another service"
+        )
+
+        bundle_df = df[
+            df["DENIAL REASON"]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+            .eq(target_denial_reason)
+        ].copy()
+
+        bundle_records = []
+
+        if not bundle_df.empty:
+
+            for record in bundle_df.to_dict(
+                orient="records"
+            ):
+                bundle_records.append(
+                    clean_record(record)
+                )
+
+        # =========================================================
+        # INSERT BUNDLE RECORDS
+        # =========================================================
+
+        bundle_count = 0
+
+        if bundle_records:
+
+            bundle_result = await bundle_collection.insert_many(
+                bundle_records
+            )
+
+            bundle_count = len(
+                bundle_result.inserted_ids
+            )
+
+        # =========================================================
+        # PART 2: TOB
+        #
+        # ONLY CHECK:
+        #   1. DENIAL REASON
+        #   2. FINAL REMARKS
+        #
+        # If TOB exists in either column,
+        # save the ENTIRE ROW.
+        # =========================================================
+
+        tob_records = []
+
+        # Columns that should be checked
+        tob_columns = [
+            "DENIAL REASON",
+            "FINAL REMARKS"
+        ]
+
+        # Check which columns actually exist
+        available_tob_columns = [
+            column
+            for column in tob_columns
+            if column in df.columns
+        ]
+
+        # Make sure at least one exists
+        if not available_tob_columns:
+
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Neither 'DENIAL REASON' nor "
+                    "'FINAL REMARKS' column found in Excel"
+                )
+            )
+
+        # =========================================================
+        # CHECK EACH ROW
+        # =========================================================
+
+        for _, row in df.iterrows():
+
+            tob_found = False
+
+            # -----------------------------------------
+            # Check ONLY DENIAL REASON and FINAL REMARKS
+            # -----------------------------------------
+
+            for column in available_tob_columns:
+
+                value = row[column]
+
+                # Ignore empty values
+                if pd.isna(value):
+                    continue
+
+                cell_value = str(value).strip()
+
+                # -----------------------------------------
+                # Check standalone TOB
+                #
+                # Examples that MATCH:
+                #
+                # TOB
+                # TOB.
+                # TOB:
+                # TOB 111
+                # Copay deducted as per policy TOB.
+                # 10% Copay deducted as per policy TOB.
+                #
+                # Examples that DON'T MATCH:
+                #
+                # STOB
+                # TOBACCO
+                # TOBY
+                # -----------------------------------------
+
+                if re.search(
+                    r"\bTOB\b",
+                    cell_value,
+                    re.IGNORECASE
+                ):
+                    tob_found = True
+                    break
+
+            # -----------------------------------------
+            # If TOB found in either column,
+            # save the FULL ROW
+            # -----------------------------------------
+
+            if tob_found:
+
+                record = row.to_dict()
+
+                cleaned_record = clean_record(record)
+
+                tob_records.append(
+                    cleaned_record
+                )
+
+        # =========================================================
+        # INSERT TOB RECORDS
+        # =========================================================
+
+        tob_count = 0
+
+        if tob_records:
+
+            tob_result = await tob_collection.insert_many(
+                tob_records
+            )
+
+            tob_count = len(
+                tob_result.inserted_ids
+            )
+
+        # =========================================================
+        # PART 3: FULL DATA
+        #
+        # SAVE THE ENTIRE SHEET AS-IS, NO FILTERING
+        # =========================================================
+
+        full_records = []
+
+        for record in df.to_dict(orient="records"):
+            full_records.append(
+                clean_record(record)
+            )
+
+        full_count = 0
+
+        if full_records:
+
+            full_result = await excel_full_collection.insert_many(
+                full_records
+            )
+
+            full_count = len(
+                full_result.inserted_ids
+            )
+
+        # =========================================================
+        # RESPONSE
+        # =========================================================
+
+        return {
+            "status": "success",
+            "message": "Excel processed successfully",
+            "bundle_count": bundle_count,
+            "tob_count": tob_count,
+            "full_count": full_count,
+            "tob_checked_columns": available_tob_columns,
+            "denial_reason": target_denial_reason
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )

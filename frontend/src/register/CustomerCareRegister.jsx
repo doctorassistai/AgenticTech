@@ -582,7 +582,7 @@ function CustomerCareRegister() {
             <div style={S.logoArea}>
               <div style={S.brandRow}>
                
-                <span style={S.brandName}>DoctorAssist.AI</span>
+                <span style={S.brandName}>EMR MODULE</span>
               </div>
               <span style={S.sectionLabel}>Customer Care</span>
               <h2 style={S.pageTitle}>Join Our Response Team</h2>

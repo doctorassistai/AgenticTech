@@ -63,7 +63,7 @@ reference docs - they look specific to this protocol module.
   Groq LLM API : groq_client = Groq(api_key=GROQ_API_KEY)
                  used directly in 1 place inside a helper function
                  (_adapt_protocol_with_llm - adapts a fixed protocol to a
-                 patient's clinical context, model "llama-3.3-70b-versatile",
+                 patient's clinical context, model "openai/gpt-oss-120b",
                  forced JSON response_format, temperature=0)
   Twilio       : Not used in this file.
 
@@ -287,7 +287,7 @@ actually calls it.
   _adapt_protocol_with_llm(proto, context)
          Sends the fixed protocol (as ground truth, explicitly instructed
          NOT to be altered) plus the patient's clinical context to Groq
-         (model "llama-3.3-70b-versatile", JSON-forced response,
+         (model "openai/gpt-oss-120b", JSON-forced response,
          temperature=0). Expects back treatmentIntent, startDate,
          doseAdjustments, concurrentTherapy, reasonForChange, safetyFlags.
          Raises HTTP 500 on any Groq API failure. Then merges the LLM

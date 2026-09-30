@@ -42,14 +42,14 @@ export const flagNoteSx = {
 
 export const sectionHeaderSx = {
   px: 2.5, py: 1.25, background: C.bgSecondary, borderBottom: `1px solid ${C.border}`,
-  fontSize: 11, textTransform: "uppercase", letterSpacing: "0.15em",
+  fontSize: 13, textTransform: "uppercase", letterSpacing: "0.15em",
   color: C.textPrimary, fontFamily: FONT, fontWeight: FW_NORMAL,
 };
 
 export const saveBtnSx = {
   px: 3, py: 0.9, background: C.black, color: C.white,
   fontFamily: FONT, fontWeight: FW_NORMAL, fontSize: 12,
-  textTransform: "none", borderRadius: 0,
+  textTransform: "none", borderRadius: 0, alignSelf: "flex-start",
   "&:hover": { background: "#1a1a1a" },
 };
 

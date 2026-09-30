@@ -12,7 +12,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 
 // --- BRAND COLORS AND CONFIG ---
 const PRIMARY_BLUE = "#005a8b"; // Deep Navy/Indigo from your logo
-const ACCENT_TEAL = "#00c2a7";  // Bright Teal/Cyan from your logo
+const ACCENT_TEAL = "#00c2a7";  // Bright Teal/Cyan from your l
 const ACCENT_PURPLE = "#5856D6"; // Secondary Accent
 const LIGHT_BG = "#f5f7fa";
 const MAX_WIDTH = "1700px"; // Slightly wider to accommodate new layout

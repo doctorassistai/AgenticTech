@@ -426,7 +426,7 @@ const ImageCard = ({ image, index, onView }) => (
     <div style={{ padding: '10px 12px', borderTop: '1px solid #f0f0f0' }}>
       <div style={{ fontSize: 11, color: '#888', fontFamily: "'DM Sans', sans-serif" }}>{fmtTimestamp(image.timestamp_iso)}</div>
       {image.driver_name && (
-        <div style={{ fontSize: 11, color: '#555', marginTop: 3, fontFamily: "'DM Sans', sans-serif" }}>👤 {image.driver_name}</div>
+        <div style={{ fontSize: 11, color: '#555', marginTop: 3, fontFamily: "'DM Sans', sans-serif" }}>Crew: {image.driver_name}</div>
       )}
     </div>
   </div>
@@ -502,12 +502,11 @@ const ExtractionHeader = ({ extractionResult, editedTexts, setEditedTexts }) => 
       display: 'flex', justifyContent: 'space-between', alignItems: 'center',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <span style={{ fontSize: 16 }}>🔬</span>
+        <span style={{ width: 4, height: 16, background: '#fff', borderRadius: 2, display: 'inline-block' }} />
         <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.5px', fontFamily: "'DM Sans', sans-serif" }}>
           Extracted Medical Values
         </span>
       </div>
-
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <span style={{
           fontSize: 11, background: '#16a34a', color: '#fff',
@@ -594,11 +593,12 @@ const ExtractionPanel = ({ extractionResult, onProceed, incidentCompleted = fals
 
       <div style={{
         padding: '10px 20px', background: '#fffbeb', borderBottom: '1px solid #fde68a',
+        borderLeft: '3px solid #d97706',
         fontSize: 12, color: '#92400e',
         display: 'flex', alignItems: 'center', gap: 6,
         fontFamily: "'DM Sans', sans-serif",
       }}>
-        <span>✏️</span>
+        <span style={{ fontWeight: 700 }}>Note:</span>
         <span>Review and edit the extracted content below before proceeding.</span>
       </div>
 
@@ -620,14 +620,14 @@ const ExtractionPanel = ({ extractionResult, onProceed, incidentCompleted = fals
               </span>
             )}
             {ext.driver_name && (
-              <span style={{ fontSize: 11, color: '#888', fontFamily: "'DM Sans', sans-serif" }}>👤 {ext.driver_name}</span>
+              <span style={{ fontSize: 11, color: '#888', fontFamily: "'DM Sans', sans-serif" }}>Crew: {ext.driver_name}</span>
             )}
             <div style={{ marginLeft: 'auto' }}>
               <button
                 onClick={() => {
                   navigator.clipboard.writeText(editedTexts[idx] || '');
                   const btn = document.getElementById(`copy-btn-${idx}`);
-                  if (btn) { btn.textContent = '✓ Copied'; setTimeout(() => { btn.textContent = '📋 Copy'; }, 1500); }
+                  if (btn) { btn.textContent = 'Copied'; setTimeout(() => { btn.textContent = 'Copy'; }, 1500); }
                 }}
                 id={`copy-btn-${idx}`}
                 style={{
@@ -635,7 +635,7 @@ const ExtractionPanel = ({ extractionResult, onProceed, incidentCompleted = fals
                   border: '1px solid #ccc', background: '#fff', cursor: 'pointer',
                   fontFamily: "'DM Sans', sans-serif", color: '#444',
                 }}
-              >📋 Copy</button>
+              >Copy</button>
             </div>
           </div>
 
@@ -686,8 +686,7 @@ const ExtractionPanel = ({ extractionResult, onProceed, incidentCompleted = fals
   );
 };
 
-// ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
-const AmbulanceImagePhotography = ({ patientId, patientName, patientData, incidentCompleted = false }) => {
+const AmbulanceImagePhotography = ({ patientId, patientName, patientData, incidentCompleted = false, onExtractedDataSaved }) => {
     const navigate = useNavigate();
 
   const [images, setImages]   = useState([]);
@@ -868,6 +867,11 @@ const handleProceedToVoice = async (combinedText, extractedData) => {
 
   setVoiceSubmitted(false);
    fetchNotes();
+   // Push an immediate refresh up to the parent's CLINICAL ACTIONS NOTES
+   // SECTION (notesExtractedData) instead of waiting for its next 15s poll —
+   // the extraction was just saved to image-extracted/save above, so the
+   // parent's data is now stale the instant this resolves.
+   onExtractedDataSaved?.();
 
     setTimeout(() => {
 
@@ -1011,7 +1015,7 @@ const handleProcessData = async () => {
     if (!hasExtractedData) {
       setProcessMessage({
         show: true,
-        text: '⚠️ No extracted data found. Please click on "+ Add Image For Processing" first, then click "Proceed to Voice Notes" to save the extracted data.',
+        text: 'No extracted data found. Please click "+ Add Image For Processing" first, then click "Proceed to Voice Notes" to save the extracted data.',
         type: 'warning'
       });
       setProcessingLoading(false);
@@ -1054,7 +1058,7 @@ const handleProcessData = async () => {
   } catch (e) {
     setProcessMessage({
       show: true,
-      text: `❌ AI Processing Failed: ${e.message}`,
+      text: `AI Processing Failed: ${e.message}`,
       type: 'error'
     });
     setTimeout(() => {
@@ -1186,8 +1190,8 @@ const handleProcessData = async () => {
             )}
 
             {!loading && error && (
-              <div style={{ padding: 32, textAlign: 'center', border: '1px solid #fecaca', borderRadius: 8, background: '#fef2f2' }}>
-                <div style={{ fontSize: 24, marginBottom: 10 }}>⚠️</div>
+              <div style={{ padding: 32, textAlign: 'center', border: '1px solid #fecaca', borderLeft: '3px solid #dc2626', borderRadius: 8, background: '#fef2f2' }}>
+                <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', color: '#dc2626', marginBottom: 8, fontFamily: "'DM Sans', sans-serif" }}>Unable to Load</div>
                 <div style={{ fontSize: 13, color: '#c0392b', marginBottom: 14, fontFamily: "'DM Sans', sans-serif" }}>Failed to load images: {error}</div>
                 <button onClick={fetchImages} style={{ background: '#000', color: '#fff', border: 'none', padding: '9px 20px', borderRadius: 4, fontSize: 12, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>Retry</button>
               </div>
@@ -1195,7 +1199,7 @@ const handleProcessData = async () => {
 
             {!loading && !error && images.length === 0 && (
               <div style={{ textAlign: 'center', padding: 64, color: '#aaa', border: '1px dashed #e0e0e0', borderRadius: 8 }}>
-                <div style={{ fontSize: 48, marginBottom: 12 }}>📷</div>
+                <div style={{ width: 40, height: 40, borderRadius: '50%', border: '2px solid #e0e0e0', margin: '0 auto 14px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, color: '#bbb', fontWeight: 700 }}>–</div>
                 <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 6, color: '#666', fontFamily: "'DM Sans', sans-serif" }}>No clinical images received yet</div>
                 <div style={{ fontSize: 12, fontFamily: "'DM Sans', sans-serif" }}>Images captured by the Emergency Crew will appear here automatically.</div>
               </div>
@@ -1314,13 +1318,12 @@ const handleProcessData = async () => {
             {/* Voice Notes + Clinical Notes + Process Data — only in Latest tab */}
             <div ref={bottomRef} style={{ animation: 'slideDown 0.25s ease' }}>
 
-             {/* Info message */}
               <div style={{
                 marginBottom: 16, padding: '10px 16px',
                 background: '#fff5f5', border: '1px solid #fecaca',
+                borderLeft: '3px solid #dc2626',
                 borderRadius: 6, display: 'flex', alignItems: 'center', gap: 8,
               }}>
-                <span style={{ fontSize: 16 }}>🔴</span>
                 <span style={{
                   fontSize: 12, color: '#dc2626', fontWeight: 500,
                   fontFamily: "'DM Sans', sans-serif", lineHeight: 1.5,
@@ -1379,12 +1382,13 @@ const handleProcessData = async () => {
               <div style={{ padding: 24, background: '#fff' }}>
                   {voiceText && extractionResult && (
                     <div style={{
-                      fontSize: 11, color: '#16a34a', marginBottom: 10,
+                      fontSize: 11, color: '#166534', marginBottom: 10,
                       background: '#f0fdf4', border: '1px solid #bbf7d0',
+                      borderLeft: '3px solid #16a34a',
                       padding: '6px 12px', borderRadius: 4,
                       fontFamily: "'DM Sans', sans-serif",
                     }}>
-                      ✓ Populated from extracted data — edit as needed
+                      Populated from extracted data — edit as needed
                     </div>
                   )}
                   <textarea
@@ -1432,8 +1436,8 @@ const handleProcessData = async () => {
                     >Clear</button>
                   </div>
                 {voiceSubmitted && (
-                    <div style={{ marginTop: 10, fontSize: 12, color: '#16a34a', fontFamily: "'DM Sans', sans-serif" }}>
-                      ✓ Doctor suggestion submitted successfully
+                    <div style={{ marginTop: 10, fontSize: 12, color: '#166534', fontWeight: 600, fontFamily: "'DM Sans', sans-serif" }}>
+                      Doctor suggestion submitted successfully
                     </div>
                   )}
                 </div>
@@ -1567,10 +1571,9 @@ const handleProcessData = async () => {
                 <span style={{ fontSize: 14, color: '#aaa', fontFamily: "'DM Sans', sans-serif" }}>Loading clinical images…</span>
               </div>
             )}
-
             {!loading && error && (
-              <div style={{ padding: 32, textAlign: 'center', border: '1px solid #fecaca', borderRadius: 6, background: '#fef2f2' }}>
-                <div style={{ fontSize: 24, marginBottom: 10 }}>⚠️</div>
+              <div style={{ padding: 32, textAlign: 'center', border: '1px solid #fecaca', borderLeft: '3px solid #dc2626', borderRadius: 6, background: '#fef2f2' }}>
+                <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', color: '#dc2626', marginBottom: 8, fontFamily: "'DM Sans', sans-serif" }}>Unable to Load</div>
                 <div style={{ fontSize: 13, color: '#c0392b', marginBottom: 14, fontFamily: "'DM Sans', sans-serif" }}>Failed: {error}</div>
                 <button onClick={fetchImages} style={{ background: '#000', color: '#fff', border: 'none', padding: '9px 20px', borderRadius: 4, fontSize: 12, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>Retry</button>
               </div>
@@ -1578,7 +1581,7 @@ const handleProcessData = async () => {
 
             {!loading && !error && images.length === 0 && (
               <div style={{ textAlign: 'center', padding: 64, color: '#aaa', border: '1px dashed #e0e0e0', borderRadius: 8 }}>
-                <div style={{ fontSize: 48, marginBottom: 12 }}>📷</div>
+                <div style={{ width: 40, height: 40, borderRadius: '50%', border: '2px solid #e0e0e0', margin: '0 auto 14px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, color: '#bbb', fontWeight: 700 }}>–</div>
                 <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 6, color: '#666', fontFamily: "'DM Sans', sans-serif" }}>No clinical images received yet</div>
                 <div style={{ fontSize: 12, fontFamily: "'DM Sans', sans-serif" }}>Images captured by the Emergency Crew will appear here automatically.</div>
               </div>

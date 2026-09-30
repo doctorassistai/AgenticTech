@@ -132,8 +132,11 @@
 <body>
 <div class="page">
 
+{% set nb = case.get('nivabupaDetails') or {} %}
+
   <!-- PAGE 1 -->
   <div class="header">
+    {% if header_image %}<img src="{{ header_image }}" class="header-logo" alt="Niva Bupa Logo" onerror="this.style.display='none'">{% endif %}
     <div class="header-title">
       NIVA BUPA HEALTH INSURANCE CO LTD<br>
       <span style="font-size:11px;">INVESTIGATION REPORT</span>
@@ -151,81 +154,80 @@
   <table>
     <tr>
       <td class="lbl">Preauth ID</td>
-      <td class="val blank"></td>
+      <td class="val">{{ case.insurerRef or '' }}</td>
     </tr>
     <tr>
       <td class="lbl">Name of the Patient / Age / Gender</td>
-      <td class="val blank"></td>
+      <td class="val">{{ case.claimantName or '' }}{% if case.claimantAge %} / {{ case.claimantAge }}{% endif %}{% if case.claimantGender %} / {{ case.claimantGender }}{% endif %}</td>
     </tr>
     <tr>
       <td class="lbl">Date and time of visit</td>
-      <td class="val blank"></td>
+      <td class="val">{{ nb.get('dateOfVisit','') }}</td>
     </tr>
     <tr>
       <td class="lbl">Name of Attendant with relationship to patient</td>
-      <td class="val blank"></td>
+      <td class="val">{{ nb.get('attendantName','') }}</td>
     </tr>
     <tr>
       <td class="lbl">Actual date of admission</td>
-      <td class="val blank"></td>
+      <td class="val">{{ hospital.admissionDate or '' }}</td>
     </tr>
     <tr>
       <td class="lbl">Diagnosis</td>
-      <td class="val blank"></td>
+      <td class="val">{{ critical.diagnosis or '' }}</td>
     </tr>
     <tr>
       <td class="lbl" style="vertical-align:top;">Observations basis collected ICP papers</td>
       <td class="val" style="min-height:60px;">
         <div style="margin-bottom:6px;"><strong>Hospital findings:</strong></div>
-        <div style="margin-bottom:4px;">• Investigated by Optimus Medical Services Pvt Limited--</div>
-        <div style="margin-bottom:12px;">• As per the ICP,</div>
+        <div style="margin-bottom:12px;">{{ hospital_findings_html | safe }}</div>
         <div style="margin-bottom:6px;"><strong>Member findings:</strong></div>
-        <div>• Insured verified and statement collected.</div>
+        <div>{{ member_findings_html | safe }}</div>
       </td>
     </tr>
     <tr>
       <td class="lbl">Observations basis noting made</td>
-      <td class="val blank"></td>
+      <td class="val">{{ nb.get('observationsBasisNoting','') }}</td>
     </tr>
     <tr>
       <td class="lbl">Whether ICP collected or noting</td>
-      <td class="val blank"></td>
+      <td class="val">{{ nb.get('icpOrNoting','') }}</td>
     </tr>
     <tr>
       <td class="lbl">Patient KYC photo</td>
-      <td class="val">yes</td>
+      <td class="val">{{ nb.get('patientKycPhoto','') }}</td>
     </tr>
     <tr>
       <td class="lbl">Patient Photo (with geo tag)</td>
-      <td class="val blank"></td>
+      <td class="val">{{ nb.get('patientPhotoGeoTag','') }}</td>
     </tr>
     <tr>
       <td class="lbl">Hospital photo (with geo tag)</td>
-      <td class="val">yes</td>
+      <td class="val">{{ nb.get('hospitalPhotoGeoTag','') }}</td>
     </tr>
     <tr>
       <td class="lbl">Other investigation inputs<br><span style="font-weight:normal;">(Provide actionable info.)</span></td>
-      <td class="val">NA</td>
+      <td class="val">{{ nb.get('otherInvestigationInputs') or 'NA' }}</td>
     </tr>
     <tr>
       <td class="lbl">Claim recommendation</td>
-      <td class="val blank"></td>
+      <td class="val">{{ nb.get('claimRecommendation','') }}</td>
     </tr>
     <tr>
       <td class="lbl">Employee or distribution action recommendation</td>
-      <td class="val">NA</td>
+      <td class="val">{{ nb.get('employeeActionRecommendation') or 'NA' }}</td>
     </tr>
     <tr>
       <td class="lbl">Third party fraud actionable info.</td>
-      <td class="val">NA</td>
+      <td class="val">{{ nb.get('thirdPartyFraudInfo') or 'NA' }}</td>
     </tr>
     <tr>
       <td class="lbl">Investigator Name</td>
-      <td class="val">DR ANJANA R MOHAN</td>
+      <td class="val">{{ investigation.investigatorName or 'DR ANJANA R MOHAN' }}</td>
     </tr>
     <tr>
       <td class="lbl">Investigation Agency Name</td>
-      <td class="val">Optimus Medical Services Pvt Limited</td>
+      <td class="val">{{ case.vendorName or 'Optimus Medical Services Pvt Limited' }}</td>
     </tr>
   </table>
 
@@ -233,7 +235,7 @@
   <div class="page-break"></div>
 
   <div class="header">
-    <img src="niva_bupa_logo.png" class="header-logo" alt="Niva Bupa Logo" onerror="this.style.display='none'">
+    {% if header_image %}<img src="{{ header_image }}" class="header-logo" alt="Niva Bupa Logo" onerror="this.style.display='none'">{% endif %}
     <div class="header-title">
       NIVA BUPA HEALTH INSURANCE CO LTD<br>
       <span style="font-size:11px;">INVESTIGATION REPORT</span>
@@ -330,9 +332,11 @@
     </tr>
   </table>
 
+  {% if show_stamp %}
   <div class="stamp-area">
-    <img src="optimus_stamp.png" class="stamp-img" alt="Optimus Stamp" onerror="this.style.border='1px dashed #aaa'; this.style.width='90px'; this.style.height='90px'; this.style.display='block';">
+    {% if stamp_image %}<img src="{{ stamp_image }}" class="stamp-img" alt="Optimus Stamp">{% endif %}
   </div>
+  {% endif %}
 
   <div class="page-indicator-bottom">2 | P a g e</div>
 

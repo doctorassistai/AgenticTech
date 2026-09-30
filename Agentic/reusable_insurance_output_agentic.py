@@ -84,7 +84,7 @@ doctor_user_collection      = _db["doctor_users"]
 # llm_large : 70B    — used for adequacy/sufficiency where quality matters most
 #             Falls back to llm if 70B is unavailable on your Groq tier.
 llm = ChatGroq(
-    model="llama-3.1-8b-instant",
+    model="openai/gpt-oss-20b",
     groq_api_key=GROQ_API_KEY,
     temperature=0.1,
     max_tokens=8000,
@@ -92,7 +92,7 @@ llm = ChatGroq(
 
 try:
     llm_large = ChatGroq(
-        model="llama-3.3-70b-versatile",
+        model="openai/gpt-oss-120b",
         groq_api_key=GROQ_API_KEY,
         temperature=0.1,
         max_tokens=8000,

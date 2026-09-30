@@ -682,7 +682,8 @@ export default function ChemotherapyWorkflow({ patientId, doctorId, hospitalId }
                     patientId,
                     hospitalId: resolvedHospitalId || hospitalId || "",
                     formData: newFormData,
-                    treatment: newTreatment
+                    treatment: newTreatment,
+                    activeTab: activeTab
                 })
             });
 
@@ -721,7 +722,8 @@ export default function ChemotherapyWorkflow({ patientId, doctorId, hospitalId }
                     patientId: patientId,
                     hospitalId: resolvedHospitalId || hospitalId || "",
                     formData: formData,
-                    treatment: treatment
+                    treatment: treatment,
+                    activeTab: activeTab
                 })
             });
 
@@ -809,7 +811,8 @@ export default function ChemotherapyWorkflow({ patientId, doctorId, hospitalId }
                         patientId: patientId,
                         hospitalId: resolvedHospitalId || hospitalId || "",
                         formData: newFormData,
-                        treatment: newTreatment
+                        treatment: newTreatment,
+                        activeTab: "cycle_admin"
                     })
                 });
             } catch (err) {

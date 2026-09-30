@@ -28,6 +28,7 @@ import {
   ChevronDown,
   Database,
   Dna,
+  Shield,
 } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 
@@ -1141,14 +1142,57 @@ const saveTheme = async (themeName) => {
           }
         },
       ],
+    },    {
+      label: "Specialty",
+      items: [
+        {
+          label: "Oncology Monitoring Dashboard",
+          icon: <Dna size={14} />,
+          action: () => {
+            if (!hospitalId) {
+              alert("Hospital ID missing");
+              return;
+            }
+            navigate(`/onco-dashboard?hospital_id=${hospitalId}`);
+          }
+        },
+        {
+          label: "Insurance Claims",
+          icon: <Shield size={14} />,
+          action: () => {
+            if (!hospitalId) {
+              alert("Hospital ID missing");
+              return;
+            }
+            navigate(`/insurance-dashboard?hospital_id=${hospitalId}`);
+          }
+        },
+        {
+          label: "Insurance Upload",
+          icon: <Shield size={14} />,
+          action: () => {
+            if (!hospitalId) {
+              alert("Hospital ID missing");
+              return;
+            }
+            navigate(`/doctor-upload-multi?hospital_id=${hospitalId}`);
+          }
+        },
+      ],
     },
-    // {
-    //   label: "Settings",
-    //   items: [
-    //     { label: "Report Rule Settings", icon: <Clipboard size={14} />, action: handleReportRuleSettings },
-    //     // { label: "Settings", icon: <Settings size={14} />, action: () => {} },
-    //   ],
-    // },
+    {
+      label: "Settings",
+      items: [
+        {
+          label: "System Settings",
+          icon: <Settings size={14} />,
+          action: () => {
+            if (!hospitalId) return alert("Hospital ID missing");
+            navigate(`/system-settings?hospital_id=${hospitalId}`);
+          },
+        },
+      ],
+    },
   ];
 
   return (

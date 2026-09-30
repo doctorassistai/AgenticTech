@@ -219,15 +219,15 @@
     </colgroup>
     <tr>
       <td class="label">Beds</td>
-      <td class="value">{{ hospital.get('beds','') if hospital.get else '' }}</td>
+      <td class="value">{{ hospital.get('beds') or '' }}</td>
       <td class="label">OT</td>
-      <td class="value">{{ hospital.get('ot','NA') if hospital.get else 'NA' }}</td>
+      <td class="value">{{ hospital.get('ot') or 'NA' }}</td>
     </tr>
     <tr>
       <td class="label">ICU</td>
-      <td class="value">{{ hospital.get('icu','NA') if hospital.get else 'NA' }}</td>
+      <td class="value">{{ hospital.get('icu') or 'NA' }}</td>
       <td class="label">Staff</td>
-      <td class="value">{{ hospital.get('staff','NA') if hospital.get else 'NA' }}</td>
+      <td class="value">{{ hospital.get('staff') or 'NA' }}</td>
     </tr>
     <tr>
       <td class="label">Room Type</td>
@@ -389,7 +389,7 @@
       </tr>
       <tr>
         <td class="label">Report made by</td>
-        <td class="value">{{ case.reportMadeBy or 'DR ANJANA R MOHAN' }}</td>
+        <td class="value">{{ case.reportMadeBy}}</td>
       </tr>
       <tr>
         <td class="label">Name of Vendor</td>

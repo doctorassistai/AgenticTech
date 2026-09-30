@@ -79,7 +79,7 @@ MONGO_URI        = os.getenv("MONGO_URI",     "")
 MONGO_DB         = "doctorassistai"
 
 # ── OpenRouter embedding ───────────────────────────────────────────
-OPENROUTER_API_KEY   = os.getenv("OPENAI_API_ROUTER_KEY", "")
+OPENROUTER_API_KEY   = os.getenv("OPENROUTER_API_KEY", "")
 OPENROUTER_EMBED_URL = "https://openrouter.ai/api/v1/embeddings"
 EMBEDDING_MODEL      = "openai/text-embedding-3-large"
 EMBEDDING_DIMENSION  = 3072
@@ -94,7 +94,7 @@ NEO4J_USER     = os.getenv("NEO4J_USER",     "neo4j")
 NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "")
 
 _groq_client = Groq(api_key=GROQ_API_KEY)
-MODEL        = "llama-3.3-70b-versatile"
+MODEL        = "openai/gpt-oss-120b"
 TEMPERATURE  = 0.1
 MAX_TOKENS   = 10000
 

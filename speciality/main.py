@@ -40,6 +40,8 @@ from fastapi import Response
 from jose import jwt, JWTError
 from datetime import datetime, timedelta
 from .services.speciality_rule_router import router as speciality_rule_router
+from .services.insurnace_validation import router as insurnace_validation
+
 
 from fastapi.middleware.cors import CORSMiddleware
 SECRET_KEY = os.getenv("SECRET_KEY")
@@ -60,6 +62,7 @@ app.add_middleware(
 )
 
 app.include_router(speciality_rule_router)
+app.include_router(insurnace_validation)
 
 
 @app.get("/health")

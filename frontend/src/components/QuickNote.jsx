@@ -263,15 +263,14 @@ export default function QuickNote() {
       }
     },
     label: {
-      display: 'block',
-      marginBottom: '8px',
-      color: PRIMARY_BLUE,
-      fontWeight: '700',
-      fontSize: '14px',
-      display: 'flex',
-      alignItems: 'center',
-      gap: '8px'
-    },
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    marginBottom: '8px',
+    color: PRIMARY_BLUE,
+    fontWeight: '700',
+    fontSize: '14px'
+  },
     select: {
       ...liquidGlassBase,
       width: '100%',

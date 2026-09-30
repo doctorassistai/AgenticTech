@@ -12,6 +12,7 @@ import logging
 import random
 import string
 import sys
+import httpx
 import pytz
 import socket
 import platform
@@ -100,7 +101,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 status_appointment_collection = db["status_appointment"]
 context_rule_collection = db["context_admin_rules"]
-#######################################################################Doctor Skills Doctor Details Collection#######################################################################
+#############################################################Doctor Skills Doctor Details Collection#######################################################################
 doctor_details_collection = database["doctor_details"]
 
 
@@ -1651,6 +1652,26 @@ async def take_appointment(request: Request):
         )
 
         # Save to status_appointment collection
+        # ==========================================================
+        # CALL /general/temp/save FOR APPOINTMENT
+        # ==========================================================
+        payload = {
+            "patient_id": sys_user_id,
+            "doctor_id": doctor_id,
+            "appointment": [new_appointment],
+        }
+        from fastapi.encoders import jsonable_encoder
+
+        payload = jsonable_encoder(payload)
+        async with httpx.AsyncClient() as client:
+            temp_response = await client.post(
+                f"{api_base_url}hms/users/data/context/general/temp/save",
+                json=payload,
+            )
+
+            temp_response.raise_for_status()
+
+            temp_result = temp_response.json()
         
         await save_status_appointment(
             appointment_id=appointment_id,
@@ -1709,6 +1730,64 @@ async def take_appointment(request: Request):
         logger.exception("Appointment Creation Failed: %s", str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
+
+
+@router.delete("/delete_appointment")
+async def delete_appointment(request: Request):
+    try:
+        data = await request.json()
+
+        doctor_id = data.get("doctor_id")
+        sys_user_id = data.get("sys_user_id")
+        appointment_date = data.get("date")
+
+        # Validate required fields
+        if not all([doctor_id, sys_user_id, appointment_date]):
+            raise HTTPException(
+                status_code=400,
+                detail="doctor_id, sys_user_id and date are required"
+            )
+
+        # Remove appointment matching:
+        # same patient + same doctor + same date
+        result = patient_appointments_collection.update_one(
+            {"sys_user_id": sys_user_id},
+            {
+                "$pull": {
+                    "appointments": {
+                        "doctor_id": doctor_id,
+                        "date": appointment_date
+                    }
+                }
+            }
+        )
+
+        if result.modified_count == 0:
+            return {
+                "status": "error",
+                "message": "Appointment not found",
+                "doctor_id": doctor_id,
+                "patient_id": sys_user_id,
+                "date": appointment_date
+            }
+
+        return {
+            "status": "success",
+            "message": "Appointment deleted successfully",
+            "doctor_id": doctor_id,
+            "patient_id": sys_user_id,
+            "date": appointment_date
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        logger.exception("Appointment deletion failed: %s", str(e))
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
 
 @router.get("/appointment/latest")
 async def get_latest_appointment(
@@ -3638,4 +3717,39 @@ async def save_doctor_details(request: Request):
     except Exception as e:
         # Handle any errors during insert operation
         raise HTTPException(status_code=500, detail=f"An error occurred: {e}")
-    
+
+
+
+async def call_clinical_event_decision(
+    api_base_url: str,
+    patient_id: str,
+    doctor_id: str,
+    chief_complaint: str,
+) -> Optional[dict]:
+    payload = {
+        "patient_id": patient_id,
+        "doctor_id": doctor_id,
+        "chief_complaint": chief_complaint or "",
+        "appointment_reason": chief_complaint or "",
+    }
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.post(
+                f"{api_base_url}hms/users/ai-legacy/documents/clinical-timeline/decide-event",
+                json=payload,
+                headers={"Content-Type": "application/json"},
+            )
+        if resp.status_code != 200:
+            logger.error(
+                "Clinical timeline event-decision call failed",
+                extra={"status_code": resp.status_code, "response": resp.text,
+                       "patient_id": patient_id, "doctor_id": doctor_id},
+            )
+            return None
+        return resp.json()
+    except Exception:
+        logger.exception(
+            "Clinical timeline event-decision call raised",
+            extra={"patient_id": patient_id, "doctor_id": doctor_id},
+        )
+        return None

@@ -120,7 +120,7 @@ neo4j_driver = AsyncGraphDatabase.driver(
 
 # High-quality LLM — safety, education, patient context, drug DB
 llm_synthesis = ChatGroq(
-    model="llama-3.3-70b-versatile",
+    model="openai/gpt-oss-120b",
     temperature=0.0,
     max_tokens=5000,
     groq_api_key=GROQ_API_KEY,
@@ -128,7 +128,7 @@ llm_synthesis = ChatGroq(
 
 # Fast LLM — all 9 Phase 0B specialist agents + medication extraction
 llm_fast = ChatGroq(
-    model="llama-3.1-8b-instant",
+    model="openai/gpt-oss-20b",
     temperature=0.0,
     max_tokens=4000,
     groq_api_key=GROQ_API_KEY,

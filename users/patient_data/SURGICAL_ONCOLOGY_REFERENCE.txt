@@ -50,7 +50,7 @@ just never given a variable in the first place):
                  Instead, 10 different endpoints each do their own
                  `groq_client = Groq(api_key=api_key)` right before their own
                  `chat.completions.create(...)` call - every single one uses
-                 model "llama-3.1-8b-instant" with response_format json_object.
+                 model "openai/gpt-oss-20b" with response_format json_object.
                  Endpoints that call Groq: get_ot_booking_prefill, structure_post_op,
                  structure_surgical_management, structure_surgical_checklist,
                  structure_anaesthesia_checklist, structure_anaesthesia_procedure,
@@ -371,7 +371,7 @@ POST /surgical-oncology/booking).
          touches  : surgical_oncology_documents_collection
 
 ### LLM STRUCTURING ENDPOINTS  (7 endpoints — all follow the same shape: take free
-### text, call Groq with model="llama-3.1-8b-instant" + response_format json_object,
+### text, call Groq with model="openai/gpt-oss-20b" + response_format json_object,
 ### return the parsed JSON, 500 on JSONDecodeError)
 ------------------------------------------------------------
   POST /post-op/structure

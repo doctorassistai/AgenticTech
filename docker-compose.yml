@@ -38,7 +38,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512m
+          memory: 2012m
 
   orchestration:
     build:
@@ -93,10 +93,6 @@ services:
       NEO4J_PLUGINS: '["apoc"]'
       NEO4J_dbms_security_procedures_unrestricted: apoc.*
       NEO4J_dbms_security_procedures_allowlist: apoc.*
-      # Limit Neo4j's internal heap so it respects the container limit
-      NEO4J_server_memory_heap_initial__size: 512m
-      NEO4J_server_memory_heap_max__size: 512m
-      NEO4J_server_memory_pagecache_size: 256m  
     volumes:
       - neo4j_data:/data
     logging:
@@ -104,10 +100,6 @@ services:
       options:
         max-size: "50m"
         max-file: "3"
-    deploy:
-      resources:
-        limits:
-          memory: 1024m
 
   # ollama:
   #   image: ollama/ollama:latest
@@ -137,7 +129,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512m
+          memory: 1012m
   insurance:
     build:
       context: .
@@ -179,6 +171,27 @@ services:
     container_name: integration
     env_file:
       - .env
+    depends_on:
+      - rabbitmq
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+
+  epic_fhir:
+    build:
+      context: .
+      dockerfile: ./EPIC_FHIR/Dockerfile
+    container_name: epic_fhir
+    env_file:
+      - .env
+    volumes:
+      - /root/secrets/epic_private.pem:/secrets/epic_private.pem:ro
     depends_on:
       - rabbitmq
     logging:
@@ -546,10 +559,44 @@ services:
       celery -A celery_worker.celery_app:celery_app worker
       --loglevel=info
       --pool=prefork
-      --concurrency=2
+      --concurrency=3
       --prefetch-multiplier=1
       -Q advanced_upload_queue
       -n advanced-upload@%h
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 1536m
+
+  celery-agentic-investigation:
+    build:
+      context: .
+      dockerfile: ./insurance/Dockerfile
+    container_name: celery-agentic-investigation
+    depends_on:
+      - rabbitmq
+    env_file:
+      - .env
+    environment:
+      CELERY_BROKER_URL: amqp://legacy_ai_user:strongpassword@rabbitmq:5672/legacy_pdf_ai
+      MONGO_URI: ${MONGO_URI}
+      MONGO_DB: ${MONGO_DB}
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+    command: >
+      celery -A celery_worker.agentic_celery_app:agentic_celery_app worker
+      --loglevel=info
+      --pool=prefork
+      --concurrency=2
+      --prefetch-multiplier=1
+      -Q agentic_investigation_queue
+      -n agentic-investigation@%h
     restart: unless-stopped
     logging:
       driver: "json-file"

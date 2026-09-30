@@ -721,6 +721,24 @@
     return { ...S.aifEntry, borderLeftColor: T.border };
   };
   // ✅ ADD THIS FUNCTION RIGHT HERE
+    // Attempts to parse the IFT clinical form JSON blob stored in
+  // accidentDetails.condition for Inter-Facility Transfer cases. Returns
+  // null for Primary Case plain-text complaints or non-IFT-shaped JSON,
+  // so callers can safely fall back to the raw string.
+  const parseIFTSummary = (conditionStr) => {
+    if (!conditionStr || typeof conditionStr !== 'string') return null;
+    const trimmed = conditionStr.trim();
+    if (!trimmed.startsWith('{')) return null;
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (parsed && (parsed.requestingFacility !== undefined || parsed.patientFullName !== undefined)) {
+        return parsed;
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  };
   const calculateDistance = (lat1, lon1, lat2, lon2) => {
     if (!lat1 || !lon1 || !lat2 || !lon2) return null;
     
@@ -1002,6 +1020,7 @@ const agents = [
 
   // ✅ PASTE THIS CODE RIGHT HERE ✅
   const ecgLineRef = useRef(null);
+  const mapInstanceRef = useRef(null);
 
   const { isLoaded } = useLoadScript({
     googleMapsApiKey: "AIzaSyA3VwLT1IQxhUeGKxKstHw-dZ2uJ4Hta7w",
@@ -1009,12 +1028,21 @@ const agents = [
   // ✅ END OF PASTED CODE ✅
 
 
-  // ✅ GET INCIDENT LOCATION FROM location STRING
-  const incidentLocation =
-    patient?.accidentDetails?.location || "";
+  // Read coordinates directly from the dedicated lat/lng fields — location
+  // is a human-readable address string now, not "lat,lng", so parsing it
+  // by comma-split silently produced NaN and left the map blank.
+  const incidentLat = parseFloat(patient?.accidentDetails?.latitude);
+  const incidentLng = parseFloat(patient?.accidentDetails?.longitude);
+  const hasIncidentCoords = Number.isFinite(incidentLat) && Number.isFinite(incidentLng);
 
-  const [incidentLat, incidentLng] =
-    incidentLocation.split(",").map(coord => parseFloat(coord.trim()));
+  // ── IFT: also surface the receiving facility on this map ──
+  const isIFTCase = patient?.accidentDetails?.accidentType === 'Inter-Facility Transfer';
+  const iftSummary = isIFTCase
+    ? parseIFTSummary(patient?.accidentDetails?.condition)
+    : null;
+  const receivingLat = iftSummary?.receivingLatitude != null ? parseFloat(iftSummary.receivingLatitude) : NaN;
+  const receivingLng = iftSummary?.receivingLongitude != null ? parseFloat(iftSummary.receivingLongitude) : NaN;
+  const hasReceivingCoords = Number.isFinite(receivingLat) && Number.isFinite(receivingLng);
 
 
     /* ECG wave function */
@@ -1174,7 +1202,27 @@ const agents = [
       };
     });
 
-    setAmbulances(ambulancesWithBusyCheck);
+    // Sort so the nearest available ambulance surfaces first; busy units or
+    // ones with no distance reading sink to the bottom. This is a
+    // *suggestion* only — nothing here calls handleRequestSent or dispatches
+    // anything. The dispatcher still has to click "Dispatch Ambulance"
+    // themselves, same as before.
+    const sortedAmbulances = [...ambulancesWithBusyCheck].sort((a, b) => {
+      const aDist = a.isBusy || a.distanceKm === "Location unavailable" ? Infinity : parseFloat(a.distanceKm);
+      const bDist = b.isBusy || b.distanceKm === "Location unavailable" ? Infinity : parseFloat(b.distanceKm);
+      return aDist - bDist;
+    });
+
+    const nearestAvailable = sortedAmbulances.find(
+      (a) => !a.isBusy && a.distanceKm !== "Location unavailable"
+    );
+
+    const ambulancesWithSuggestion = sortedAmbulances.map((a) => ({
+      ...a,
+      isSuggestedNearest: nearestAvailable ? a.id === nearestAvailable.id : false,
+    }));
+
+    setAmbulances(ambulancesWithSuggestion);
   } catch (err) {
     console.log("Error:", err);
   }
@@ -1184,7 +1232,7 @@ const agents = [
     return () => clearInterval(interval);
   }, [patient]); // ← IMPORTANT: Add patient as dependency
 
-  useEffect(() => {
+    useEffect(() => {
     if (ecgLineRef.current) {
       const pts = [];
       const y = 50; // fixed horizontal line position
@@ -1196,6 +1244,18 @@ const agents = [
       ecgLineRef.current.setAttribute("points", pts.join(" "));
     }
   }, [ecgT]);
+
+  // IFT: once both the referring (incident) and receiving hospital
+  // coordinates are known, zoom/pan the map to frame both markers instead
+  // of only centering on one.
+  useEffect(() => {
+    if (!isLoaded || !mapInstanceRef.current || !window.google?.maps) return;
+    if (!isIFTCase || !hasIncidentCoords || !hasReceivingCoords) return;
+    const bounds = new window.google.maps.LatLngBounds();
+    bounds.extend({ lat: incidentLat, lng: incidentLng });
+    bounds.extend({ lat: receivingLat, lng: receivingLng });
+    mapInstanceRef.current.fitBounds(bounds, 80);
+  }, [isLoaded, isIFTCase, hasIncidentCoords, hasReceivingCoords, incidentLat, incidentLng, receivingLat, receivingLng]);
     // Load existing agentic results from DATABASE when page loads
   useEffect(() => {
   const fetchExistingAgenticResults = async () => {
@@ -1594,6 +1654,7 @@ const agents = [
         style={{
           ...S.ambCard,
           ...getAmbBorderStyle(a.status),
+          ...(a.isSuggestedNearest ? { borderLeft: `2px solid ${T.green}` } : {}),
           ...(idx === activePatient ? S.ambCardActive : {}),
         }}
         onClick={() => setActivePatient(idx)}
@@ -1615,6 +1676,21 @@ const agents = [
             gap: "6px",
             alignItems: "center"
           }}>
+            {/* Suggested Nearest — a hint only, doesn't affect dispatch */}
+            {a.isSuggestedNearest && (
+              <div style={{
+                fontSize: "0.55rem",
+                padding: "2px 6px",
+                backgroundColor: T.green,
+                color: "#fff",
+                border: "none",
+                borderRadius: "3px",
+                fontWeight: 500
+              }}>
+                ⭐ NEAREST
+              </div>
+            )}
+
             {/* Original Status */}
             <div style={{ ...getStatusTagStyle(a.status), fontSize: "0.55rem", padding: "2px 6px" }}>
               {a.status.toUpperCase()}
@@ -1729,12 +1805,12 @@ const agents = [
                   // ADD this import at the top (or use any icon URL you prefer)
   // You can use a simple red dot SVG as data URI for the incident marker
 
-  // CHANGE the GoogleMap section — replace the existing GoogleMap block:
-  <GoogleMap
+   <GoogleMap
     mapContainerStyle={{ width: "100%", height: "100%" }}
+    onLoad={(map) => { mapInstanceRef.current = map; }}
     center={{
-      lat: Number(incidentLat),
-      lng: Number(incidentLng)
+      lat: hasIncidentCoords ? incidentLat : 12.9716,
+      lng: hasIncidentCoords ? incidentLng : 77.5946
     }}
     zoom={12}
     options={{
@@ -1742,57 +1818,121 @@ const agents = [
     }}
   >
 
-    {/* 🚨 INCIDENT */}
-  <Marker
-    key={`incident-${incidentLat}-${incidentLng}`}
-    position={{
-      lat: Number(incidentLat),
-      lng: Number(incidentLng)
-    }}
-    zIndex={99999}
-    onMouseOver={() => setActiveMarker("incident")}
-    onMouseOut={() => setActiveMarker(null)}
-    icon={{
-      path: window.google.maps.SymbolPath.CIRCLE,
-      fillColor: "#ff0000",
-      fillOpacity: 1,
-      strokeColor: "#000000",
-      strokeWeight: 2,
-      scale: 12
-    }}
-  >
-    {activeMarker === "incident" && (
-      <InfoWindow
-        position={{
-          lat: Number(incidentLat),
-          lng: Number(incidentLng)
-        }}
-        onCloseClick={() => setActiveMarker(null)}
-      >
-        <div style={{ padding: "5px", minWidth: "180px" }}>
-          <h4 style={{ margin: 0, color: "red" }}>
-            🚨 Incident Location
-          </h4>
-
-          <p style={{ margin: "5px 0" }}>
-            <strong>Latitude:</strong> {incidentLat}
-          </p>
-
-          <p style={{ margin: "5px 0" }}>
-            <strong>Longitude:</strong> {incidentLng}
-          </p>
-        </div>
-      </InfoWindow>
+    {!hasIncidentCoords && (
+      // No fallback marker to render — center defaults to Bengaluru so the
+      // map isn't blank, but there's genuinely no incident location on file.
+      null
     )}
-  </Marker>
+
+    {/* 🚨 INCIDENT / REFERRING FACILITY */}
+    {hasIncidentCoords && (
+      <Marker
+        key={`incident-${incidentLat}-${incidentLng}`}
+        position={{
+          lat: incidentLat,
+          lng: incidentLng
+        }}
+        zIndex={99999}
+        onMouseOver={() => setActiveMarker("incident")}
+        onMouseOut={() => setActiveMarker(null)}
+        icon={{
+          path: window.google.maps.SymbolPath.CIRCLE,
+          fillColor: "#ff0000",
+          fillOpacity: 1,
+          strokeColor: "#000000",
+          strokeWeight: 2,
+          scale: 12
+        }}
+      >
+        {activeMarker === "incident" && (
+          <InfoWindow
+            position={{
+              lat: incidentLat,
+              lng: incidentLng
+            }}
+            onCloseClick={() => setActiveMarker(null)}
+          >
+            <div style={{ padding: "5px", minWidth: "180px" }}>
+              <h4 style={{ margin: 0, color: "red" }}>
+                {isIFTCase ? "🚨 Referring Facility" : "🚨 Incident Location"}
+              </h4>
+
+              <p style={{ margin: "5px 0" }}>
+                <strong>Latitude:</strong> {incidentLat}
+              </p>
+
+              <p style={{ margin: "5px 0" }}>
+                <strong>Longitude:</strong> {incidentLng}
+              </p>
+            </div>
+          </InfoWindow>
+        )}
+      </Marker>
+    )}
+
+    {/* 🏥 RECEIVING FACILITY — IFT cases only */}
+    {isIFTCase && hasReceivingCoords && (
+      <Marker
+        key={`receiving-${receivingLat}-${receivingLng}`}
+        position={{
+          lat: receivingLat,
+          lng: receivingLng
+        }}
+        zIndex={99998}
+        onMouseOver={() => setActiveMarker("receiving")}
+        onMouseOut={() => setActiveMarker(null)}
+        icon={{
+          path: window.google.maps.SymbolPath.CIRCLE,
+          fillColor: "#1565c0",
+          fillOpacity: 1,
+          strokeColor: "#000000",
+          strokeWeight: 2,
+          scale: 12
+        }}
+      >
+        {activeMarker === "receiving" && (
+          <InfoWindow
+            position={{
+              lat: receivingLat,
+              lng: receivingLng
+            }}
+            onCloseClick={() => setActiveMarker(null)}
+          >
+            <div style={{ padding: "5px", minWidth: "180px" }}>
+              <h4 style={{ margin: 0, color: "#1565c0" }}>
+                🏥 Receiving Facility
+              </h4>
+              <p style={{ margin: "5px 0" }}>
+                {iftSummary?.receivingHospitalName || "Unnamed facility"}
+              </p>
+              <p style={{ margin: "5px 0" }}>
+                <strong>Latitude:</strong> {receivingLat}
+              </p>
+              <p style={{ margin: "5px 0" }}>
+                <strong>Longitude:</strong> {receivingLng}
+              </p>
+            </div>
+          </InfoWindow>
+        )}
+      </Marker>
+    )}
 
   {/* 🚑 AMBULANCES */}
-  {ambulances.map((amb, idx) => (
+  {ambulances.map((amb, idx) => {
+    const ambLat = Number(amb.latitude);
+    const ambLng = Number(amb.longitude);
+    // Skip drivers with no location or a degenerate (0,0) coordinate —
+    // previously this silently rendered a marker off West Africa instead
+    // of just not rendering one.
+    if (!Number.isFinite(ambLat) || !Number.isFinite(ambLng) || (ambLat === 0 && ambLng === 0)) {
+      return null;
+    }
+    return (
     <Marker
       key={idx}
       position={{
-        lat: Number(amb.latitude),
-        lng: Number(amb.longitude)
+        lat: ambLat,
+        lng: ambLng
       }}
       onMouseOver={() => setActiveMarker(`ambulance-${idx}`)}
       onMouseOut={() => setActiveMarker(null)}
@@ -1845,7 +1985,8 @@ const agents = [
         </InfoWindow>
       )}
     </Marker>
-  ))}
+    );
+  })}
 
   </GoogleMap>
                 )}

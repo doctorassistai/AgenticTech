@@ -41,6 +41,12 @@ from jose import jwt, JWTError
 from datetime import datetime, timedelta
 from shared.audit.client import AuditClient
 from .integration import router as integration_router
+from .patient_app.routes import router as patient_app_router
+from .patient_app.routes_doctor import router as patient_app_doctor_router
+from .patient_app.db import ensure_indexes as patient_app_ensure_indexes
+from .mact.routes import router as mact_router
+from .mact.db import ensure_indexes as mact_ensure_indexes
+from .mact.seed import seed_samples as mact_seed_samples
 from fastapi.middleware.cors import CORSMiddleware
 
 SECRET_KEY = os.getenv("SECRET_KEY")
@@ -71,4 +77,23 @@ def startup_event():
     app.state.audit = AuditClient(
         os.getenv("RABBITMQ_URL")
     )
+
+# Separate handler (not merged into the sync one above) so a slow/failed
+# Mongo connection for patient_app indexes never blocks or breaks audit-client
+# startup for the rest of the integration service. ensure_indexes() itself
+# never raises — failures are logged and patient routes return 503 until
+# Mongo is reachable (see patient_app/db.py).
+@app.on_event("startup")
+async def patient_app_startup_event():
+    await patient_app_ensure_indexes()
+
+
+@app.on_event("startup")
+async def mact_startup_event():
+    await mact_ensure_indexes()
+    await mact_seed_samples()
+
 app.include_router(integration_router)
+app.include_router(patient_app_router)
+app.include_router(patient_app_doctor_router)
+app.include_router(mact_router)

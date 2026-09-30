@@ -9,7 +9,7 @@ groq
 jinja2
 python-multipart
 pytz
-
+langchain_groq
 fastapi
 uvicorn
 jinja2
@@ -49,3 +49,4 @@ email-validator
 python-jose[cryptography]
 
 pika
+twilio

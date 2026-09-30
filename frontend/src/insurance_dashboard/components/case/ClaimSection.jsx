@@ -204,6 +204,12 @@ const BLANK_RAILWAY = {
   policeReported: '', firNumber: '', mlcNumber: '', narration: '',
 }
 
+const isVisible = (mode, requiredKeys, key) => {
+  if (!mode || mode === 'all') return true
+  const isReq = (requiredKeys || []).includes(key)
+  return mode === 'required' ? isReq : !isReq
+}
+
 export default function ClaimSection({
   formData,
   setFormData,
@@ -214,9 +220,15 @@ export default function ClaimSection({
   riskLabel,
   setAutoPriority,
   extractedSuggestions = {},
-    unfilledFields = new Set()   // ← add this
-
+  unfilledFields = new Set(),
+  mode = 'all',
+  requiredKeys = [],
+  bare = false,
 }) {
+  const vis = (key) => isVisible(mode, requiredKeys, key)
+  const gridStyle = mode === 'required'
+    ? { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 260px))', gap: '14px 16px' }
+    : undefined
   const [dismissed, setDismissed] = useState({})
   const dismiss = (key) => setDismissed(p => ({ ...p, [key]: true }))
 
@@ -286,21 +298,14 @@ export default function ClaimSection({
     Low: 'var(--green)', Medium: 'var(--amber)', High: 'var(--red)', Critical: 'var(--red)'
   }[riskLabel] || 'var(--muted)'
 
-  return (
-    <div className="panel" ref={sectionRefs.claim}>
-      <div className="panel-header">
-        <div className="panel-title">
-          <div className="dot" style={{ background: 'var(--amber)' }} />
-          Claim Details
-        </div>
-        <SectionBadge pct={sectionProgress('claim')} color="var(--amber)" />
-      </div>
-
-      <div className="panel-body" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+  const body = (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
         {/* ── Row 1: Core identifiers ── */}
-        <div className="form-grid cols-4">
+        {(vis('claimMode') || vis('claimSubtype')) && (
+        <div className="form-grid cols-4" style={gridStyle}>
 
+          {vis('claimMode') && (
           <div className="field">
             <label>Claim Mode <span className="req">*</span></label>
             <select
@@ -355,8 +360,9 @@ style={{
               />
             )}
           </div>
+          )}
           {/* ── Sub-mode dropdown — only for reimbursement and personal_accident ── */}
-{CLAIM_SUB_MODE_OPTIONS[formData.claimMode] && (
+{mode !== 'required' && CLAIM_SUB_MODE_OPTIONS[formData.claimMode] && (
   <div className="field">
     <label>
       {formData.claimMode === 'reimbursement'
@@ -377,6 +383,7 @@ style={{
   </div>
 )}
 
+          {vis('claimSubtype') && (
           <div className="field">
             <label>Claim Subtype <span className="req">*</span></label>
             <select
@@ -403,7 +410,9 @@ style={{
               />
             )}
           </div>
+          )}
 
+          {mode !== 'required' && (
           <div className="field">
             <label>Date of Incident</label>
             <input
@@ -412,7 +421,9 @@ style={{
               onChange={e => handleChange('dateOfIncident', e.target.value)}
             />
           </div>
+          )}
 
+          {mode !== 'required' && (
           <div className="field">
             <label>Claimed Amount (₹) <span className="req">*</span></label>
             <input
@@ -421,10 +432,13 @@ style={{
               onChange={e => handleChange('claimedAmount', e.target.value)}
             />
           </div>
+          )}
 
         </div>
+        )}
 
-        {/* ── Row 2: Hospital Details ── */}
+        {/* ── Row 2: Hospital Details — additional tab only ── */}
+        {mode !== 'required' && (
         <div className="form-grid cols-4">
 
           <div className="field">
@@ -564,12 +578,14 @@ style={{
   />
 </div>
         </div>
+        )}
 
         {/* ── Row 3: Tags + Trigger + Priority + Risk ── */}
-        <div className="form-grid cols-4">
+        <div className="form-grid cols-4" style={gridStyle}>
 
 
-          {/* Multi-select Trigger */}
+          {/* Multi-select Trigger — always visible, this is required */}
+          {vis('claimTriggers') && (
           <div className="field span-2">
             <label>
               Triggers <span className="req">*</span>
@@ -638,7 +654,10 @@ style={{
               Select one or more triggers — conclusion will be generated for all selected
             </small>
           </div>
+          )}
 
+          {mode !== 'required' && (
+          <>
           {/* Claim Priority */}
           <div className="field">
             <label>Claim Priority</label>
@@ -669,11 +688,13 @@ style={{
               {riskLabel || 'Calculating...'}
             </div>
           </div>
+          </>
+          )}
 
         </div>
 
-        {/* ── ACCIDENT tag expansion ── */}
-        {tags.includes('Accident') && (
+        {/* ── ACCIDENT tag expansion — additional tab only ── */}
+        {mode !== 'required' && tags.includes('Accident') && (
           <div className="tag-section">
             <div className="tag-section-header">Accident Details (As per MV Checklist)</div>
             <div className="tag-section-body">
@@ -871,8 +892,8 @@ style={{
           </div>
         )}
 
-        {/* ── DEATH tag expansion ── */}
-        {tags.includes('Death') && (
+        {/* ── DEATH tag expansion — additional tab only ── */}
+        {mode !== 'required' && tags.includes('Death') && (
           <div className="tag-section">
             <div className="tag-section-header">Death Details (As per MV Checklist)</div>
             <div className="tag-section-body">
@@ -1054,8 +1075,8 @@ style={{
           </div>
         )}
 
-        {/* ── RAILWAY tag expansion ── */}
-        {tags.includes('Railway') && (
+        {/* ── RAILWAY tag expansion — additional tab only ── */}
+        {mode !== 'required' && tags.includes('Railway') && (
           <div className="tag-section">
             <div className="tag-section-header">🚂 Railway Accident Details</div>
             <div className="tag-section-body">
@@ -1180,8 +1201,8 @@ style={{
           </div>
         )}
 
-        {/* ── Cashless conditional fields ── */}
-        {formData.claimMode === 'cashless' && (
+        {/* ── Cashless conditional fields — additional tab only ── */}
+        {mode !== 'required' && formData.claimMode === 'cashless' && (
           <div>
             <div className="section-divider"><span>Cashless Details</span></div>
             <div className="form-grid cols-4">
@@ -1218,8 +1239,8 @@ style={{
           </div>
         )}
 
-        {/* ── Reimbursement conditional fields ── */}
-        {formData.claimMode === 'reimbursement' && (
+        {/* ── Reimbursement conditional fields — additional tab only ── */}
+        {mode !== 'required' && formData.claimMode === 'reimbursement' && (
           <div>
             <div className="section-divider"><span>Reimbursement / Bank Details</span></div>
             <div className="form-grid cols-4">
@@ -1245,7 +1266,8 @@ style={{
           </div>
         )}
 
-        {/* ── Description ── */}
+        {/* ── Description — additional tab only ── */}
+        {mode !== 'required' && (
         <div className="form-grid cols-4">
           <div className="field span-4">
             <label>Case Description <span className="req">*</span></label>
@@ -1257,8 +1279,23 @@ style={{
             />
           </div>
         </div>
+        )}
 
+    </div>
+  )
+
+  if (bare) return body
+
+  return (
+    <div className="panel" ref={sectionRefs.claim}>
+      <div className="panel-header">
+        <div className="panel-title">
+          <div className="dot" style={{ background: 'var(--amber)' }} />
+          Claim Details
+        </div>
+        <SectionBadge pct={sectionProgress('claim')} color="var(--amber)" />
       </div>
+      <div className="panel-body">{body}</div>
     </div>
   )
 }

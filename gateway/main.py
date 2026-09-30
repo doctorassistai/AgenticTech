@@ -81,7 +81,11 @@ from .routes.common import router as common_router
 from .routes.agentic import router as agentic_router
 from .routes.abha import router as abha_router
 from .routes.insurance_route import router as insurance_router
-
+from .routes.epic_fhir import router as epic_fhir_router
+from .routes.patient_auth import router as patient_auth_router
+from .routes.patient_proxy import router as patient_proxy_router
+from .routes.patient_app_doctor_proxy import router as patient_app_doctor_proxy_router
+from .routes.mact_proxy import router as mact_proxy_router
 
 
 
@@ -112,17 +116,24 @@ app.include_router(common_router)
 app.include_router(agentic_router)
 app.include_router(abha_router)
 app.include_router(insurance_router)
-
-
+app.include_router(epic_fhir_router)
+app.include_router(patient_auth_router)
+app.include_router(patient_proxy_router)
+app.include_router(patient_app_doctor_proxy_router)
+app.include_router(mact_proxy_router)
 # -----------------------------
 app.middleware("http")(trace_middleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://127.0.0.1:5500",
+        "http://127.0.0.1:5501",
         "http://localhost:5500",
         "https://doctorassist.ai",
         "https://dill-molecular-serrated.ngrok-free.dev",
+        "https://prspaid-lusty-basket.ngrok-free.dev",
+        "https://prepaid-lusty-basket.ngrok-free.dev",
+        "https://medxqa.triloinfotech.com",
         
     ],
     allow_credentials=True,

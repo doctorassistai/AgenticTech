@@ -142,14 +142,14 @@ mongo_client = AsyncIOMotorClient(MONGO_URI)
 mongo_db     = mongo_client[MONGO_DB]
 
 llm_heavy = ChatGroq(
-    model        = "llama-3.3-70b-versatile",
+    model        = "openai/gpt-oss-120b",
     temperature  = 0.0,
     max_tokens   = 8000,
     groq_api_key = GROQ_API_KEY,
 )
 
 llm_light = ChatGroq(
-    model        = "llama-3.1-8b-instant",
+    model        = "openai/gpt-oss-20b",
     temperature  = 0.0,
     max_tokens   = 6500,
     groq_api_key = GROQ_API_KEY,

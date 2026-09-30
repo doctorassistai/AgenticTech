@@ -33,7 +33,7 @@ class GroqEmbeddings(Embeddings):
     def __init__(self, api_key: Optional[str] = None):
         self.api_key = api_key or GROQ_API_KEY
         self.base_url = "https://api.groq.com/openai/v1/embeddings "
-        self.model = "llama-3.1-8b-instant"  # Groq model for embeddings
+        self.model = "openai/gpt-oss-20b"  # Groq model for embeddings
         self.use_fallback = not self.api_key
         
         if self.use_fallback:

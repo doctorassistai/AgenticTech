@@ -252,7 +252,7 @@ Speciality: {speciality}
         # LLM CALL (Same Pattern as KDRI)
         # ---------------------------------------------------
         completion = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             temperature=0.1,
             max_tokens=1200,
             response_format={"type": "json_object"},
@@ -519,7 +519,7 @@ async def get_screening_features_by_doctor(doctor_id: str):
 #         # LLM CALL
 #         # ---------------------------------------------------
 #         completion = groq_client.chat.completions.create(
-#             model="llama-3.1-8b-instant",
+#             model="openai/gpt-oss-20b",
 #             temperature=0.1,
 #             max_tokens=2500,
 #             response_format={"type": "json_object"},
@@ -739,7 +739,7 @@ async def get_screening_features_by_doctor(doctor_id: str):
 #         # LLM CALL
 #         # -----------------------------
 #         completion = groq_client.chat.completions.create(
-#             model="llama-3.1-8b-instant",
+#             model="openai/gpt-oss-20b",
 #             temperature=0.1,
 #             max_tokens=3000,
 #             response_format={"type": "json_object"},
@@ -880,7 +880,7 @@ async def get_screening_features_by_doctor(doctor_id: str):
 #         # LLM CALL
 #         # ------------------------------------------------------------------
 #         completion = groq_client.chat.completions.create(
-#             model="llama-3.1-8b-instant",
+#             model="openai/gpt-oss-20b",
 #             temperature=0.03,
 #             max_tokens=1500,
 #             response_format={"type": "json_object"},
@@ -1880,7 +1880,7 @@ FINAL OUTPUT FORMAT (STRICT)
 """
 
         completion = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             temperature=0.03,   # 🔑 Lower = more deterministic, less generic
             max_tokens=3000,
             response_format={"type": "json_object"},
@@ -2025,7 +2025,7 @@ FINAL OUTPUT FORMAT (STRICT)
 """
 
         completion = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             temperature=0.02,  # 🔑 very low to ensure stability
             max_tokens=1500,
             response_format={"type": "json_object"},
@@ -2151,7 +2151,7 @@ STRICT OUTPUT FORMAT (JSON ONLY)
 
 
     completion = groq_client.chat.completions.create(
-        model="llama-3.1-8b-instant",
+        model="openai/gpt-oss-20b",
         temperature=0.0,
         max_tokens=500,
         response_format={"type": "json_object"},
