@@ -22,6 +22,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from . import service
 from .auth import actor_of, require_user
+from .analysis import router as analysis_router
+from .decisions import router as decisions_router
 from .documents import router as documents_router
 from .models import RegisterCaseIn
 
@@ -29,7 +31,8 @@ logger = logging.getLogger("mact.routes")
 
 router = APIRouter(prefix="/mact", tags=["mact"])
 router.include_router(documents_router)
-
+router.include_router(analysis_router)
+router.include_router(decisions_router)
 
 @router.post("/cases", status_code=status.HTTP_201_CREATED)
 async def register_case(payload: RegisterCaseIn, user: dict = Depends(require_user)):

@@ -63,7 +63,7 @@ GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
 # ============================================================================
 
 MAX_CONCURRENT_GROQ_CALLS = int(
-    os.getenv("MAX_CONCURRENT_GROQ_CALLS", "2")
+    os.getenv("MAX_CONCURRENT_GROQ_CALLS", "1")
 )
 
 GROQ_MIN_REQUEST_INTERVAL = float(
